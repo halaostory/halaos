@@ -1,0 +1,13 @@
+FROM alpine:3.21
+
+RUN apk add --no-cache ca-certificates tzdata
+RUN adduser -D -u 1000 appuser
+
+COPY bin/api /bin/api
+COPY bin/worker /bin/worker
+COPY bin/migrate /bin/migrate
+COPY db/migrations /migrations
+
+USER appuser
+EXPOSE 8080
+CMD ["/bin/api"]

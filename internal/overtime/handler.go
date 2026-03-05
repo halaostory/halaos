@@ -1,0 +1,163 @@
+package overtime
+
+import (
+	"log/slog"
+	"strconv"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/tonypk/aigonhr/internal/auth"
+	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/tonypk/aigonhr/pkg/pagination"
+	"github.com/tonypk/aigonhr/pkg/response"
+)
+
+type Handler struct {
+	queries *store.Queries
+	pool    *pgxpool.Pool
+	logger  *slog.Logger
+}
+
+func NewHandler(queries *store.Queries, pool *pgxpool.Pool, logger *slog.Logger) *Handler {
+	return &Handler{queries: queries, pool: pool, logger: logger}
+}
+
+func (h *Handler) CreateRequest(c *gin.Context) {
+	var req struct {
+		OTDate  string  `json:"ot_date" binding:"required"`
+		StartAt string  `json:"start_at" binding:"required"`
+		EndAt   string  `json:"end_at" binding:"required"`
+		Hours   string  `json:"hours" binding:"required"`
+		OTType  string  `json:"ot_type"`
+		Reason  *string `json:"reason"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	companyID := auth.GetCompanyID(c)
+	userID := auth.GetUserID(c)
+
+	emp, err := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
+		UserID:    &userID,
+		CompanyID: companyID,
+	})
+	if err != nil {
+		response.NotFound(c, "Employee not found")
+		return
+	}
+
+	otDate, _ := time.Parse("2006-01-02", req.OTDate)
+	startAt, _ := time.Parse(time.RFC3339, req.StartAt)
+	endAt, _ := time.Parse(time.RFC3339, req.EndAt)
+	otType := req.OTType
+	if otType == "" {
+		otType = "regular"
+	}
+
+	ot, err := h.queries.CreateOvertimeRequest(c.Request.Context(), store.CreateOvertimeRequestParams{
+		CompanyID:  companyID,
+		EmployeeID: emp.ID,
+		OtDate:     otDate,
+		StartAt:    startAt,
+		EndAt:      endAt,
+		Hours:      req.Hours,
+		OtType:     otType,
+		Reason:     req.Reason,
+	})
+	if err != nil {
+		h.logger.Error("failed to create overtime request", "error", err)
+		response.InternalError(c, "Failed to create overtime request")
+		return
+	}
+	response.Created(c, ot)
+}
+
+func (h *Handler) ListRequests(c *gin.Context) {
+	companyID := auth.GetCompanyID(c)
+	pg := pagination.Parse(c)
+
+	var employeeID *int64
+	if eid := c.Query("employee_id"); eid != "" {
+		if id, err := strconv.ParseInt(eid, 10, 64); err == nil {
+			employeeID = &id
+		}
+	}
+	var statusFilter *string
+	if s := c.Query("status"); s != "" {
+		statusFilter = &s
+	}
+
+	requests, err := h.queries.ListOvertimeRequests(c.Request.Context(), store.ListOvertimeRequestsParams{
+		CompanyID:  companyID,
+		EmployeeID: employeeID,
+		Status:     statusFilter,
+		Limit:      int32(pg.Limit),
+		Offset:     int32(pg.Offset),
+	})
+	if err != nil {
+		response.InternalError(c, "Failed to list requests")
+		return
+	}
+
+	count, _ := h.queries.CountOvertimeRequests(c.Request.Context(), store.CountOvertimeRequestsParams{
+		CompanyID:  companyID,
+		EmployeeID: employeeID,
+		Status:     statusFilter,
+	})
+
+	response.Paginated(c, requests, count, pg.Page, pg.Limit)
+}
+
+func (h *Handler) ApproveRequest(c *gin.Context) {
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	companyID := auth.GetCompanyID(c)
+	userID := auth.GetUserID(c)
+
+	emp, _ := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
+		UserID:    &userID,
+		CompanyID: companyID,
+	})
+
+	ot, err := h.queries.ApproveOvertimeRequest(c.Request.Context(), store.ApproveOvertimeRequestParams{
+		ID:         id,
+		CompanyID:  companyID,
+		ApproverID: &emp.ID,
+	})
+	if err != nil {
+		response.NotFound(c, "Overtime request not found or already processed")
+		return
+	}
+	response.OK(c, ot)
+}
+
+func (h *Handler) RejectRequest(c *gin.Context) {
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	companyID := auth.GetCompanyID(c)
+	userID := auth.GetUserID(c)
+
+	var req struct {
+		Reason string `json:"reason"`
+	}
+	_ = c.ShouldBindJSON(&req)
+
+	emp, _ := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
+		UserID:    &userID,
+		CompanyID: companyID,
+	})
+
+	ot, err := h.queries.RejectOvertimeRequest(c.Request.Context(), store.RejectOvertimeRequestParams{
+		ID:              id,
+		CompanyID:       companyID,
+		ApproverID:      &emp.ID,
+		RejectionReason: &req.Reason,
+	})
+	if err != nil {
+		response.NotFound(c, "Overtime request not found or already processed")
+		return
+	}
+	response.OK(c, ot)
+}
