@@ -13,5 +13,5 @@ func (h *Handler) RegisterRoutes(protected *gin.RouterGroup) {
 	protected.GET("/dashboard/leave-summary", h.GetLeaveSummary)
 	protected.GET("/dashboard/action-items", auth.ManagerOrAbove(), h.GetActionItems)
 	protected.GET("/dashboard/celebrations", h.GetCelebrations)
-	protected.GET("/suggestions", auth.ManagerOrAbove(), h.GetSuggestions)
+	protected.GET("/dashboard/suggestions", auth.ManagerOrAbove(), h.GetSuggestions)
 }
