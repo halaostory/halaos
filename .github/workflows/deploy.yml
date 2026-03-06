@@ -18,38 +18,21 @@ jobs:
         with:
           go-version: "1.25"
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Build Go binaries
-        run: make build-linux
-
-      - name: Build frontend
-        run: cd frontend && npm ci && npm run build
-
-      - name: Prepare deploy bundle
+      - name: Build Linux binaries
         run: |
-          mkdir -p deploy/bin deploy/db deploy/frontend
-          cp bin/api bin/worker bin/migrate deploy/bin/
-          cp -r db/migrations deploy/db/
-          cp -r frontend/dist deploy/frontend/
-          cp frontend/nginx.conf deploy/frontend/
-          cp frontend/Dockerfile.prebuilt deploy/frontend/
-          cp Dockerfile.prebuilt deploy/
-          cp docker-compose.deploy.yml deploy/
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/api ./cmd/api
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/worker ./cmd/worker
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/migrate ./cmd/migrate
 
-      - name: Upload to server
+      - name: Upload binaries and config to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ubuntu
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: "deploy/*"
-          target: "~/aigonhr-deploy"
-          strip_components: 1
+          source: "bin/api,bin/worker,bin/migrate,db/migrations/,Dockerfile.prebuilt,docker-compose.prod.yml,frontend/"
+          target: "~/aigonhr/"
+          overwrite: true
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
@@ -60,29 +43,24 @@ jobs:
           script: |
             cd ~/aigonhr
 
-            # Write env file
-            cat > .env << 'ENVEOF'
+            # Write env file (preserve if exists, create if not)
+            if [ ! -f .env ]; then
+              cat > .env << 'ENVEOF'
             ${{ secrets.ENV_FILE }}
             ENVEOF
-            sed -i 's/^            //' .env
+              sed -i 's/^            //' .env
+            fi
 
-            # Copy built artifacts
-            cp -r ~/aigonhr-deploy/bin ./
-            cp -r ~/aigonhr-deploy/db ./
-            cp ~/aigonhr-deploy/Dockerfile.prebuilt ./
-            cp ~/aigonhr-deploy/docker-compose.deploy.yml ./
+            # Build and deploy with prebuilt binaries
+            sudo docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
 
-            # Copy frontend build
-            mkdir -p frontend
-            cp -r ~/aigonhr-deploy/frontend/dist frontend/
-            cp ~/aigonhr-deploy/frontend/nginx.conf frontend/
-            cp ~/aigonhr-deploy/frontend/Dockerfile.prebuilt frontend/
+            # Wait for services to start
+            sleep 10
 
-            # Build and deploy (prebuilt = fast, just copies binaries)
-            sudo docker compose -f docker-compose.deploy.yml up -d --build --remove-orphans
+            # Show status
+            sudo docker compose -f docker-compose.prod.yml ps
 
-            # Cleanup
-            rm -rf ~/aigonhr-deploy
+            # Cleanup old images
             sudo docker image prune -f
 
-            echo "Deployed successfully!"
+            echo "Deploy complete!"
