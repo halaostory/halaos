@@ -82,12 +82,29 @@ SELECT * FROM employee_profiles WHERE employee_id = $1;
 -- name: CreateEmployeeDocument :one
 INSERT INTO employee_documents (
     company_id, employee_id, doc_type, file_name, file_path,
-    file_size, mime_type, file_hash, uploaded_by
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    file_size, mime_type, file_hash, uploaded_by, expiry_date
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 RETURNING *;
 
 -- name: ListEmployeeDocuments :many
 SELECT * FROM employee_documents WHERE employee_id = $1 ORDER BY created_at DESC;
+
+-- name: GetEmployeeDocument :one
+SELECT * FROM employee_documents WHERE id = $1;
+
+-- name: DeleteEmployeeDocument :exec
+DELETE FROM employee_documents WHERE id = $1;
+
+-- name: ListExpiringDocuments :many
+SELECT ed.id, ed.company_id, ed.employee_id, ed.doc_type, ed.file_name,
+       ed.expiry_date, e.first_name, e.last_name, e.employee_no
+FROM employee_documents ed
+JOIN employees e ON e.id = ed.employee_id
+WHERE ed.company_id = $1
+  AND ed.expiry_date IS NOT NULL
+  AND ed.expiry_date BETWEEN NOW()::date AND (NOW() + INTERVAL '60 days')::date
+ORDER BY ed.expiry_date ASC
+LIMIT 50;
 
 -- name: CreateEmploymentHistory :one
 INSERT INTO employment_history (
@@ -99,3 +116,83 @@ RETURNING *;
 
 -- name: ListEmploymentHistory :many
 SELECT * FROM employment_history WHERE employee_id = $1 ORDER BY effective_date DESC;
+
+-- name: ListEmployeeTimeline :many
+SELECT eh.id, eh.action_type, eh.effective_date, eh.remarks, eh.created_at,
+       COALESCE(fd.name, '') as from_department,
+       COALESCE(td.name, '') as to_department,
+       COALESCE(fp.title, '') as from_position,
+       COALESCE(tp.title, '') as to_position,
+       COALESCE(u.email, '') as created_by_email
+FROM employment_history eh
+LEFT JOIN departments fd ON fd.id = eh.from_department_id
+LEFT JOIN departments td ON td.id = eh.to_department_id
+LEFT JOIN positions fp ON fp.id = eh.from_position_id
+LEFT JOIN positions tp ON tp.id = eh.to_position_id
+LEFT JOIN users u ON u.id = eh.created_by
+WHERE eh.employee_id = $1 AND eh.company_id = $2
+ORDER BY eh.effective_date DESC, eh.created_at DESC
+LIMIT 50;
+
+-- name: ListActiveEmployees :many
+SELECT * FROM employees
+WHERE company_id = $1 AND status = 'active'
+ORDER BY last_name, first_name;
+
+-- name: ListEmployeeDirectory :many
+SELECT e.id, e.employee_no, e.first_name, e.last_name, e.display_name,
+       e.email, e.phone, e.status, e.employment_type, e.manager_id,
+       COALESCE(d.name, '') as department_name,
+       COALESCE(p.title, '') as position_title,
+       u.avatar_url
+FROM employees e
+LEFT JOIN departments d ON d.id = e.department_id
+LEFT JOIN positions p ON p.id = e.position_id
+LEFT JOIN users u ON u.id = e.user_id
+WHERE e.company_id = $1
+  AND e.status = 'active'
+  AND ($2::varchar IS NULL OR
+    e.first_name ILIKE $2 OR e.last_name ILIKE $2 OR
+    e.employee_no ILIKE $2 OR e.email ILIKE $2)
+  AND ($3::bigint IS NULL OR e.department_id = $3)
+ORDER BY e.last_name, e.first_name;
+
+-- name: GetEmployeeForCOE :one
+SELECT e.id, e.employee_no, e.first_name, e.last_name, e.middle_name,
+       e.hire_date, e.employment_type, e.status,
+       COALESCE(d.name, '') as department_name,
+       COALESCE(p.title, '') as position_title
+FROM employees e
+LEFT JOIN departments d ON d.id = e.department_id
+LEFT JOIN positions p ON p.id = e.position_id
+WHERE e.id = $1 AND e.company_id = $2;
+
+-- name: ListEmployeesForDOLERegister :many
+SELECT e.id, e.employee_no, e.first_name, e.last_name, e.middle_name,
+       e.gender, e.birth_date, e.civil_status, e.nationality,
+       e.hire_date, e.employment_type, e.status,
+       COALESCE(d.name, '') as department_name,
+       COALESCE(p.title, '') as position_title,
+       COALESCE(ep.tin, '') as tin,
+       COALESCE(ep.sss_no, '') as sss_no,
+       COALESCE(ep.philhealth_no, '') as philhealth_no,
+       COALESCE(ep.pagibig_no, '') as pagibig_no
+FROM employees e
+LEFT JOIN departments d ON d.id = e.department_id
+LEFT JOIN positions p ON p.id = e.position_id
+LEFT JOIN employee_profiles ep ON ep.employee_id = e.id
+WHERE e.company_id = $1 AND e.status IN ('active', 'probationary')
+ORDER BY e.last_name, e.first_name;
+
+-- name: GetOrgChartData :many
+SELECT e.id, e.first_name, e.last_name, e.display_name,
+       e.manager_id,
+       COALESCE(d.name, '') as department_name,
+       COALESCE(p.title, '') as position_title,
+       u.avatar_url
+FROM employees e
+LEFT JOIN departments d ON d.id = e.department_id
+LEFT JOIN positions p ON p.id = e.position_id
+LEFT JOIN users u ON u.id = e.user_id
+WHERE e.company_id = $1 AND e.status = 'active'
+ORDER BY e.last_name, e.first_name;

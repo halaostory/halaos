@@ -81,9 +81,76 @@ UPDATE leave_requests SET
 WHERE id = $1 AND company_id = $2 AND status = 'pending'
 RETURNING *;
 
+-- name: GetApprovedLeaveDaysForPeriod :many
+SELECT
+    lr.employee_id,
+    COALESCE(SUM(lr.days), 0) as total_leave_days,
+    COALESCE(SUM(CASE WHEN lt.is_paid THEN lr.days ELSE 0 END), 0) as paid_leave_days,
+    COALESCE(SUM(CASE WHEN NOT lt.is_paid THEN lr.days ELSE 0 END), 0) as unpaid_leave_days
+FROM leave_requests lr
+JOIN leave_types lt ON lt.id = lr.leave_type_id
+WHERE lr.company_id = $1
+  AND lr.status = 'approved'
+  AND lr.start_date <= $3
+  AND lr.end_date >= $2
+GROUP BY lr.employee_id;
+
 -- name: CancelLeaveRequest :one
 UPDATE leave_requests SET
     status = 'cancelled',
     updated_at = NOW()
 WHERE id = $1 AND employee_id = $2 AND status = 'pending'
 RETURNING *;
+
+-- name: ListApprovedLeavesForCalendar :many
+SELECT lr.id, lr.employee_id, lr.start_date, lr.end_date, lr.days,
+       lt.name as leave_type_name, lt.code as leave_type_code,
+       e.first_name, e.last_name, e.display_name,
+       COALESCE(d.name, '') as department_name
+FROM leave_requests lr
+JOIN leave_types lt ON lt.id = lr.leave_type_id
+JOIN employees e ON e.id = lr.employee_id
+LEFT JOIN departments d ON d.id = e.department_id
+WHERE lr.company_id = $1
+  AND lr.status = 'approved'
+  AND lr.start_date <= $3
+  AND lr.end_date >= $2
+ORDER BY lr.start_date, e.last_name;
+
+-- name: AdjustLeaveBalance :one
+UPDATE leave_balances SET
+    adjusted = $5,
+    updated_at = NOW()
+WHERE company_id = $1 AND employee_id = $2 AND leave_type_id = $3 AND year = $4
+RETURNING *;
+
+-- name: ListAllLeaveBalances :many
+SELECT lb.id, lb.employee_id, lb.leave_type_id, lb.year,
+       lb.earned, lb.used, lb.carried, lb.adjusted,
+       lt.code as leave_type_code, lt.name as leave_type_name,
+       e.employee_no, e.first_name, e.last_name
+FROM leave_balances lb
+JOIN leave_types lt ON lt.id = lb.leave_type_id
+JOIN employees e ON e.id = lb.employee_id
+WHERE lb.company_id = $1 AND lb.year = $2
+ORDER BY e.last_name, e.first_name, lt.name;
+
+-- name: ListLeaveBalancesForCarryover :many
+SELECT lb.*, lt.name as leave_type_name, lt.max_carryover,
+       e.first_name, e.last_name, e.employee_no
+FROM leave_balances lb
+JOIN leave_types lt ON lt.id = lb.leave_type_id
+JOIN employees e ON e.id = lb.employee_id
+WHERE lb.company_id = $1 AND lb.year = $2
+AND e.status = 'active'
+ORDER BY e.last_name, e.first_name, lt.name;
+
+-- name: ExportLeaveBalances :many
+SELECT lb.year, lb.earned, lb.used, lb.carried, lb.adjusted,
+       lt.code as leave_type_code, lt.name as leave_type_name,
+       e.employee_no, e.first_name, e.last_name
+FROM leave_balances lb
+JOIN leave_types lt ON lt.id = lb.leave_type_id
+JOIN employees e ON e.id = lb.employee_id
+WHERE lb.company_id = $1 AND lb.year = $2
+ORDER BY e.last_name, e.first_name, lt.name;

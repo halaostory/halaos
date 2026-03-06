@@ -36,3 +36,9 @@ SELECT * FROM users WHERE company_id = $1 ORDER BY created_at DESC LIMIT $2 OFFS
 
 -- name: CountUsersByCompany :one
 SELECT COUNT(*) FROM users WHERE company_id = $1;
+
+-- name: UpdateUserStatus :exec
+UPDATE users SET status = $2, updated_at = NOW() WHERE id = $1;
+
+-- name: AdminResetPassword :exec
+UPDATE users SET password_hash = $2, updated_at = NOW() WHERE id = $1 AND company_id = $3;

@@ -1,3 +1,6 @@
+-- name: ListAllCompanies :many
+SELECT * FROM companies ORDER BY id;
+
 -- name: CreateCompany :one
 INSERT INTO companies (name) VALUES ($1) RETURNING *;
 

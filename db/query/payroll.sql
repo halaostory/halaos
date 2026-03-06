@@ -98,8 +98,68 @@ RETURNING *;
 -- name: GetPayslip :one
 SELECT * FROM payslips WHERE id = $1 AND employee_id = $2;
 
+-- name: GetPayrollRun :one
+SELECT * FROM payroll_runs WHERE id = $1 AND company_id = $2;
+
+-- name: ListCurrentSalaries :many
+SELECT es.* FROM employee_salaries es
+WHERE es.company_id = $1
+  AND es.effective_from <= $2
+  AND (es.effective_to IS NULL OR es.effective_to >= $2)
+ORDER BY es.employee_id, es.effective_from DESC;
+
 -- name: ListPayslips :many
 SELECT * FROM payslips
 WHERE company_id = $1 AND employee_id = $2
 ORDER BY created_at DESC
 LIMIT $3 OFFSET $4;
+
+-- name: GetPayrollItemsForRun :many
+SELECT pi.*, e.employee_no, e.first_name, e.last_name
+FROM payroll_items pi
+JOIN employees e ON e.id = pi.employee_id
+WHERE pi.run_id = $1
+ORDER BY e.last_name, e.first_name;
+
+-- name: GetEmployeePayrollHistory :many
+SELECT pi.*, pr.cycle_id, pc.name as cycle_name, pc.period_start, pc.period_end
+FROM payroll_items pi
+JOIN payroll_runs pr ON pr.id = pi.run_id
+JOIN payroll_cycles pc ON pc.id = pr.cycle_id
+WHERE pr.company_id = $1 AND pi.employee_id = $2 AND pr.status = 'completed'
+ORDER BY pc.period_start DESC
+LIMIT $3;
+
+-- name: GetLatestCompletedRunForCycle :one
+SELECT id FROM payroll_runs
+WHERE cycle_id = $1 AND company_id = $2 AND status = 'completed'
+ORDER BY created_at DESC
+LIMIT 1;
+
+-- name: LockPayrollCycle :exec
+UPDATE payroll_cycles SET
+    is_locked = true,
+    locked_at = NOW(),
+    locked_by = $3,
+    updated_at = NOW()
+WHERE id = $1 AND company_id = $2;
+
+-- name: UnlockPayrollCycle :exec
+UPDATE payroll_cycles SET
+    is_locked = false,
+    locked_at = NULL,
+    locked_by = NULL,
+    updated_at = NOW()
+WHERE id = $1 AND company_id = $2;
+
+-- name: IsPayrollCycleLocked :one
+SELECT is_locked FROM payroll_cycles WHERE id = $1 AND company_id = $2;
+
+-- name: ListPayrollItemsWithBank :many
+SELECT pi.*, e.employee_no, e.first_name, e.last_name,
+       ep.bank_name, ep.bank_account_no, ep.bank_account_name
+FROM payroll_items pi
+JOIN employees e ON e.id = pi.employee_id
+LEFT JOIN employee_profiles ep ON ep.employee_id = e.id
+WHERE pi.run_id = $1
+ORDER BY e.last_name, e.first_name;

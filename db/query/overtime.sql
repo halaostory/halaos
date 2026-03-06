@@ -50,3 +50,12 @@ WHERE company_id = $1
   AND ot_date >= $2
   AND ot_date <= $3
 GROUP BY employee_id;
+
+-- name: GetApprovedOTHoursByType :many
+SELECT employee_id, ot_type, SUM(hours) as total_hours
+FROM overtime_requests
+WHERE company_id = $1
+  AND status = 'approved'
+  AND ot_date >= $2
+  AND ot_date <= $3
+GROUP BY employee_id, ot_type;
