@@ -1,8 +1,13 @@
 package auth
 
 import (
+	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -10,6 +15,12 @@ import (
 
 	"github.com/tonypk/aigonhr/internal/store"
 )
+
+// HashPassword hashes a plain-text password using bcrypt.
+func HashPassword(password string) (string, error) {
+	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	return string(hashed), err
+}
 
 type Handler struct {
 	queries *store.Queries
@@ -51,12 +62,13 @@ type authResponse struct {
 }
 
 type userResponse struct {
-	ID        int64  `json:"id"`
-	Email     string `json:"email"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Role      string `json:"role"`
-	CompanyID int64  `json:"company_id"`
+	ID        int64   `json:"id"`
+	Email     string  `json:"email"`
+	FirstName string  `json:"first_name"`
+	LastName  string  `json:"last_name"`
+	Role      string  `json:"role"`
+	CompanyID int64   `json:"company_id"`
+	AvatarUrl *string `json:"avatar_url,omitempty"`
 }
 
 func (h *Handler) Register(c *gin.Context) {
@@ -101,9 +113,7 @@ func (h *Handler) Register(c *gin.Context) {
 	qtx := h.queries.WithTx(tx)
 
 	// Create company
-	company, err := qtx.CreateCompany(c.Request.Context(), store.CreateCompanyParams{
-		Name: req.CompanyName,
-	})
+	company, err := qtx.CreateCompany(c.Request.Context(), req.CompanyName)
 	if err != nil {
 		h.logger.Error("failed to create company", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -309,5 +319,160 @@ func (h *Handler) Me(c *gin.Context) {
 		LastName:  user.LastName,
 		Role:      user.Role,
 		CompanyID: user.CompanyID,
+	})
+}
+
+type changePasswordRequest struct {
+	CurrentPassword string `json:"current_password" binding:"required"`
+	NewPassword     string `json:"new_password" binding:"required,min=8"`
+}
+
+func (h *Handler) ChangePassword(c *gin.Context) {
+	var req changePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": gin.H{"code": "validation_error", "message": err.Error()},
+		})
+		return
+	}
+
+	userID := GetUserID(c)
+	user, err := h.queries.GetUserByID(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": gin.H{"code": "user_not_found", "message": "User not found"},
+		})
+		return
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.CurrentPassword)); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": gin.H{"code": "invalid_password", "message": "Current password is incorrect"},
+		})
+		return
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": gin.H{"code": "internal_error", "message": "Failed to update password"},
+		})
+		return
+	}
+
+	if err := h.queries.UpdateUserPassword(c.Request.Context(), store.UpdateUserPasswordParams{
+		PasswordHash: string(hashedPassword),
+		ID:           userID,
+	}); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": gin.H{"code": "internal_error", "message": "Failed to update password"},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Password updated"})
+}
+
+type updateProfileRequest struct {
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Locale    string `json:"locale"`
+}
+
+func (h *Handler) UpdateProfile(c *gin.Context) {
+	var req updateProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": gin.H{"code": "validation_error", "message": err.Error()},
+		})
+		return
+	}
+
+	userID := GetUserID(c)
+	user, err := h.queries.UpdateUserProfile(c.Request.Context(), store.UpdateUserProfileParams{
+		ID:        userID,
+		FirstName: req.FirstName,
+		LastName:  req.LastName,
+		Locale:    req.Locale,
+	})
+	if err != nil {
+		h.logger.Error("failed to update profile", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": gin.H{"code": "internal_error", "message": "Failed to update profile"},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, userResponse{
+		ID:        user.ID,
+		Email:     user.Email,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		Role:      user.Role,
+		CompanyID: user.CompanyID,
+		AvatarUrl: user.AvatarUrl,
+	})
+}
+
+// UploadAvatar handles profile photo upload.
+func (h *Handler) UploadAvatar(c *gin.Context) {
+	file, header, err := c.Request.FormFile("avatar")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "Avatar file is required"}})
+		return
+	}
+	defer file.Close()
+
+	ext := filepath.Ext(header.Filename)
+	allowed := map[string]bool{".png": true, ".jpg": true, ".jpeg": true, ".webp": true}
+	if !allowed[ext] {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "Only PNG, JPG, and WebP files are allowed"}})
+		return
+	}
+
+	userID := GetUserID(c)
+	uploadDir := fmt.Sprintf("uploads/avatars/%d", userID)
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		h.logger.Error("failed to create avatar dir", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "Failed to upload avatar"}})
+		return
+	}
+
+	fileName := fmt.Sprintf("avatar_%d%s", time.Now().UnixMilli(), ext)
+	filePath := filepath.Join(uploadDir, fileName)
+
+	out, err := os.Create(filePath)
+	if err != nil {
+		h.logger.Error("failed to create avatar file", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "Failed to upload avatar"}})
+		return
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, file); err != nil {
+		h.logger.Error("failed to write avatar file", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "Failed to upload avatar"}})
+		return
+	}
+
+	avatarURL := "/" + filePath
+	user, err := h.queries.UpdateUserProfile(c.Request.Context(), store.UpdateUserProfileParams{
+		ID:        userID,
+		AvatarUrl: &avatarURL,
+	})
+	if err != nil {
+		h.logger.Error("failed to update avatar url", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "Failed to update avatar"}})
+		return
+	}
+
+	c.JSON(http.StatusOK, userResponse{
+		ID:        user.ID,
+		Email:     user.Email,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		Role:      user.Role,
+		CompanyID: user.CompanyID,
+		AvatarUrl: user.AvatarUrl,
 	})
 }

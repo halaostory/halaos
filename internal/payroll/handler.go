@@ -1,14 +1,21 @@
 package payroll
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
 	"log/slog"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-pdf/fpdf"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/tonypk/aigonhr/internal/auth"
+	"github.com/tonypk/aigonhr/internal/notification"
 	"github.com/tonypk/aigonhr/internal/store"
 	"github.com/tonypk/aigonhr/pkg/pagination"
 	"github.com/tonypk/aigonhr/pkg/response"
@@ -93,6 +100,15 @@ func (h *Handler) RunPayroll(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 	userID := auth.GetUserID(c)
 
+	// Check if cycle is locked
+	locked, err := h.queries.IsPayrollCycleLocked(c.Request.Context(), store.IsPayrollCycleLockedParams{
+		ID: req.CycleID, CompanyID: companyID,
+	})
+	if err == nil && locked {
+		response.BadRequest(c, "Payroll cycle is locked and cannot be modified")
+		return
+	}
+
 	runType := req.RunType
 	if runType == "" {
 		runType = "regular"
@@ -109,8 +125,15 @@ func (h *Handler) RunPayroll(c *gin.Context) {
 		return
 	}
 
-	// TODO: Trigger async payroll calculation via event/worker
-	// For now, mark as pending
+	// Run payroll calculation synchronously (for now)
+	// TODO: Move to async worker for large payrolls
+	calculator := NewCalculator(h.queries, h.pool, h.logger)
+	go func() {
+		if err := calculator.RunPayroll(context.Background(), run.ID, companyID); err != nil {
+			h.logger.Error("payroll calculation failed", "run_id", run.ID, "error", err)
+		}
+	}()
+
 	response.Created(c, run)
 }
 
@@ -130,7 +153,16 @@ func (h *Handler) ApproveCycle(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 	userID := auth.GetUserID(c)
 
-	err := h.queries.ApprovePayrollCycle(c.Request.Context(), store.ApprovePayrollCycleParams{
+	// Check if cycle is locked
+	locked, err := h.queries.IsPayrollCycleLocked(c.Request.Context(), store.IsPayrollCycleLockedParams{
+		ID: id, CompanyID: companyID,
+	})
+	if err == nil && locked {
+		response.BadRequest(c, "Payroll cycle is locked and cannot be modified")
+		return
+	}
+
+	err = h.queries.ApprovePayrollCycle(c.Request.Context(), store.ApprovePayrollCycleParams{
 		ID:         id,
 		CompanyID:  companyID,
 		ApprovedBy: &userID,
@@ -139,6 +171,26 @@ func (h *Handler) ApproveCycle(c *gin.Context) {
 		response.NotFound(c, "Payroll cycle not found")
 		return
 	}
+
+	// Notify all employees that payslips are available
+	go func() {
+		ctx := context.Background()
+		cycle, err := h.queries.GetPayrollCycle(ctx, store.GetPayrollCycleParams{ID: id, CompanyID: companyID})
+		if err != nil {
+			return
+		}
+		emps, _ := h.queries.ListActiveEmployees(ctx, companyID)
+		entityType := "payroll"
+		for _, e := range emps {
+			if e.UserID != nil {
+				notification.Notify(ctx, h.queries, h.logger, companyID, *e.UserID,
+					"Payslip Available",
+					fmt.Sprintf("Your payslip for %s is now available.", cycle.Name),
+					"payroll", &entityType, &id)
+			}
+		}
+	}()
+
 	response.OK(c, gin.H{"message": "Payroll cycle approved"})
 }
 
@@ -170,6 +222,253 @@ func (h *Handler) ListPayslips(c *gin.Context) {
 }
 
 func (h *Handler) GetPayslip(c *gin.Context) {
-	// TODO: parse UUID param
-	response.OK(c, gin.H{"message": "payslip detail placeholder"})
+	payslipID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid payslip ID")
+		return
+	}
+
+	companyID := auth.GetCompanyID(c)
+	userID := auth.GetUserID(c)
+
+	emp, err := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
+		UserID:    &userID,
+		CompanyID: companyID,
+	})
+	if err != nil {
+		response.NotFound(c, "Employee not found")
+		return
+	}
+
+	payslip, err := h.queries.GetPayslip(c.Request.Context(), store.GetPayslipParams{
+		ID:         payslipID,
+		EmployeeID: emp.ID,
+	})
+	if err != nil {
+		response.NotFound(c, "Payslip not found")
+		return
+	}
+	response.OK(c, payslip)
+}
+
+func (h *Handler) DownloadPayslipPDF(c *gin.Context) {
+	payslipID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid payslip ID")
+		return
+	}
+
+	companyID := auth.GetCompanyID(c)
+	userID := auth.GetUserID(c)
+
+	emp, err := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
+		UserID:    &userID,
+		CompanyID: companyID,
+	})
+	if err != nil {
+		response.NotFound(c, "Employee not found")
+		return
+	}
+
+	payslip, err := h.queries.GetPayslip(c.Request.Context(), store.GetPayslipParams{
+		ID:         payslipID,
+		EmployeeID: emp.ID,
+	})
+	if err != nil {
+		response.NotFound(c, "Payslip not found")
+		return
+	}
+
+	company, err := h.queries.GetCompanyByID(c.Request.Context(), companyID)
+	if err != nil {
+		response.InternalError(c, "Failed to get company info")
+		return
+	}
+
+	pdfBytes, err := generatePayslipPDF(company, emp, payslip)
+	if err != nil {
+		h.logger.Error("failed to generate payslip PDF", "error", err)
+		response.InternalError(c, "Failed to generate PDF")
+		return
+	}
+
+	fileName := fmt.Sprintf("payslip_%s_%s.pdf", emp.EmployeeNo, payslip.PayDate.Format("2006-01-02"))
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", fileName))
+	c.Data(200, "application/pdf", pdfBytes)
+}
+
+func generatePayslipPDF(company store.Company, emp store.Employee, payslip store.Payslip) ([]byte, error) {
+	pdf := fpdf.New("P", "mm", "A4", "")
+	pdf.AddPage()
+	pdf.SetMargins(15, 15, 15)
+
+	// Company header
+	pdf.SetFont("Arial", "B", 16)
+	pdf.CellFormat(180, 10, company.Name, "", 1, "C", false, 0, "")
+
+	if company.Address != nil {
+		pdf.SetFont("Arial", "", 9)
+		addr := *company.Address
+		if company.City != nil {
+			addr += ", " + *company.City
+		}
+		if company.Province != nil {
+			addr += ", " + *company.Province
+		}
+		pdf.CellFormat(180, 5, addr, "", 1, "C", false, 0, "")
+	}
+
+	if company.Tin != nil {
+		pdf.SetFont("Arial", "", 9)
+		pdf.CellFormat(180, 5, "TIN: "+*company.Tin, "", 1, "C", false, 0, "")
+	}
+
+	pdf.Ln(5)
+	pdf.SetFont("Arial", "B", 13)
+	pdf.CellFormat(180, 8, "PAYSLIP", "", 1, "C", false, 0, "")
+	pdf.Ln(3)
+
+	// Period info
+	pdf.SetFont("Arial", "", 10)
+	pdf.CellFormat(90, 6, "Period: "+payslip.PeriodStart.Format("Jan 02, 2006")+" - "+payslip.PeriodEnd.Format("Jan 02, 2006"), "", 0, "L", false, 0, "")
+	pdf.CellFormat(90, 6, "Pay Date: "+payslip.PayDate.Format("Jan 02, 2006"), "", 1, "R", false, 0, "")
+
+	// Employee info
+	empName := emp.FirstName + " " + emp.LastName
+	pdf.CellFormat(90, 6, "Employee: "+empName, "", 0, "L", false, 0, "")
+	pdf.CellFormat(90, 6, "Employee No: "+emp.EmployeeNo, "", 1, "R", false, 0, "")
+
+	pdf.Ln(5)
+
+	// Parse payload
+	var payload map[string]interface{}
+	if len(payslip.Payload) > 0 {
+		_ = json.Unmarshal(payslip.Payload, &payload)
+	}
+
+	// Table header
+	pdf.SetFillColor(240, 240, 240)
+	pdf.SetFont("Arial", "B", 10)
+	pdf.CellFormat(120, 7, "Description", "1", 0, "L", true, 0, "")
+	pdf.CellFormat(60, 7, "Amount (PHP)", "1", 1, "R", true, 0, "")
+
+	pdf.SetFont("Arial", "", 10)
+
+	// Earnings section
+	pdf.SetFont("Arial", "B", 10)
+	pdf.CellFormat(180, 7, "EARNINGS", "LR", 1, "L", false, 0, "")
+	pdf.SetFont("Arial", "", 10)
+
+	addRow := func(label string, amount interface{}) {
+		pdf.CellFormat(120, 6, "  "+label, "LR", 0, "L", false, 0, "")
+		pdf.CellFormat(60, 6, formatAmount(amount), "LR", 1, "R", false, 0, "")
+	}
+
+	if payload != nil {
+		if basic, ok := payload["basic_pay"]; ok {
+			addRow("Basic Pay", basic)
+		}
+		if ot, ok := payload["overtime_pay"]; ok {
+			addRow("Overtime Pay", ot)
+		}
+		if hp, ok := payload["holiday_pay"]; ok {
+			addRow("Holiday Pay", hp)
+		}
+		if nd, ok := payload["night_diff"]; ok {
+			addRow("Night Differential", nd)
+		}
+		if allowances, ok := payload["allowances"].([]interface{}); ok {
+			for _, a := range allowances {
+				if m, ok := a.(map[string]interface{}); ok {
+					addRow(fmt.Sprintf("%v", m["name"]), m["amount"])
+				}
+			}
+		}
+	}
+
+	if gross, ok := payload["gross_pay"]; ok {
+		pdf.SetFont("Arial", "B", 10)
+		pdf.CellFormat(120, 7, "  Gross Pay", "1", 0, "L", true, 0, "")
+		pdf.CellFormat(60, 7, formatAmount(gross), "1", 1, "R", true, 0, "")
+		pdf.SetFont("Arial", "", 10)
+	}
+
+	// Deductions section
+	pdf.SetFont("Arial", "B", 10)
+	pdf.CellFormat(180, 7, "DEDUCTIONS", "LR", 1, "L", false, 0, "")
+	pdf.SetFont("Arial", "", 10)
+
+	if payload != nil {
+		if v, ok := payload["sss_ee"]; ok {
+			addRow("SSS (Employee)", v)
+		}
+		if v, ok := payload["philhealth_ee"]; ok {
+			addRow("PhilHealth (Employee)", v)
+		}
+		if v, ok := payload["pagibig_ee"]; ok {
+			addRow("Pag-IBIG (Employee)", v)
+		}
+		if v, ok := payload["withholding_tax"]; ok {
+			addRow("Withholding Tax", v)
+		}
+		if v, ok := payload["late_deduction"]; ok {
+			addRow("Late Deduction", v)
+		}
+		if v, ok := payload["undertime_deduction"]; ok {
+			addRow("Undertime Deduction", v)
+		}
+		if deductions, ok := payload["other_deductions"].([]interface{}); ok {
+			for _, d := range deductions {
+				if m, ok := d.(map[string]interface{}); ok {
+					addRow(fmt.Sprintf("%v", m["name"]), m["amount"])
+				}
+			}
+		}
+	}
+
+	if totalDed, ok := payload["total_deductions"]; ok {
+		pdf.SetFont("Arial", "B", 10)
+		pdf.CellFormat(120, 7, "  Total Deductions", "1", 0, "L", true, 0, "")
+		pdf.CellFormat(60, 7, formatAmount(totalDed), "1", 1, "R", true, 0, "")
+	}
+
+	// Net Pay
+	pdf.Ln(3)
+	pdf.SetFont("Arial", "B", 12)
+	pdf.SetFillColor(24, 160, 88)
+	pdf.SetTextColor(255, 255, 255)
+	if netPay, ok := payload["net_pay"]; ok {
+		pdf.CellFormat(120, 9, "  NET PAY", "1", 0, "L", true, 0, "")
+		pdf.CellFormat(60, 9, formatAmount(netPay), "1", 1, "R", true, 0, "")
+	}
+	pdf.SetTextColor(0, 0, 0)
+
+	// Footer
+	pdf.Ln(15)
+	pdf.SetFont("Arial", "I", 8)
+	pdf.CellFormat(180, 5, "This is a system-generated payslip. No signature is required.", "", 1, "C", false, 0, "")
+	pdf.CellFormat(180, 5, "Generated on: "+time.Now().Format("January 02, 2006 3:04 PM"), "", 1, "C", false, 0, "")
+
+	var buf bytes.Buffer
+	if err := pdf.Output(&buf); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func formatAmount(v interface{}) string {
+	switch val := v.(type) {
+	case float64:
+		return fmt.Sprintf("%.2f", val)
+	case string:
+		return val
+	case json.Number:
+		f, err := val.Float64()
+		if err == nil {
+			return fmt.Sprintf("%.2f", f)
+		}
+		return string(val)
+	default:
+		return fmt.Sprintf("%v", v)
+	}
 }

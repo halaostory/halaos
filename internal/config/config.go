@@ -14,6 +14,16 @@ type Config struct {
 	JWT      JWTConfig
 	Upload   UploadConfig
 	AI       AIConfig
+	SMTP     SMTPConfig
+}
+
+type SMTPConfig struct {
+	Host     string
+	Port     int
+	User     string
+	Password string
+	From     string
+	Enabled  bool
 }
 
 type ServerConfig struct {
@@ -85,6 +95,14 @@ func Load() *Config {
 			Dir:         getEnv("UPLOAD_DIR", "./uploads"),
 			MaxFileSize: getEnvInt64("MAX_FILE_SIZE", 10485760),
 		},
+		SMTP: SMTPConfig{
+			Host:     getEnv("SMTP_HOST", ""),
+			Port:     int(getEnvInt64("SMTP_PORT", 587)),
+			User:     getEnv("SMTP_USER", ""),
+			Password: getEnv("SMTP_PASSWORD", ""),
+			From:     getEnv("SMTP_FROM", "noreply@aigonhr.com"),
+			Enabled:  getEnvBool("SMTP_ENABLED", false),
+		},
 		AI: AIConfig{
 			AnthropicKey: getEnv("ANTHROPIC_API_KEY", ""),
 			OpenAIKey:    getEnv("OPENAI_API_KEY", ""),
@@ -100,7 +118,7 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("JWT_SECRET must be set in production")
 		}
 	}
-	if c.Postgres.Password == "" {
+	if c.Postgres.Password == "" && getEnv("GIN_MODE", "") == "release" {
 		return fmt.Errorf("POSTGRES_PASSWORD is required")
 	}
 	return nil

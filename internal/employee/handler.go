@@ -1,11 +1,17 @@
 package employee
 
 import (
+	"fmt"
+	"io"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/tonypk/aigonhr/internal/auth"
@@ -48,26 +54,22 @@ func (h *Handler) ListEmployees(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 	pg := pagination.Parse(c)
 
-	status := c.Query("status")
-	deptID := c.Query("department_id")
+	statusFilter := c.Query("status")
+	deptFilter := c.Query("department_id")
 
-	var statusPtr *string
-	if status != "" {
-		statusPtr = &status
-	}
-	var deptIDPtr *int64
-	if deptID != "" {
-		if id, err := strconv.ParseInt(deptID, 10, 64); err == nil {
-			deptIDPtr = &id
+	var deptIDVal int64
+	if deptFilter != "" {
+		if id, err := strconv.ParseInt(deptFilter, 10, 64); err == nil {
+			deptIDVal = id
 		}
 	}
 
 	employees, err := h.queries.ListEmployees(c.Request.Context(), store.ListEmployeesParams{
-		CompanyID:    companyID,
-		Status:       statusPtr,
-		DepartmentID: deptIDPtr,
-		Limit:        int32(pg.Limit),
-		Offset:       int32(pg.Offset),
+		CompanyID: companyID,
+		Column2:   statusFilter,
+		Column3:   deptIDVal,
+		Limit:     int32(pg.Limit),
+		Offset:    int32(pg.Offset),
 	})
 	if err != nil {
 		response.InternalError(c, "Failed to list employees")
@@ -75,9 +77,9 @@ func (h *Handler) ListEmployees(c *gin.Context) {
 	}
 
 	count, _ := h.queries.CountEmployees(c.Request.Context(), store.CountEmployeesParams{
-		CompanyID:    companyID,
-		Status:       statusPtr,
-		DepartmentID: deptIDPtr,
+		CompanyID: companyID,
+		Column2:   statusFilter,
+		Column3:   deptIDVal,
 	})
 
 	response.Paginated(c, employees, count, pg.Page, pg.Limit)
@@ -98,10 +100,10 @@ func (h *Handler) CreateEmployee(c *gin.Context) {
 		return
 	}
 
-	var birthDate *time.Time
+	var birthDate pgtype.Date
 	if req.BirthDate != nil {
 		if bd, err := time.Parse("2006-01-02", *req.BirthDate); err == nil {
-			birthDate = &bd
+			birthDate = pgtype.Date{Time: bd, Valid: true}
 		}
 	}
 
@@ -184,11 +186,29 @@ func (h *Handler) UpdateEmployee(c *gin.Context) {
 	}
 
 	companyID := auth.GetCompanyID(c)
+
+	firstName := ""
+	if req.FirstName != nil {
+		firstName = *req.FirstName
+	}
+	lastName := ""
+	if req.LastName != nil {
+		lastName = *req.LastName
+	}
+	employmentType := ""
+	if req.EmploymentType != nil {
+		employmentType = *req.EmploymentType
+	}
+	empStatus := ""
+	if req.Status != nil {
+		empStatus = *req.Status
+	}
+
 	emp, err := h.queries.UpdateEmployee(c.Request.Context(), store.UpdateEmployeeParams{
 		ID:             id,
 		CompanyID:      companyID,
-		FirstName:      req.FirstName,
-		LastName:       req.LastName,
+		FirstName:      firstName,
+		LastName:       lastName,
 		MiddleName:     req.MiddleName,
 		DisplayName:    req.DisplayName,
 		Email:          req.Email,
@@ -197,8 +217,8 @@ func (h *Handler) UpdateEmployee(c *gin.Context) {
 		PositionID:     req.PositionID,
 		CostCenterID:   req.CostCenterID,
 		ManagerID:      req.ManagerID,
-		EmploymentType: req.EmploymentType,
-		Status:         req.Status,
+		EmploymentType: employmentType,
+		Status:         empStatus,
 	})
 	if err != nil {
 		response.NotFound(c, "Employee not found")
@@ -261,6 +281,116 @@ func (h *Handler) ListDocuments(c *gin.Context) {
 }
 
 func (h *Handler) UploadDocument(c *gin.Context) {
-	// TODO: implement file upload with multipart form
-	response.OK(c, gin.H{"message": "document upload placeholder"})
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid employee ID")
+		return
+	}
+
+	companyID := auth.GetCompanyID(c)
+	userID := auth.GetUserID(c)
+
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		response.BadRequest(c, "File is required")
+		return
+	}
+	defer file.Close()
+
+	docType := c.PostForm("doc_type")
+	if docType == "" {
+		docType = "general"
+	}
+
+	// Save file to upload directory
+	uploadDir := fmt.Sprintf("uploads/documents/%d/%d", companyID, id)
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		h.logger.Error("failed to create upload dir", "error", err)
+		response.InternalError(c, "Failed to upload document")
+		return
+	}
+
+	fileName := fmt.Sprintf("%d_%s", time.Now().UnixMilli(), header.Filename)
+	filePath := filepath.Join(uploadDir, fileName)
+
+	out, err := os.Create(filePath)
+	if err != nil {
+		h.logger.Error("failed to create file", "error", err)
+		response.InternalError(c, "Failed to upload document")
+		return
+	}
+	defer out.Close()
+
+	written, err := io.Copy(out, file)
+	if err != nil {
+		h.logger.Error("failed to write file", "error", err)
+		response.InternalError(c, "Failed to upload document")
+		return
+	}
+
+	mimeType := header.Header.Get("Content-Type")
+
+	var expiryDate pgtype.Date
+	if ed := c.PostForm("expiry_date"); ed != "" {
+		if parsed, err := time.Parse("2006-01-02", ed); err == nil {
+			expiryDate = pgtype.Date{Time: parsed, Valid: true}
+		}
+	}
+
+	doc, err := h.queries.CreateEmployeeDocument(c.Request.Context(), store.CreateEmployeeDocumentParams{
+		CompanyID:  companyID,
+		EmployeeID: id,
+		DocType:    docType,
+		FileName:   header.Filename,
+		FilePath:   filePath,
+		FileSize:   written,
+		MimeType:   &mimeType,
+		UploadedBy: &userID,
+		ExpiryDate: expiryDate,
+	})
+	if err != nil {
+		h.logger.Error("failed to create document record", "error", err)
+		response.InternalError(c, "Failed to save document record")
+		return
+	}
+	response.Created(c, doc)
+}
+
+func (h *Handler) DownloadDocument(c *gin.Context) {
+	docID, err := uuid.Parse(c.Param("doc_id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid document ID")
+		return
+	}
+
+	doc, err := h.queries.GetEmployeeDocument(c.Request.Context(), docID)
+	if err != nil {
+		response.NotFound(c, "Document not found")
+		return
+	}
+
+	c.FileAttachment(doc.FilePath, doc.FileName)
+}
+
+func (h *Handler) DeleteDocument(c *gin.Context) {
+	docID, err := uuid.Parse(c.Param("doc_id"))
+	if err != nil {
+		response.BadRequest(c, "Invalid document ID")
+		return
+	}
+
+	doc, err := h.queries.GetEmployeeDocument(c.Request.Context(), docID)
+	if err != nil {
+		response.NotFound(c, "Document not found")
+		return
+	}
+
+	// Delete file from disk
+	_ = os.Remove(doc.FilePath)
+
+	if err := h.queries.DeleteEmployeeDocument(c.Request.Context(), docID); err != nil {
+		response.InternalError(c, "Failed to delete document")
+		return
+	}
+	response.OK(c, gin.H{"message": "Deleted"})
 }

@@ -1,14 +1,17 @@
 package leave
 
 import (
+	"fmt"
 	"log/slog"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/tonypk/aigonhr/internal/auth"
+	"github.com/tonypk/aigonhr/internal/notification"
 	"github.com/tonypk/aigonhr/internal/store"
 	"github.com/tonypk/aigonhr/pkg/pagination"
 	"github.com/tonypk/aigonhr/pkg/response"
@@ -57,10 +60,12 @@ func (h *Handler) CreateType(c *gin.Context) {
 	if accrualType == "" {
 		accrualType = "annual"
 	}
-	defaultDays := req.DefaultDays
-	if defaultDays == "" {
-		defaultDays = "0"
+	defaultDaysStr := req.DefaultDays
+	if defaultDaysStr == "" {
+		defaultDaysStr = "0"
 	}
+	var defaultDays pgtype.Numeric
+	_ = defaultDays.Scan(defaultDaysStr)
 
 	lt, err := h.queries.CreateLeaveType(c.Request.Context(), store.CreateLeaveTypeParams{
 		CompanyID:          companyID,
@@ -145,13 +150,16 @@ func (h *Handler) CreateRequest(c *gin.Context) {
 		return
 	}
 
+	var days pgtype.Numeric
+	_ = days.Scan(req.Days)
+
 	lr, err := h.queries.CreateLeaveRequest(c.Request.Context(), store.CreateLeaveRequestParams{
 		CompanyID:      companyID,
 		EmployeeID:     emp.ID,
 		LeaveTypeID:    req.LeaveTypeID,
 		StartDate:      startDate,
 		EndDate:        endDate,
-		Days:           req.Days,
+		Days:           days,
 		Reason:         req.Reason,
 		AttachmentPath: req.AttachmentPath,
 	})
@@ -167,24 +175,21 @@ func (h *Handler) ListRequests(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 	pg := pagination.Parse(c)
 
-	var employeeID *int64
+	var employeeIDVal int64
 	if eid := c.Query("employee_id"); eid != "" {
 		if id, err := strconv.ParseInt(eid, 10, 64); err == nil {
-			employeeID = &id
+			employeeIDVal = id
 		}
 	}
 
-	var statusFilter *string
-	if s := c.Query("status"); s != "" {
-		statusFilter = &s
-	}
+	statusFilter := c.Query("status")
 
 	requests, err := h.queries.ListLeaveRequests(c.Request.Context(), store.ListLeaveRequestsParams{
-		CompanyID:  companyID,
-		EmployeeID: employeeID,
-		Status:     statusFilter,
-		Limit:      int32(pg.Limit),
-		Offset:     int32(pg.Offset),
+		CompanyID: companyID,
+		Column2:   employeeIDVal,
+		Column3:   statusFilter,
+		Limit:     int32(pg.Limit),
+		Offset:    int32(pg.Offset),
 	})
 	if err != nil {
 		response.InternalError(c, "Failed to list requests")
@@ -192,9 +197,9 @@ func (h *Handler) ListRequests(c *gin.Context) {
 	}
 
 	count, _ := h.queries.CountLeaveRequests(c.Request.Context(), store.CountLeaveRequestsParams{
-		CompanyID:  companyID,
-		EmployeeID: employeeID,
-		Status:     statusFilter,
+		CompanyID: companyID,
+		Column2:   employeeIDVal,
+		Column3:   statusFilter,
 	})
 
 	response.Paginated(c, requests, count, pg.Page, pg.Limit)
@@ -234,6 +239,15 @@ func (h *Handler) ApproveRequest(c *gin.Context) {
 		Used:        lr.Days,
 	})
 
+	// Notify employee
+	if reqEmp, err := h.queries.GetEmployeeByID(c.Request.Context(), store.GetEmployeeByIDParams{ID: lr.EmployeeID, CompanyID: companyID}); err == nil && reqEmp.UserID != nil {
+		entityType := "leave_request"
+		notification.Notify(c.Request.Context(), h.queries, h.logger, companyID, *reqEmp.UserID,
+			"Leave Approved",
+			fmt.Sprintf("Your leave request (%s - %s) has been approved.", lr.StartDate.Format("Jan 2"), lr.EndDate.Format("Jan 2")),
+			"leave", &entityType, &lr.ID)
+	}
+
 	response.OK(c, lr)
 }
 
@@ -266,6 +280,18 @@ func (h *Handler) RejectRequest(c *gin.Context) {
 		response.NotFound(c, "Leave request not found or already processed")
 		return
 	}
+
+	// Notify employee
+	if reqEmp, err := h.queries.GetEmployeeByID(c.Request.Context(), store.GetEmployeeByIDParams{ID: lr.EmployeeID, CompanyID: companyID}); err == nil && reqEmp.UserID != nil {
+		entityType := "leave_request"
+		msg := fmt.Sprintf("Your leave request (%s - %s) has been rejected.", lr.StartDate.Format("Jan 2"), lr.EndDate.Format("Jan 2"))
+		if req.Reason != "" {
+			msg += " Reason: " + req.Reason
+		}
+		notification.Notify(c.Request.Context(), h.queries, h.logger, companyID, *reqEmp.UserID,
+			"Leave Rejected", msg, "leave", &entityType, &lr.ID)
+	}
+
 	response.OK(c, lr)
 }
 

@@ -1,14 +1,17 @@
 package overtime
 
 import (
+	"fmt"
 	"log/slog"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/tonypk/aigonhr/internal/auth"
+	"github.com/tonypk/aigonhr/internal/notification"
 	"github.com/tonypk/aigonhr/internal/store"
 	"github.com/tonypk/aigonhr/pkg/pagination"
 	"github.com/tonypk/aigonhr/pkg/response"
@@ -58,13 +61,16 @@ func (h *Handler) CreateRequest(c *gin.Context) {
 		otType = "regular"
 	}
 
+	var hours pgtype.Numeric
+	_ = hours.Scan(req.Hours)
+
 	ot, err := h.queries.CreateOvertimeRequest(c.Request.Context(), store.CreateOvertimeRequestParams{
 		CompanyID:  companyID,
 		EmployeeID: emp.ID,
 		OtDate:     otDate,
 		StartAt:    startAt,
 		EndAt:      endAt,
-		Hours:      req.Hours,
+		Hours:      hours,
 		OtType:     otType,
 		Reason:     req.Reason,
 	})
@@ -80,23 +86,20 @@ func (h *Handler) ListRequests(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 	pg := pagination.Parse(c)
 
-	var employeeID *int64
+	var employeeIDVal int64
 	if eid := c.Query("employee_id"); eid != "" {
 		if id, err := strconv.ParseInt(eid, 10, 64); err == nil {
-			employeeID = &id
+			employeeIDVal = id
 		}
 	}
-	var statusFilter *string
-	if s := c.Query("status"); s != "" {
-		statusFilter = &s
-	}
+	statusFilter := c.Query("status")
 
 	requests, err := h.queries.ListOvertimeRequests(c.Request.Context(), store.ListOvertimeRequestsParams{
-		CompanyID:  companyID,
-		EmployeeID: employeeID,
-		Status:     statusFilter,
-		Limit:      int32(pg.Limit),
-		Offset:     int32(pg.Offset),
+		CompanyID: companyID,
+		Column2:   employeeIDVal,
+		Column3:   statusFilter,
+		Limit:     int32(pg.Limit),
+		Offset:    int32(pg.Offset),
 	})
 	if err != nil {
 		response.InternalError(c, "Failed to list requests")
@@ -104,9 +107,9 @@ func (h *Handler) ListRequests(c *gin.Context) {
 	}
 
 	count, _ := h.queries.CountOvertimeRequests(c.Request.Context(), store.CountOvertimeRequestsParams{
-		CompanyID:  companyID,
-		EmployeeID: employeeID,
-		Status:     statusFilter,
+		CompanyID: companyID,
+		Column2:   employeeIDVal,
+		Column3:   statusFilter,
 	})
 
 	response.Paginated(c, requests, count, pg.Page, pg.Limit)
@@ -131,6 +134,16 @@ func (h *Handler) ApproveRequest(c *gin.Context) {
 		response.NotFound(c, "Overtime request not found or already processed")
 		return
 	}
+
+	// Notify employee
+	if reqEmp, err := h.queries.GetEmployeeByID(c.Request.Context(), store.GetEmployeeByIDParams{ID: ot.EmployeeID, CompanyID: companyID}); err == nil && reqEmp.UserID != nil {
+		entityType := "overtime_request"
+		notification.Notify(c.Request.Context(), h.queries, h.logger, companyID, *reqEmp.UserID,
+			"Overtime Approved",
+			fmt.Sprintf("Your overtime request for %s has been approved.", ot.OtDate.Format("Jan 2, 2006")),
+			"approval", &entityType, &ot.ID)
+	}
+
 	response.OK(c, ot)
 }
 
@@ -159,5 +172,17 @@ func (h *Handler) RejectRequest(c *gin.Context) {
 		response.NotFound(c, "Overtime request not found or already processed")
 		return
 	}
+
+	// Notify employee
+	if reqEmp, err := h.queries.GetEmployeeByID(c.Request.Context(), store.GetEmployeeByIDParams{ID: ot.EmployeeID, CompanyID: companyID}); err == nil && reqEmp.UserID != nil {
+		entityType := "overtime_request"
+		msg := fmt.Sprintf("Your overtime request for %s has been rejected.", ot.OtDate.Format("Jan 2, 2006"))
+		if req.Reason != "" {
+			msg += " Reason: " + req.Reason
+		}
+		notification.Notify(c.Request.Context(), h.queries, h.logger, companyID, *reqEmp.UserID,
+			"Overtime Rejected", msg, "approval", &entityType, &ot.ID)
+	}
+
 	response.OK(c, ot)
 }

@@ -1,9 +1,13 @@
 package company
 
 import (
+	"fmt"
+	"io"
 	"log/slog"
-	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -33,22 +37,20 @@ func (h *Handler) GetCompany(c *gin.Context) {
 	response.OK(c, company)
 }
 
-type updateCompanyRequest struct {
-	Name         *string `json:"name"`
-	LegalName    *string `json:"legal_name"`
-	TIN          *string `json:"tin"`
-	BIRRDO       *string `json:"bir_rdo"`
-	Address      *string `json:"address"`
-	City         *string `json:"city"`
-	Province     *string `json:"province"`
-	ZipCode      *string `json:"zip_code"`
-	Timezone     *string `json:"timezone"`
-	PayFrequency *string `json:"pay_frequency"`
-	LogoURL      *string `json:"logo_url"`
-}
-
 func (h *Handler) UpdateCompany(c *gin.Context) {
-	var req updateCompanyRequest
+	var req struct {
+		Name         string  `json:"name"`
+		LegalName    *string `json:"legal_name"`
+		TIN          *string `json:"tin"`
+		BIRRDO       *string `json:"bir_rdo"`
+		Address      *string `json:"address"`
+		City         *string `json:"city"`
+		Province     *string `json:"province"`
+		ZipCode      *string `json:"zip_code"`
+		Timezone     string  `json:"timezone"`
+		PayFrequency string  `json:"pay_frequency"`
+		LogoURL      *string `json:"logo_url"`
+	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, err.Error())
 		return
@@ -77,10 +79,59 @@ func (h *Handler) UpdateCompany(c *gin.Context) {
 	response.OK(c, company)
 }
 
-type createDepartmentRequest struct {
-	Code     string `json:"code" binding:"required"`
-	Name     string `json:"name" binding:"required"`
-	ParentID *int64 `json:"parent_id"`
+func (h *Handler) UploadLogo(c *gin.Context) {
+	file, header, err := c.Request.FormFile("logo")
+	if err != nil {
+		response.BadRequest(c, "Logo file is required")
+		return
+	}
+	defer file.Close()
+
+	// Validate file type
+	ext := filepath.Ext(header.Filename)
+	allowed := map[string]bool{".png": true, ".jpg": true, ".jpeg": true, ".svg": true, ".webp": true}
+	if !allowed[ext] {
+		response.BadRequest(c, "Only PNG, JPG, SVG, and WebP files are allowed")
+		return
+	}
+
+	companyID := auth.GetCompanyID(c)
+	uploadDir := fmt.Sprintf("uploads/logos/%d", companyID)
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		h.logger.Error("failed to create logo dir", "error", err)
+		response.InternalError(c, "Failed to upload logo")
+		return
+	}
+
+	fileName := fmt.Sprintf("logo_%d%s", time.Now().UnixMilli(), ext)
+	filePath := filepath.Join(uploadDir, fileName)
+
+	out, err := os.Create(filePath)
+	if err != nil {
+		h.logger.Error("failed to create logo file", "error", err)
+		response.InternalError(c, "Failed to upload logo")
+		return
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, file); err != nil {
+		h.logger.Error("failed to write logo file", "error", err)
+		response.InternalError(c, "Failed to upload logo")
+		return
+	}
+
+	// Update company logo_url
+	logoURL := "/" + filePath
+	company, err := h.queries.UpdateCompany(c.Request.Context(), store.UpdateCompanyParams{
+		ID:      companyID,
+		LogoUrl: &logoURL,
+	})
+	if err != nil {
+		h.logger.Error("failed to update logo url", "error", err)
+		response.InternalError(c, "Failed to update logo")
+		return
+	}
+	response.OK(c, company)
 }
 
 func (h *Handler) ListDepartments(c *gin.Context) {
@@ -94,7 +145,11 @@ func (h *Handler) ListDepartments(c *gin.Context) {
 }
 
 func (h *Handler) CreateDepartment(c *gin.Context) {
-	var req createDepartmentRequest
+	var req struct {
+		Code     string `json:"code" binding:"required"`
+		Name     string `json:"name" binding:"required"`
+		ParentID *int64 `json:"parent_id"`
+	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, err.Error())
 		return
@@ -123,10 +178,10 @@ func (h *Handler) UpdateDepartment(c *gin.Context) {
 	}
 
 	var req struct {
-		Name           *string `json:"name"`
-		ParentID       *int64  `json:"parent_id"`
-		HeadEmployeeID *int64  `json:"head_employee_id"`
-		IsActive       *bool   `json:"is_active"`
+		Name           string `json:"name"`
+		ParentID       *int64 `json:"parent_id"`
+		HeadEmployeeID *int64 `json:"head_employee_id"`
+		IsActive       bool   `json:"is_active"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, err.Error())
@@ -149,13 +204,6 @@ func (h *Handler) UpdateDepartment(c *gin.Context) {
 	response.OK(c, dept)
 }
 
-type createPositionRequest struct {
-	Code         string `json:"code" binding:"required"`
-	Title        string `json:"title" binding:"required"`
-	DepartmentID *int64 `json:"department_id"`
-	Grade        *string `json:"grade"`
-}
-
 func (h *Handler) ListPositions(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 	positions, err := h.queries.ListPositions(c.Request.Context(), companyID)
@@ -167,7 +215,12 @@ func (h *Handler) ListPositions(c *gin.Context) {
 }
 
 func (h *Handler) CreatePosition(c *gin.Context) {
-	var req createPositionRequest
+	var req struct {
+		Code         string  `json:"code" binding:"required"`
+		Title        string  `json:"title" binding:"required"`
+		DepartmentID *int64  `json:"department_id"`
+		Grade        *string `json:"grade"`
+	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, err.Error())
 		return
@@ -196,10 +249,10 @@ func (h *Handler) UpdatePosition(c *gin.Context) {
 	}
 
 	var req struct {
-		Title        *string `json:"title"`
+		Title        string  `json:"title"`
 		DepartmentID *int64  `json:"department_id"`
 		Grade        *string `json:"grade"`
-		IsActive     *bool   `json:"is_active"`
+		IsActive     bool    `json:"is_active"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, err.Error())
@@ -220,9 +273,4 @@ func (h *Handler) UpdatePosition(c *gin.Context) {
 		return
 	}
 	response.OK(c, pos)
-}
-
-func intParam(c *gin.Context, name string) int64 {
-	v, _ := strconv.ParseInt(c.Param(name), 10, 64)
-	return v
 }
