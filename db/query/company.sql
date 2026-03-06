@@ -20,6 +20,16 @@ UPDATE companies SET
     timezone = COALESCE($10, timezone),
     pay_frequency = COALESCE($11, pay_frequency),
     logo_url = COALESCE($12, logo_url),
+    sss_er_no = COALESCE($13, sss_er_no),
+    philhealth_er_no = COALESCE($14, philhealth_er_no),
+    pagibig_er_no = COALESCE($15, pagibig_er_no),
+    bank_name = COALESCE($16, bank_name),
+    bank_branch = COALESCE($17, bank_branch),
+    bank_account_no = COALESCE($18, bank_account_no),
+    bank_account_name = COALESCE($19, bank_account_name),
+    contact_person = COALESCE($20, contact_person),
+    contact_email = COALESCE($21, contact_email),
+    contact_phone = COALESCE($22, contact_phone),
     updated_at = NOW()
 WHERE id = $1
 RETURNING *;

@@ -22,6 +22,16 @@ const form = ref({
   zip_code: '',
   timezone: 'Asia/Manila',
   pay_frequency: 'semi_monthly',
+  sss_er_no: '',
+  philhealth_er_no: '',
+  pagibig_er_no: '',
+  bank_name: '',
+  bank_branch: '',
+  bank_account_no: '',
+  bank_account_name: '',
+  contact_person: '',
+  contact_email: '',
+  contact_phone: '',
 })
 
 const payFreqOptions = computed(() => [
@@ -52,6 +62,16 @@ onMounted(async () => {
     form.value.zip_code = company.zip_code || ''
     form.value.timezone = company.timezone || 'Asia/Manila'
     form.value.pay_frequency = company.pay_frequency || 'semi_monthly'
+    form.value.sss_er_no = company.sss_er_no || ''
+    form.value.philhealth_er_no = company.philhealth_er_no || ''
+    form.value.pagibig_er_no = company.pagibig_er_no || ''
+    form.value.bank_name = company.bank_name || ''
+    form.value.bank_branch = company.bank_branch || ''
+    form.value.bank_account_no = company.bank_account_no || ''
+    form.value.bank_account_name = company.bank_account_name || ''
+    form.value.contact_person = company.contact_person || ''
+    form.value.contact_email = company.contact_email || ''
+    form.value.contact_phone = company.contact_phone || ''
     logoUrl.value = company.logo_url || null
   } catch {
     // ok
@@ -138,7 +158,7 @@ async function handleRemoveLogo() {
     </NCard>
 
     <!-- Company Info -->
-    <NCard :title="t('nav.settings')">
+    <NCard :title="t('nav.settings')" style="margin-bottom: 24px;">
       <NForm @submit.prevent="handleSave" label-placement="left" label-width="140">
         <NFormItem :label="t('settings.companyName')">
           <NInput v-model:value="form.name" />
@@ -168,6 +188,57 @@ async function handleRemoveLogo() {
         </NSpace>
         <NFormItem :label="t('settings.payFrequency')">
           <NSelect v-model:value="form.pay_frequency" :options="payFreqOptions" />
+        </NFormItem>
+        <NButton type="primary" :loading="loading" attr-type="submit">{{ t('common.save') }}</NButton>
+      </NForm>
+    </NCard>
+
+    <!-- Government Registration -->
+    <NCard :title="t('settings.govRegistration')" style="margin-bottom: 24px;">
+      <NForm @submit.prevent="handleSave" label-placement="left" label-width="180">
+        <NFormItem :label="t('settings.sssErNo')">
+          <NInput v-model:value="form.sss_er_no" />
+        </NFormItem>
+        <NFormItem :label="t('settings.philhealthErNo')">
+          <NInput v-model:value="form.philhealth_er_no" />
+        </NFormItem>
+        <NFormItem :label="t('settings.pagibigErNo')">
+          <NInput v-model:value="form.pagibig_er_no" />
+        </NFormItem>
+        <NButton type="primary" :loading="loading" attr-type="submit">{{ t('common.save') }}</NButton>
+      </NForm>
+    </NCard>
+
+    <!-- Banking Details -->
+    <NCard :title="t('settings.bankingDetails')" style="margin-bottom: 24px;">
+      <NForm @submit.prevent="handleSave" label-placement="left" label-width="140">
+        <NFormItem :label="t('settings.bankName')">
+          <NInput v-model:value="form.bank_name" />
+        </NFormItem>
+        <NFormItem :label="t('settings.bankBranch')">
+          <NInput v-model:value="form.bank_branch" />
+        </NFormItem>
+        <NFormItem :label="t('settings.bankAccountNo')">
+          <NInput v-model:value="form.bank_account_no" />
+        </NFormItem>
+        <NFormItem :label="t('settings.bankAccountName')">
+          <NInput v-model:value="form.bank_account_name" />
+        </NFormItem>
+        <NButton type="primary" :loading="loading" attr-type="submit">{{ t('common.save') }}</NButton>
+      </NForm>
+    </NCard>
+
+    <!-- Contact Person -->
+    <NCard :title="t('settings.contactPerson')">
+      <NForm @submit.prevent="handleSave" label-placement="left" label-width="140">
+        <NFormItem :label="t('settings.contactPerson')">
+          <NInput v-model:value="form.contact_person" />
+        </NFormItem>
+        <NFormItem :label="t('settings.contactEmail')">
+          <NInput v-model:value="form.contact_email" />
+        </NFormItem>
+        <NFormItem :label="t('settings.contactPhone')">
+          <NInput v-model:value="form.contact_phone" />
         </NFormItem>
         <NButton type="primary" :loading="loading" attr-type="submit">{{ t('common.save') }}</NButton>
       </NForm>

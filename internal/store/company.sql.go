@@ -10,7 +10,7 @@ import (
 )
 
 const createCompany = `-- name: CreateCompany :one
-INSERT INTO companies (name) VALUES ($1) RETURNING id, name, legal_name, tin, bir_rdo, address, city, province, zip_code, country, timezone, currency, pay_frequency, status, logo_url, created_at, updated_at, geofence_enabled
+INSERT INTO companies (name) VALUES ($1) RETURNING id, name, legal_name, tin, bir_rdo, address, city, province, zip_code, country, timezone, currency, pay_frequency, status, logo_url, created_at, updated_at, geofence_enabled, sss_er_no, philhealth_er_no, pagibig_er_no, bank_name, bank_branch, bank_account_no, bank_account_name, contact_person, contact_email, contact_phone
 `
 
 func (q *Queries) CreateCompany(ctx context.Context, name string) (Company, error) {
@@ -35,6 +35,16 @@ func (q *Queries) CreateCompany(ctx context.Context, name string) (Company, erro
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.GeofenceEnabled,
+		&i.SssErNo,
+		&i.PhilhealthErNo,
+		&i.PagibigErNo,
+		&i.BankName,
+		&i.BankBranch,
+		&i.BankAccountNo,
+		&i.BankAccountName,
+		&i.ContactPerson,
+		&i.ContactEmail,
+		&i.ContactPhone,
 	)
 	return i, err
 }
@@ -138,7 +148,7 @@ func (q *Queries) CreatePosition(ctx context.Context, arg CreatePositionParams) 
 }
 
 const getCompanyByID = `-- name: GetCompanyByID :one
-SELECT id, name, legal_name, tin, bir_rdo, address, city, province, zip_code, country, timezone, currency, pay_frequency, status, logo_url, created_at, updated_at, geofence_enabled FROM companies WHERE id = $1
+SELECT id, name, legal_name, tin, bir_rdo, address, city, province, zip_code, country, timezone, currency, pay_frequency, status, logo_url, created_at, updated_at, geofence_enabled, sss_er_no, philhealth_er_no, pagibig_er_no, bank_name, bank_branch, bank_account_no, bank_account_name, contact_person, contact_email, contact_phone FROM companies WHERE id = $1
 `
 
 func (q *Queries) GetCompanyByID(ctx context.Context, id int64) (Company, error) {
@@ -163,6 +173,16 @@ func (q *Queries) GetCompanyByID(ctx context.Context, id int64) (Company, error)
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.GeofenceEnabled,
+		&i.SssErNo,
+		&i.PhilhealthErNo,
+		&i.PagibigErNo,
+		&i.BankName,
+		&i.BankBranch,
+		&i.BankAccountNo,
+		&i.BankAccountName,
+		&i.ContactPerson,
+		&i.ContactEmail,
+		&i.ContactPhone,
 	)
 	return i, err
 }
@@ -220,7 +240,7 @@ func (q *Queries) GetPositionByID(ctx context.Context, arg GetPositionByIDParams
 }
 
 const listAllCompanies = `-- name: ListAllCompanies :many
-SELECT id, name, legal_name, tin, bir_rdo, address, city, province, zip_code, country, timezone, currency, pay_frequency, status, logo_url, created_at, updated_at, geofence_enabled FROM companies ORDER BY id
+SELECT id, name, legal_name, tin, bir_rdo, address, city, province, zip_code, country, timezone, currency, pay_frequency, status, logo_url, created_at, updated_at, geofence_enabled, sss_er_no, philhealth_er_no, pagibig_er_no, bank_name, bank_branch, bank_account_no, bank_account_name, contact_person, contact_email, contact_phone FROM companies ORDER BY id
 `
 
 func (q *Queries) ListAllCompanies(ctx context.Context) ([]Company, error) {
@@ -251,6 +271,16 @@ func (q *Queries) ListAllCompanies(ctx context.Context) ([]Company, error) {
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.GeofenceEnabled,
+			&i.SssErNo,
+			&i.PhilhealthErNo,
+			&i.PagibigErNo,
+			&i.BankName,
+			&i.BankBranch,
+			&i.BankAccountNo,
+			&i.BankAccountName,
+			&i.ContactPerson,
+			&i.ContactEmail,
+			&i.ContactPhone,
 		); err != nil {
 			return nil, err
 		}
@@ -374,24 +404,44 @@ UPDATE companies SET
     timezone = COALESCE($10, timezone),
     pay_frequency = COALESCE($11, pay_frequency),
     logo_url = COALESCE($12, logo_url),
+    sss_er_no = COALESCE($13, sss_er_no),
+    philhealth_er_no = COALESCE($14, philhealth_er_no),
+    pagibig_er_no = COALESCE($15, pagibig_er_no),
+    bank_name = COALESCE($16, bank_name),
+    bank_branch = COALESCE($17, bank_branch),
+    bank_account_no = COALESCE($18, bank_account_no),
+    bank_account_name = COALESCE($19, bank_account_name),
+    contact_person = COALESCE($20, contact_person),
+    contact_email = COALESCE($21, contact_email),
+    contact_phone = COALESCE($22, contact_phone),
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, name, legal_name, tin, bir_rdo, address, city, province, zip_code, country, timezone, currency, pay_frequency, status, logo_url, created_at, updated_at, geofence_enabled
+RETURNING id, name, legal_name, tin, bir_rdo, address, city, province, zip_code, country, timezone, currency, pay_frequency, status, logo_url, created_at, updated_at, geofence_enabled, sss_er_no, philhealth_er_no, pagibig_er_no, bank_name, bank_branch, bank_account_no, bank_account_name, contact_person, contact_email, contact_phone
 `
 
 type UpdateCompanyParams struct {
-	ID           int64   `json:"id"`
-	Name         string  `json:"name"`
-	LegalName    *string `json:"legal_name"`
-	Tin          *string `json:"tin"`
-	BirRdo       *string `json:"bir_rdo"`
-	Address      *string `json:"address"`
-	City         *string `json:"city"`
-	Province     *string `json:"province"`
-	ZipCode      *string `json:"zip_code"`
-	Timezone     string  `json:"timezone"`
-	PayFrequency string  `json:"pay_frequency"`
-	LogoUrl      *string `json:"logo_url"`
+	ID              int64   `json:"id"`
+	Name            string  `json:"name"`
+	LegalName       *string `json:"legal_name"`
+	Tin             *string `json:"tin"`
+	BirRdo          *string `json:"bir_rdo"`
+	Address         *string `json:"address"`
+	City            *string `json:"city"`
+	Province        *string `json:"province"`
+	ZipCode         *string `json:"zip_code"`
+	Timezone        string  `json:"timezone"`
+	PayFrequency    string  `json:"pay_frequency"`
+	LogoUrl         *string `json:"logo_url"`
+	SssErNo         *string `json:"sss_er_no"`
+	PhilhealthErNo  *string `json:"philhealth_er_no"`
+	PagibigErNo     *string `json:"pagibig_er_no"`
+	BankName        *string `json:"bank_name"`
+	BankBranch      *string `json:"bank_branch"`
+	BankAccountNo   *string `json:"bank_account_no"`
+	BankAccountName *string `json:"bank_account_name"`
+	ContactPerson   *string `json:"contact_person"`
+	ContactEmail    *string `json:"contact_email"`
+	ContactPhone    *string `json:"contact_phone"`
 }
 
 func (q *Queries) UpdateCompany(ctx context.Context, arg UpdateCompanyParams) (Company, error) {
@@ -408,6 +458,16 @@ func (q *Queries) UpdateCompany(ctx context.Context, arg UpdateCompanyParams) (C
 		arg.Timezone,
 		arg.PayFrequency,
 		arg.LogoUrl,
+		arg.SssErNo,
+		arg.PhilhealthErNo,
+		arg.PagibigErNo,
+		arg.BankName,
+		arg.BankBranch,
+		arg.BankAccountNo,
+		arg.BankAccountName,
+		arg.ContactPerson,
+		arg.ContactEmail,
+		arg.ContactPhone,
 	)
 	var i Company
 	err := row.Scan(
@@ -429,6 +489,16 @@ func (q *Queries) UpdateCompany(ctx context.Context, arg UpdateCompanyParams) (C
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.GeofenceEnabled,
+		&i.SssErNo,
+		&i.PhilhealthErNo,
+		&i.PagibigErNo,
+		&i.BankName,
+		&i.BankBranch,
+		&i.BankAccountNo,
+		&i.BankAccountName,
+		&i.ContactPerson,
+		&i.ContactEmail,
+		&i.ContactPhone,
 	)
 	return i, err
 }

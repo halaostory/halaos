@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, nextTick, watch } from 'vue'
+import { ref, nextTick, watch, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { NButton, NInput, NSpin } from 'naive-ui'
 import { aiAPI } from '../api/client'
@@ -11,6 +11,8 @@ const message = ref('')
 const loading = ref(false)
 const sessionId = ref<string | undefined>()
 const messagesContainer = ref<HTMLElement>()
+const showHistory = ref(false)
+const currentSessionId = ref<string | null>(null)
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system'
@@ -18,20 +20,153 @@ interface ChatMessage {
   tools?: string[]
 }
 
-const messages = ref<ChatMessage[]>([
-  {
+interface ChatSession {
+  id: string
+  title: string
+  messages: ChatMessage[]
+  updatedAt: string
+}
+
+interface StoredSessions {
+  sessions: ChatSession[]
+}
+
+const STORAGE_KEY = 'aigonhr_chat_sessions'
+const MAX_SESSIONS = 20
+
+function generateId(): string {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
+}
+
+function getSystemMessage(): ChatMessage {
+  return {
     role: 'system',
     content: locale.value === 'zh'
       ? '你好！我是 AigoNHR AI 助手。我可以帮你查询假期余额、薪资信息、考勤状况、菲律宾劳工法规等。请问有什么可以帮你的？'
       : 'Hello! I\'m the AigoNHR AI Assistant. I can help you check leave balances, payroll info, attendance, and Philippine labor regulations. How can I help you?'
   }
-])
+}
+
+const messages = ref<ChatMessage[]>([getSystemMessage()])
+
+// --- localStorage helpers (immutable) ---
+
+function loadSessions(): ChatSession[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return []
+    const parsed: StoredSessions = JSON.parse(raw)
+    return Array.isArray(parsed.sessions) ? parsed.sessions : []
+  } catch {
+    return []
+  }
+}
+
+function saveSessions(sessions: ChatSession[]): void {
+  const data: StoredSessions = { sessions }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+}
+
+function deriveTitle(msgs: ChatMessage[]): string {
+  const firstUser = msgs.find(m => m.role === 'user')
+  if (!firstUser) return 'New Chat'
+  const text = firstUser.content.trim()
+  return text.length > 30 ? text.slice(0, 30) + '...' : text
+}
+
+function saveCurrentSession(): void {
+  // Only save if there are user messages beyond the system greeting
+  const hasUserMessages = messages.value.some(m => m.role === 'user')
+  if (!hasUserMessages) return
+
+  const now = new Date().toISOString()
+  const sessId = currentSessionId.value || generateId()
+
+  if (!currentSessionId.value) {
+    currentSessionId.value = sessId
+  }
+
+  const updatedSession: ChatSession = {
+    id: sessId,
+    title: deriveTitle(messages.value),
+    messages: [...messages.value.map(m => ({ ...m, tools: m.tools ? [...m.tools] : undefined }))],
+    updatedAt: now,
+  }
+
+  const existing = loadSessions()
+  const withoutCurrent = existing.filter(s => s.id !== sessId)
+  // Prepend current session, then trim to MAX_SESSIONS
+  const merged = [updatedSession, ...withoutCurrent].slice(0, MAX_SESSIONS)
+  saveSessions(merged)
+}
+
+function deleteSession(sessIdToDelete: string): void {
+  const existing = loadSessions()
+  const filtered = existing.filter(s => s.id !== sessIdToDelete)
+  saveSessions(filtered)
+
+  // If we deleted the active session, start a new chat
+  if (currentSessionId.value === sessIdToDelete) {
+    startNewChat()
+  }
+}
+
+function loadSession(sess: ChatSession): void {
+  currentSessionId.value = sess.id
+  messages.value = [...sess.messages.map(m => ({ ...m, tools: m.tools ? [...m.tools] : undefined }))]
+  sessionId.value = undefined // reset API session — backend doesn't persist
+  showHistory.value = false
+  scrollToBottom()
+}
+
+function startNewChat(): void {
+  currentSessionId.value = null
+  sessionId.value = undefined
+  messages.value = [getSystemMessage()]
+  showHistory.value = false
+}
+
+// Reactive list of sessions for the sidebar
+const storedSessions = ref<ChatSession[]>([])
+
+function refreshStoredSessions(): void {
+  storedSessions.value = loadSessions()
+}
+
+// --- Relative time ---
+
+function relativeTime(isoString: string): string {
+  const now = Date.now()
+  const then = new Date(isoString).getTime()
+  const diffMs = now - then
+  const diffMin = Math.floor(diffMs / 60000)
+
+  if (diffMin < 1) return locale.value === 'zh' ? '刚刚' : 'just now'
+  if (diffMin < 60) return locale.value === 'zh' ? `${diffMin}分钟前` : `${diffMin}m ago`
+  const diffHr = Math.floor(diffMin / 60)
+  if (diffHr < 24) return locale.value === 'zh' ? `${diffHr}小时前` : `${diffHr}h ago`
+  const diffDay = Math.floor(diffHr / 24)
+  if (diffDay < 30) return locale.value === 'zh' ? `${diffDay}天前` : `${diffDay}d ago`
+  const diffMon = Math.floor(diffDay / 30)
+  return locale.value === 'zh' ? `${diffMon}个月前` : `${diffMon}mo ago`
+}
+
+// --- Lifecycle ---
+
+onMounted(() => {
+  refreshStoredSessions()
+})
 
 watch(locale, (newLocale) => {
   if (messages.value.length === 1 && messages.value[0].role === 'system') {
-    messages.value[0].content = newLocale === 'zh'
-      ? '你好！我是 AigoNHR AI 助手。我可以帮你查询假期余额、薪资信息、考勤状况、菲律宾劳工法规等。请问有什么可以帮你的？'
-      : 'Hello! I\'m the AigoNHR AI Assistant. I can help you check leave balances, payroll info, attendance, and Philippine labor regulations. How can I help you?'
+    messages.value = [
+      {
+        ...messages.value[0],
+        content: newLocale === 'zh'
+          ? '你好！我是 AigoNHR AI 助手。我可以帮你查询假期余额、薪资信息、考勤状况、菲律宾劳工法规等。请问有什么可以帮你的？'
+          : 'Hello! I\'m the AigoNHR AI Assistant. I can help you check leave balances, payroll info, attendance, and Philippine labor regulations. How can I help you?'
+      }
+    ]
   }
 })
 
@@ -47,14 +182,15 @@ async function sendMessage() {
   const text = message.value.trim()
   if (!text || loading.value) return
 
-  messages.value.push({ role: 'user', content: text })
+  // Immutable push — create new array with new user message
+  messages.value = [...messages.value, { role: 'user', content: text }]
   message.value = ''
   loading.value = true
   scrollToBottom()
 
   // Add empty assistant message for streaming
   const assistantMsg: ChatMessage = { role: 'assistant', content: '', tools: [] }
-  messages.value.push(assistantMsg)
+  messages.value = [...messages.value, assistantMsg]
 
   try {
     const stream = aiAPI.streamChat(text, sessionId.value)
@@ -66,12 +202,11 @@ async function sendMessage() {
           break
         case 'tool':
           if (chunk.name) {
-            assistantMsg.tools = assistantMsg.tools || []
-            assistantMsg.tools.push(chunk.name)
+            assistantMsg.tools = [...(assistantMsg.tools || []), chunk.name]
           }
           break
         case 'error':
-          assistantMsg.content += `\n\n⚠️ ${chunk.message || 'An error occurred'}`
+          assistantMsg.content += `\n\n${chunk.message || 'An error occurred'}`
           break
         case 'done':
           break
@@ -79,10 +214,13 @@ async function sendMessage() {
     }
   } catch (e: unknown) {
     const err = e as Error
-    assistantMsg.content = `⚠️ ${err.message || 'Failed to get AI response'}`
+    assistantMsg.content = `${err.message || 'Failed to get AI response'}`
   } finally {
     loading.value = false
     scrollToBottom()
+    // Save to localStorage after assistant response completes
+    saveCurrentSession()
+    refreshStoredSessions()
   }
 }
 
@@ -95,7 +233,19 @@ function handleKeyDown(e: KeyboardEvent) {
 
 function togglePanel() {
   isOpen.value = !isOpen.value
+  if (isOpen.value) {
+    refreshStoredSessions()
+  }
 }
+
+function toggleHistory() {
+  showHistory.value = !showHistory.value
+  if (showHistory.value) {
+    refreshStoredSessions()
+  }
+}
+
+const chatPanelWidth = computed(() => showHistory.value ? '600px' : '400px')
 </script>
 
 <template>
@@ -111,52 +261,105 @@ function togglePanel() {
 
   <!-- Chat panel -->
   <Transition name="slide">
-    <div v-if="isOpen" class="chat-panel">
+    <div v-if="isOpen" class="chat-panel" :style="{ width: chatPanelWidth }">
       <div class="chat-header">
-        <span class="chat-title">AigoNHR AI</span>
-        <NButton text size="small" @click="isOpen = false">✕</NButton>
+        <div class="chat-header-left">
+          <NButton
+            text
+            size="small"
+            class="history-toggle-btn"
+            @click="toggleHistory"
+            :title="locale === 'zh' ? '聊天记录' : 'Chat History'"
+          >
+            <span style="font-size: 16px;">&#9776;</span>
+          </NButton>
+          <span class="chat-title">AigoNHR AI</span>
+        </div>
+        <NButton text size="small" @click="isOpen = false" class="chat-close-btn">✕</NButton>
       </div>
 
-      <div ref="messagesContainer" class="chat-messages">
-        <div
-          v-for="(msg, i) in messages"
-          :key="i"
-          :class="['chat-msg', `chat-msg-${msg.role}`]"
-        >
-          <div v-if="msg.tools && msg.tools.length" class="chat-tools">
-            <span v-for="tool in msg.tools" :key="tool" class="chat-tool-tag">
-              🔧 {{ tool }}
-            </span>
+      <div class="chat-body">
+        <!-- History sidebar -->
+        <Transition name="history-slide">
+          <div v-if="showHistory" class="chat-history-sidebar">
+            <div class="history-header">
+              <span class="history-title">{{ locale === 'zh' ? '聊天记录' : 'History' }}</span>
+              <NButton size="tiny" type="primary" @click="startNewChat" class="new-chat-btn">
+                {{ locale === 'zh' ? '新对话' : 'New Chat' }}
+              </NButton>
+            </div>
+            <div class="history-list">
+              <div
+                v-for="sess in storedSessions"
+                :key="sess.id"
+                :class="['history-item', { 'history-item-active': sess.id === currentSessionId }]"
+                @click="loadSession(sess)"
+              >
+                <div class="history-item-content">
+                  <div class="history-item-title">{{ sess.title }}</div>
+                  <div class="history-item-time">{{ relativeTime(sess.updatedAt) }}</div>
+                </div>
+                <NButton
+                  text
+                  size="tiny"
+                  class="history-delete-btn"
+                  @click.stop="deleteSession(sess.id)"
+                  :title="locale === 'zh' ? '删除' : 'Delete'"
+                >
+                  ✕
+                </NButton>
+              </div>
+              <div v-if="storedSessions.length === 0" class="history-empty">
+                {{ locale === 'zh' ? '暂无聊天记录' : 'No chat history' }}
+              </div>
+            </div>
           </div>
-          <div class="chat-bubble" v-html="renderMarkdown(msg.content)" />
-        </div>
+        </Transition>
 
-        <div v-if="loading" class="chat-msg chat-msg-assistant">
-          <div class="chat-bubble">
-            <NSpin size="small" />
-            <span style="margin-left: 8px; color: #999;">{{ t('common.loading') }}</span>
+        <!-- Main chat area -->
+        <div class="chat-main">
+          <div ref="messagesContainer" class="chat-messages">
+            <div
+              v-for="(msg, i) in messages"
+              :key="i"
+              :class="['chat-msg', `chat-msg-${msg.role}`]"
+            >
+              <div v-if="msg.tools && msg.tools.length" class="chat-tools">
+                <span v-for="tool in msg.tools" :key="tool" class="chat-tool-tag">
+                  🔧 {{ tool }}
+                </span>
+              </div>
+              <div class="chat-bubble" v-html="renderMarkdown(msg.content)" />
+            </div>
+
+            <div v-if="loading" class="chat-msg chat-msg-assistant">
+              <div class="chat-bubble">
+                <NSpin size="small" />
+                <span style="margin-left: 8px; color: #999;">{{ t('common.loading') }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="chat-input">
+            <NInput
+              v-model:value="message"
+              type="textarea"
+              :autosize="{ minRows: 1, maxRows: 4 }"
+              :placeholder="locale === 'zh' ? '输入消息...' : 'Type a message...'"
+              @keydown="handleKeyDown"
+              :disabled="loading"
+            />
+            <NButton
+              type="primary"
+              size="small"
+              :disabled="!message.trim() || loading"
+              @click="sendMessage"
+              style="margin-left: 8px; align-self: flex-end;"
+            >
+              {{ locale === 'zh' ? '发送' : 'Send' }}
+            </NButton>
           </div>
         </div>
-      </div>
-
-      <div class="chat-input">
-        <NInput
-          v-model:value="message"
-          type="textarea"
-          :autosize="{ minRows: 1, maxRows: 4 }"
-          :placeholder="locale === 'zh' ? '输入消息...' : 'Type a message...'"
-          @keydown="handleKeyDown"
-          :disabled="loading"
-        />
-        <NButton
-          type="primary"
-          size="small"
-          :disabled="!message.trim() || loading"
-          @click="sendMessage"
-          style="margin-left: 8px; align-self: flex-end;"
-        >
-          {{ locale === 'zh' ? '发送' : 'Send' }}
-        </NButton>
       </div>
     </div>
   </Transition>
@@ -221,7 +424,6 @@ function renderMarkdown(text: string): string {
   position: fixed;
   bottom: 88px;
   right: 24px;
-  width: 400px;
   height: 540px;
   background: var(--n-color, #fff);
   border: 1px solid var(--n-border-color, #e0e0e0);
@@ -231,6 +433,7 @@ function renderMarkdown(text: string): string {
   flex-direction: column;
   z-index: 999;
   overflow: hidden;
+  transition: width 0.3s ease;
 }
 
 .chat-header {
@@ -241,10 +444,139 @@ function renderMarkdown(text: string): string {
   border-bottom: 1px solid var(--n-border-color, #e0e0e0);
   background: var(--n-color-primary, #18a058);
   color: white;
+  flex-shrink: 0;
+}
+.chat-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.history-toggle-btn {
+  color: white !important;
+  opacity: 0.85;
+  transition: opacity 0.2s;
+}
+.history-toggle-btn:hover {
+  opacity: 1;
+}
+.chat-close-btn {
+  color: white !important;
 }
 .chat-title {
   font-weight: 600;
   font-size: 15px;
+}
+
+.chat-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* --- History sidebar --- */
+.chat-history-sidebar {
+  width: 200px;
+  min-width: 200px;
+  border-right: 1px solid var(--n-border-color, #e0e0e0);
+  display: flex;
+  flex-direction: column;
+  background: var(--n-color-modal, #fafafa);
+  overflow: hidden;
+}
+.history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--n-border-color, #e0e0e0);
+  flex-shrink: 0;
+}
+.history-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--n-text-color, #333);
+}
+.new-chat-btn {
+  font-size: 11px;
+}
+.history-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+.history-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+  gap: 4px;
+}
+.history-item:hover {
+  background: var(--n-color-hover, #f0f0f0);
+}
+.history-item-active {
+  background: rgba(24, 160, 88, 0.08);
+  border-left: 3px solid var(--n-color-primary, #18a058);
+  padding-left: 9px;
+}
+.history-item-content {
+  flex: 1;
+  min-width: 0;
+}
+.history-item-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--n-text-color, #333);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.history-item-time {
+  font-size: 10px;
+  color: #999;
+  margin-top: 2px;
+}
+.history-delete-btn {
+  opacity: 0;
+  color: #999 !important;
+  font-size: 12px;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+.history-item:hover .history-delete-btn {
+  opacity: 1;
+}
+.history-delete-btn:hover {
+  color: #e06060 !important;
+}
+.history-empty {
+  padding: 20px 12px;
+  text-align: center;
+  color: #999;
+  font-size: 12px;
+}
+
+/* History slide animation */
+.history-slide-enter-active,
+.history-slide-leave-active {
+  transition: all 0.25s ease;
+}
+.history-slide-enter-from,
+.history-slide-leave-to {
+  width: 0;
+  min-width: 0;
+  opacity: 0;
+}
+
+/* --- Main chat area --- */
+.chat-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .chat-messages {
@@ -338,6 +670,7 @@ function renderMarkdown(text: string): string {
   padding: 12px;
   border-top: 1px solid var(--n-border-color, #e0e0e0);
   gap: 0;
+  flex-shrink: 0;
 }
 
 /* Slide animation */
@@ -354,10 +687,14 @@ function renderMarkdown(text: string): string {
 /* Mobile responsive */
 @media (max-width: 480px) {
   .chat-panel {
-    width: calc(100vw - 16px);
+    width: calc(100vw - 16px) !important;
     height: calc(100vh - 120px);
     right: 8px;
     bottom: 80px;
+  }
+  .chat-history-sidebar {
+    width: 160px;
+    min-width: 160px;
   }
 }
 </style>

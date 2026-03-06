@@ -277,6 +277,16 @@ type Company struct {
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 	GeofenceEnabled bool      `json:"geofence_enabled"`
+	SssErNo         *string   `json:"sss_er_no"`
+	PhilhealthErNo  *string   `json:"philhealth_er_no"`
+	PagibigErNo     *string   `json:"pagibig_er_no"`
+	BankName        *string   `json:"bank_name"`
+	BankBranch      *string   `json:"bank_branch"`
+	BankAccountNo   *string   `json:"bank_account_no"`
+	BankAccountName *string   `json:"bank_account_name"`
+	ContactPerson   *string   `json:"contact_person"`
+	ContactEmail    *string   `json:"contact_email"`
+	ContactPhone    *string   `json:"contact_phone"`
 }
 
 type CompanyPolicy struct {

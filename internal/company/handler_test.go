@@ -26,7 +26,7 @@ func newTestHandler(mockDB *testutil.MockDBTX) *Handler {
 	return NewHandler(queries, nil, logger)
 }
 
-// companyScanValues returns values matching the Company scan order (18 fields).
+// companyScanValues returns values matching the Company scan order (28 fields).
 func companyScanValues() []interface{} {
 	now := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	return []interface{}{
@@ -48,6 +48,16 @@ func companyScanValues() []interface{} {
 		now,             // CreatedAt
 		now,             // UpdatedAt
 		false,           // GeofenceEnabled
+		(*string)(nil),  // SssErNo
+		(*string)(nil),  // PhilhealthErNo
+		(*string)(nil),  // PagibigErNo
+		(*string)(nil),  // BankName
+		(*string)(nil),  // BankBranch
+		(*string)(nil),  // BankAccountNo
+		(*string)(nil),  // BankAccountName
+		(*string)(nil),  // ContactPerson
+		(*string)(nil),  // ContactEmail
+		(*string)(nil),  // ContactPhone
 	}
 }
 

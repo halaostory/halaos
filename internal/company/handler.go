@@ -39,17 +39,27 @@ func (h *Handler) GetCompany(c *gin.Context) {
 
 func (h *Handler) UpdateCompany(c *gin.Context) {
 	var req struct {
-		Name         string  `json:"name"`
-		LegalName    *string `json:"legal_name"`
-		TIN          *string `json:"tin"`
-		BIRRDO       *string `json:"bir_rdo"`
-		Address      *string `json:"address"`
-		City         *string `json:"city"`
-		Province     *string `json:"province"`
-		ZipCode      *string `json:"zip_code"`
-		Timezone     string  `json:"timezone"`
-		PayFrequency string  `json:"pay_frequency"`
-		LogoURL      *string `json:"logo_url"`
+		Name            string  `json:"name"`
+		LegalName       *string `json:"legal_name"`
+		TIN             *string `json:"tin"`
+		BIRRDO          *string `json:"bir_rdo"`
+		Address         *string `json:"address"`
+		City            *string `json:"city"`
+		Province        *string `json:"province"`
+		ZipCode         *string `json:"zip_code"`
+		Timezone        string  `json:"timezone"`
+		PayFrequency    string  `json:"pay_frequency"`
+		LogoURL         *string `json:"logo_url"`
+		SSSErNo         *string `json:"sss_er_no"`
+		PhilhealthErNo  *string `json:"philhealth_er_no"`
+		PagibigErNo     *string `json:"pagibig_er_no"`
+		BankName        *string `json:"bank_name"`
+		BankBranch      *string `json:"bank_branch"`
+		BankAccountNo   *string `json:"bank_account_no"`
+		BankAccountName *string `json:"bank_account_name"`
+		ContactPerson   *string `json:"contact_person"`
+		ContactEmail    *string `json:"contact_email"`
+		ContactPhone    *string `json:"contact_phone"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, err.Error())
@@ -58,18 +68,28 @@ func (h *Handler) UpdateCompany(c *gin.Context) {
 
 	companyID := auth.GetCompanyID(c)
 	company, err := h.queries.UpdateCompany(c.Request.Context(), store.UpdateCompanyParams{
-		ID:           companyID,
-		Name:         req.Name,
-		LegalName:    req.LegalName,
-		Tin:          req.TIN,
-		BirRdo:       req.BIRRDO,
-		Address:      req.Address,
-		City:         req.City,
-		Province:     req.Province,
-		ZipCode:      req.ZipCode,
-		Timezone:     req.Timezone,
-		PayFrequency: req.PayFrequency,
-		LogoUrl:      req.LogoURL,
+		ID:              companyID,
+		Name:            req.Name,
+		LegalName:       req.LegalName,
+		Tin:             req.TIN,
+		BirRdo:          req.BIRRDO,
+		Address:         req.Address,
+		City:            req.City,
+		Province:        req.Province,
+		ZipCode:         req.ZipCode,
+		Timezone:        req.Timezone,
+		PayFrequency:    req.PayFrequency,
+		LogoUrl:         req.LogoURL,
+		SssErNo:         req.SSSErNo,
+		PhilhealthErNo:  req.PhilhealthErNo,
+		PagibigErNo:     req.PagibigErNo,
+		BankName:        req.BankName,
+		BankBranch:      req.BankBranch,
+		BankAccountNo:   req.BankAccountNo,
+		BankAccountName: req.BankAccountName,
+		ContactPerson:   req.ContactPerson,
+		ContactEmail:    req.ContactEmail,
+		ContactPhone:    req.ContactPhone,
 	})
 	if err != nil {
 		h.logger.Error("failed to update company", "error", err)
