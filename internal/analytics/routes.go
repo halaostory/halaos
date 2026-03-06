@@ -16,5 +16,5 @@ func (h *Handler) RegisterRoutes(protected *gin.RouterGroup) {
 	protected.GET("/analytics/leave-utilization", auth.AdminOnly(), h.GetLeaveUtilization)
 
 	// Suggestions
-	protected.GET("/suggestions", auth.ManagerOrAbove(), h.GetSuggestions)
+	protected.GET("/analytics/suggestions", auth.ManagerOrAbove(), h.GetSuggestions)
 }
