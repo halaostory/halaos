@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import { ref, h, onMounted, watch } from 'vue'
+import { ref, computed, h, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   NDataTable, NTag, NPagination, NSpace, NDatePicker, NSelect,
-  NButton, NCard, type DataTableColumns,
+  NButton, NCard, useMessage, type DataTableColumns,
 } from 'naive-ui'
-import { attendanceAPI, employeeAPI } from '../api/client'
+import { attendanceAPI, employeeAPI, exportAPI } from '../api/client'
 import { useAuthStore } from '../stores/auth'
 import { format, subDays } from 'date-fns'
 
 const { t } = useI18n()
+const message = useMessage()
 const auth = useAuthStore()
 const data = ref<Record<string, unknown>[]>([])
 const loading = ref(false)
@@ -24,6 +25,7 @@ const dateRange = ref<[number, number]>([
 ])
 const selectedEmployee = ref<number | null>(null)
 const employeeOptions = ref<{ label: string; value: number }[]>([])
+const employeeMap = ref(new Map<number, string>())
 
 const isManager = auth.isAdmin || auth.isManager
 
@@ -40,18 +42,28 @@ const statusMap: Record<string, 'success' | 'warning' | 'error' | 'info' | 'defa
   present: 'success', late: 'warning', undertime: 'warning', absent: 'error', open: 'info',
 }
 
-const columns: DataTableColumns = [
-  { title: t('attendance.date'), key: 'date', width: 120, render: (row) => fmtDate(row.clock_in_at) },
-  { title: t('attendance.timeIn'), key: 'time_in', width: 100, render: (row) => fmtTime(row.clock_in_at) },
-  { title: t('attendance.timeOut'), key: 'time_out', width: 100, render: (row) => fmtTime(row.clock_out_at) },
-  { title: t('attendance.workHours'), key: 'work_hours', width: 100, render: (row) => row.work_hours ? Number(row.work_hours).toFixed(1) : '-' },
-  { title: t('attendance.otHours'), key: 'overtime_hours', width: 100, render: (row) => row.overtime_hours ? Number(row.overtime_hours).toFixed(1) : '-' },
-  { title: t('attendance.lateMin'), key: 'late_minutes', width: 100, render: (row) => String(row.late_minutes || '-') },
-  {
-    title: t('common.status'), key: 'status', width: 100,
-    render: (row) => h(NTag, { type: statusMap[row.status as string] || 'default', size: 'small' }, () => String(row.status)),
-  },
-]
+const columns = computed<DataTableColumns>(() => {
+  const cols: DataTableColumns = []
+  if (isManager) {
+    cols.push({
+      title: t('employee.name'), key: 'employee_name', width: 150,
+      render: (row) => employeeMap.value.get(row.employee_id as number) || String(row.employee_id || '-'),
+    })
+  }
+  cols.push(
+    { title: t('attendance.date'), key: 'date', width: 120, render: (row) => fmtDate(row.clock_in_at) },
+    { title: t('attendance.timeIn'), key: 'time_in', width: 100, render: (row) => fmtTime(row.clock_in_at) },
+    { title: t('attendance.timeOut'), key: 'time_out', width: 100, render: (row) => fmtTime(row.clock_out_at) },
+    { title: t('attendance.workHours'), key: 'work_hours', width: 100, render: (row) => row.work_hours ? Number(row.work_hours).toFixed(1) : '-' },
+    { title: t('attendance.otHours'), key: 'overtime_hours', width: 100, render: (row) => row.overtime_hours ? Number(row.overtime_hours).toFixed(1) : '-' },
+    { title: t('attendance.lateMin'), key: 'late_minutes', width: 100, render: (row) => String(row.late_minutes || '-') },
+    {
+      title: t('common.status'), key: 'status', width: 100,
+      render: (row) => h(NTag, { type: statusMap[row.status as string] || 'default', size: 'small' }, () => String(row.status)),
+    },
+  )
+  return cols
+})
 
 async function fetchRecords() {
   loading.value = true
@@ -83,16 +95,36 @@ async function loadEmployees() {
     const res = await employeeAPI.list({ page: '1', limit: '500' })
     const resData = (res as any)?.data ?? res
     const list = Array.isArray(resData) ? resData : (resData?.data ?? [])
-    employeeOptions.value = list.map((e: any) => ({
-      label: `${e.first_name} ${e.last_name} (${e.employee_no})`,
-      value: e.id,
-    }))
+    const newMap = new Map<number, string>()
+    employeeOptions.value = list.map((e: any) => {
+      const name = `${e.first_name} ${e.last_name}`
+      newMap.set(e.id, name)
+      return { label: `${name} (${e.employee_no})`, value: e.id }
+    })
+    employeeMap.value = newMap
   } catch { /* ignore */ }
 }
 
 function handleSearch() {
   page.value = 1
   fetchRecords()
+}
+
+function handleExportCSV() {
+  const token = localStorage.getItem('token')
+  const start = dateRange.value ? format(new Date(dateRange.value[0]), 'yyyy-MM-dd') : format(subDays(new Date(), 30), 'yyyy-MM-dd')
+  const end = dateRange.value ? format(new Date(dateRange.value[1]), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
+  const url = exportAPI.attendanceCSV(start, end)
+  fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    .then((res) => res.blob())
+    .then((blob) => {
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `attendance_${start}_${end}.csv`
+      a.click()
+      URL.revokeObjectURL(a.href)
+    })
+    .catch(() => message.error(t('common.failed')))
 }
 
 watch(page, fetchRecords)
@@ -120,6 +152,7 @@ onMounted(() => {
           style="width: 250px;"
         />
         <NButton type="primary" @click="handleSearch">{{ t('common.search') }}</NButton>
+        <NButton v-if="isManager" @click="handleExportCSV">CSV</NButton>
       </NSpace>
     </NCard>
 
