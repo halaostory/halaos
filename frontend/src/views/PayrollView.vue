@@ -12,11 +12,14 @@ import {
   NDatePicker,
   NSelect,
   NTag,
+  NTabs,
+  NTabPane,
+  NInputNumber,
   useMessage,
   useDialog,
   type DataTableColumns,
 } from "naive-ui";
-import { payrollAPI, exportAPI } from "../api/client";
+import { payrollAPI, exportAPI, thirteenthMonthAPI } from "../api/client";
 
 interface AnomalyItem {
   type: string;
@@ -37,11 +40,26 @@ interface AnomalyReport {
   anomalies: AnomalyItem[];
   summary: { critical: number; high: number; medium: number; low: number };
 }
+
+interface ThirteenthMonthRecord {
+  employee_name: string;
+  employee_no: string;
+  months_worked: number;
+  total_basic_salary: number;
+  thirteenth_month_amount: number;
+  tax_exempt: number;
+  taxable: number;
+  status: string;
+}
+
 import { format } from "date-fns";
 
 const { t } = useI18n();
 const message = useMessage();
 const dialog = useDialog();
+
+// Active tab
+const activeTab = ref("cycles");
 
 const data = ref<Record<string, unknown>[]>([]);
 const loading = ref(false);
@@ -453,17 +471,152 @@ async function handleApprove(row: Record<string, unknown>) {
     },
   });
 }
+
+// --- 13th Month Pay ---
+const thirteenthMonthYear = ref(new Date().getFullYear());
+const thirteenthMonthData = ref<ThirteenthMonthRecord[]>([]);
+const thirteenthMonthLoading = ref(false);
+const thirteenthMonthCalculating = ref(false);
+
+const thirteenthMonthColumns: DataTableColumns = [
+  { title: t("payroll.thirteenth.employeeName"), key: "employee_name" },
+  { title: t("employee.employeeNo"), key: "employee_no", width: 120 },
+  {
+    title: t("payroll.thirteenth.monthsWorked"),
+    key: "months_worked",
+    width: 120,
+  },
+  {
+    title: t("payroll.thirteenth.totalBasic"),
+    key: "total_basic_salary",
+    width: 150,
+    render(row) {
+      return php(row.total_basic_salary);
+    },
+  },
+  {
+    title: t("payroll.thirteenth.amount"),
+    key: "thirteenth_month_amount",
+    width: 160,
+    render(row) {
+      return php(row.thirteenth_month_amount);
+    },
+  },
+  {
+    title: t("payroll.thirteenth.taxExempt"),
+    key: "tax_exempt",
+    width: 130,
+    render(row) {
+      return php(row.tax_exempt);
+    },
+  },
+  {
+    title: t("payroll.thirteenth.taxable"),
+    key: "taxable",
+    width: 120,
+    render(row) {
+      return php(row.taxable);
+    },
+  },
+  {
+    title: t("payroll.thirteenth.status"),
+    key: "status",
+    width: 110,
+    render(row) {
+      const status = row.status as string;
+      return h(
+        NTag,
+        {
+          type: (statusColorMap[status] || "default") as
+            | "default"
+            | "info"
+            | "success"
+            | "warning"
+            | "error",
+          size: "small",
+        },
+        () => status
+      );
+    },
+  },
+];
+
+async function fetchThirteenthMonth() {
+  thirteenthMonthLoading.value = true;
+  try {
+    const res = (await thirteenthMonthAPI.list({
+      year: String(thirteenthMonthYear.value),
+    })) as { success: boolean; data: ThirteenthMonthRecord[] };
+    thirteenthMonthData.value = res.data || (res as unknown as ThirteenthMonthRecord[]);
+  } catch {
+    thirteenthMonthData.value = [];
+  } finally {
+    thirteenthMonthLoading.value = false;
+  }
+}
+
+async function handleCalculateThirteenthMonth() {
+  thirteenthMonthCalculating.value = true;
+  try {
+    await thirteenthMonthAPI.calculate({ year: thirteenthMonthYear.value });
+    message.success(t("payroll.thirteenth.calculated"));
+    await fetchThirteenthMonth();
+  } catch {
+    message.error(t("payroll.thirteenth.calculateFailed"));
+  } finally {
+    thirteenthMonthCalculating.value = false;
+  }
+}
+
+function handleTabChange(tabName: string) {
+  if (tabName === "thirteenth" && thirteenthMonthData.value.length === 0) {
+    fetchThirteenthMonth();
+  }
+}
 </script>
 
 <template>
   <div>
-    <NSpace justify="space-between" style="margin-bottom: 16px">
-      <h2>{{ t("payroll.title") }}</h2>
-      <NButton type="primary" @click="showCreateModal = true">{{
-        t("payroll.createCycle")
-      }}</NButton>
-    </NSpace>
-    <NDataTable :columns="columns" :data="data" :loading="loading" />
+    <NTabs type="line" :value="activeTab" @update:value="(v: string) => { activeTab = v; handleTabChange(v); }">
+      <!-- Tab 1: Payroll Cycles (existing content) -->
+      <NTabPane name="cycles" :tab="t('payroll.title')">
+        <NSpace justify="space-between" style="margin-bottom: 16px">
+          <h2>{{ t("payroll.title") }}</h2>
+          <NButton type="primary" @click="showCreateModal = true">{{
+            t("payroll.createCycle")
+          }}</NButton>
+        </NSpace>
+        <NDataTable :columns="columns" :data="data" :loading="loading" />
+      </NTabPane>
+
+      <!-- Tab 2: 13th Month Pay -->
+      <NTabPane name="thirteenth" :tab="t('payroll.thirteenth.title')">
+        <NSpace justify="space-between" style="margin-bottom: 16px">
+          <h2>{{ t("payroll.thirteenth.title") }}</h2>
+          <NSpace align="center">
+            <span>{{ t("payroll.thirteenth.year") }}:</span>
+            <NInputNumber
+              v-model:value="thirteenthMonthYear"
+              :min="2000"
+              :max="2099"
+              style="width: 120px"
+            />
+            <NButton
+              type="primary"
+              :loading="thirteenthMonthCalculating"
+              @click="handleCalculateThirteenthMonth"
+            >
+              {{ t("payroll.thirteenth.calculate") }}
+            </NButton>
+          </NSpace>
+        </NSpace>
+        <NDataTable
+          :columns="thirteenthMonthColumns"
+          :data="thirteenthMonthData"
+          :loading="thirteenthMonthLoading"
+        />
+      </NTabPane>
+    </NTabs>
 
     <NModal
       v-model:show="showCreateModal"

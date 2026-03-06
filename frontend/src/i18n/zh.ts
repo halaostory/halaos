@@ -1053,6 +1053,10 @@ export default {
     onboarding: "入职",
     loan: "贷款",
     approval: "审批",
+    attendance: "考勤",
+    category: "分类",
+    all: "全部",
+    viewAll: "查看所有通知",
   },
   leaveCalendar: {
     title: "请假日历",

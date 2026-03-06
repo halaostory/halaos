@@ -1066,6 +1066,10 @@ export default {
     onboarding: "Onboarding",
     loan: "Loan",
     approval: "Approval",
+    attendance: "Attendance",
+    category: "Category",
+    all: "All",
+    viewAll: "View all notifications",
   },
   leaveCalendar: {
     title: "Leave Calendar",

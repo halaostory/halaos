@@ -282,6 +282,11 @@ function handleUserAction(key: string) {
                 </NListItem>
               </NList>
             </div>
+            <div style="padding: 8px 16px; border-top: 1px solid var(--n-border-color); text-align: center;">
+              <NButton text type="primary" size="small" @click="showNotifications = false; router.push({ name: 'notifications' })">
+                {{ t('notification.viewAll') }}
+              </NButton>
+            </div>
           </NPopover>
           <NButton quaternary size="small" @click="toggleLocale" style="font-weight: 600; min-width: 36px;">
             {{ locale === 'en' ? '中' : 'EN' }}

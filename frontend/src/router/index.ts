@@ -305,6 +305,12 @@ const router = createRouter({
           name: "profile",
           component: () => import("../views/ProfileView.vue"),
         },
+        // Notifications
+        {
+          path: "notifications",
+          name: "notifications",
+          component: () => import("../views/NotificationsView.vue"),
+        },
       ],
     },
     {
