@@ -216,7 +216,7 @@ func (q *Queries) ClockOut(ctx context.Context, arg ClockOutParams) (AttendanceL
 const countAttendanceLogs = `-- name: CountAttendanceLogs :one
 SELECT COUNT(*) FROM attendance_logs
 WHERE company_id = $1
-  AND ($2::bigint IS NULL OR employee_id = $2)
+  AND ($2::bigint IS NULL OR $2 = 0 OR employee_id = $2)
   AND clock_in_at >= $3
   AND clock_in_at < $4
 `
@@ -972,7 +972,7 @@ func (q *Queries) ListAllSchedules(ctx context.Context, arg ListAllSchedulesPara
 const listAttendanceLogs = `-- name: ListAttendanceLogs :many
 SELECT id, company_id, employee_id, clock_in_at, clock_out_at, clock_in_source, clock_out_source, clock_in_lat, clock_in_lng, clock_out_lat, clock_out_lng, clock_in_note, clock_out_note, work_hours, overtime_hours, late_minutes, undertime_minutes, status, is_corrected, corrected_by, created_at, updated_at, clock_in_geofence_id, clock_in_geofence_status, clock_out_geofence_id, clock_out_geofence_status FROM attendance_logs
 WHERE company_id = $1
-  AND ($2::bigint IS NULL OR employee_id = $2)
+  AND ($2::bigint IS NULL OR $2 = 0 OR employee_id = $2)
   AND clock_in_at >= $3
   AND clock_in_at < $4
 ORDER BY clock_in_at DESC

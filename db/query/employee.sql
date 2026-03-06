@@ -21,16 +21,16 @@ SELECT * FROM employees WHERE employee_no = $1 AND company_id = $2;
 -- name: ListEmployees :many
 SELECT * FROM employees
 WHERE company_id = $1
-  AND ($2::varchar IS NULL OR status = $2)
-  AND ($3::bigint IS NULL OR department_id = $3)
+  AND ($2::varchar IS NULL OR $2 = '' OR status = $2)
+  AND ($3::bigint IS NULL OR $3 = 0 OR department_id = $3)
 ORDER BY last_name, first_name
 LIMIT $4 OFFSET $5;
 
 -- name: CountEmployees :one
 SELECT COUNT(*) FROM employees
 WHERE company_id = $1
-  AND ($2::varchar IS NULL OR status = $2)
-  AND ($3::bigint IS NULL OR department_id = $3);
+  AND ($2::varchar IS NULL OR $2 = '' OR status = $2)
+  AND ($3::bigint IS NULL OR $3 = 0 OR department_id = $3);
 
 -- name: UpdateEmployee :one
 UPDATE employees SET
@@ -151,10 +151,10 @@ LEFT JOIN positions p ON p.id = e.position_id
 LEFT JOIN users u ON u.id = e.user_id
 WHERE e.company_id = $1
   AND e.status = 'active'
-  AND ($2::varchar IS NULL OR
+  AND ($2::varchar IS NULL OR $2 = '' OR
     e.first_name ILIKE $2 OR e.last_name ILIKE $2 OR
     e.employee_no ILIKE $2 OR e.email ILIKE $2)
-  AND ($3::bigint IS NULL OR e.department_id = $3)
+  AND ($3::bigint IS NULL OR $3 = 0 OR e.department_id = $3)
 ORDER BY e.last_name, e.first_name;
 
 -- name: GetEmployeeForCOE :one

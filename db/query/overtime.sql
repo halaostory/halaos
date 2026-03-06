@@ -13,16 +13,16 @@ SELECT ot.*, e.first_name || ' ' || e.last_name as employee_name
 FROM overtime_requests ot
 JOIN employees e ON e.id = ot.employee_id
 WHERE ot.company_id = $1
-  AND ($2::bigint IS NULL OR ot.employee_id = $2)
-  AND ($3::varchar IS NULL OR ot.status = $3)
+  AND ($2::bigint IS NULL OR $2 = 0 OR ot.employee_id = $2)
+  AND ($3::varchar IS NULL OR $3 = '' OR ot.status = $3)
 ORDER BY ot.created_at DESC
 LIMIT $4 OFFSET $5;
 
 -- name: CountOvertimeRequests :one
 SELECT COUNT(*) FROM overtime_requests
 WHERE company_id = $1
-  AND ($2::bigint IS NULL OR employee_id = $2)
-  AND ($3::varchar IS NULL OR status = $3);
+  AND ($2::bigint IS NULL OR $2 = 0 OR employee_id = $2)
+  AND ($3::varchar IS NULL OR $3 = '' OR status = $3);
 
 -- name: ApproveOvertimeRequest :one
 UPDATE overtime_requests SET

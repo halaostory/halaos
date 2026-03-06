@@ -28,7 +28,7 @@ WHERE id = $1 AND company_id = $2;
 -- name: ListAttendanceLogs :many
 SELECT * FROM attendance_logs
 WHERE company_id = $1
-  AND ($2::bigint IS NULL OR employee_id = $2)
+  AND ($2::bigint IS NULL OR $2 = 0 OR employee_id = $2)
   AND clock_in_at >= $3
   AND clock_in_at < $4
 ORDER BY clock_in_at DESC
@@ -37,7 +37,7 @@ LIMIT $5 OFFSET $6;
 -- name: CountAttendanceLogs :one
 SELECT COUNT(*) FROM attendance_logs
 WHERE company_id = $1
-  AND ($2::bigint IS NULL OR employee_id = $2)
+  AND ($2::bigint IS NULL OR $2 = 0 OR employee_id = $2)
   AND clock_in_at >= $3
   AND clock_in_at < $4;
 

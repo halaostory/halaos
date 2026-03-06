@@ -52,16 +52,16 @@ FROM leave_requests lr
 JOIN leave_types lt ON lt.id = lr.leave_type_id
 JOIN employees e ON e.id = lr.employee_id
 WHERE lr.company_id = $1
-  AND ($2::bigint IS NULL OR lr.employee_id = $2)
-  AND ($3::varchar IS NULL OR lr.status = $3)
+  AND ($2::bigint IS NULL OR $2 = 0 OR lr.employee_id = $2)
+  AND ($3::varchar IS NULL OR $3 = '' OR lr.status = $3)
 ORDER BY lr.created_at DESC
 LIMIT $4 OFFSET $5;
 
 -- name: CountLeaveRequests :one
 SELECT COUNT(*) FROM leave_requests
 WHERE company_id = $1
-  AND ($2::bigint IS NULL OR employee_id = $2)
-  AND ($3::varchar IS NULL OR status = $3);
+  AND ($2::bigint IS NULL OR $2 = 0 OR employee_id = $2)
+  AND ($3::varchar IS NULL OR $3 = '' OR status = $3);
 
 -- name: ApproveLeaveRequest :one
 UPDATE leave_requests SET

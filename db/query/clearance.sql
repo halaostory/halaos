@@ -27,14 +27,14 @@ FROM clearance_requests cr
 JOIN employees e ON e.id = cr.employee_id
 LEFT JOIN departments d ON d.id = e.department_id
 WHERE cr.company_id = $1
-  AND ($2::varchar IS NULL OR cr.status = $2)
+  AND ($2::varchar IS NULL OR $2 = '' OR cr.status = $2)
 ORDER BY cr.created_at DESC
 LIMIT $3 OFFSET $4;
 
 -- name: CountClearanceRequests :one
 SELECT COUNT(*) FROM clearance_requests
 WHERE company_id = $1
-  AND ($2::varchar IS NULL OR status = $2);
+  AND ($2::varchar IS NULL OR $2 = '' OR status = $2);
 
 -- name: UpdateClearanceStatus :one
 UPDATE clearance_requests SET

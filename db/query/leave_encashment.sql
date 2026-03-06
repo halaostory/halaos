@@ -13,16 +13,16 @@ FROM leave_encashments le
 JOIN leave_types lt ON lt.id = le.leave_type_id
 JOIN employees e ON e.id = le.employee_id
 WHERE le.company_id = $1
-  AND ($2::varchar IS NULL OR le.status = $2)
-  AND ($3::bigint IS NULL OR le.employee_id = $3)
+  AND ($2::varchar IS NULL OR $2 = '' OR le.status = $2)
+  AND ($3::bigint IS NULL OR $3 = 0 OR le.employee_id = $3)
 ORDER BY le.created_at DESC
 LIMIT $4 OFFSET $5;
 
 -- name: CountLeaveEncashments :one
 SELECT COUNT(*) FROM leave_encashments
 WHERE company_id = $1
-  AND ($2::varchar IS NULL OR status = $2)
-  AND ($3::bigint IS NULL OR employee_id = $3);
+  AND ($2::varchar IS NULL OR $2 = '' OR status = $2)
+  AND ($3::bigint IS NULL OR $3 = 0 OR employee_id = $3);
 
 -- name: ApproveLeaveEncashment :one
 UPDATE leave_encashments SET

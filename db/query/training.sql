@@ -49,7 +49,7 @@ SELECT c.*, e.employee_no, e.first_name, e.last_name
 FROM certifications c
 JOIN employees e ON e.id = c.employee_id
 WHERE c.company_id = $1
-  AND ($2::bigint IS NULL OR c.employee_id = $2)
+  AND ($2::bigint IS NULL OR $2 = 0 OR c.employee_id = $2)
 ORDER BY c.issue_date DESC
 LIMIT $3 OFFSET $4;
 

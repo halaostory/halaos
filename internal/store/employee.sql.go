@@ -16,8 +16,8 @@ import (
 const countEmployees = `-- name: CountEmployees :one
 SELECT COUNT(*) FROM employees
 WHERE company_id = $1
-  AND ($2::varchar IS NULL OR status = $2)
-  AND ($3::bigint IS NULL OR department_id = $3)
+  AND ($2::varchar IS NULL OR $2 = '' OR status = $2)
+  AND ($3::bigint IS NULL OR $3 = 0 OR department_id = $3)
 `
 
 type CountEmployeesParams struct {
@@ -606,10 +606,10 @@ LEFT JOIN positions p ON p.id = e.position_id
 LEFT JOIN users u ON u.id = e.user_id
 WHERE e.company_id = $1
   AND e.status = 'active'
-  AND ($2::varchar IS NULL OR
+  AND ($2::varchar IS NULL OR $2 = '' OR
     e.first_name ILIKE $2 OR e.last_name ILIKE $2 OR
     e.employee_no ILIKE $2 OR e.email ILIKE $2)
-  AND ($3::bigint IS NULL OR e.department_id = $3)
+  AND ($3::bigint IS NULL OR $3 = 0 OR e.department_id = $3)
 ORDER BY e.last_name, e.first_name
 `
 
@@ -785,8 +785,8 @@ func (q *Queries) ListEmployeeTimeline(ctx context.Context, arg ListEmployeeTime
 const listEmployees = `-- name: ListEmployees :many
 SELECT id, company_id, user_id, employee_no, first_name, last_name, middle_name, suffix, display_name, email, phone, birth_date, gender, civil_status, nationality, department_id, position_id, cost_center_id, manager_id, hire_date, regularization_date, separation_date, employment_type, status, created_at, updated_at, contract_end_date FROM employees
 WHERE company_id = $1
-  AND ($2::varchar IS NULL OR status = $2)
-  AND ($3::bigint IS NULL OR department_id = $3)
+  AND ($2::varchar IS NULL OR $2 = '' OR status = $2)
+  AND ($3::bigint IS NULL OR $3 = 0 OR department_id = $3)
 ORDER BY last_name, first_name
 LIMIT $4 OFFSET $5
 `

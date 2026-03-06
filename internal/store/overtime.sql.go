@@ -54,8 +54,8 @@ func (q *Queries) ApproveOvertimeRequest(ctx context.Context, arg ApproveOvertim
 const countOvertimeRequests = `-- name: CountOvertimeRequests :one
 SELECT COUNT(*) FROM overtime_requests
 WHERE company_id = $1
-  AND ($2::bigint IS NULL OR employee_id = $2)
-  AND ($3::varchar IS NULL OR status = $3)
+  AND ($2::bigint IS NULL OR $2 = 0 OR employee_id = $2)
+  AND ($3::varchar IS NULL OR $3 = '' OR status = $3)
 `
 
 type CountOvertimeRequestsParams struct {
@@ -242,8 +242,8 @@ SELECT ot.id, ot.company_id, ot.employee_id, ot.ot_date, ot.start_at, ot.end_at,
 FROM overtime_requests ot
 JOIN employees e ON e.id = ot.employee_id
 WHERE ot.company_id = $1
-  AND ($2::bigint IS NULL OR ot.employee_id = $2)
-  AND ($3::varchar IS NULL OR ot.status = $3)
+  AND ($2::bigint IS NULL OR $2 = 0 OR ot.employee_id = $2)
+  AND ($3::varchar IS NULL OR $3 = '' OR ot.status = $3)
 ORDER BY ot.created_at DESC
 LIMIT $4 OFFSET $5
 `
