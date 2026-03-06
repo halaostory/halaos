@@ -6,63 +6,50 @@ on:
     types: [completed]
     branches: [main]
 
-env:
-  IMAGE_PREFIX: ghcr.io/${{ github.repository }}
-
 jobs:
-  build-and-push:
-    name: Build & Push Images
+  deploy:
+    name: Build & Deploy
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    permissions:
-      contents: read
-      packages: write
     steps:
       - uses: actions/checkout@v4
 
-      - uses: docker/login-action@v3
+      - uses: actions/setup-go@v5
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          go-version: "1.25"
 
-      - uses: docker/setup-buildx-action@v3
-
-      - name: Build & push backend
-        uses: docker/build-push-action@v6
+      - uses: actions/setup-node@v4
         with:
-          context: .
-          file: Dockerfile
-          push: true
-          tags: ${{ env.IMAGE_PREFIX }}/backend:latest,${{ env.IMAGE_PREFIX }}/backend:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
-      - name: Build & push frontend
-        uses: docker/build-push-action@v6
-        with:
-          context: ./frontend
-          file: frontend/Dockerfile
-          push: true
-          tags: ${{ env.IMAGE_PREFIX }}/frontend:latest,${{ env.IMAGE_PREFIX }}/frontend:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Build Go binaries
+        run: make build-linux
 
-  deploy:
-    name: Deploy to Server
-    runs-on: ubuntu-latest
-    needs: build-and-push
-    steps:
-      - uses: actions/checkout@v4
+      - name: Build frontend
+        run: cd frontend && npm ci && npm run build
 
-      - name: Copy files to server
+      - name: Prepare deploy bundle
+        run: |
+          mkdir -p deploy/bin deploy/db deploy/frontend
+          cp bin/api bin/worker bin/migrate deploy/bin/
+          cp -r db/migrations deploy/db/
+          cp -r frontend/dist deploy/frontend/
+          cp frontend/nginx.conf deploy/frontend/
+          cp frontend/Dockerfile.prebuilt deploy/frontend/
+          cp Dockerfile.prebuilt deploy/
+          cp docker-compose.deploy.yml deploy/
+
+      - name: Upload to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ubuntu
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: "docker-compose.deploy.yml"
-          target: "~/aigonhr/"
+          source: "deploy/*"
+          target: "~/aigonhr-deploy"
+          strip_components: 1
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
@@ -77,19 +64,25 @@ jobs:
             cat > .env << 'ENVEOF'
             ${{ secrets.ENV_FILE }}
             ENVEOF
-            # Remove leading whitespace from heredoc
             sed -i 's/^            //' .env
 
-            # Login to GHCR
-            echo '${{ secrets.GHCR_TOKEN }}' | sudo docker login ghcr.io -u tonypk --password-stdin
+            # Copy built artifacts
+            cp -r ~/aigonhr-deploy/bin ./
+            cp -r ~/aigonhr-deploy/db ./
+            cp ~/aigonhr-deploy/Dockerfile.prebuilt ./
+            cp ~/aigonhr-deploy/docker-compose.deploy.yml ./
 
-            # Pull latest images
-            sudo docker compose -f docker-compose.deploy.yml pull
+            # Copy frontend build
+            mkdir -p frontend
+            cp -r ~/aigonhr-deploy/frontend/dist frontend/
+            cp ~/aigonhr-deploy/frontend/nginx.conf frontend/
+            cp ~/aigonhr-deploy/frontend/Dockerfile.prebuilt frontend/
 
-            # Deploy
-            sudo docker compose -f docker-compose.deploy.yml up -d --remove-orphans
+            # Build and deploy (prebuilt = fast, just copies binaries)
+            sudo docker compose -f docker-compose.deploy.yml up -d --build --remove-orphans
 
-            # Cleanup old images
+            # Cleanup
+            rm -rf ~/aigonhr-deploy
             sudo docker image prune -f
 
             echo "Deployed successfully!"
