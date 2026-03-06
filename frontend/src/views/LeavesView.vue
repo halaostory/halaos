@@ -257,7 +257,7 @@ async function runCarryover() {
     const data = res?.data ?? res
     const carried = data?.carried ?? 0
     const processed = data?.processed ?? 0
-    const forfeited = data?.forfeited ?? 0
+    const forfeited = data?.total_forfeited ?? 0
     const msg = forfeited > 0
       ? `${t('leave.carryoverDone')}: ${carried}/${processed}, ${t('leave.forfeited')}: ${forfeited}`
       : `${t('leave.carryoverDone')}: ${carried}/${processed}`

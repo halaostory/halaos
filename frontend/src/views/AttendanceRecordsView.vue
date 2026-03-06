@@ -67,15 +67,9 @@ async function fetchRecords() {
     if (selectedEmployee.value) {
       params.employee_id = String(selectedEmployee.value)
     }
-    const res = await attendanceAPI.listRecords(params) as { data: Record<string, unknown>[]; total?: number }
-    const resData = (res as any)?.data ?? res
-    if (Array.isArray(resData)) {
-      data.value = resData
-      total.value = (res as any)?.total ?? resData.length
-    } else {
-      data.value = resData?.data ?? []
-      total.value = resData?.total ?? data.value.length
-    }
+    const res = await attendanceAPI.listRecords(params) as { data: Record<string, unknown>[]; meta?: { total: number } }
+    data.value = res.data || []
+    total.value = res.meta?.total ?? data.value.length
   } catch {
     data.value = []
   } finally {

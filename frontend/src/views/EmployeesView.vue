@@ -103,7 +103,7 @@ function handleExportCSV() {
       a.click()
       URL.revokeObjectURL(a.href)
     })
-    .catch(() => {})
+    .catch(() => message.error(t('common.failed')))
 }
 
 // Bulk Salary Update
