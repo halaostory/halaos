@@ -1,0 +1,676 @@
+<script setup lang="ts">
+import { ref, h, computed, onMounted } from "vue";
+import { useI18n } from "vue-i18n";
+import {
+  NDataTable,
+  NButton,
+  NSpace,
+  NModal,
+  NForm,
+  NFormItem,
+  NInput,
+  NDatePicker,
+  NSelect,
+  NTag,
+  useMessage,
+  useDialog,
+  type DataTableColumns,
+} from "naive-ui";
+import { payrollAPI, exportAPI } from "../api/client";
+
+interface AnomalyItem {
+  type: string;
+  severity: "critical" | "high" | "medium" | "low";
+  employee_id: number;
+  employee_name: string;
+  employee_no: string;
+  description: string;
+  current_value: number;
+  expected_value?: number;
+  deviation_pct?: number;
+}
+
+interface AnomalyReport {
+  run_id: number;
+  cycle_id: number;
+  total_items: number;
+  anomalies: AnomalyItem[];
+  summary: { critical: number; high: number; medium: number; low: number };
+}
+import { format } from "date-fns";
+
+const { t } = useI18n();
+const message = useMessage();
+const dialog = useDialog();
+
+const data = ref<Record<string, unknown>[]>([]);
+const loading = ref(false);
+
+// Items Modal
+const showItemsModal = ref(false);
+const itemsLoading = ref(false);
+const payrollItems = ref<Record<string, unknown>[]>([]);
+const itemsTitle = ref("");
+
+// Anomaly Modal
+const showAnomalyModal = ref(false);
+const anomalyLoading = ref(false);
+const anomalyReport = ref<AnomalyReport | null>(null);
+const anomalyTitle = ref("");
+
+// Create Cycle Modal
+const showCreateModal = ref(false);
+const createLoading = ref(false);
+const cycleForm = ref({
+  name: "",
+  period_start: null as number | null,
+  period_end: null as number | null,
+  pay_date: null as number | null,
+  cycle_type: "regular",
+});
+
+const cycleTypeOptions = computed(() => [
+  { label: t("payroll.typeRegular"), value: "regular" },
+  { label: t("payroll.type13th"), value: "13th_month" },
+  { label: t("payroll.typeFinal"), value: "final_pay" },
+]);
+
+const statusColorMap: Record<string, string> = {
+  draft: "default",
+  processing: "warning",
+  computed: "info",
+  approved: "success",
+  paid: "success",
+  void: "error",
+};
+
+const columns: DataTableColumns = [
+  { title: t("payroll.cycleName"), key: "name" },
+  {
+    title: t("payroll.period"),
+    key: "period",
+    width: 200,
+    render(row) {
+      const start = row.period_start as string;
+      const end = row.period_end as string;
+      return `${formatDate(start)} ~ ${formatDate(end)}`;
+    },
+  },
+  {
+    title: t("payroll.payDate"),
+    key: "pay_date",
+    width: 120,
+    render(row) {
+      return formatDate(row.pay_date as string);
+    },
+  },
+  { title: t("payroll.cycleType"), key: "cycle_type", width: 100 },
+  {
+    title: t("common.status"),
+    key: "status",
+    width: 110,
+    render(row) {
+      const status = row.status as string;
+      return h(
+        NTag,
+        {
+          type: (statusColorMap[status] || "default") as
+            | "default"
+            | "info"
+            | "success"
+            | "warning"
+            | "error",
+          size: "small",
+        },
+        () => status
+      );
+    },
+  },
+  {
+    title: t("common.actions"),
+    key: "actions",
+    width: 320,
+    render(row) {
+      const btns: ReturnType<typeof h>[] = [];
+      if (row.is_locked) {
+        btns.push(
+          h(NTag, { size: "small", type: "error" }, () => t("payroll.locked"))
+        );
+        btns.push(
+          h(NButton, { size: "small", onClick: () => handleViewItems(row) }, () => t("payroll.viewItems"))
+        );
+        btns.push(
+          h(NButton, { size: "small", onClick: () => handleUnlock(row) }, () => t("payroll.unlock"))
+        );
+        return h(NSpace, { size: "small" }, () => btns);
+      }
+      if (row.status === "draft") {
+        btns.push(
+          h(
+            NButton,
+            {
+              size: "small",
+              type: "primary",
+              onClick: () => handleRunPayroll(row),
+            },
+            () => t("payroll.run")
+          )
+        );
+      }
+      if (
+        row.status === "computed" ||
+        row.status === "approved" ||
+        row.status === "paid"
+      ) {
+        btns.push(
+          h(
+            NButton,
+            { size: "small", onClick: () => handleViewItems(row) },
+            () => t("payroll.viewItems")
+          )
+        );
+        btns.push(
+          h(
+            NButton,
+            { size: "small", onClick: () => handleExportCSV(row) },
+            () => "CSV"
+          )
+        );
+        btns.push(
+          h(
+            NButton,
+            { size: "small", type: "info", onClick: () => handleExportBankFile(row) },
+            () => t("payroll.bankFile")
+          )
+        );
+        btns.push(
+          h(
+            NButton,
+            {
+              size: "small",
+              type: "warning",
+              onClick: () => handleScanAnomalies(row),
+            },
+            () => t("payroll.aiScan")
+          )
+        );
+      }
+      if (row.status === "draft" || row.status === "computed") {
+        btns.push(
+          h(
+            NButton,
+            {
+              size: "small",
+              type: "success",
+              onClick: () => handleApprove(row),
+            },
+            () => t("common.approve")
+          )
+        );
+      }
+      if (row.status === "approved" || row.status === "paid") {
+        btns.push(
+          h(
+            NButton,
+            { size: "small", type: "error", onClick: () => handleLock(row) },
+            () => t("payroll.lock")
+          )
+        );
+      }
+      return h(NSpace, { size: "small" }, () => btns);
+    },
+  },
+];
+
+function formatDate(d: string): string {
+  if (!d) return "";
+  try {
+    return format(new Date(d), "yyyy-MM-dd");
+  } catch {
+    return d;
+  }
+}
+
+async function fetchCycles() {
+  loading.value = true;
+  try {
+    const resp = (await payrollAPI.listCycles({
+      page: "1",
+      limit: "50",
+    })) as { success: boolean; data: Record<string, unknown>[] };
+    data.value =
+      resp.data || (resp as unknown as Record<string, unknown>[]);
+  } catch {
+    data.value = [];
+  } finally {
+    loading.value = false;
+  }
+}
+
+onMounted(fetchCycles);
+
+async function handleCreateCycle() {
+  if (
+    !cycleForm.value.name ||
+    !cycleForm.value.period_start ||
+    !cycleForm.value.period_end ||
+    !cycleForm.value.pay_date
+  ) {
+    message.warning(t("common.fillAllFields"));
+    return;
+  }
+  createLoading.value = true;
+  try {
+    await payrollAPI.createCycle({
+      name: cycleForm.value.name,
+      period_start: format(
+        new Date(cycleForm.value.period_start),
+        "yyyy-MM-dd"
+      ),
+      period_end: format(
+        new Date(cycleForm.value.period_end),
+        "yyyy-MM-dd"
+      ),
+      pay_date: format(new Date(cycleForm.value.pay_date), "yyyy-MM-dd"),
+      cycle_type: cycleForm.value.cycle_type,
+    });
+    showCreateModal.value = false;
+    cycleForm.value = {
+      name: "",
+      period_start: null,
+      period_end: null,
+      pay_date: null,
+      cycle_type: "regular",
+    };
+    message.success(t("payroll.cycleCreated"));
+    await fetchCycles();
+  } catch (e: unknown) {
+    const err = e as { data?: { error?: { message?: string } } };
+    message.error(err.data?.error?.message || t("payroll.createFailed"));
+  } finally {
+    createLoading.value = false;
+  }
+}
+
+async function handleRunPayroll(row: Record<string, unknown>) {
+  dialog.warning({
+    title: t("payroll.run"),
+    content: t("payroll.runConfirm", { name: row.name }),
+    positiveText: t("common.run"),
+    negativeText: t("common.cancel"),
+    onPositiveClick: async () => {
+      try {
+        await payrollAPI.runPayroll({ cycle_id: row.id as number });
+        message.success(t("payroll.runStarted"));
+        await fetchCycles();
+      } catch (e: unknown) {
+        const err = e as { data?: { error?: { message?: string } } };
+        message.error(
+          err.data?.error?.message || t("payroll.runFailed")
+        );
+      }
+    },
+  });
+}
+
+function php(v: unknown): string {
+  return Number(v || 0).toLocaleString("en-PH", {
+    style: "currency",
+    currency: "PHP",
+  });
+}
+
+async function handleViewItems(row: Record<string, unknown>) {
+  itemsTitle.value = String(row.name || "");
+  itemsLoading.value = true;
+  showItemsModal.value = true;
+  try {
+    const res = (await payrollAPI.listCycleItems(
+      row.id as number
+    )) as { data?: Record<string, unknown>[] };
+    payrollItems.value = (res.data ||
+      (Array.isArray(res) ? res : [])) as Record<string, unknown>[];
+  } catch {
+    payrollItems.value = [];
+  } finally {
+    itemsLoading.value = false;
+  }
+}
+
+// Bank file export
+const showBankFileModal = ref(false);
+const bankFileFormat = ref("generic");
+const bankFileCycleId = ref(0);
+const bankFormatOptions = computed(() => [
+  { label: t("payroll.bankGeneric"), value: "generic" },
+  { label: "UnionBank", value: "unionbank" },
+  { label: "BDO", value: "bdo" },
+  { label: "Landbank", value: "landbank" },
+]);
+
+function handleExportBankFile(row: Record<string, unknown>) {
+  bankFileCycleId.value = row.id as number;
+  bankFileFormat.value = "generic";
+  showBankFileModal.value = true;
+}
+
+function downloadBankFile() {
+  const url = exportAPI.payrollBankFile(bankFileCycleId.value, bankFileFormat.value);
+  const token = localStorage.getItem("token");
+  fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    .then((res) => res.blob())
+    .then((blob) => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `bank_file_${bankFileFormat.value}_${bankFileCycleId.value}.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    })
+    .catch(() => message.error(t("common.failed")));
+  showBankFileModal.value = false;
+}
+
+async function handleLock(row: Record<string, unknown>) {
+  try {
+    await payrollAPI.lockCycle(row.id as number);
+    message.success(t("payroll.cycleLocked"));
+    await fetchCycles();
+  } catch {
+    message.error(t("common.failed"));
+  }
+}
+
+async function handleUnlock(row: Record<string, unknown>) {
+  try {
+    await payrollAPI.unlockCycle(row.id as number);
+    message.success(t("payroll.cycleUnlocked"));
+    await fetchCycles();
+  } catch {
+    message.error(t("common.failed"));
+  }
+}
+
+function handleExportCSV(row: Record<string, unknown>) {
+  const url = exportAPI.payrollCSV(row.id as number);
+  const token = localStorage.getItem("token");
+  // Use fetch to add auth header, then download
+  fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    .then((res) => res.blob())
+    .then((blob) => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `payroll_${row.name || row.id}.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    })
+    .catch(() => message.error(t("common.failed")));
+}
+
+async function handleScanAnomalies(row: Record<string, unknown>) {
+  anomalyTitle.value = String(row.name || "");
+  anomalyLoading.value = true;
+  anomalyReport.value = null;
+  showAnomalyModal.value = true;
+  try {
+    const res = (await payrollAPI.scanAnomalies(row.id as number)) as {
+      data?: AnomalyReport;
+    };
+    anomalyReport.value = (res.data || res) as AnomalyReport;
+  } catch {
+    message.error(t("payroll.anomalyScanFailed"));
+  } finally {
+    anomalyLoading.value = false;
+  }
+}
+
+const severityTagType: Record<
+  string,
+  "error" | "warning" | "info" | "default"
+> = {
+  critical: "error",
+  high: "error",
+  medium: "warning",
+  low: "info",
+};
+
+async function handleApprove(row: Record<string, unknown>) {
+  dialog.info({
+    title: t("common.approve"),
+    content: t("payroll.approveConfirm", { name: row.name }),
+    positiveText: t("common.approve"),
+    negativeText: t("common.cancel"),
+    onPositiveClick: async () => {
+      try {
+        await payrollAPI.approveCycle(row.id as number);
+        message.success(t("payroll.cycleApproved"));
+        await fetchCycles();
+      } catch (e: unknown) {
+        const err = e as { data?: { error?: { message?: string } } };
+        message.error(
+          err.data?.error?.message || t("payroll.approveFailed")
+        );
+      }
+    },
+  });
+}
+</script>
+
+<template>
+  <div>
+    <NSpace justify="space-between" style="margin-bottom: 16px">
+      <h2>{{ t("payroll.title") }}</h2>
+      <NButton type="primary" @click="showCreateModal = true">{{
+        t("payroll.createCycle")
+      }}</NButton>
+    </NSpace>
+    <NDataTable :columns="columns" :data="data" :loading="loading" />
+
+    <NModal
+      v-model:show="showCreateModal"
+      preset="card"
+      :title="t('payroll.createPayrollCycle')"
+      style="width: 500px"
+    >
+      <NForm label-placement="left" label-width="120">
+        <NFormItem :label="t('payroll.cycleName')" required>
+          <NInput v-model:value="cycleForm.name" />
+        </NFormItem>
+        <NFormItem :label="t('payroll.periodStart')" required>
+          <NDatePicker
+            v-model:value="cycleForm.period_start"
+            type="date"
+            style="width: 100%"
+          />
+        </NFormItem>
+        <NFormItem :label="t('payroll.periodEnd')" required>
+          <NDatePicker
+            v-model:value="cycleForm.period_end"
+            type="date"
+            style="width: 100%"
+          />
+        </NFormItem>
+        <NFormItem :label="t('payroll.payDate')" required>
+          <NDatePicker
+            v-model:value="cycleForm.pay_date"
+            type="date"
+            style="width: 100%"
+          />
+        </NFormItem>
+        <NFormItem :label="t('payroll.cycleType')">
+          <NSelect
+            v-model:value="cycleForm.cycle_type"
+            :options="cycleTypeOptions"
+          />
+        </NFormItem>
+        <NFormItem>
+          <NSpace>
+            <NButton
+              type="primary"
+              :loading="createLoading"
+              @click="handleCreateCycle"
+              >{{ t("common.create") }}</NButton
+            >
+            <NButton @click="showCreateModal = false">{{
+              t("common.cancel")
+            }}</NButton>
+          </NSpace>
+        </NFormItem>
+      </NForm>
+    </NModal>
+
+    <!-- Anomaly Report Modal -->
+    <NModal
+      v-model:show="showAnomalyModal"
+      preset="card"
+      :title="t('payroll.anomalyReport') + ' - ' + anomalyTitle"
+      style="width: 900px"
+    >
+      <template v-if="anomalyLoading">
+        <div style="text-align: center; padding: 40px">
+          {{ t("common.loading") }}
+        </div>
+      </template>
+      <template v-else-if="anomalyReport">
+        <NSpace
+          style="margin-bottom: 16px"
+          align="center"
+        >
+          <NTag v-if="anomalyReport.summary.critical > 0" type="error" size="small">
+            {{ t("payroll.critical") }}: {{ anomalyReport.summary.critical }}
+          </NTag>
+          <NTag v-if="anomalyReport.summary.high > 0" type="error" size="small">
+            {{ t("payroll.highSeverity") }}: {{ anomalyReport.summary.high }}
+          </NTag>
+          <NTag v-if="anomalyReport.summary.medium > 0" type="warning" size="small">
+            {{ t("payroll.mediumSeverity") }}: {{ anomalyReport.summary.medium }}
+          </NTag>
+          <NTag v-if="anomalyReport.summary.low > 0" type="info" size="small">
+            {{ t("payroll.lowSeverity") }}: {{ anomalyReport.summary.low }}
+          </NTag>
+          <NTag v-if="anomalyReport.anomalies.length === 0" type="success" size="small">
+            {{ t("payroll.noAnomalies") }}
+          </NTag>
+          <span style="color: var(--text-color-3); font-size: 13px">
+            {{ t("payroll.totalItems") }}: {{ anomalyReport.total_items }}
+          </span>
+        </NSpace>
+        <NDataTable
+          v-if="anomalyReport.anomalies.length > 0"
+          :columns="[
+            {
+              title: t('common.status'),
+              key: 'severity',
+              width: 90,
+              render: (r: Record<string, unknown>) =>
+                h(NTag, { type: severityTagType[r.severity as string] || 'default', size: 'small' }, () => r.severity as string),
+            },
+            { title: t('employee.name'), key: 'employee_name', width: 140 },
+            { title: t('employee.employeeNo'), key: 'employee_no', width: 90 },
+            { title: t('common.type'), key: 'type', width: 160 },
+            { title: t('payroll.anomalyDescription'), key: 'description' },
+          ]"
+          :data="anomalyReport.anomalies"
+          size="small"
+          max-height="400"
+        />
+      </template>
+    </NModal>
+
+    <!-- Bank File Export Modal -->
+    <NModal
+      v-model:show="showBankFileModal"
+      preset="card"
+      :title="t('payroll.bankFile')"
+      style="width: 400px"
+    >
+      <NForm label-placement="top">
+        <NFormItem :label="t('payroll.bankFormat')">
+          <NSelect v-model:value="bankFileFormat" :options="bankFormatOptions" />
+        </NFormItem>
+      </NForm>
+      <template #footer>
+        <NSpace justify="end">
+          <NButton @click="showBankFileModal = false">{{ t("common.cancel") }}</NButton>
+          <NButton type="primary" @click="downloadBankFile">{{ t("common.confirm") }}</NButton>
+        </NSpace>
+      </template>
+    </NModal>
+
+    <!-- Payroll Items Modal -->
+    <NModal
+      v-model:show="showItemsModal"
+      preset="card"
+      :title="t('payroll.viewItems') + ' - ' + itemsTitle"
+      style="width: 900px"
+    >
+      <NDataTable
+        :columns="[
+          { title: t('employee.name'), key: 'employee_name' },
+          {
+            title: t('employee.employeeNo'),
+            key: 'employee_no',
+            width: 100,
+          },
+          {
+            title: t('payroll.basicPay'),
+            key: 'basic_pay',
+            width: 110,
+            render: (r: Record<string, unknown>) => php(r.basic_pay),
+          },
+          {
+            title: t('payroll.grossPay'),
+            key: 'gross_pay',
+            width: 110,
+            render: (r: Record<string, unknown>) => php(r.gross_pay),
+          },
+          {
+            title: t('payroll.nightDiff'),
+            key: 'night_diff',
+            width: 100,
+            render: (r: Record<string, unknown>) => php(r.night_diff),
+          },
+          {
+            title: t('payroll.holidayPay'),
+            key: 'holiday_pay',
+            width: 100,
+            render: (r: Record<string, unknown>) => php(r.holiday_pay),
+          },
+          {
+            title: t('compliance.sss'),
+            key: 'sss_ee',
+            width: 90,
+            render: (r: Record<string, unknown>) => php(r.sss_ee),
+          },
+          {
+            title: t('compliance.philhealth'),
+            key: 'philhealth_ee',
+            width: 90,
+            render: (r: Record<string, unknown>) => php(r.philhealth_ee),
+          },
+          {
+            title: t('compliance.pagibig'),
+            key: 'pagibig_ee',
+            width: 90,
+            render: (r: Record<string, unknown>) => php(r.pagibig_ee),
+          },
+          {
+            title: t('payroll.deductions'),
+            key: 'withholding_tax',
+            width: 90,
+            render: (r: Record<string, unknown>) =>
+              php(r.withholding_tax),
+          },
+          {
+            title: t('payroll.netPay'),
+            key: 'net_pay',
+            width: 110,
+            render: (r: Record<string, unknown>) => php(r.net_pay),
+          },
+        ]"
+        :data="payrollItems"
+        :loading="itemsLoading"
+        size="small"
+      />
+    </NModal>
+  </div>
+</template>
