@@ -2,7 +2,15 @@
 -- Seed Philippine holidays for 2025 and 2026
 -- These are nationwide holidays; companies can add more
 
--- Note: company_id = 1 (demo company). For multi-tenant, seed per company on registration.
+-- Ensure demo company exists for seed data
+INSERT INTO companies (id, name, legal_name, country)
+VALUES (1, 'Demo Company', 'Demo Company Inc.', 'PHL')
+ON CONFLICT (id) DO NOTHING;
+
+-- Ensure demo admin user exists
+INSERT INTO users (id, company_id, email, password_hash, first_name, last_name, role, status)
+VALUES (1, 1, 'admin@demo.com', '$2a$10$dummy_hash_will_be_changed', 'Admin', 'User', 'admin', 'active')
+ON CONFLICT (id) DO NOTHING;
 
 -- 2025 Regular Holidays
 INSERT INTO holidays (company_id, name, holiday_date, holiday_type, year, is_nationwide) VALUES
