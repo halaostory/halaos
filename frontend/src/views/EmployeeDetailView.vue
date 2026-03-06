@@ -28,7 +28,7 @@ import {
   type UploadFileInfo,
 } from "naive-ui";
 import { h } from "vue";
-import { employeeAPI, salaryAPI } from "../api/client";
+import { employeeAPI, salaryAPI, companyAPI } from "../api/client";
 import { format } from "date-fns";
 
 const route = useRoute();
@@ -41,6 +41,9 @@ const profile = ref<Record<string, unknown> | null>(null);
 const salary = ref<Record<string, unknown> | null>(null);
 const loading = ref(true);
 const error = ref("");
+const departmentMap = ref(new Map<number, string>());
+const positionMap = ref(new Map<number, string>());
+const managerName = ref("");
 
 function fmtDate(d: unknown): string {
   if (!d) return "-";
@@ -83,11 +86,13 @@ const structureOptions = ref<{ label: string; value: number }[]>([]);
 onMounted(async () => {
   try {
     const id = Number(route.params.id);
-    const [emp, prof, sal, structs] = await Promise.allSettled([
+    const [emp, prof, sal, structs, depts, positions] = await Promise.allSettled([
       employeeAPI.get(id),
       employeeAPI.getProfile(id),
       employeeAPI.getSalary(id),
       salaryAPI.listStructures(),
+      companyAPI.listDepartments(),
+      companyAPI.listPositions(),
     ]);
     if (emp.status === "fulfilled") {
       const res = emp.value as {
@@ -120,6 +125,37 @@ onMounted(async () => {
       structureOptions.value = (
         arr as { id: number; name: string }[]
       ).map((s) => ({ label: s.name, value: s.id }));
+    }
+    if (depts.status === "fulfilled") {
+      const res = depts.value as {
+        data?: { id: number; name: string }[];
+      };
+      const arr = res.data || (Array.isArray(res) ? res : []);
+      const newMap = new Map<number, string>();
+      (arr as { id: number; name: string }[]).forEach((d) => newMap.set(d.id, d.name));
+      departmentMap.value = newMap;
+    }
+    if (positions.status === "fulfilled") {
+      const res = positions.value as {
+        data?: { id: number; title: string }[];
+      };
+      const arr = res.data || (Array.isArray(res) ? res : []);
+      const newMap = new Map<number, string>();
+      (arr as { id: number; title: string }[]).forEach((p) => newMap.set(p.id, p.title));
+      positionMap.value = newMap;
+    }
+    // Resolve manager name if manager_id exists
+    if (employee.value?.manager_id) {
+      try {
+        const mgrRes = await employeeAPI.get(employee.value.manager_id as number);
+        const mgrData = (mgrRes as { data: Record<string, unknown> }).data ||
+          (mgrRes as unknown as Record<string, unknown>);
+        if (mgrData) {
+          managerName.value = `${mgrData.first_name || ""} ${mgrData.last_name || ""}`.trim();
+        }
+      } catch {
+        managerName.value = "";
+      }
     }
     loadDocuments();
     loadTimeline();
@@ -490,6 +526,15 @@ async function handleAssignSalary() {
           }}</NDescriptionsItem>
           <NDescriptionsItem :label="t('employee.employmentType')">{{
             employee.employment_type
+          }}</NDescriptionsItem>
+          <NDescriptionsItem :label="t('employee.department')">{{
+            departmentMap.get(employee.department_id as number) || '-'
+          }}</NDescriptionsItem>
+          <NDescriptionsItem :label="t('employee.position')">{{
+            positionMap.get(employee.position_id as number) || '-'
+          }}</NDescriptionsItem>
+          <NDescriptionsItem v-if="employee.manager_id" :label="t('selfService.manager')">{{
+            managerName || '-'
           }}</NDescriptionsItem>
           <NDescriptionsItem :label="t('employee.hireDate')">{{
             fmtDate(employee.hire_date)

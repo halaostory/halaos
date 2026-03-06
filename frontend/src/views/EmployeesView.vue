@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, h, onMounted } from 'vue'
+import { ref, computed, h, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   NDataTable, NButton, NSpace, NInput, NTag, NPagination, NModal, NForm, NFormItem,
   NInputNumber, NSelect, NDatePicker, NAlert, useMessage, type DataTableColumns,
 } from 'naive-ui'
-import { employeeAPI, exportAPI } from '../api/client'
+import { employeeAPI, exportAPI, companyAPI } from '../api/client'
 import { useAuthStore } from '../stores/auth'
 import { format } from 'date-fns'
 
@@ -21,6 +21,15 @@ const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 
+// Lookup maps for departments and positions
+const departmentMap = ref<Map<number, string>>(new Map())
+const positionMap = ref<Map<number, string>>(new Map())
+const departments = ref<{ id: number; name: string }[]>([])
+
+// Filter refs
+const selectedDepartment = ref<number | null>(null)
+const selectedStatus = ref<string | null>(null)
+
 const statusColorMap: Record<string, 'success' | 'warning' | 'error' | 'info' | 'default'> = {
   active: 'success',
   probationary: 'info',
@@ -33,10 +42,27 @@ function formatDate(d: string): string {
   try { return format(new Date(d), 'yyyy-MM-dd') } catch { return d }
 }
 
-const columns: DataTableColumns = [
+const columns = computed<DataTableColumns>(() => [
   { title: t('employee.employeeNo'), key: 'employee_no', width: 120 },
   { title: t('employee.name'), key: 'name', render: (row) => `${row.first_name} ${row.last_name}` },
-  { title: t('employee.department'), key: 'department_id', width: 120 },
+  {
+    title: t('employee.department'),
+    key: 'department_id',
+    width: 150,
+    render: (row) => {
+      const id = row.department_id as number
+      return departmentMap.value.get(id) ?? String(id ?? '')
+    },
+  },
+  {
+    title: t('employee.position'),
+    key: 'position_id',
+    width: 150,
+    render: (row) => {
+      const id = row.position_id as number
+      return positionMap.value.get(id) ?? String(id ?? '')
+    },
+  },
   { title: t('employee.employmentType'), key: 'employment_type', width: 130 },
   {
     title: t('common.status'),
@@ -53,18 +79,49 @@ const columns: DataTableColumns = [
     width: 120,
     render: (row) => formatDate(row.hire_date as string)
   },
-]
+])
 
-// Filter data client-side by search
+// Department filter options
+const departmentOptions = computed(() =>
+  departments.value.map((d) => ({ label: d.name, value: d.id }))
+)
+
+// Status filter options
+const statusOptions = computed(() => [
+  { label: t('employee.active'), value: 'active' },
+  { label: t('employee.probationary'), value: 'probationary' },
+  { label: t('employee.suspended'), value: 'suspended' },
+  { label: t('employee.separated'), value: 'separated' },
+])
+
+// Reset page to 1 when any filter changes
+watch([search, selectedDepartment, selectedStatus], () => {
+  page.value = 1
+})
+
+// Filter data client-side by search, department, and status
 const filteredData = computed(() => {
-  if (!search.value.trim()) return data.value
-  const q = search.value.toLowerCase()
-  return data.value.filter((row) => {
-    const name = `${row.first_name} ${row.last_name}`.toLowerCase()
-    const no = (row.employee_no as string || '').toLowerCase()
-    const email = (row.email as string || '').toLowerCase()
-    return name.includes(q) || no.includes(q) || email.includes(q)
-  })
+  let result = data.value
+
+  if (selectedDepartment.value !== null) {
+    result = result.filter((row) => row.department_id === selectedDepartment.value)
+  }
+
+  if (selectedStatus.value !== null) {
+    result = result.filter((row) => row.status === selectedStatus.value)
+  }
+
+  if (search.value.trim()) {
+    const q = search.value.toLowerCase()
+    result = result.filter((row) => {
+      const name = `${row.first_name} ${row.last_name}`.toLowerCase()
+      const no = (row.employee_no as string || '').toLowerCase()
+      const email = (row.email as string || '').toLowerCase()
+      return name.includes(q) || no.includes(q) || email.includes(q)
+    })
+  }
+
+  return result
 })
 
 const pagedData = computed(() => {
@@ -72,20 +129,38 @@ const pagedData = computed(() => {
   return filteredData.value.slice(start, start + pageSize.value)
 })
 
-onMounted(() => loadData())
-
-async function loadData() {
+onMounted(async () => {
   loading.value = true
   try {
-    const res = await employeeAPI.list({ page: '1', limit: '200' }) as { data: Record<string, unknown>[]; meta?: { total: number } }
-    data.value = res.data || []
-    total.value = res.meta?.total || data.value.length
+    const [employeeRes, deptRes, posRes] = await Promise.all([
+      employeeAPI.list({ page: '1', limit: '200' }) as Promise<{ data: Record<string, unknown>[]; meta?: { total: number } }>,
+      companyAPI.listDepartments() as Promise<{ data: { id: number; name: string }[] }>,
+      companyAPI.listPositions() as Promise<{ data: { id: number; title: string }[] }>,
+    ])
+
+    data.value = employeeRes.data || []
+    total.value = employeeRes.meta?.total || data.value.length
+
+    const deptList = deptRes.data || []
+    departments.value = deptList
+    const dMap = new Map<number, string>()
+    for (const d of deptList) {
+      dMap.set(d.id, d.name)
+    }
+    departmentMap.value = dMap
+
+    const posList = posRes.data || []
+    const pMap = new Map<number, string>()
+    for (const p of posList) {
+      pMap.set(p.id, p.title)
+    }
+    positionMap.value = pMap
   } catch {
     data.value = []
   } finally {
     loading.value = false
   }
-}
+})
 
 function handleRowClick(row: Record<string, unknown>) {
   router.push({ name: 'employee-detail', params: { id: String(row.id) } })
@@ -158,7 +233,6 @@ async function handleBulkSalaryUpdate() {
     <NSpace justify="space-between" style="margin-bottom: 16px;">
       <h2>{{ t('employee.title') }}</h2>
       <NSpace>
-        <NInput v-model:value="search" :placeholder="t('common.search')" clearable style="width: 240px;" />
         <NButton @click="handleExportCSV">CSV</NButton>
         <NButton v-if="authStore.isAdmin" @click="showBulkSalary = true">
           {{ t('employee.bulkSalaryUpdate') }}
@@ -167,6 +241,24 @@ async function handleBulkSalaryUpdate() {
           {{ t('employee.addNew') }}
         </NButton>
       </NSpace>
+    </NSpace>
+    <NSpace style="margin-bottom: 16px;" align="center">
+      <NSelect
+        v-model:value="selectedDepartment"
+        :options="departmentOptions"
+        :placeholder="t('employee.department')"
+        clearable
+        filterable
+        style="width: 200px;"
+      />
+      <NSelect
+        v-model:value="selectedStatus"
+        :options="statusOptions"
+        :placeholder="t('common.status')"
+        clearable
+        style="width: 200px;"
+      />
+      <NInput v-model:value="search" :placeholder="t('common.search')" clearable style="width: 240px;" />
     </NSpace>
     <NDataTable
       :columns="columns"
