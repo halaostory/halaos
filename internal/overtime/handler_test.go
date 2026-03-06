@@ -57,3 +57,46 @@ func TestListRequests_DBError(t *testing.T) {
 		t.Fatalf("expected 500, got %d: %s", w.Code, w.Body.String())
 	}
 }
+
+func TestListRequests_Success(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+	mockDB.OnQuery(testutil.NewEmptyRows(), nil)
+	mockDB.OnQueryRow(testutil.NewRow(int64(0))) // CountOvertimeRequests
+	c, w := testutil.NewGinContextWithQuery("GET", "/overtime/requests", nil, adminAuth)
+	h.ListRequests(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestApproveRequest_NotFound(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+	// GetEmployeeByUserID
+	mockDB.OnQueryRow(testutil.NewRow(testutil.EmployeeScanValues(testutil.FixtureEmployee())...))
+	// ApproveOvertimeRequest fails
+	mockDB.OnQueryRow(testutil.NewErrorRow(fmt.Errorf("not found")))
+	c, w := testutil.NewGinContextWithParams("POST", "/overtime/requests/999/approve",
+		gin.Params{{Key: "id", Value: "999"}}, nil, adminAuth)
+	h.ApproveRequest(c)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestRejectRequest_NotFound(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+	// GetEmployeeByUserID
+	mockDB.OnQueryRow(testutil.NewRow(testutil.EmployeeScanValues(testutil.FixtureEmployee())...))
+	// RejectOvertimeRequest fails
+	mockDB.OnQueryRow(testutil.NewErrorRow(fmt.Errorf("not found")))
+	c, w := testutil.NewGinContextWithParams("POST", "/overtime/requests/999/reject",
+		gin.Params{{Key: "id", Value: "999"}},
+		gin.H{"reason": "test"}, adminAuth)
+	h.RejectRequest(c)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+}

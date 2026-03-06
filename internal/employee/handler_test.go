@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
@@ -235,6 +236,223 @@ func TestUpdateEmployee_NotFound(t *testing.T) {
 		gin.H{"first_name": "Jane"}, adminAuth)
 
 	h.UpdateEmployee(c)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateEmployee_InvalidID(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	c, w := testutil.NewGinContextWithParams("PUT", "/employees/abc",
+		gin.Params{{Key: "id", Value: "abc"}},
+		gin.H{"first_name": "Jane"}, adminAuth)
+
+	h.UpdateEmployee(c)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateEmployee_DBError(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	mockDB.OnQueryRow(testutil.NewErrorRow(fmt.Errorf("db error")))
+
+	c, w := testutil.NewGinContextWithParams("PUT", "/employees/1",
+		gin.Params{{Key: "id", Value: "1"}},
+		gin.H{"first_name": "Jane"}, adminAuth)
+
+	h.UpdateEmployee(c)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// --- GetProfile ---
+
+func profileScanValues() []interface{} {
+	now := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	return []interface{}{
+		int64(1),        // EmployeeID
+		(*string)(nil),  // AddressLine1
+		(*string)(nil),  // AddressLine2
+		(*string)(nil),  // City
+		(*string)(nil),  // Province
+		(*string)(nil),  // ZipCode
+		(*string)(nil),  // EmergencyName
+		(*string)(nil),  // EmergencyPhone
+		(*string)(nil),  // EmergencyRelation
+		(*string)(nil),  // BankName
+		(*string)(nil),  // BankAccountNo
+		(*string)(nil),  // BankAccountName
+		(*string)(nil),  // Tin
+		(*string)(nil),  // SssNo
+		(*string)(nil),  // PhilhealthNo
+		(*string)(nil),  // PagibigNo
+		(*string)(nil),  // BloodType
+		(*string)(nil),  // Religion
+		now,             // UpdatedAt
+	}
+}
+
+func TestGetProfile_Success(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	mockDB.OnQueryRow(testutil.NewRow(profileScanValues()...))
+
+	c, w := testutil.NewGinContextWithParams("GET", "/employees/1/profile",
+		gin.Params{{Key: "id", Value: "1"}}, nil, adminAuth)
+
+	h.GetProfile(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestGetProfile_NotFound(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	mockDB.OnQueryRow(testutil.NewErrorRow(pgx.ErrNoRows))
+
+	c, w := testutil.NewGinContextWithParams("GET", "/employees/999/profile",
+		gin.Params{{Key: "id", Value: "999"}}, nil, adminAuth)
+
+	h.GetProfile(c)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestGetProfile_InvalidID(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	c, w := testutil.NewGinContextWithParams("GET", "/employees/abc/profile",
+		gin.Params{{Key: "id", Value: "abc"}}, nil, adminAuth)
+
+	h.GetProfile(c)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// --- ListDocuments ---
+
+func TestListDocuments_Success(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	mockDB.OnQuery(testutil.NewEmptyRows(), nil)
+
+	c, w := testutil.NewGinContextWithParams("GET", "/employees/1/documents",
+		gin.Params{{Key: "id", Value: "1"}}, nil, adminAuth)
+
+	h.ListDocuments(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestListDocuments_DBError(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	mockDB.OnQuery(nil, fmt.Errorf("db error"))
+
+	c, w := testutil.NewGinContextWithParams("GET", "/employees/1/documents",
+		gin.Params{{Key: "id", Value: "1"}}, nil, adminAuth)
+
+	h.ListDocuments(c)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestListDocuments_InvalidID(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	c, w := testutil.NewGinContextWithParams("GET", "/employees/abc/documents",
+		gin.Params{{Key: "id", Value: "abc"}}, nil, adminAuth)
+
+	h.ListDocuments(c)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// --- DownloadDocument ---
+
+func TestDownloadDocument_InvalidDocID(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	c, w := testutil.NewGinContextWithParams("GET", "/employees/1/documents/invalid",
+		gin.Params{{Key: "id", Value: "1"}, {Key: "doc_id", Value: "invalid"}}, nil, adminAuth)
+
+	h.DownloadDocument(c)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestDownloadDocument_NotFound(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	mockDB.OnQueryRow(testutil.NewErrorRow(pgx.ErrNoRows))
+
+	c, w := testutil.NewGinContextWithParams("GET", "/employees/1/documents/550e8400-e29b-41d4-a716-446655440000",
+		gin.Params{{Key: "id", Value: "1"}, {Key: "doc_id", Value: "550e8400-e29b-41d4-a716-446655440000"}}, nil, adminAuth)
+
+	h.DownloadDocument(c)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// --- DeleteDocument ---
+
+func TestDeleteDocument_InvalidDocID(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	c, w := testutil.NewGinContextWithParams("DELETE", "/employees/1/documents/invalid",
+		gin.Params{{Key: "id", Value: "1"}, {Key: "doc_id", Value: "invalid"}}, nil, adminAuth)
+
+	h.DeleteDocument(c)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestDeleteDocument_NotFound(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	mockDB.OnQueryRow(testutil.NewErrorRow(pgx.ErrNoRows))
+
+	c, w := testutil.NewGinContextWithParams("DELETE", "/employees/1/documents/550e8400-e29b-41d4-a716-446655440000",
+		gin.Params{{Key: "id", Value: "1"}, {Key: "doc_id", Value: "550e8400-e29b-41d4-a716-446655440000"}}, nil, adminAuth)
+
+	h.DeleteDocument(c)
 
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d: %s", w.Code, w.Body.String())

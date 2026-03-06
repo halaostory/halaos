@@ -6,8 +6,10 @@ import (
 	"log/slog"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/tonypk/aigonhr/internal/auth"
 	"github.com/tonypk/aigonhr/internal/store"
@@ -208,5 +210,126 @@ func TestDownloadPayslipPDF_InvalidID(t *testing.T) {
 
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// payrollCycleScanValues returns values matching the PayrollCycle scan order (16 fields).
+func payrollCycleScanValues() []interface{} {
+	now := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	userID := int64(1)
+	return []interface{}{
+		int64(1),                  // ID
+		int64(1),                  // CompanyID
+		"Jan 2025 1st Half",      // Name
+		now,                       // PeriodStart
+		now.AddDate(0, 0, 14),    // PeriodEnd
+		now.AddDate(0, 0, 19),    // PayDate
+		"regular",                 // CycleType
+		"draft",                   // Status
+		&userID,                   // CreatedBy
+		(*int64)(nil),             // ApprovedBy
+		pgtype.Timestamptz{},      // ApprovedAt
+		now,                       // CreatedAt
+		now,                       // UpdatedAt
+		false,                     // IsLocked
+		pgtype.Timestamptz{},      // LockedAt
+		(*int64)(nil),             // LockedBy
+	}
+}
+
+// --- CreateCycle Success ---
+
+func TestCreateCycle_Success(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	mockDB.OnQueryRow(testutil.NewRow(payrollCycleScanValues()...))
+
+	c, w := testutil.NewGinContext("POST", "/payroll/cycles", gin.H{
+		"name":         "Jan 2025 1st Half",
+		"period_start": "2025-01-01",
+		"period_end":   "2025-01-15",
+		"pay_date":     "2025-01-20",
+	}, adminAuth)
+
+	h.CreateCycle(c)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// --- ListPayrollItems Success ---
+
+func TestListPayrollItems_Success(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	mockDB.OnQuery(testutil.NewEmptyRows(), nil)
+
+	c, w := testutil.NewGinContextWithParams("GET", "/payroll/runs/1/items",
+		gin.Params{{Key: "id", Value: "1"}}, nil, adminAuth)
+
+	h.ListPayrollItems(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// --- RunPayroll cycle locked ---
+
+func TestRunPayroll_CycleLocked(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	// IsPayrollCycleLocked returns true
+	mockDB.OnQueryRow(testutil.NewRow(true))
+
+	c, w := testutil.NewGinContext("POST", "/payroll/run", gin.H{
+		"cycle_id": 1,
+	}, adminAuth)
+
+	h.RunPayroll(c)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// --- ApproveCycle locked ---
+
+func TestApproveCycle_Locked(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	// IsPayrollCycleLocked returns true
+	mockDB.OnQueryRow(testutil.NewRow(true))
+
+	c, w := testutil.NewGinContextWithParams("POST", "/payroll/cycles/1/approve",
+		gin.Params{{Key: "id", Value: "1"}}, nil, adminAuth)
+
+	h.ApproveCycle(c)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// --- DownloadPayslipPDF employee not found ---
+
+func TestDownloadPayslipPDF_EmployeeNotFound(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	mockDB.OnQueryRow(testutil.NewErrorRow(fmt.Errorf("not found")))
+
+	c, w := testutil.NewGinContextWithParams("GET", "/payroll/payslips/550e8400-e29b-41d4-a716-446655440000/pdf",
+		gin.Params{{Key: "id", Value: "550e8400-e29b-41d4-a716-446655440000"}}, nil, adminAuth)
+
+	h.DownloadPayslipPDF(c)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", w.Code, w.Body.String())
 	}
 }
