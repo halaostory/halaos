@@ -45,7 +45,11 @@ const api = ofetch.create({
       // Skip refresh for auth endpoints to avoid loops
       const url =
         typeof request === "string" ? request : request?.toString() || "";
-      if (url.includes("/auth/refresh") || url.includes("/auth/login")) {
+      if (url.includes("/auth/login")) {
+        // Let login 401 errors propagate to the caller for proper error display
+        return;
+      }
+      if (url.includes("/auth/refresh")) {
         localStorage.removeItem("token");
         localStorage.removeItem("refresh_token");
         window.location.href = "/login";
