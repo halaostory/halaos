@@ -268,13 +268,8 @@ async function fetchTransactions() {
       offset: String(offset),
     })
     const data = extractData<TransactionsResponse>(res)
-    if (data && typeof data === 'object' && 'items' in data) {
-      transactions.value = data.items || []
-      transactionTotal.value = data.total || 0
-    } else if (Array.isArray(data)) {
-      transactions.value = data
-      transactionTotal.value = data.length
-    }
+    transactions.value = data?.items || []
+    transactionTotal.value = data?.total || 0
   } catch {
     transactions.value = []
   }
