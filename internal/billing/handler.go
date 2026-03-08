@@ -149,6 +149,17 @@ func (h *Handler) DailyUsage(c *gin.Context) {
 	response.OK(c, usage)
 }
 
+// packageResponse is the frontend-friendly shape for token packages.
+type packageResponse struct {
+	ID       int64   `json:"id"`
+	Slug     string  `json:"slug"`
+	Name     string  `json:"name"`
+	Tokens   int64   `json:"tokens"`
+	Price    float64 `json:"price"`
+	Currency string  `json:"currency"`
+	IsActive bool    `json:"is_active"`
+}
+
 // ListPackages returns all active token packages.
 func (h *Handler) ListPackages(c *gin.Context) {
 	packages, err := h.queries.ListTokenPackages(c.Request.Context())
@@ -158,7 +169,24 @@ func (h *Handler) ListPackages(c *gin.Context) {
 		return
 	}
 
-	response.OK(c, packages)
+	result := make([]packageResponse, len(packages))
+	for i, pkg := range packages {
+		var price float64
+		if f, fErr := pkg.PricePhp.Float64Value(); fErr == nil {
+			price = f.Float64
+		}
+		result[i] = packageResponse{
+			ID:       pkg.ID,
+			Slug:     pkg.Slug,
+			Name:     pkg.Name,
+			Tokens:   pkg.Tokens,
+			Price:    price,
+			Currency: "PHP",
+			IsActive: pkg.IsActive,
+		}
+	}
+
+	response.OK(c, result)
 }
 
 // purchaseRequest is the JSON body for PurchaseTokens.

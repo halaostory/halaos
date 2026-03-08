@@ -12,15 +12,12 @@ const loading = ref(true)
 // --- Types ---
 
 interface Agent {
-  id: number
   slug: string
   name: string
   description: string
   icon: string | null
-  system_prompt: string
-  model: string
   cost_multiplier: number
-  available_tools: string[]
+  tools: string[]
   is_active: boolean
 }
 
@@ -40,7 +37,7 @@ async function fetchAgents() {
   try {
     const res = await agentAPI.list()
     const data = extractData<Agent[]>(res)
-    agents.value = Array.isArray(data) ? data.filter(a => a.is_active) : []
+    agents.value = Array.isArray(data) ? data.filter(a => a.is_active !== false) : []
   } catch {
     agents.value = []
   } finally {
@@ -91,7 +88,7 @@ onMounted(fetchAgents)
         responsive="screen"
         :item-responsive="true"
       >
-        <NGi v-for="agent in agents" :key="agent.id">
+        <NGi v-for="agent in agents" :key="agent.slug">
           <NCard hoverable style="height: 100%;">
             <template #header>
               <div style="display: flex; align-items: center; gap: 12px;">
@@ -133,13 +130,13 @@ onMounted(fetchAgents)
             </p>
 
             <!-- Available Tools -->
-            <div v-if="agent.available_tools && agent.available_tools.length > 0" style="margin-bottom: 16px;">
+            <div v-if="agent.tools && agent.tools.length > 0" style="margin-bottom: 16px;">
               <div style="font-size: 12px; color: #999; margin-bottom: 6px;">
                 {{ t('agentHub.tools') }}
               </div>
               <NSpace :size="4">
                 <NTag
-                  v-for="tool in agent.available_tools.slice(0, 5)"
+                  v-for="tool in agent.tools.slice(0, 5)"
                   :key="tool"
                   size="small"
                   :bordered="false"
@@ -147,11 +144,11 @@ onMounted(fetchAgents)
                   {{ tool }}
                 </NTag>
                 <NTag
-                  v-if="agent.available_tools.length > 5"
+                  v-if="agent.tools.length > 5"
                   size="small"
                   :bordered="false"
                 >
-                  +{{ agent.available_tools.length - 5 }}
+                  +{{ agent.tools.length - 5 }}
                 </NTag>
               </NSpace>
             </div>

@@ -54,6 +54,7 @@ func (h *Handler) ListAgents(c *gin.Context) {
 		IsAutonomous   bool     `json:"is_autonomous"`
 		MaxRounds      int      `json:"max_rounds"`
 		Icon           string   `json:"icon"`
+		IsActive       bool     `json:"is_active"`
 	}
 
 	result := make([]agentResponse, len(agents))
@@ -67,6 +68,7 @@ func (h *Handler) ListAgents(c *gin.Context) {
 			IsAutonomous:   a.IsAutonomous,
 			MaxRounds:      a.MaxRounds,
 			Icon:           a.Icon,
+			IsActive:       true,
 		}
 	}
 

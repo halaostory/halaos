@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"log/slog"
-	"math"
 	"time"
 
 	"github.com/google/uuid"
@@ -24,6 +23,7 @@ type ToolRegistry interface {
 
 // BillingService is the interface for token billing operations.
 type BillingService interface {
+	CheckBalance(ctx context.Context, companyID int64) (int64, error)
 	CalculateTokenCost(inputTokens, outputTokens int, costMultiplier float64) int64
 	DeductTokens(ctx context.Context, companyID, userID, amount int64, agentSlug, desc string) error
 }
@@ -84,6 +84,15 @@ func (e *Executor) Chat(ctx context.Context, companyID, userID int64, agentSlug 
 	agentCfg, err := e.resolveAgent(ctx, agentSlug)
 	if err != nil {
 		return nil, err
+	}
+
+	// Pre-check balance before calling LLM
+	balance, err := e.billing.CheckBalance(ctx, companyID)
+	if err != nil {
+		return nil, fmt.Errorf("check balance: %w", err)
+	}
+	if balance <= 0 {
+		return nil, ErrInsufficientBalance
 	}
 
 	requestID := uuid.New().String()
@@ -180,6 +189,15 @@ func (e *Executor) StreamChat(ctx context.Context, companyID, userID int64, agen
 	agentCfg, err := e.resolveAgent(ctx, agentSlug)
 	if err != nil {
 		return nil, err
+	}
+
+	// Pre-check balance before calling LLM
+	balance, err := e.billing.CheckBalance(ctx, companyID)
+	if err != nil {
+		return nil, fmt.Errorf("check balance: %w", err)
+	}
+	if balance <= 0 {
+		return nil, ErrInsufficientBalance
 	}
 
 	requestID := uuid.New().String()
@@ -334,9 +352,3 @@ func (e *Executor) writeAuditLog(ctx context.Context, companyID, userID int64,
 	}
 }
 
-// CalculateTokenCostDefault provides a default token cost calculation.
-// Cost = ceil((inputTokens + outputTokens) * costMultiplier)
-func CalculateTokenCostDefault(inputTokens, outputTokens int, costMultiplier float64) int64 {
-	total := float64(inputTokens+outputTokens) * costMultiplier
-	return int64(math.Ceil(total))
-}

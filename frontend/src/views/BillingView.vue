@@ -28,10 +28,9 @@ interface DailyUsage {
 }
 
 interface AgentUsage {
-  agent_name: string
-  agent_slug: string
+  agent_slug: string | null
   request_count: number
-  tokens_used: number
+  total_tokens: number
 }
 
 interface TokenPackage {
@@ -127,7 +126,11 @@ const dailyUsageColumns = computed<DataTableColumns<DailyUsage>>(() => [
 ])
 
 const agentUsageColumns = computed<DataTableColumns<AgentUsage>>(() => [
-  { title: t('billing.agentName'), key: 'agent_name' },
+  {
+    title: t('billing.agentName'),
+    key: 'agent_slug',
+    render: (row) => row.agent_slug || '-',
+  },
   {
     title: t('billing.requests'),
     key: 'request_count',
@@ -136,9 +139,9 @@ const agentUsageColumns = computed<DataTableColumns<AgentUsage>>(() => [
   },
   {
     title: t('billing.tokensUsed'),
-    key: 'tokens_used',
+    key: 'total_tokens',
     width: 140,
-    render: (row) => row.tokens_used.toLocaleString(),
+    render: (row) => row.total_tokens.toLocaleString(),
   },
 ])
 

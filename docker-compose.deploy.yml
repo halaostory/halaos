@@ -72,6 +72,8 @@ services:
       UPLOAD_DIR: /data/uploads
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
       RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+      AI_ENABLED: ${AI_ENABLED:-false}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
