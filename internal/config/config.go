@@ -8,13 +8,27 @@ import (
 )
 
 type Config struct {
-	Server   ServerConfig
-	Postgres PostgresConfig
-	Redis    RedisConfig
-	JWT      JWTConfig
-	Upload   UploadConfig
-	AI       AIConfig
-	SMTP     SMTPConfig
+	Server    ServerConfig
+	Postgres  PostgresConfig
+	Redis     RedisConfig
+	JWT       JWTConfig
+	Upload    UploadConfig
+	AI        AIConfig
+	SMTP      SMTPConfig
+	CORS      CORSConfig
+	RateLimit RateLimitConfig
+}
+
+type CORSConfig struct {
+	AllowOrigins string // Comma-separated list of allowed origins
+}
+
+type RateLimitConfig struct {
+	Enabled     bool
+	LoginRate   int
+	LoginWindow time.Duration
+	APIRate     int
+	APIWindow   time.Duration
 }
 
 type SMTPConfig struct {
@@ -43,6 +57,12 @@ type PostgresConfig struct {
 func (p PostgresConfig) DSN() string {
 	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
 		p.User, p.Password, p.Host, p.Port, p.DB, p.SSLMode)
+}
+
+// SafeDSN returns the DSN with the password masked, safe for logging.
+func (p PostgresConfig) SafeDSN() string {
+	return fmt.Sprintf("postgres://%s:***@%s:%s/%s?sslmode=%s",
+		p.User, p.Host, p.Port, p.DB, p.SSLMode)
 }
 
 type RedisConfig struct {
@@ -108,6 +128,16 @@ func Load() *Config {
 			OpenAIKey:    getEnv("OPENAI_API_KEY", ""),
 			GeminiKey:    getEnv("GEMINI_API_KEY", ""),
 			Enabled:      getEnvBool("AI_ENABLED", true),
+		},
+		CORS: CORSConfig{
+			AllowOrigins: getEnv("CORS_ORIGINS", "http://localhost:3001,http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:5177,http://127.0.0.1:3001"),
+		},
+		RateLimit: RateLimitConfig{
+			Enabled:     getEnvBool("RATE_LIMIT_ENABLED", true),
+			LoginRate:   int(getEnvInt64("RATE_LIMIT_LOGIN_RATE", 5)),
+			LoginWindow: getEnvDuration("RATE_LIMIT_LOGIN_WINDOW", 15*time.Minute),
+			APIRate:     int(getEnvInt64("RATE_LIMIT_API_RATE", 100)),
+			APIWindow:   getEnvDuration("RATE_LIMIT_API_WINDOW", 1*time.Minute),
 		},
 	}
 }

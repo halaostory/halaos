@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -49,6 +50,7 @@ import (
 	"github.com/tonypk/aigonhr/internal/payroll"
 	"github.com/tonypk/aigonhr/internal/performance"
 	"github.com/tonypk/aigonhr/internal/policy"
+	"github.com/tonypk/aigonhr/internal/ratelimit"
 	"github.com/tonypk/aigonhr/internal/report"
 	"github.com/tonypk/aigonhr/internal/selfservice"
 	"github.com/tonypk/aigonhr/internal/store"
@@ -63,6 +65,7 @@ type App struct {
 	Router  *gin.Engine
 	Logger  *slog.Logger
 	Email   *email.Sender
+	Limiter *ratelimit.Limiter
 }
 
 func New(cfg *config.Config) (*App, error) {
@@ -108,15 +111,31 @@ func New(cfg *config.Config) (*App, error) {
 	router := gin.New()
 	router.Use(gin.Recovery())
 	router.Use(middleware.RequestLogger(logger))
+	router.Use(middleware.SecurityHeaders())
+
+	// CORS — origins from environment variable
+	origins := strings.Split(cfg.CORS.AllowOrigins, ",")
+	for i := range origins {
+		origins[i] = strings.TrimSpace(origins[i])
+	}
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3001", "http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:5176", "http://localhost:5177", "http://127.0.0.1:3001"},
+		AllowOrigins:     origins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-		ExposeHeaders:    []string{"Content-Length"},
+		ExposeHeaders:    []string{"Content-Length", "X-RateLimit-Limit", "X-RateLimit-Remaining"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
 	router.MaxMultipartMemory = 10 << 20 // 10MB
+
+	// Rate limiter
+	limiter := ratelimit.New(rdb, ratelimit.Config{
+		Enabled:     cfg.RateLimit.Enabled,
+		LoginRate:   cfg.RateLimit.LoginRate,
+		LoginWindow: cfg.RateLimit.LoginWindow,
+		APIRate:     cfg.RateLimit.APIRate,
+		APIWindow:   cfg.RateLimit.APIWindow,
+	})
 
 	// Serve uploaded files (logos, etc.)
 	router.Static("/uploads", "./uploads")
@@ -137,6 +156,7 @@ func New(cfg *config.Config) (*App, error) {
 		Router:  router,
 		Logger:  logger,
 		Email:   emailSender,
+		Limiter: limiter,
 	}
 
 	app.setupRoutes()
@@ -201,11 +221,13 @@ func (a *App) setupRoutes() {
 	}
 
 	api := a.Router.Group("/api/v1")
+
 	protected := api.Group("")
 	protected.Use(auth.JWTMiddleware(jwtSvc))
+	protected.Use(a.Limiter.APIMiddleware())
 
-	// Register all routes
-	authHandler.RegisterRoutes(api, protected)
+	// Register all routes (login rate limiter applied inside auth routes)
+	authHandler.RegisterRoutes(api, protected, a.Limiter.LoginMiddleware())
 	companyHandler.RegisterRoutes(protected)
 	employeeHandler.RegisterRoutes(protected)
 	attendanceHandler.RegisterRoutes(protected)

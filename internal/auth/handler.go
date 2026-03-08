@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -14,6 +13,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/tonypk/aigonhr/pkg/response"
 )
 
 // HashPassword hashes a plain-text password using bcrypt.
@@ -56,8 +56,8 @@ type refreshRequest struct {
 }
 
 type authResponse struct {
-	Token        string `json:"token"`
-	RefreshToken string `json:"refresh_token"`
+	Token        string       `json:"token"`
+	RefreshToken string       `json:"refresh_token"`
 	User         userResponse `json:"user"`
 }
 
@@ -74,18 +74,14 @@ type userResponse struct {
 func (h *Handler) Register(c *gin.Context) {
 	var req registerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{"code": "validation_error", "message": err.Error()},
-		})
+		response.BadRequest(c, err.Error())
 		return
 	}
 
 	// Check if email already exists
 	_, err := h.queries.GetUserByEmail(c.Request.Context(), req.Email)
 	if err == nil {
-		c.JSON(http.StatusConflict, gin.H{
-			"error": gin.H{"code": "email_taken", "message": "Email already registered"},
-		})
+		response.Conflict(c, "Email already registered")
 		return
 	}
 
@@ -93,9 +89,7 @@ func (h *Handler) Register(c *gin.Context) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		h.logger.Error("failed to hash password", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": gin.H{"code": "internal_error", "message": "Registration failed"},
-		})
+		response.InternalError(c, "Registration failed")
 		return
 	}
 
@@ -103,9 +97,7 @@ func (h *Handler) Register(c *gin.Context) {
 	tx, err := h.pool.Begin(c.Request.Context())
 	if err != nil {
 		h.logger.Error("failed to begin transaction", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": gin.H{"code": "internal_error", "message": "Registration failed"},
-		})
+		response.InternalError(c, "Registration failed")
 		return
 	}
 	defer tx.Rollback(c.Request.Context())
@@ -116,9 +108,7 @@ func (h *Handler) Register(c *gin.Context) {
 	company, err := qtx.CreateCompany(c.Request.Context(), req.CompanyName)
 	if err != nil {
 		h.logger.Error("failed to create company", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": gin.H{"code": "internal_error", "message": "Registration failed"},
-		})
+		response.InternalError(c, "Registration failed")
 		return
 	}
 
@@ -133,17 +123,13 @@ func (h *Handler) Register(c *gin.Context) {
 	})
 	if err != nil {
 		h.logger.Error("failed to create user", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": gin.H{"code": "internal_error", "message": "Registration failed"},
-		})
+		response.InternalError(c, "Registration failed")
 		return
 	}
 
 	if err := tx.Commit(c.Request.Context()); err != nil {
 		h.logger.Error("failed to commit transaction", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": gin.H{"code": "internal_error", "message": "Registration failed"},
-		})
+		response.InternalError(c, "Registration failed")
 		return
 	}
 
@@ -151,22 +137,18 @@ func (h *Handler) Register(c *gin.Context) {
 	token, err := h.jwt.GenerateToken(user.ID, user.Email, Role(user.Role), user.CompanyID)
 	if err != nil {
 		h.logger.Error("failed to generate token", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": gin.H{"code": "internal_error", "message": "Registration failed"},
-		})
+		response.InternalError(c, "Registration failed")
 		return
 	}
 
 	refreshToken, err := h.jwt.GenerateRefreshToken(user.ID, user.Email, Role(user.Role), user.CompanyID)
 	if err != nil {
 		h.logger.Error("failed to generate refresh token", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": gin.H{"code": "internal_error", "message": "Registration failed"},
-		})
+		response.InternalError(c, "Registration failed")
 		return
 	}
 
-	c.JSON(http.StatusCreated, authResponse{
+	response.Created(c, authResponse{
 		Token:        token,
 		RefreshToken: refreshToken,
 		User: userResponse{
@@ -183,56 +165,44 @@ func (h *Handler) Register(c *gin.Context) {
 func (h *Handler) Login(c *gin.Context) {
 	var req loginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{"code": "validation_error", "message": err.Error()},
-		})
+		response.BadRequest(c, err.Error())
 		return
 	}
 
 	user, err := h.queries.GetUserByEmail(c.Request.Context(), req.Email)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": gin.H{"code": "invalid_credentials", "message": "Invalid email or password"},
-		})
+		response.Unauthorized(c, "Invalid email or password")
 		return
 	}
 
 	if user.Status != "active" {
-		c.JSON(http.StatusForbidden, gin.H{
-			"error": gin.H{"code": "account_inactive", "message": "Account is not active"},
-		})
+		response.Forbidden(c, "Account is not active")
 		return
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": gin.H{"code": "invalid_credentials", "message": "Invalid email or password"},
-		})
+		response.Unauthorized(c, "Invalid email or password")
 		return
 	}
 
 	token, err := h.jwt.GenerateToken(user.ID, user.Email, Role(user.Role), user.CompanyID)
 	if err != nil {
 		h.logger.Error("failed to generate token", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": gin.H{"code": "internal_error", "message": "Login failed"},
-		})
+		response.InternalError(c, "Login failed")
 		return
 	}
 
 	refreshToken, err := h.jwt.GenerateRefreshToken(user.ID, user.Email, Role(user.Role), user.CompanyID)
 	if err != nil {
 		h.logger.Error("failed to generate refresh token", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": gin.H{"code": "internal_error", "message": "Login failed"},
-		})
+		response.InternalError(c, "Login failed")
 		return
 	}
 
 	// Update last login
 	_ = h.queries.UpdateLastLogin(c.Request.Context(), user.ID)
 
-	c.JSON(http.StatusOK, authResponse{
+	response.OK(c, authResponse{
 		Token:        token,
 		RefreshToken: refreshToken,
 		User: userResponse{
@@ -249,46 +219,36 @@ func (h *Handler) Login(c *gin.Context) {
 func (h *Handler) Refresh(c *gin.Context) {
 	var req refreshRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{"code": "validation_error", "message": err.Error()},
-		})
+		response.BadRequest(c, err.Error())
 		return
 	}
 
 	claims, err := h.jwt.ValidateToken(req.RefreshToken)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": gin.H{"code": "invalid_token", "message": "Invalid refresh token"},
-		})
+		response.Unauthorized(c, "Invalid refresh token")
 		return
 	}
 
 	// Get fresh user data
 	user, err := h.queries.GetUserByID(c.Request.Context(), claims.UserID)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": gin.H{"code": "user_not_found", "message": "User not found"},
-		})
+		response.Unauthorized(c, "User not found")
 		return
 	}
 
 	token, err := h.jwt.GenerateToken(user.ID, user.Email, Role(user.Role), user.CompanyID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": gin.H{"code": "internal_error", "message": "Token refresh failed"},
-		})
+		response.InternalError(c, "Token refresh failed")
 		return
 	}
 
 	refreshToken, err := h.jwt.GenerateRefreshToken(user.ID, user.Email, Role(user.Role), user.CompanyID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": gin.H{"code": "internal_error", "message": "Token refresh failed"},
-		})
+		response.InternalError(c, "Token refresh failed")
 		return
 	}
 
-	c.JSON(http.StatusOK, authResponse{
+	response.OK(c, authResponse{
 		Token:        token,
 		RefreshToken: refreshToken,
 		User: userResponse{
@@ -306,19 +266,18 @@ func (h *Handler) Me(c *gin.Context) {
 	userID := GetUserID(c)
 	user, err := h.queries.GetUserByID(c.Request.Context(), userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": gin.H{"code": "user_not_found", "message": "User not found"},
-		})
+		response.NotFound(c, "User not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, userResponse{
+	response.OK(c, userResponse{
 		ID:        user.ID,
 		Email:     user.Email,
 		FirstName: user.FirstName,
 		LastName:  user.LastName,
 		Role:      user.Role,
 		CompanyID: user.CompanyID,
+		AvatarUrl: user.AvatarUrl,
 	})
 }
 
@@ -330,33 +289,25 @@ type changePasswordRequest struct {
 func (h *Handler) ChangePassword(c *gin.Context) {
 	var req changePasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{"code": "validation_error", "message": err.Error()},
-		})
+		response.BadRequest(c, err.Error())
 		return
 	}
 
 	userID := GetUserID(c)
 	user, err := h.queries.GetUserByID(c.Request.Context(), userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": gin.H{"code": "user_not_found", "message": "User not found"},
-		})
+		response.NotFound(c, "User not found")
 		return
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.CurrentPassword)); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{"code": "invalid_password", "message": "Current password is incorrect"},
-		})
+		response.BadRequest(c, "Current password is incorrect")
 		return
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": gin.H{"code": "internal_error", "message": "Failed to update password"},
-		})
+		response.InternalError(c, "Failed to update password")
 		return
 	}
 
@@ -364,13 +315,11 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 		PasswordHash: string(hashedPassword),
 		ID:           userID,
 	}); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": gin.H{"code": "internal_error", "message": "Failed to update password"},
-		})
+		response.InternalError(c, "Failed to update password")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Password updated"})
+	response.OK(c, gin.H{"message": "Password updated"})
 }
 
 type updateProfileRequest struct {
@@ -382,9 +331,7 @@ type updateProfileRequest struct {
 func (h *Handler) UpdateProfile(c *gin.Context) {
 	var req updateProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{"code": "validation_error", "message": err.Error()},
-		})
+		response.BadRequest(c, err.Error())
 		return
 	}
 
@@ -397,13 +344,11 @@ func (h *Handler) UpdateProfile(c *gin.Context) {
 	})
 	if err != nil {
 		h.logger.Error("failed to update profile", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": gin.H{"code": "internal_error", "message": "Failed to update profile"},
-		})
+		response.InternalError(c, "Failed to update profile")
 		return
 	}
 
-	c.JSON(http.StatusOK, userResponse{
+	response.OK(c, userResponse{
 		ID:        user.ID,
 		Email:     user.Email,
 		FirstName: user.FirstName,
@@ -418,7 +363,7 @@ func (h *Handler) UpdateProfile(c *gin.Context) {
 func (h *Handler) UploadAvatar(c *gin.Context) {
 	file, header, err := c.Request.FormFile("avatar")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "Avatar file is required"}})
+		response.BadRequest(c, "Avatar file is required")
 		return
 	}
 	defer file.Close()
@@ -426,7 +371,7 @@ func (h *Handler) UploadAvatar(c *gin.Context) {
 	ext := filepath.Ext(header.Filename)
 	allowed := map[string]bool{".png": true, ".jpg": true, ".jpeg": true, ".webp": true}
 	if !allowed[ext] {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"message": "Only PNG, JPG, and WebP files are allowed"}})
+		response.BadRequest(c, "Only PNG, JPG, and WebP files are allowed")
 		return
 	}
 
@@ -434,7 +379,7 @@ func (h *Handler) UploadAvatar(c *gin.Context) {
 	uploadDir := fmt.Sprintf("uploads/avatars/%d", userID)
 	if err := os.MkdirAll(uploadDir, 0755); err != nil {
 		h.logger.Error("failed to create avatar dir", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "Failed to upload avatar"}})
+		response.InternalError(c, "Failed to upload avatar")
 		return
 	}
 
@@ -444,14 +389,14 @@ func (h *Handler) UploadAvatar(c *gin.Context) {
 	out, err := os.Create(filePath)
 	if err != nil {
 		h.logger.Error("failed to create avatar file", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "Failed to upload avatar"}})
+		response.InternalError(c, "Failed to upload avatar")
 		return
 	}
 	defer out.Close()
 
 	if _, err := io.Copy(out, file); err != nil {
 		h.logger.Error("failed to write avatar file", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "Failed to upload avatar"}})
+		response.InternalError(c, "Failed to upload avatar")
 		return
 	}
 
@@ -462,11 +407,11 @@ func (h *Handler) UploadAvatar(c *gin.Context) {
 	})
 	if err != nil {
 		h.logger.Error("failed to update avatar url", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"message": "Failed to update avatar"}})
+		response.InternalError(c, "Failed to update avatar")
 		return
 	}
 
-	c.JSON(http.StatusOK, userResponse{
+	response.OK(c, userResponse{
 		ID:        user.ID,
 		Email:     user.Email,
 		FirstName: user.FirstName,

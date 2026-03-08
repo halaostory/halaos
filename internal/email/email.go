@@ -9,6 +9,19 @@ import (
 	"github.com/tonypk/aigonhr/internal/config"
 )
 
+// maskEmail masks an email address for safe logging.
+func maskEmail(email string) string {
+	parts := strings.SplitN(email, "@", 2)
+	if len(parts) != 2 || len(parts[0]) == 0 {
+		return "***"
+	}
+	name := parts[0]
+	if len(name) <= 2 {
+		return name[:1] + "***@" + parts[1]
+	}
+	return name[:2] + "***@" + parts[1]
+}
+
 // Sender sends emails via SMTP.
 type Sender struct {
 	cfg    config.SMTPConfig
@@ -47,11 +60,11 @@ func (s *Sender) Send(to, subject, htmlBody string) error {
 	}
 
 	if err := smtp.SendMail(addr, auth, s.cfg.From, []string{to}, []byte(msg)); err != nil {
-		s.logger.Error("failed to send email", "to", to, "subject", subject, "error", err)
+		s.logger.Error("failed to send email", "to", maskEmail(to), "subject", subject, "error", err)
 		return err
 	}
 
-	s.logger.Info("email sent", "to", to, "subject", subject)
+	s.logger.Info("email sent", "to", maskEmail(to), "subject", subject)
 	return nil
 }
 

@@ -4,6 +4,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -54,6 +55,16 @@ func userScanValues(u store.User) []interface{} {
 	return testutil.UserScanValues(u)
 }
 
+// extractData extracts the "data" field from a wrapped response.
+func extractData(w *httptest.ResponseRecorder) map[string]interface{} {
+	body := testutil.ResponseBody(w)
+	data, ok := body["data"].(map[string]interface{})
+	if !ok {
+		return body // fallback to raw body
+	}
+	return data
+}
+
 // --- Login Tests ---
 
 func TestLogin_Success(t *testing.T) {
@@ -73,11 +84,11 @@ func TestLogin_Success(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
-	body := testutil.ResponseBody(w)
-	if body["token"] == nil {
+	data := extractData(w)
+	if data["token"] == nil {
 		t.Fatal("expected token in response")
 	}
-	if body["refresh_token"] == nil {
+	if data["refresh_token"] == nil {
 		t.Fatal("expected refresh_token in response")
 	}
 }
@@ -151,9 +162,9 @@ func TestMe_Success(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
-	body := testutil.ResponseBody(w)
-	if body["email"] != "admin@test.com" {
-		t.Fatalf("expected email admin@test.com, got %v", body["email"])
+	data := extractData(w)
+	if data["email"] != "admin@test.com" {
+		t.Fatalf("expected email admin@test.com, got %v", data["email"])
 	}
 }
 
@@ -193,8 +204,8 @@ func TestRefresh_Success(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
-	body := testutil.ResponseBody(w)
-	if body["token"] == nil {
+	data := extractData(w)
+	if data["token"] == nil {
 		t.Fatal("expected new token")
 	}
 }
@@ -313,9 +324,9 @@ func TestUpdateProfile_Success(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
-	body := testutil.ResponseBody(w)
-	if body["first_name"] != "Updated" {
-		t.Fatalf("expected first_name=Updated, got %v", body["first_name"])
+	data := extractData(w)
+	if data["first_name"] != "Updated" {
+		t.Fatalf("expected first_name=Updated, got %v", data["first_name"])
 	}
 }
 
