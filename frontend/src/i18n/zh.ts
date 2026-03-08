@@ -1406,6 +1406,7 @@ export default {
     withdraw: "撤回",
     resolveCase: "处理案件",
     assignCase: "指派案件",
+    selectAssignee: "选择负责人...",
     comments: "评论",
     addComment: "添加评论...",
     commentAdded: "评论已添加",

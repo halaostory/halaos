@@ -164,7 +164,7 @@ async function fetchEmployees() {
       label: `${e.first_name} ${e.last_name} (${e.employee_no})`,
       value: e.id,
     }))
-  } catch (e) { console.error('Failed to load employees', e) }
+  } catch (e) { console.error('Failed to load employees', e); message.error(t('common.loadFailed')) }
 }
 
 async function submitNewRequest() {

@@ -6,7 +6,7 @@ import {
   NInput, NSelect, NSpace, NTag, NStatistic, NGrid, NGi,
   NSwitch, useMessage, type DataTableColumns,
 } from 'naive-ui'
-import { grievanceAPI } from '../api/client'
+import { grievanceAPI, employeeAPI } from '../api/client'
 import { useAuthStore } from '../stores/auth'
 import { format } from 'date-fns'
 
@@ -80,6 +80,7 @@ const resolution = ref('')
 const showAssignModal = ref(false)
 const assignId = ref(0)
 const assignUserId = ref('')
+const assignableUsers = ref<{ label: string; value: number }[]>([])
 
 // Comments modal
 const showCommentsModal = ref(false)
@@ -310,7 +311,18 @@ async function submitComment() {
   }
 }
 
-onMounted(fetchAll)
+async function loadAssignableUsers() {
+  try {
+    const res = await employeeAPI.list({ page: '1', limit: '500' }) as any
+    const emps = res?.data?.data || res?.data || []
+    assignableUsers.value = emps.map((e: any) => ({
+      label: `${e.first_name} ${e.last_name} (${e.employee_no})`,
+      value: e.id,
+    }))
+  } catch (e) { console.error('Failed to load users', e) }
+}
+
+onMounted(() => { fetchAll(); loadAssignableUsers() })
 </script>
 
 <template>
@@ -386,7 +398,7 @@ onMounted(fetchAll)
     <NModal v-model:show="showAssignModal" preset="card" :title="t('grievance.assignCase')" style="max-width: 400px; width: 95vw;">
       <NForm label-placement="left" label-width="100">
         <NFormItem :label="t('grievance.assignTo')">
-          <NInput v-model:value="assignUserId" placeholder="User ID" />
+          <NSelect v-model:value="assignUserId" :options="assignableUsers" filterable :placeholder="t('grievance.selectAssignee')" />
         </NFormItem>
         <NFormItem>
           <NButton type="primary" @click="submitAssign">{{ t('grievance.assign') }}</NButton>

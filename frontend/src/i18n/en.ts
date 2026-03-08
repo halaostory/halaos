@@ -1423,6 +1423,7 @@ export default {
     withdraw: "Withdraw",
     resolveCase: "Resolve Case",
     assignCase: "Assign Case",
+    selectAssignee: "Select assignee...",
     comments: "Comments",
     addComment: "Add a comment...",
     commentAdded: "Comment added",
