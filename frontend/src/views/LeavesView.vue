@@ -6,7 +6,7 @@ import {
   NInput, NSelect, NDatePicker, NInputNumber, NSpace, NTag, NSwitch, useMessage,
   type DataTableColumns,
 } from 'naive-ui'
-import { leaveAPI } from '../api/client'
+import { leaveAPI, formPrefillAPI } from '../api/client'
 import { useAuthStore } from '../stores/auth'
 import { format } from 'date-fns'
 
@@ -45,6 +45,21 @@ const form = ref({
 
 function resetForm() {
   form.value = { leave_type_id: null, start_date: null, end_date: null, days: 1, reason: '' }
+}
+
+async function openLeaveModal() {
+  resetForm()
+  showModal.value = true
+  try {
+    const res = await formPrefillAPI.get('leave')
+    const d = (res as any)?.data ?? res
+    if (d) {
+      if (d.leave_type_id) form.value.leave_type_id = d.leave_type_id
+      if (d.start_date) form.value.start_date = new Date(d.start_date).getTime()
+      if (d.end_date) form.value.end_date = new Date(d.end_date).getTime()
+      if (d.days) form.value.days = d.days
+    }
+  } catch { /* prefill is best-effort */ }
 }
 
 function fmtDate(d: unknown): string {
@@ -275,7 +290,7 @@ async function runCarryover() {
   <div>
     <NSpace justify="space-between" style="margin-bottom: 16px;">
       <h2>{{ t('leave.title') }}</h2>
-      <NButton type="primary" @click="showModal = true">{{ t('leave.apply') }}</NButton>
+      <NButton type="primary" @click="openLeaveModal">{{ t('leave.apply') }}</NButton>
     </NSpace>
 
     <NTabs v-model:value="activeTab" type="line">

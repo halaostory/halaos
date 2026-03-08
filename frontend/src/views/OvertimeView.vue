@@ -6,7 +6,7 @@ import {
   NInputNumber, NSelect, NSpace, NTag, NTimePicker, useMessage,
   type DataTableColumns,
 } from 'naive-ui'
-import { overtimeAPI } from '../api/client'
+import { overtimeAPI, formPrefillAPI } from '../api/client'
 import { format } from 'date-fns'
 
 const { t } = useI18n()
@@ -27,6 +27,28 @@ const form = ref({
 
 function resetForm() {
   form.value = { ot_date: null, start_at: null, end_at: null, hours: 1, ot_type: 'regular', reason: '' }
+}
+
+function timeStringToTimestamp(timeStr: string): number {
+  const [h, m] = timeStr.split(':').map(Number)
+  const d = new Date()
+  d.setHours(h, m, 0, 0)
+  return d.getTime()
+}
+
+async function openOTModal() {
+  resetForm()
+  showModal.value = true
+  try {
+    const res = await formPrefillAPI.get('overtime')
+    const d = (res as any)?.data ?? res
+    if (d) {
+      if (d.ot_type) form.value.ot_type = d.ot_type
+      if (d.suggested_hours) form.value.hours = d.suggested_hours
+      if (d.common_start_time) form.value.start_at = timeStringToTimestamp(d.common_start_time)
+      if (d.common_end_time) form.value.end_at = timeStringToTimestamp(d.common_end_time)
+    }
+  } catch { /* prefill is best-effort */ }
 }
 
 function fmtDate(d: unknown): string {
@@ -116,7 +138,7 @@ async function submitRequest() {
   <div>
     <NSpace justify="space-between" style="margin-bottom: 16px;">
       <h2>{{ t('overtime.title') }}</h2>
-      <NButton type="primary" @click="showModal = true">{{ t('overtime.apply') }}</NButton>
+      <NButton type="primary" @click="openOTModal">{{ t('overtime.apply') }}</NButton>
     </NSpace>
     <NDataTable :columns="columns" :data="data" :loading="loading" />
 

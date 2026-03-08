@@ -568,7 +568,7 @@ export const announcementAPI = {
 
 // Smart Suggestions
 export const suggestionsAPI = {
-  list: () => get("/v1/suggestions"),
+  list: () => get("/v1/dashboard/suggestions"),
 };
 
 // Employee Directory
@@ -936,6 +936,7 @@ export const aiAPI = {
             tokens_used?: number;
             agent?: string;
             session_id?: string;
+            message_id?: number;
           };
         } catch {
           // skip malformed chunks
@@ -1019,4 +1020,18 @@ export const agentAPI = {
 export const formPrefillAPI = {
   get: (formType: string) =>
     get("/v1/ai/form-prefill", { form_type: formType }),
+};
+
+// AI Audit Log
+export const aiAuditAPI = {
+  list: (params?: Record<string, string>) => get("/v1/ai/audit-log", params),
+};
+
+// AI Feedback
+export const feedbackAPI = {
+  submit: (
+    messageId: number,
+    rating: "positive" | "negative",
+    comment?: string,
+  ) => post(`/v1/ai/messages/${messageId}/feedback`, { rating, comment }),
 };

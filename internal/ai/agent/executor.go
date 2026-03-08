@@ -41,6 +41,7 @@ type ChatResponse struct {
 	SessionID  string `json:"session_id"`
 	TokensUsed int64  `json:"tokens_used"`
 	Agent      string `json:"agent"`
+	MessageID  int64  `json:"message_id,omitempty"`
 }
 
 // ErrInsufficientBalance is returned when the company lacks token balance.
@@ -293,7 +294,7 @@ func (e *Executor) StreamChat(ctx context.Context, companyID, userID int64, agen
 	latency := time.Since(start)
 
 	// Save messages to session
-	e.saveSessionMessages(ctx, sessionID, req.Message, finalText, int32(tokenCost), isNewSession)
+	msgID := e.saveSessionMessages(ctx, sessionID, req.Message, finalText, int32(tokenCost), isNewSession)
 
 	redactedOutput := redact.RedactText(finalText)
 	promptHash := fmt.Sprintf("%x", sha256.Sum256([]byte(redactedInput)))
@@ -308,6 +309,7 @@ func (e *Executor) StreamChat(ctx context.Context, companyID, userID int64, agen
 		SessionID:  sessionID,
 		TokensUsed: tokenCost,
 		Agent:      agentCfg.Slug,
+		MessageID:  msgID,
 	}, nil
 }
 
@@ -386,10 +388,11 @@ func (e *Executor) loadSessionMessages(ctx context.Context, sessionID, currentMe
 }
 
 // saveSessionMessages persists the user message and assistant response to the DB.
-func (e *Executor) saveSessionMessages(ctx context.Context, sessionID, userMsg, assistantMsg string, tokensUsed int32, isNewSession bool) {
+// Returns the assistant message ID (0 if saving failed).
+func (e *Executor) saveSessionMessages(ctx context.Context, sessionID, userMsg, assistantMsg string, tokensUsed int32, isNewSession bool) int64 {
 	sid, err := uuid.Parse(sessionID)
 	if err != nil {
-		return
+		return 0
 	}
 
 	// Save user message
@@ -404,7 +407,7 @@ func (e *Executor) saveSessionMessages(ctx context.Context, sessionID, userMsg, 
 	}
 
 	// Save assistant message
-	_, err = e.queries.InsertChatMessage(ctx, store.InsertChatMessageParams{
+	asstMsg, err := e.queries.InsertChatMessage(ctx, store.InsertChatMessageParams{
 		SessionID:  sid,
 		Role:       "assistant",
 		Content:    assistantMsg,
@@ -412,7 +415,9 @@ func (e *Executor) saveSessionMessages(ctx context.Context, sessionID, userMsg, 
 	})
 	if err != nil {
 		e.logger.Error("failed to save assistant message", "error", err)
+		return 0
 	}
+	var msgID int64 = asstMsg.ID
 
 	// Update session title from first user message (first 30 chars)
 	if isNewSession && userMsg != "" {
@@ -428,6 +433,8 @@ func (e *Executor) saveSessionMessages(ctx context.Context, sessionID, userMsg, 
 		// Touch updated_at
 		_ = e.queries.TouchChatSession(ctx, sid)
 	}
+
+	return msgID
 }
 
 // resolveAgent looks up the agent config, falling back to the default agent.

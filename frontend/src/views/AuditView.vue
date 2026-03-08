@@ -3,11 +3,11 @@ import { ref, computed, onMounted, h } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   NCard, NSpace, NSelect, NDataTable, NEmpty, NTag, NTime, NPagination,
-  NDatePicker, NInput, NButton, useMessage,
+  NDatePicker, NInput, NButton, NTabs, NTabPane, useMessage,
   type DataTableColumns,
 } from 'naive-ui'
 import { format } from 'date-fns'
-import { auditAPI } from '../api/client'
+import { auditAPI, aiAuditAPI } from '../api/client'
 
 const { t } = useI18n()
 const message = useMessage()
@@ -235,70 +235,174 @@ async function handleExport() {
   exporting.value = false
 }
 
+// --- AI Audit Log tab ---
+const activeTab = ref('activity')
+
+interface AIAuditLog {
+  id: number
+  intent: string
+  model: string
+  input_tokens: number
+  output_tokens: number
+  latency_ms: number
+  redacted_input: string | null
+  redacted_output: string | null
+  created_at: string
+}
+
+const aiLogs = ref<AIAuditLog[]>([])
+const aiLoading = ref(false)
+const aiPage = ref(1)
+
+const aiColumns = computed<DataTableColumns<AIAuditLog>>(() => [
+  {
+    title: t('audit.timestamp'),
+    key: 'created_at',
+    width: 170,
+    render: (row) => h(NTime, { time: new Date(row.created_at), format: 'yyyy-MM-dd HH:mm:ss' }),
+  },
+  {
+    title: t('audit.aiIntent'),
+    key: 'intent',
+    width: 160,
+    render: (row) => h(NTag, { size: 'small', type: 'info' }, { default: () => row.intent }),
+  },
+  {
+    title: t('audit.aiModel'),
+    key: 'model',
+    width: 120,
+  },
+  {
+    title: t('audit.aiTokens'),
+    key: 'tokens',
+    width: 120,
+    render: (row) => `${row.input_tokens} / ${row.output_tokens}`,
+  },
+  {
+    title: t('audit.aiLatency'),
+    key: 'latency_ms',
+    width: 90,
+    render: (row) => `${row.latency_ms}ms`,
+  },
+  {
+    title: t('audit.aiInput'),
+    key: 'redacted_input',
+    ellipsis: { tooltip: true },
+    render: (row) => row.redacted_input || '-',
+  },
+])
+
+async function loadAILogs() {
+  aiLoading.value = true
+  try {
+    const res = await aiAuditAPI.list({ page: String(aiPage.value), limit: '50' })
+    const data = (res as any)?.data ?? res
+    aiLogs.value = Array.isArray(data) ? data : []
+  } catch { message.error(t('common.loadFailed')) }
+  aiLoading.value = false
+}
+
+function handleAIPageChange(p: number) {
+  aiPage.value = p
+  loadAILogs()
+}
+
+function handleTabChange(tab: string) {
+  activeTab.value = tab
+  if (tab === 'ai' && aiLogs.value.length === 0) {
+    loadAILogs()
+  }
+}
+
 onMounted(loadData)
 </script>
 
 <template>
   <NCard :title="t('audit.title')">
-    <NSpace vertical :size="16">
-      <NSpace :size="12" align="center" wrap>
-        <NInput
-          v-model:value="searchText"
-          :placeholder="t('audit.searchDesc')"
-          clearable
-          style="width: 220px;"
-          @clear="handleSearchChange"
-          @keyup.enter="handleSearchChange"
-        />
-        <NSelect
-          :value="actionFilter ?? ''"
-          :options="actionOptions"
-          style="width: 180px;"
-          @update:value="handleActionFilter"
-        />
-        <NSelect
-          :value="entityFilter ?? ''"
-          :options="entityOptions"
-          style="width: 200px;"
-          @update:value="handleEntityFilter"
-        />
-        <NDatePicker
-          type="daterange"
-          :value="dateRange"
-          clearable
-          style="width: 280px;"
-          @update:value="handleDateRangeChange"
-        />
-        <NButton
-          :loading="exporting"
-          @click="handleExport"
-        >
-          {{ exporting ? t('audit.exporting') : t('audit.export') }}
-        </NButton>
-      </NSpace>
+    <NTabs :value="activeTab" @update:value="handleTabChange" type="line">
+      <NTabPane :name="'activity'" :tab="t('audit.activityTab')">
+        <NSpace vertical :size="16">
+          <NSpace :size="12" align="center" wrap>
+            <NInput
+              v-model:value="searchText"
+              :placeholder="t('audit.searchDesc')"
+              clearable
+              style="width: 220px;"
+              @clear="handleSearchChange"
+              @keyup.enter="handleSearchChange"
+            />
+            <NSelect
+              :value="actionFilter ?? ''"
+              :options="actionOptions"
+              style="width: 180px;"
+              @update:value="handleActionFilter"
+            />
+            <NSelect
+              :value="entityFilter ?? ''"
+              :options="entityOptions"
+              style="width: 200px;"
+              @update:value="handleEntityFilter"
+            />
+            <NDatePicker
+              type="daterange"
+              :value="dateRange"
+              clearable
+              style="width: 280px;"
+              @update:value="handleDateRangeChange"
+            />
+            <NButton
+              :loading="exporting"
+              @click="handleExport"
+            >
+              {{ exporting ? t('audit.exporting') : t('audit.export') }}
+            </NButton>
+          </NSpace>
 
-      <NDataTable
-        v-if="logs.length"
-        :columns="columns"
-        :data="logs"
-        :loading="loading"
-        :row-key="(row: any) => row.id"
-        :scroll-x="1100"
-        size="small"
-      />
-      <NEmpty v-else-if="!loading" :description="t('audit.noLogs')" />
+          <NDataTable
+            v-if="logs.length"
+            :columns="columns"
+            :data="logs"
+            :loading="loading"
+            :row-key="(row: any) => row.id"
+            :scroll-x="1100"
+            size="small"
+          />
+          <NEmpty v-else-if="!loading" :description="t('audit.noLogs')" />
 
-      <NSpace justify="end" v-if="total > pageSize">
-        <NPagination
-          :page="page"
-          :page-size="pageSize"
-          :item-count="total"
-          :page-sizes="[20, 50, 100]"
-          show-size-picker
-          @update:page="handlePageChange"
-          @update:page-size="handlePageSizeChange"
-        />
-      </NSpace>
-    </NSpace>
+          <NSpace justify="end" v-if="total > pageSize">
+            <NPagination
+              :page="page"
+              :page-size="pageSize"
+              :item-count="total"
+              :page-sizes="[20, 50, 100]"
+              show-size-picker
+              @update:page="handlePageChange"
+              @update:page-size="handlePageSizeChange"
+            />
+          </NSpace>
+        </NSpace>
+      </NTabPane>
+
+      <NTabPane :name="'ai'" :tab="t('audit.aiTab')">
+        <NSpace vertical :size="16">
+          <NDataTable
+            v-if="aiLogs.length"
+            :columns="aiColumns"
+            :data="aiLogs"
+            :loading="aiLoading"
+            :row-key="(row: any) => row.id"
+            :scroll-x="900"
+            size="small"
+          />
+          <NEmpty v-else-if="!aiLoading" :description="t('audit.aiNoLogs')" />
+
+          <NSpace justify="end" v-if="aiLogs.length >= 50">
+            <NButton @click="handleAIPageChange(aiPage + 1)">
+              {{ t('common.next') ?? 'Next' }}
+            </NButton>
+          </NSpace>
+        </NSpace>
+      </NTabPane>
+    </NTabs>
   </NCard>
 </template>

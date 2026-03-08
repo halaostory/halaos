@@ -59,6 +59,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		ai.POST("/messages/:id/feedback", h.SubmitFeedback)
 		ai.GET("/feedback/stats", auth.AdminOnly(), h.GetFeedbackStats)
 		ai.GET("/feedback/recent", auth.AdminOnly(), h.ListRecentFeedback)
+		ai.GET("/audit-log", auth.AdminOnly(), h.ListAIAuditLog)
 	}
 }
 
@@ -500,8 +501,8 @@ func (h *Handler) StreamChat(c *gin.Context) {
 			}
 			flusher.Flush()
 		} else if resp != nil {
-			// Send final done event with token info and session_id
-			fmt.Fprintf(c.Writer, "data: {\"type\":\"done\",\"tokens_used\":%d,\"agent\":%q,\"session_id\":%q}\n\n", resp.TokensUsed, resp.Agent, resp.SessionID)
+			// Send final done event with token info, session_id and message_id
+			fmt.Fprintf(c.Writer, "data: {\"type\":\"done\",\"tokens_used\":%d,\"agent\":%q,\"session_id\":%q,\"message_id\":%d}\n\n", resp.TokensUsed, resp.Agent, resp.SessionID, resp.MessageID)
 			flusher.Flush()
 		}
 
@@ -688,6 +689,33 @@ func (h *Handler) ListRecentFeedback(c *gin.Context) {
 	}
 
 	response.OK(c, feedbackList)
+}
+
+// ListAIAuditLog returns paginated AI audit logs (admin only).
+func (h *Handler) ListAIAuditLog(c *gin.Context) {
+	companyID := auth.GetCompanyID(c)
+
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if limit > 100 {
+		limit = 100
+	}
+	if page < 1 {
+		page = 1
+	}
+	offset := (page - 1) * limit
+
+	logs, err := h.queries.ListAIAuditLogs(c.Request.Context(), store.ListAIAuditLogsParams{
+		CompanyID: companyID,
+		Limit:     int32(limit),
+		Offset:    int32(offset),
+	})
+	if err != nil {
+		response.InternalError(c, "Failed to list AI audit logs")
+		return
+	}
+
+	response.OK(c, logs)
 }
 
 // commandRequest is the JSON body for the Command Palette endpoint.

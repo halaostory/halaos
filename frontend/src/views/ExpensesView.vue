@@ -7,7 +7,7 @@ import {
   NStatistic, NGrid, NGi, NCard,
   useMessage, type DataTableColumns,
 } from 'naive-ui'
-import { expenseAPI } from '../api/client'
+import { expenseAPI, formPrefillAPI } from '../api/client'
 import { useAuthStore } from '../stores/auth'
 import { format } from 'date-fns'
 
@@ -144,7 +144,7 @@ async function fetchAll() {
   }
 }
 
-function openCreateClaim() {
+async function openCreateClaim() {
   claimForm.value = {
     category_id: null,
     description: '',
@@ -155,6 +155,14 @@ function openCreateClaim() {
     submit: false,
   }
   showClaimModal.value = true
+  try {
+    const res = await formPrefillAPI.get('expense')
+    const d = (res as any)?.data ?? res
+    if (d) {
+      if (d.category_id) claimForm.value.category_id = d.category_id
+      if (d.suggested_amount) claimForm.value.amount = d.suggested_amount
+    }
+  } catch { /* prefill is best-effort */ }
 }
 
 async function saveClaim() {

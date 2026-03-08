@@ -3,7 +3,7 @@ import { ref, nextTick, watch, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { NButton, NInput, NSpin, NSelect, NTag } from 'naive-ui'
-import { aiAPI, billingAPI } from '../api/client'
+import { aiAPI, billingAPI, feedbackAPI } from '../api/client'
 
 const { t, locale } = useI18n()
 const router = useRouter()
@@ -54,6 +54,8 @@ interface ChatMessage {
   content: string
   tools?: string[]
   tokensUsed?: number
+  messageId?: number
+  feedback?: 'positive' | 'negative'
 }
 
 interface ChatSession {
@@ -107,6 +109,7 @@ async function loadSession(sess: ChatSession): Promise<void> {
         role: m.role as 'user' | 'assistant',
         content: m.content,
         tokensUsed: m.tokens_used || undefined,
+        messageId: m.id || undefined,
       })),
     ]
   } catch {
@@ -237,6 +240,9 @@ async function sendMessage() {
           if (chunk.tokens_used) {
             assistantMsg.tokensUsed = chunk.tokens_used
           }
+          if (chunk.message_id) {
+            assistantMsg.messageId = chunk.message_id
+          }
           // Capture session_id from server for subsequent messages
           if (chunk.session_id) {
             sessionId.value = chunk.session_id
@@ -284,6 +290,16 @@ function toggleHistory() {
   showHistory.value = !showHistory.value
   if (showHistory.value) {
     refreshStoredSessions()
+  }
+}
+
+async function submitFeedback(msg: ChatMessage, rating: 'positive' | 'negative') {
+  if (!msg.messageId || msg.feedback) return
+  try {
+    await feedbackAPI.submit(msg.messageId, rating)
+    msg.feedback = rating
+  } catch {
+    // feedback is best-effort
   }
 }
 
@@ -389,7 +405,28 @@ const chatPanelWidth = computed(() => showHistory.value ? '600px' : '400px')
                 </span>
               </div>
               <div class="chat-bubble" v-html="renderMarkdown(msg.content)" />
-              <div v-if="msg.tokensUsed" class="chat-tokens-used">
+              <div v-if="msg.role === 'assistant' && msg.content" class="chat-msg-footer">
+                <span v-if="msg.tokensUsed" class="chat-tokens-used">
+                  {{ msg.tokensUsed.toLocaleString() }} tokens
+                </span>
+                <span v-if="msg.messageId" class="chat-feedback">
+                  <button
+                    class="feedback-btn"
+                    :class="{ active: msg.feedback === 'positive' }"
+                    :disabled="!!msg.feedback"
+                    @click="submitFeedback(msg, 'positive')"
+                    :title="locale === 'zh' ? '有帮助' : 'Helpful'"
+                  >👍</button>
+                  <button
+                    class="feedback-btn"
+                    :class="{ active: msg.feedback === 'negative' }"
+                    :disabled="!!msg.feedback"
+                    @click="submitFeedback(msg, 'negative')"
+                    :title="locale === 'zh' ? '没帮助' : 'Not helpful'"
+                  >👎</button>
+                </span>
+              </div>
+              <div v-else-if="msg.tokensUsed" class="chat-tokens-used">
                 {{ msg.tokensUsed.toLocaleString() }} tokens
               </div>
             </div>
@@ -768,12 +805,46 @@ function renderMarkdown(text: string): string {
   font-size: 11px !important;
 }
 
+/* --- Message footer (tokens + feedback) --- */
+.chat-msg-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  padding-left: 4px;
+}
+
 /* --- Token usage per message --- */
 .chat-tokens-used {
   font-size: 10px;
   color: #999;
-  margin-top: 2px;
-  padding-left: 4px;
+}
+
+/* --- Feedback buttons --- */
+.chat-feedback {
+  display: flex;
+  gap: 2px;
+}
+.feedback-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  opacity: 0.4;
+  transition: opacity 0.15s, background 0.15s;
+}
+.feedback-btn:hover:not(:disabled) {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.05);
+}
+.feedback-btn.active {
+  opacity: 1;
+}
+.feedback-btn:disabled:not(.active) {
+  opacity: 0.2;
+  cursor: default;
 }
 
 /* --- Insufficient balance banner --- */
