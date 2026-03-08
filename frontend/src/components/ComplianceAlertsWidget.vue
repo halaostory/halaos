@@ -50,7 +50,7 @@ function getAlertRoute(alert: ComplianceAlert): string {
     case 'document_expiry': return `/employees/${alert.entity_id}`
     case 'contract_expiry': return `/employees/${alert.entity_id}`
     case 'filing_overdue':
-    case 'filing_upcoming': return '/tax-filing'
+    case 'filing_upcoming': return '/tax-filings'
     default: return '/compliance'
   }
 }
