@@ -341,7 +341,12 @@ func (e *Executor) resolveSession(ctx context.Context, companyID, userID int64, 
 	return sess.ID.String(), true
 }
 
-// loadSessionMessages loads history from DB and appends the current user message.
+// maxHistoryMessages is the maximum number of past messages to load into context.
+// 40 messages ≈ 20 conversation turns, keeping well within the context window.
+const maxHistoryMessages = 40
+
+// loadSessionMessages loads recent history from DB and appends the current user message.
+// Older messages beyond maxHistoryMessages are dropped to prevent context overflow.
 func (e *Executor) loadSessionMessages(ctx context.Context, sessionID, currentMessage string) []provider.Message {
 	var messages []provider.Message
 
@@ -349,7 +354,17 @@ func (e *Executor) loadSessionMessages(ctx context.Context, sessionID, currentMe
 	if err == nil {
 		history, err := e.queries.ListChatMessages(ctx, sid)
 		if err == nil && len(history) > 0 {
-			for _, msg := range history {
+			// Keep only the most recent messages
+			start := 0
+			if len(history) > maxHistoryMessages {
+				start = len(history) - maxHistoryMessages
+				e.logger.Info("truncating session history",
+					"session_id", sessionID,
+					"total_messages", len(history),
+					"keeping", maxHistoryMessages,
+				)
+			}
+			for _, msg := range history[start:] {
 				messages = append(messages, provider.Message{
 					Role:    msg.Role,
 					Content: msg.Content,

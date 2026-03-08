@@ -202,6 +202,124 @@ func (r *ToolRegistry) Definitions() []provider.ToolDefinition {
 				"required": []string{"ot_date", "start_at", "end_at", "hours"},
 			}),
 		},
+		// --- Expense Tools ---
+		{
+			Name:        "list_expense_categories",
+			Description: "List all active expense categories for the company (e.g., Transportation, Meals, Travel). Returns category IDs needed for create_expense_claim.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "create_expense_claim",
+			Description: "Submit an expense reimbursement claim. You MUST call list_expense_categories first to get the correct category_id. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"category_id":  map[string]any{"type": "integer", "description": "Expense category ID (from list_expense_categories)."},
+					"description":  map[string]any{"type": "string", "description": "Brief description of the expense (e.g., 'Taxi to client meeting')."},
+					"amount":       map[string]any{"type": "number", "description": "Expense amount in PHP."},
+					"expense_date": map[string]any{"type": "string", "description": "Date of expense in YYYY-MM-DD format."},
+					"notes":        map[string]any{"type": "string", "description": "Optional additional notes."},
+				},
+				"required": []string{"category_id", "description", "amount", "expense_date"},
+			}),
+		},
+		// --- Approval Tools ---
+		{
+			Name:        "list_pending_approvals",
+			Description: "List all pending leave and overtime requests awaiting approval. Manager/Admin only. Returns request IDs needed for approve_leave_request and approve_overtime_request.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "approve_leave_request",
+			Description: "Approve a pending leave request. Manager/Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"request_id": map[string]any{"type": "integer", "description": "Leave request ID (from list_pending_approvals)."},
+				},
+				"required": []string{"request_id"},
+			}),
+		},
+		{
+			Name:        "approve_overtime_request",
+			Description: "Approve a pending overtime request. Manager/Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"request_id": map[string]any{"type": "integer", "description": "Overtime request ID (from list_pending_approvals)."},
+				},
+				"required": []string{"request_id"},
+			}),
+		},
+		{
+			Name:        "reject_leave_request",
+			Description: "Reject a pending leave request with a reason. Manager/Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"request_id": map[string]any{"type": "integer", "description": "Leave request ID (from list_pending_approvals)."},
+					"reason":     map[string]any{"type": "string", "description": "Reason for rejecting the leave request."},
+				},
+				"required": []string{"request_id"},
+			}),
+		},
+		{
+			Name:        "reject_overtime_request",
+			Description: "Reject a pending overtime request with a reason. Manager/Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"request_id": map[string]any{"type": "integer", "description": "Overtime request ID (from list_pending_approvals)."},
+					"reason":     map[string]any{"type": "string", "description": "Reason for rejecting the overtime request."},
+				},
+				"required": []string{"request_id"},
+			}),
+		},
+		// --- Employee Self-Service ---
+		{
+			Name:        "update_employee_profile",
+			Description: "Update the current user's personal profile information. Only provided fields are updated; omitted fields remain unchanged. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"address_line1":      map[string]any{"type": "string", "description": "Address line 1."},
+					"address_line2":      map[string]any{"type": "string", "description": "Address line 2."},
+					"city":               map[string]any{"type": "string", "description": "City."},
+					"province":           map[string]any{"type": "string", "description": "Province."},
+					"zip_code":           map[string]any{"type": "string", "description": "ZIP code."},
+					"emergency_name":     map[string]any{"type": "string", "description": "Emergency contact name."},
+					"emergency_phone":    map[string]any{"type": "string", "description": "Emergency contact phone."},
+					"emergency_relation": map[string]any{"type": "string", "description": "Relationship to emergency contact."},
+					"bank_name":          map[string]any{"type": "string", "description": "Bank name for payroll."},
+					"bank_account_no":    map[string]any{"type": "string", "description": "Bank account number."},
+					"bank_account_name":  map[string]any{"type": "string", "description": "Bank account holder name."},
+					"tin":                map[string]any{"type": "string", "description": "Tax Identification Number."},
+					"sss_no":             map[string]any{"type": "string", "description": "SSS number."},
+					"philhealth_no":      map[string]any{"type": "string", "description": "PhilHealth number."},
+					"pagibig_no":         map[string]any{"type": "string", "description": "Pag-IBIG number."},
+				},
+			}),
+		},
+		// --- Report Tools ---
+		{
+			Name:        "generate_attendance_report",
+			Description: "Generate an attendance/DTR report for a date range. Returns summary with present days, late counts, overtime hours, etc. If no employee_id is specified, generates a company-wide report.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"start_date":  map[string]any{"type": "string", "description": "Report start date in YYYY-MM-DD format."},
+					"end_date":    map[string]any{"type": "string", "description": "Report end date in YYYY-MM-DD format."},
+					"employee_id": map[string]any{"type": "integer", "description": "Optional employee ID. Omit for company-wide report."},
+				},
+				"required": []string{"start_date", "end_date"},
+			}),
+		},
 	}
 }
 
@@ -231,6 +349,19 @@ func (r *ToolRegistry) registerTools() {
 	r.tools["clock_in"] = r.toolClockIn
 	r.tools["clock_out"] = r.toolClockOut
 	r.tools["create_overtime_request"] = r.toolCreateOvertimeRequest
+	// Expense tools
+	r.tools["list_expense_categories"] = r.toolListExpenseCategories
+	r.tools["create_expense_claim"] = r.toolCreateExpenseClaim
+	// Approval tools
+	r.tools["list_pending_approvals"] = r.toolListPendingApprovals
+	r.tools["approve_leave_request"] = r.toolApproveLeaveRequest
+	r.tools["approve_overtime_request"] = r.toolApproveOvertimeRequest
+	r.tools["reject_leave_request"] = r.toolRejectLeaveRequest
+	r.tools["reject_overtime_request"] = r.toolRejectOvertimeRequest
+	// Employee self-service
+	r.tools["update_employee_profile"] = r.toolUpdateEmployeeProfile
+	// Reports
+	r.tools["generate_attendance_report"] = r.toolGenerateAttendanceReport
 }
 
 func (r *ToolRegistry) toolQueryLeaveBalance(ctx context.Context, companyID, userID int64, input map[string]any) (string, error) {
@@ -744,6 +875,591 @@ func (r *ToolRegistry) toolCreateOvertimeRequest(ctx context.Context, companyID,
 		"ot_type":    otType,
 		"message":    "Overtime request submitted successfully. It is now pending approval.",
 	})
+}
+
+// --- Expense Tool Implementations ---
+
+func (r *ToolRegistry) toolListExpenseCategories(ctx context.Context, companyID, _ int64, _ map[string]any) (string, error) {
+	categories, err := r.queries.ListActiveExpenseCategories(ctx, companyID)
+	if err != nil {
+		return "", fmt.Errorf("list expense categories: %w", err)
+	}
+
+	type categoryResult struct {
+		ID             int64  `json:"id"`
+		Name           string `json:"name"`
+		Description    string `json:"description,omitempty"`
+		MaxAmount      string `json:"max_amount,omitempty"`
+		RequiresReceipt bool  `json:"requires_receipt"`
+	}
+
+	results := make([]categoryResult, len(categories))
+	for i, c := range categories {
+		desc := ""
+		if c.Description != nil {
+			desc = *c.Description
+		}
+		results[i] = categoryResult{
+			ID:              c.ID,
+			Name:            c.Name,
+			Description:     desc,
+			MaxAmount:       numericToString(c.MaxAmount),
+			RequiresReceipt: c.RequiresReceipt,
+		}
+	}
+
+	return toJSON(results)
+}
+
+func (r *ToolRegistry) toolCreateExpenseClaim(ctx context.Context, companyID, userID int64, input map[string]any) (string, error) {
+	emp, err := r.queries.GetEmployeeByUserID(ctx, store.GetEmployeeByUserIDParams{
+		UserID:    &userID,
+		CompanyID: companyID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("employee not found: %w", err)
+	}
+
+	categoryID, ok := input["category_id"].(float64)
+	if !ok || categoryID <= 0 {
+		return "", fmt.Errorf("category_id is required")
+	}
+
+	description, _ := input["description"].(string)
+	if description == "" {
+		return "", fmt.Errorf("description is required")
+	}
+
+	amountFloat, ok := input["amount"].(float64)
+	if !ok || amountFloat <= 0 {
+		return "", fmt.Errorf("amount must be greater than 0")
+	}
+
+	expenseDateStr, _ := input["expense_date"].(string)
+	if expenseDateStr == "" {
+		return "", fmt.Errorf("expense_date is required")
+	}
+	expenseDate, err := time.Parse("2006-01-02", expenseDateStr)
+	if err != nil {
+		return "", fmt.Errorf("invalid expense_date format, use YYYY-MM-DD")
+	}
+
+	var amount pgtype.Numeric
+	_ = amount.Scan(fmt.Sprintf("%.2f", amountFloat))
+
+	// Generate claim number
+	nextNum, err := r.queries.NextExpenseClaimNumber(ctx, companyID)
+	if err != nil {
+		return "", fmt.Errorf("generate claim number: %w", err)
+	}
+	claimNumber := fmt.Sprintf("EXP-%05d", nextNum)
+
+	var notes *string
+	if n, ok := input["notes"].(string); ok && n != "" {
+		notes = &n
+	}
+
+	claim, err := r.queries.CreateExpenseClaim(ctx, store.CreateExpenseClaimParams{
+		CompanyID:   companyID,
+		EmployeeID:  emp.ID,
+		ClaimNumber: claimNumber,
+		CategoryID:  int64(categoryID),
+		Description: description,
+		Amount:      amount,
+		Currency:    "PHP",
+		ExpenseDate: expenseDate,
+		Status:      "submitted",
+		Notes:       notes,
+	})
+	if err != nil {
+		return "", fmt.Errorf("create expense claim: %w", err)
+	}
+
+	return toJSON(map[string]any{
+		"success":      true,
+		"claim_id":     claim.ID,
+		"claim_number": claim.ClaimNumber,
+		"status":       claim.Status,
+		"amount":       amountFloat,
+		"message":      fmt.Sprintf("Expense claim %s submitted successfully for ₱%.2f.", claimNumber, amountFloat),
+	})
+}
+
+// --- Approval Tool Implementations ---
+
+func (r *ToolRegistry) toolListPendingApprovals(ctx context.Context, companyID, userID int64, _ map[string]any) (string, error) {
+	// Check user role and company scope
+	user, err := r.queries.GetUserByID(ctx, userID)
+	if err != nil {
+		return "", fmt.Errorf("user not found: %w", err)
+	}
+	if user.CompanyID != companyID {
+		return "", fmt.Errorf("access denied")
+	}
+	if user.Role != "admin" && user.Role != "manager" {
+		return "", fmt.Errorf("only managers and admins can view pending approvals")
+	}
+
+	leaveApprovals, err := r.queries.ListPendingLeaveApprovals(ctx, companyID)
+	if err != nil {
+		return "", fmt.Errorf("list pending leave approvals: %w", err)
+	}
+
+	overtimeApprovals, err := r.queries.ListPendingOvertimeApprovals(ctx, companyID)
+	if err != nil {
+		return "", fmt.Errorf("list pending overtime approvals: %w", err)
+	}
+
+	type approvalItem struct {
+		ID           int64  `json:"id"`
+		Type         string `json:"type"`
+		EmployeeName string `json:"employee_name"`
+		Details      any    `json:"details"`
+	}
+
+	items := make([]approvalItem, 0, len(leaveApprovals)+len(overtimeApprovals))
+
+	for _, la := range leaveApprovals {
+		items = append(items, approvalItem{
+			ID:           la.ID,
+			Type:         "leave",
+			EmployeeName: fmt.Sprintf("%v", la.EmployeeName),
+			Details: map[string]any{
+				"leave_type": la.LeaveTypeName,
+				"start_date": la.StartDate.Format("2006-01-02"),
+				"end_date":   la.EndDate.Format("2006-01-02"),
+				"days":       numericToString(la.Days),
+			},
+		})
+	}
+
+	for _, oa := range overtimeApprovals {
+		items = append(items, approvalItem{
+			ID:           oa.ID,
+			Type:         "overtime",
+			EmployeeName: fmt.Sprintf("%v", oa.EmployeeName),
+			Details: map[string]any{
+				"ot_date": oa.OtDate.Format("2006-01-02"),
+				"hours":   numericToString(oa.Hours),
+				"ot_type": oa.OtType,
+			},
+		})
+	}
+
+	return toJSON(map[string]any{
+		"total_pending": len(items),
+		"items":         items,
+	})
+}
+
+func (r *ToolRegistry) toolApproveLeaveRequest(ctx context.Context, companyID, userID int64, input map[string]any) (string, error) {
+	// Check user role and company scope
+	user, err := r.queries.GetUserByID(ctx, userID)
+	if err != nil {
+		return "", fmt.Errorf("user not found: %w", err)
+	}
+	if user.CompanyID != companyID {
+		return "", fmt.Errorf("access denied")
+	}
+	if user.Role != "admin" && user.Role != "manager" {
+		return "", fmt.Errorf("only managers and admins can approve leave requests")
+	}
+
+	requestID, ok := input["request_id"].(float64)
+	if !ok || requestID <= 0 {
+		return "", fmt.Errorf("request_id is required")
+	}
+
+	// Get the approver's employee record
+	emp, err := r.queries.GetEmployeeByUserID(ctx, store.GetEmployeeByUserIDParams{
+		UserID:    &userID,
+		CompanyID: companyID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("approver employee not found: %w", err)
+	}
+
+	req, err := r.queries.ApproveLeaveRequest(ctx, store.ApproveLeaveRequestParams{
+		ID:         int64(requestID),
+		CompanyID:  companyID,
+		ApproverID: &emp.ID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("approve leave request: %w", err)
+	}
+
+	return toJSON(map[string]any{
+		"success":    true,
+		"request_id": req.ID,
+		"status":     req.Status,
+		"message":    "Leave request approved successfully.",
+	})
+}
+
+func (r *ToolRegistry) toolApproveOvertimeRequest(ctx context.Context, companyID, userID int64, input map[string]any) (string, error) {
+	// Check user role and company scope
+	user, err := r.queries.GetUserByID(ctx, userID)
+	if err != nil {
+		return "", fmt.Errorf("user not found: %w", err)
+	}
+	if user.CompanyID != companyID {
+		return "", fmt.Errorf("access denied")
+	}
+	if user.Role != "admin" && user.Role != "manager" {
+		return "", fmt.Errorf("only managers and admins can approve overtime requests")
+	}
+
+	requestID, ok := input["request_id"].(float64)
+	if !ok || requestID <= 0 {
+		return "", fmt.Errorf("request_id is required")
+	}
+
+	emp, err := r.queries.GetEmployeeByUserID(ctx, store.GetEmployeeByUserIDParams{
+		UserID:    &userID,
+		CompanyID: companyID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("approver employee not found: %w", err)
+	}
+
+	req, err := r.queries.ApproveOvertimeRequest(ctx, store.ApproveOvertimeRequestParams{
+		ID:         int64(requestID),
+		CompanyID:  companyID,
+		ApproverID: &emp.ID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("approve overtime request: %w", err)
+	}
+
+	return toJSON(map[string]any{
+		"success":    true,
+		"request_id": req.ID,
+		"status":     req.Status,
+		"message":    "Overtime request approved successfully.",
+	})
+}
+
+func (r *ToolRegistry) toolRejectLeaveRequest(ctx context.Context, companyID, userID int64, input map[string]any) (string, error) {
+	user, err := r.queries.GetUserByID(ctx, userID)
+	if err != nil {
+		return "", fmt.Errorf("user not found: %w", err)
+	}
+	if user.CompanyID != companyID {
+		return "", fmt.Errorf("access denied")
+	}
+	if user.Role != "admin" && user.Role != "manager" {
+		return "", fmt.Errorf("only managers and admins can reject leave requests")
+	}
+
+	requestID, ok := input["request_id"].(float64)
+	if !ok || requestID <= 0 {
+		return "", fmt.Errorf("request_id is required")
+	}
+
+	emp, err := r.queries.GetEmployeeByUserID(ctx, store.GetEmployeeByUserIDParams{
+		UserID:    &userID,
+		CompanyID: companyID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("approver employee not found: %w", err)
+	}
+
+	var reason *string
+	if r, ok := input["reason"].(string); ok && r != "" {
+		reason = &r
+	}
+
+	req, err := r.queries.RejectLeaveRequest(ctx, store.RejectLeaveRequestParams{
+		ID:              int64(requestID),
+		CompanyID:       companyID,
+		ApproverID:      &emp.ID,
+		RejectionReason: reason,
+	})
+	if err != nil {
+		return "", fmt.Errorf("reject leave request: %w", err)
+	}
+
+	return toJSON(map[string]any{
+		"success":    true,
+		"request_id": req.ID,
+		"status":     req.Status,
+		"message":    "Leave request rejected.",
+	})
+}
+
+func (r *ToolRegistry) toolRejectOvertimeRequest(ctx context.Context, companyID, userID int64, input map[string]any) (string, error) {
+	user, err := r.queries.GetUserByID(ctx, userID)
+	if err != nil {
+		return "", fmt.Errorf("user not found: %w", err)
+	}
+	if user.CompanyID != companyID {
+		return "", fmt.Errorf("access denied")
+	}
+	if user.Role != "admin" && user.Role != "manager" {
+		return "", fmt.Errorf("only managers and admins can reject overtime requests")
+	}
+
+	requestID, ok := input["request_id"].(float64)
+	if !ok || requestID <= 0 {
+		return "", fmt.Errorf("request_id is required")
+	}
+
+	emp, err := r.queries.GetEmployeeByUserID(ctx, store.GetEmployeeByUserIDParams{
+		UserID:    &userID,
+		CompanyID: companyID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("approver employee not found: %w", err)
+	}
+
+	var reason *string
+	if r, ok := input["reason"].(string); ok && r != "" {
+		reason = &r
+	}
+
+	req, err := r.queries.RejectOvertimeRequest(ctx, store.RejectOvertimeRequestParams{
+		ID:              int64(requestID),
+		CompanyID:       companyID,
+		ApproverID:      &emp.ID,
+		RejectionReason: reason,
+	})
+	if err != nil {
+		return "", fmt.Errorf("reject overtime request: %w", err)
+	}
+
+	return toJSON(map[string]any{
+		"success":    true,
+		"request_id": req.ID,
+		"status":     req.Status,
+		"message":    "Overtime request rejected.",
+	})
+}
+
+// --- Employee Self-Service Implementation ---
+
+func (r *ToolRegistry) toolUpdateEmployeeProfile(ctx context.Context, companyID, userID int64, input map[string]any) (string, error) {
+	emp, err := r.queries.GetEmployeeByUserID(ctx, store.GetEmployeeByUserIDParams{
+		UserID:    &userID,
+		CompanyID: companyID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("employee not found: %w", err)
+	}
+
+	// Get existing profile (may not exist yet)
+	existing, err := r.queries.GetEmployeeProfile(ctx, emp.ID)
+	if err != nil {
+		// No existing profile — start with empty
+		existing = store.EmployeeProfile{EmployeeID: emp.ID}
+	}
+
+	// Merge: input overrides existing
+	merged := store.UpsertEmployeeProfileParams{
+		EmployeeID:        emp.ID,
+		AddressLine1:      coalesceStrPtr(input, "address_line1", existing.AddressLine1),
+		AddressLine2:      coalesceStrPtr(input, "address_line2", existing.AddressLine2),
+		City:              coalesceStrPtr(input, "city", existing.City),
+		Province:          coalesceStrPtr(input, "province", existing.Province),
+		ZipCode:           coalesceStrPtr(input, "zip_code", existing.ZipCode),
+		EmergencyName:     coalesceStrPtr(input, "emergency_name", existing.EmergencyName),
+		EmergencyPhone:    coalesceStrPtr(input, "emergency_phone", existing.EmergencyPhone),
+		EmergencyRelation: coalesceStrPtr(input, "emergency_relation", existing.EmergencyRelation),
+		BankName:          coalesceStrPtr(input, "bank_name", existing.BankName),
+		BankAccountNo:     coalesceStrPtr(input, "bank_account_no", existing.BankAccountNo),
+		BankAccountName:   coalesceStrPtr(input, "bank_account_name", existing.BankAccountName),
+		Tin:               coalesceStrPtr(input, "tin", existing.Tin),
+		SssNo:             coalesceStrPtr(input, "sss_no", existing.SssNo),
+		PhilhealthNo:      coalesceStrPtr(input, "philhealth_no", existing.PhilhealthNo),
+		PagibigNo:         coalesceStrPtr(input, "pagibig_no", existing.PagibigNo),
+	}
+
+	profile, err := r.queries.UpsertEmployeeProfile(ctx, merged)
+	if err != nil {
+		return "", fmt.Errorf("update employee profile: %w", err)
+	}
+
+	// Build list of updated fields
+	updated := make([]string, 0)
+	for _, key := range []string{"address_line1", "address_line2", "city", "province", "zip_code",
+		"emergency_name", "emergency_phone", "emergency_relation",
+		"bank_name", "bank_account_no", "bank_account_name",
+		"tin", "sss_no", "philhealth_no", "pagibig_no"} {
+		if v, ok := input[key].(string); ok && v != "" {
+			updated = append(updated, key)
+		}
+	}
+
+	return toJSON(map[string]any{
+		"success":        true,
+		"employee_id":    profile.EmployeeID,
+		"updated_fields": updated,
+		"message":        "Profile updated successfully.",
+	})
+}
+
+// --- Report Tool Implementation ---
+
+func (r *ToolRegistry) toolGenerateAttendanceReport(ctx context.Context, companyID, userID int64, input map[string]any) (string, error) {
+	startDateStr, _ := input["start_date"].(string)
+	endDateStr, _ := input["end_date"].(string)
+
+	if startDateStr == "" || endDateStr == "" {
+		return "", fmt.Errorf("start_date and end_date are required")
+	}
+
+	startDate, err := time.Parse("2006-01-02", startDateStr)
+	if err != nil {
+		return "", fmt.Errorf("invalid start_date format, use YYYY-MM-DD")
+	}
+	endDate, err := time.Parse("2006-01-02", endDateStr)
+	if err != nil {
+		return "", fmt.Errorf("invalid end_date format, use YYYY-MM-DD")
+	}
+
+	if endDate.Before(startDate) {
+		return "", fmt.Errorf("end_date must not be before start_date")
+	}
+
+	// Cap date range to 93 days (one quarter)
+	if endDate.Sub(startDate) > 93*24*time.Hour {
+		return "", fmt.Errorf("date range cannot exceed 93 days")
+	}
+
+	emp, err := r.queries.GetEmployeeByUserID(ctx, store.GetEmployeeByUserIDParams{
+		UserID:    &userID,
+		CompanyID: companyID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("employee not found: %w", err)
+	}
+
+	// Check permissions: non-managers can only query their own data
+	user, err := r.queries.GetUserByID(ctx, userID)
+	if err != nil {
+		return "", fmt.Errorf("user not found: %w", err)
+	}
+	isManager := user.Role == "admin" || user.Role == "manager"
+
+	// End date should be exclusive (next day start)
+	endDateExclusive := endDate.Add(24 * time.Hour)
+
+	startTS := pgtype.Timestamptz{Time: startDate, Valid: true}
+	endTS := pgtype.Timestamptz{Time: endDateExclusive, Valid: true}
+
+	summaryMap := make(map[int64]*attendanceSummaryEntry)
+
+	if eid, ok := input["employee_id"].(float64); ok && eid > 0 {
+		targetEmpID := int64(eid)
+		// Non-managers can only query their own attendance
+		if !isManager && targetEmpID != emp.ID {
+			return "", fmt.Errorf("you can only view your own attendance report")
+		}
+		records, err := r.queries.GetDTR(ctx, store.GetDTRParams{
+			CompanyID:   companyID,
+			EmployeeID:  targetEmpID,
+			ClockInAt:   startTS,
+			ClockInAt_2: endTS,
+		})
+		if err != nil {
+			return "", fmt.Errorf("get DTR: %w", err)
+		}
+		for _, rec := range records {
+			s := getOrCreateSummary(summaryMap, rec.EmployeeID, rec.EmployeeNo, rec.FirstName+" "+rec.LastName, rec.DepartmentName)
+			accumulateDTR(s, rec.WorkHours, rec.OvertimeHours, rec.LateMinutes)
+		}
+	} else if isManager {
+		// Company-wide report: managers/admins only
+		records, err := r.queries.GetDTRAllEmployees(ctx, store.GetDTRAllEmployeesParams{
+			CompanyID:   companyID,
+			ClockInAt:   startTS,
+			ClockInAt_2: endTS,
+		})
+		if err != nil {
+			return "", fmt.Errorf("get DTR all employees: %w", err)
+		}
+		for _, rec := range records {
+			s := getOrCreateSummary(summaryMap, rec.EmployeeID, rec.EmployeeNo, rec.FirstName+" "+rec.LastName, rec.DepartmentName)
+			accumulateDTR(s, rec.WorkHours, rec.OvertimeHours, rec.LateMinutes)
+		}
+	} else {
+		// Non-manager without employee_id: default to own data
+		records, err := r.queries.GetDTR(ctx, store.GetDTRParams{
+			CompanyID:   companyID,
+			EmployeeID:  emp.ID,
+			ClockInAt:   startTS,
+			ClockInAt_2: endTS,
+		})
+		if err != nil {
+			return "", fmt.Errorf("get DTR: %w", err)
+		}
+		for _, rec := range records {
+			s := getOrCreateSummary(summaryMap, rec.EmployeeID, rec.EmployeeNo, rec.FirstName+" "+rec.LastName, rec.DepartmentName)
+			accumulateDTR(s, rec.WorkHours, rec.OvertimeHours, rec.LateMinutes)
+		}
+	}
+
+	employees := make([]attendanceSummaryEntry, 0, len(summaryMap))
+	totalPresent := 0
+	totalLate := 0
+	for _, s := range summaryMap {
+		employees = append(employees, *s)
+		totalPresent += s.PresentDays
+		totalLate += s.LateDays
+	}
+
+	return toJSON(map[string]any{
+		"period":              startDateStr + " to " + endDateStr,
+		"total_employees":     len(summaryMap),
+		"total_present_days":  totalPresent,
+		"total_late_instances": totalLate,
+		"employees":           employees,
+	})
+}
+
+type attendanceSummaryEntry struct {
+	EmployeeNo     string  `json:"employee_no"`
+	Name           string  `json:"name"`
+	Department     string  `json:"department"`
+	PresentDays    int     `json:"present_days"`
+	LateDays       int     `json:"late_days"`
+	TotalWorkHours float64 `json:"total_work_hours"`
+	TotalOTHours   float64 `json:"total_ot_hours"`
+	TotalLateMin   int     `json:"total_late_minutes"`
+}
+
+func getOrCreateSummary(m map[int64]*attendanceSummaryEntry, empID int64, empNo, name, dept string) *attendanceSummaryEntry {
+	if s, ok := m[empID]; ok {
+		return s
+	}
+	s := &attendanceSummaryEntry{
+		EmployeeNo: empNo,
+		Name:       name,
+		Department: dept,
+	}
+	m[empID] = s
+	return s
+}
+
+func accumulateDTR(s *attendanceSummaryEntry, workHours, overtimeHours pgtype.Numeric, lateMinutes *int32) {
+	s.PresentDays++
+	if wh, err := workHours.Float64Value(); err == nil && wh.Valid {
+		s.TotalWorkHours += wh.Float64
+	}
+	if oh, err := overtimeHours.Float64Value(); err == nil && oh.Valid {
+		s.TotalOTHours += oh.Float64
+	}
+	if lateMinutes != nil && *lateMinutes > 0 {
+		s.LateDays++
+		s.TotalLateMin += int(*lateMinutes)
+	}
+}
+
+// coalesceStrPtr returns the input value if present, otherwise the existing value.
+func coalesceStrPtr(input map[string]any, key string, existing *string) *string {
+	if v, ok := input[key].(string); ok && v != "" {
+		return &v
+	}
+	return existing
 }
 
 func numericToString(n pgtype.Numeric) string {

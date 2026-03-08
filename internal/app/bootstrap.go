@@ -215,18 +215,30 @@ func (a *App) setupRoutes() {
 	billingSvc := billing.NewService(a.Queries, a.Logger)
 	billingHandler := billing.NewHandler(billingSvc, a.Queries, a.Logger)
 
-	// AI service (optional)
+	// AI service (optional — supports Anthropic or OpenAI)
 	var aiHandler *ai.Handler
-	if a.Cfg.AI.Enabled && a.Cfg.AI.AnthropicKey != "" {
-		aiProvider := provider.NewAnthropic(a.Cfg.AI.AnthropicKey, "")
-		aiService := ai.NewService(aiProvider, a.Queries, a.Pool, a.Logger)
-		toolRegistry := ai.NewToolRegistry(a.Queries, a.Pool)
-		agentRegistry := agent.NewRegistry(a.Queries, a.Logger)
-		executor := agent.NewExecutor(aiProvider, toolRegistry, billingSvc, agentRegistry, a.Queries, a.Logger)
-		aiHandler = ai.NewHandler(aiService, executor, agentRegistry, a.Queries)
-		a.Logger.Info("AI assistant enabled", "agents", len(agentRegistry.List(context.Background())))
+	if a.Cfg.AI.Enabled {
+		var aiProvider provider.Provider
+		switch {
+		case a.Cfg.AI.AnthropicKey != "":
+			aiProvider = provider.NewAnthropic(a.Cfg.AI.AnthropicKey, "")
+			a.Logger.Info("AI provider: Anthropic")
+		case a.Cfg.AI.OpenAIKey != "":
+			aiProvider = provider.NewOpenAI(a.Cfg.AI.OpenAIKey, "")
+			a.Logger.Info("AI provider: OpenAI")
+		}
+		if aiProvider != nil {
+			aiService := ai.NewService(aiProvider, a.Queries, a.Pool, a.Logger)
+			toolRegistry := ai.NewToolRegistry(a.Queries, a.Pool)
+			agentRegistry := agent.NewRegistry(a.Queries, a.Logger)
+			executor := agent.NewExecutor(aiProvider, toolRegistry, billingSvc, agentRegistry, a.Queries, a.Logger)
+			aiHandler = ai.NewHandler(aiService, executor, agentRegistry, a.Queries)
+			a.Logger.Info("AI assistant enabled", "provider", aiProvider.Name(), "agents", len(agentRegistry.List(context.Background())))
+		} else {
+			a.Logger.Info("AI assistant disabled (no API key configured)")
+		}
 	} else {
-		a.Logger.Info("AI assistant disabled (no API key or AI_ENABLED=false)")
+		a.Logger.Info("AI assistant disabled (AI_ENABLED=false)")
 	}
 
 	api := a.Router.Group("/api/v1")
