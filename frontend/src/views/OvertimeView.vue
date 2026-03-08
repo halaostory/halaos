@@ -120,7 +120,7 @@ async function submitRequest() {
     </NSpace>
     <NDataTable :columns="columns" :data="data" :loading="loading" />
 
-    <NModal v-model:show="showModal" :title="t('overtime.apply')" preset="card" style="width: 480px;" @after-leave="resetForm">
+    <NModal v-model:show="showModal" :title="t('overtime.apply')" preset="card" style="max-width: 480px; width: 95vw;" @after-leave="resetForm">
       <NForm @submit.prevent="submitRequest">
         <NFormItem :label="t('overtime.date')" required>
           <NDatePicker v-model:value="form.ot_date" type="date" style="width: 100%;" />

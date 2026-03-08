@@ -277,6 +277,14 @@ async function handleCreateCycle() {
     message.warning(t("common.fillAllFields"));
     return;
   }
+  if (cycleForm.value.period_end < cycleForm.value.period_start) {
+    message.warning(t("payroll.endAfterStart"));
+    return;
+  }
+  if (cycleForm.value.pay_date < cycleForm.value.period_end) {
+    message.warning(t("payroll.payAfterEnd"));
+    return;
+  }
   createLoading.value = true;
   try {
     await payrollAPI.createCycle({

@@ -265,7 +265,7 @@ onMounted(async () => {
       </NTabPane>
     </NTabs>
 
-    <NModal v-model:show="showGenModal" :title="t('compliance.generateForm')" preset="card" style="width: 500px;">
+    <NModal v-model:show="showGenModal" :title="t('compliance.generateForm')" preset="card" style="max-width: 500px; width: 95vw;">
       <NForm label-placement="left" label-width="120">
         <NFormItem :label="t('common.type')" required>
           <NSelect v-model:value="genForm.form_type" :options="formTypeOptions" />

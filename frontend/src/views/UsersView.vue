@@ -112,7 +112,7 @@ async function loadUsers() {
     const res = await userAPI.list() as { data?: { users: UserRow[]; total: number } }
     const data = (res.data || res) as { users: UserRow[]; total: number }
     users.value = data.users || []
-  } catch { /* ignore */ }
+  } catch { message.error(t('common.loadFailed')) }
   finally { loading.value = false }
 }
 
@@ -131,7 +131,7 @@ async function handleChangeRole() {
     message.success(t('userMgmt.roleUpdated'))
     showRoleModal.value = false
     await loadUsers()
-  } catch { message.error('Failed') }
+  } catch { message.error(t('common.failed')) }
 }
 
 function openStatusModal(user: UserRow) {
@@ -147,7 +147,7 @@ async function handleChangeStatus() {
     message.success(t('userMgmt.statusUpdated'))
     showStatusModal.value = false
     await loadUsers()
-  } catch { message.error('Failed') }
+  } catch { message.error(t('common.failed')) }
 }
 
 function openPasswordModal(user: UserRow) {
@@ -162,7 +162,7 @@ async function handleResetPassword() {
     await userAPI.resetPassword(passwordTarget.value.id, newPassword.value)
     message.success(t('userMgmt.passwordReset'))
     showPasswordModal.value = false
-  } catch { message.error('Failed') }
+  } catch { message.error(t('common.failed')) }
 }
 </script>
 
@@ -177,7 +177,7 @@ async function handleResetPassword() {
     />
 
     <!-- Change Role Modal -->
-    <NModal v-model:show="showRoleModal" preset="card" :title="t('userMgmt.changeRole')" style="width: 400px;">
+    <NModal v-model:show="showRoleModal" preset="card" :title="t('userMgmt.changeRole')" style="max-width: 400px; width: 95vw;">
       <p>{{ roleTarget?.first_name }} {{ roleTarget?.last_name }} ({{ roleTarget?.email }})</p>
       <NForm @submit.prevent="handleChangeRole">
         <NFormItem :label="t('userMgmt.role')">
@@ -188,7 +188,7 @@ async function handleResetPassword() {
     </NModal>
 
     <!-- Change Status Modal -->
-    <NModal v-model:show="showStatusModal" preset="card" :title="t('userMgmt.changeStatus')" style="width: 400px;">
+    <NModal v-model:show="showStatusModal" preset="card" :title="t('userMgmt.changeStatus')" style="max-width: 400px; width: 95vw;">
       <p>{{ statusTarget?.first_name }} {{ statusTarget?.last_name }} ({{ statusTarget?.email }})</p>
       <NForm @submit.prevent="handleChangeStatus">
         <NFormItem :label="t('userMgmt.status')">
@@ -199,7 +199,7 @@ async function handleResetPassword() {
     </NModal>
 
     <!-- Reset Password Modal -->
-    <NModal v-model:show="showPasswordModal" preset="card" :title="t('userMgmt.resetPassword')" style="width: 400px;">
+    <NModal v-model:show="showPasswordModal" preset="card" :title="t('userMgmt.resetPassword')" style="max-width: 400px; width: 95vw;">
       <p>{{ passwordTarget?.first_name }} {{ passwordTarget?.last_name }} ({{ passwordTarget?.email }})</p>
       <NForm @submit.prevent="handleResetPassword">
         <NFormItem :label="t('userMgmt.newPassword')">

@@ -223,7 +223,7 @@ async function fetchAll() {
       summary.value = (summaryRes as any)?.data ?? summaryRes
     }
   } catch {
-    message.error('Failed to load grievances')
+    message.error(t('grievance.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -318,7 +318,7 @@ onMounted(fetchAll)
     <h2 style="margin-bottom: 16px;">{{ t('grievance.title') }}</h2>
 
     <!-- Summary (Manager+) -->
-    <NGrid v-if="isManager" :cols="6" :x-gap="16" :y-gap="16" style="margin-bottom: 24px;">
+    <NGrid v-if="isManager" :cols="6" :x-gap="16" :y-gap="16" responsive="screen" style="margin-bottom: 24px;">
       <NGi><NStatistic :label="t('grievance.total')" :value="summary.total" /></NGi>
       <NGi><NStatistic :label="t('grievance.open')" :value="summary.open_count" /></NGi>
       <NGi><NStatistic :label="t('grievance.underReview')" :value="summary.under_review" /></NGi>
@@ -347,7 +347,7 @@ onMounted(fetchAll)
     </NTabs>
 
     <!-- Create Modal -->
-    <NModal v-model:show="showCreateModal" preset="card" :title="t('grievance.fileGrievance')" style="width: 600px;">
+    <NModal v-model:show="showCreateModal" preset="card" :title="t('grievance.fileGrievance')" style="max-width: 600px; width: 95vw;">
       <NForm label-placement="left" label-width="120">
         <NFormItem :label="t('grievance.category')">
           <NSelect v-model:value="createForm.category" :options="categoryOptions" />
@@ -371,7 +371,7 @@ onMounted(fetchAll)
     </NModal>
 
     <!-- Resolve Modal -->
-    <NModal v-model:show="showResolveModal" preset="card" :title="t('grievance.resolveCase')" style="width: 500px;">
+    <NModal v-model:show="showResolveModal" preset="card" :title="t('grievance.resolveCase')" style="max-width: 500px; width: 95vw;">
       <NForm label-placement="left" label-width="100">
         <NFormItem :label="t('grievance.resolution')">
           <NInput v-model:value="resolution" type="textarea" :rows="4" />
@@ -383,7 +383,7 @@ onMounted(fetchAll)
     </NModal>
 
     <!-- Assign Modal -->
-    <NModal v-model:show="showAssignModal" preset="card" :title="t('grievance.assignCase')" style="width: 400px;">
+    <NModal v-model:show="showAssignModal" preset="card" :title="t('grievance.assignCase')" style="max-width: 400px; width: 95vw;">
       <NForm label-placement="left" label-width="100">
         <NFormItem :label="t('grievance.assignTo')">
           <NInput v-model:value="assignUserId" placeholder="User ID" />
@@ -395,7 +395,7 @@ onMounted(fetchAll)
     </NModal>
 
     <!-- Comments Modal -->
-    <NModal v-model:show="showCommentsModal" preset="card" :title="t('grievance.comments')" style="width: 600px;">
+    <NModal v-model:show="showCommentsModal" preset="card" :title="t('grievance.comments')" style="max-width: 600px; width: 95vw;">
       <div style="max-height: 400px; overflow-y: auto; margin-bottom: 16px;">
         <div v-if="comments.length === 0" style="color: var(--n-text-color-3); text-align: center; padding: 24px;">
           {{ t('grievance.noComments') }}

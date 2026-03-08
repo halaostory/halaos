@@ -85,7 +85,7 @@ async function fetchNotifications() {
     const data = (res as any)?.data ?? res;
     notifications.value = Array.isArray(data) ? data : [];
   } catch {
-    message.error("Failed to load notifications");
+    message.error(t("notification.loadFailed"));
   } finally {
     loading.value = false;
   }
@@ -113,7 +113,7 @@ async function handleMarkRead(id: number) {
     }
     message.success(t("notification.markRead"));
   } catch {
-    message.error("Failed to mark as read");
+    message.error(t("notification.markReadFailed"));
   }
 }
 
@@ -127,7 +127,7 @@ async function handleMarkAllRead() {
     unreadCount.value = 0;
     message.success(t("notification.allRead"));
   } catch {
-    message.error("Failed to mark all as read");
+    message.error(t("notification.markAllReadFailed"));
   }
 }
 
@@ -141,7 +141,7 @@ async function handleDelete(id: number) {
     await notificationAPI.delete(id);
     message.success(t("notification.deleted"));
   } catch {
-    message.error("Failed to delete notification");
+    message.error(t("notification.deleteFailed"));
     await fetchNotifications();
     await fetchUnreadCount();
   }

@@ -277,7 +277,7 @@ async function fetchAll() {
       summary.value = (summaryRes as any)?.data ?? summaryRes
     }
   } catch {
-    message.error('Failed to load benefits data')
+    message.error(t('benefit.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -414,7 +414,7 @@ onMounted(fetchAll)
     <h2 style="margin-bottom: 16px;">{{ t('benefit.title') }}</h2>
 
     <!-- Summary Stats (Manager+) -->
-    <NGrid v-if="isManager" :cols="4" :x-gap="16" :y-gap="16" style="margin-bottom: 24px;">
+    <NGrid v-if="isManager" :cols="4" :x-gap="16" :y-gap="16" responsive="screen" style="margin-bottom: 24px;">
       <NGi>
         <NStatistic :label="t('benefit.activePlans')" :value="summary.total_plans" />
       </NGi>
@@ -461,7 +461,7 @@ onMounted(fetchAll)
     </NTabs>
 
     <!-- Plan Modal -->
-    <NModal v-model:show="showPlanModal" preset="card" :title="editingPlan ? t('benefit.editPlan') : t('benefit.createPlan')" style="width: 600px;">
+    <NModal v-model:show="showPlanModal" preset="card" :title="editingPlan ? t('benefit.editPlan') : t('benefit.createPlan')" style="max-width: 600px; width: 95vw;">
       <NForm label-placement="left" label-width="140">
         <NFormItem :label="t('benefit.planName')">
           <NInput v-model:value="planForm.name" />
@@ -497,7 +497,7 @@ onMounted(fetchAll)
     </NModal>
 
     <!-- Enrollment Modal -->
-    <NModal v-model:show="showEnrollModal" preset="card" :title="t('benefit.enrollEmployee')" style="width: 500px;">
+    <NModal v-model:show="showEnrollModal" preset="card" :title="t('benefit.enrollEmployee')" style="max-width: 500px; width: 95vw;">
       <NForm label-placement="left" label-width="140">
         <NFormItem :label="t('benefit.employee')">
           <NInputNumber v-model:value="enrollForm.employee_id" :min="1" placeholder="Employee ID" style="width: 100%;" />
@@ -524,7 +524,7 @@ onMounted(fetchAll)
     </NModal>
 
     <!-- Claim Modal -->
-    <NModal v-model:show="showClaimModal" preset="card" :title="t('benefit.fileClaim')" style="width: 500px;">
+    <NModal v-model:show="showClaimModal" preset="card" :title="t('benefit.fileClaim')" style="max-width: 500px; width: 95vw;">
       <NForm label-placement="left" label-width="140">
         <NFormItem :label="t('benefit.plan')">
           <NSelect v-model:value="claimForm.enrollment_id" :options="enrollmentOptions" />
@@ -545,7 +545,7 @@ onMounted(fetchAll)
     </NModal>
 
     <!-- Reject Claim Modal -->
-    <NModal v-model:show="showRejectModal" preset="card" :title="t('benefit.rejectClaim')" style="width: 400px;">
+    <NModal v-model:show="showRejectModal" preset="card" :title="t('benefit.rejectClaim')" style="max-width: 400px; width: 95vw;">
       <NForm label-placement="left" label-width="100">
         <NFormItem :label="t('benefit.reason')">
           <NInput v-model:value="rejectReason" type="textarea" />

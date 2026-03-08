@@ -138,7 +138,7 @@ async function fetchAll() {
     policies.value = extractData(policiesRes)
     pendingPolicies.value = extractData(pendingRes)
   } catch {
-    message.error('Failed to load policies')
+    message.error(t('policy.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -209,7 +209,7 @@ async function openAcknowledgments(policy: Policy) {
     ])
     acknowledgments.value = extractData(acksRes)
     ackStats.value = (statsRes as any)?.data ?? statsRes
-  } catch { /* ignore */ }
+  } catch { message.error(t('common.loadFailed')) }
 }
 
 onMounted(fetchAll)
@@ -253,7 +253,7 @@ onMounted(fetchAll)
     </NTabs>
 
     <!-- Create/Edit Policy Modal -->
-    <NModal v-model:show="showPolicyModal" preset="card" :title="editingPolicy ? t('policy.editPolicy') : t('policy.createPolicy')" style="width: 700px;">
+    <NModal v-model:show="showPolicyModal" preset="card" :title="editingPolicy ? t('policy.editPolicy') : t('policy.createPolicy')" style="max-width: 700px; width: 95vw;">
       <NForm label-placement="left" label-width="140">
         <NFormItem :label="t('policy.policyTitle')">
           <NInput v-model:value="policyForm.title" />
@@ -280,7 +280,7 @@ onMounted(fetchAll)
     </NModal>
 
     <!-- View Policy Modal -->
-    <NModal v-model:show="showViewModal" preset="card" :title="viewPolicy?.title" style="width: 700px;">
+    <NModal v-model:show="showViewModal" preset="card" :title="viewPolicy?.title" style="max-width: 700px; width: 95vw;">
       <div v-if="viewPolicy">
         <NSpace :size="8" style="margin-bottom: 12px;">
           <NTag :type="(categoryColor[viewPolicy.category] || 'default') as any">{{ t(`policy.${viewPolicy.category}`) || viewPolicy.category }}</NTag>
@@ -294,7 +294,7 @@ onMounted(fetchAll)
     </NModal>
 
     <!-- Acknowledgments Modal -->
-    <NModal v-model:show="showAckModal" preset="card" :title="`${t('policy.ackList')}: ${ackPolicyTitle}`" style="width: 600px;">
+    <NModal v-model:show="showAckModal" preset="card" :title="`${t('policy.ackList')}: ${ackPolicyTitle}`" style="max-width: 600px; width: 95vw;">
       <div style="margin-bottom: 12px;">
         <strong>{{ ackStats.acknowledged_count }}</strong> / {{ ackStats.total_employees }} {{ t('policy.employeesAcknowledged') }}
       </div>

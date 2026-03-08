@@ -149,7 +149,7 @@ async function confirmReject() {
       :description="t('approval.noPending')"
       style="margin-top: 24px"
     />
-    <NModal v-model:show="showRejectModal" :title="t('common.reject')" preset="card" style="width: 420px;">
+    <NModal v-model:show="showRejectModal" :title="t('common.reject')" preset="card" style="max-width: 420px; width: 95vw;">
       <p style="margin-bottom: 12px;">{{ t('approval.rejectConfirm') }}</p>
       <NInput v-model:value="rejectReason" type="textarea" :placeholder="t('approval.rejectReason')" :rows="3" />
       <NSpace style="margin-top: 16px;">

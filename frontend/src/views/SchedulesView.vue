@@ -203,7 +203,7 @@ async function loadData() {
     schedules.value = Array.isArray(sd) ? sd : []
     const sh = (shiftRes as any)?.data ?? shiftRes
     shifts.value = Array.isArray(sh) ? sh : []
-  } catch { /* ignore */ }
+  } catch { message.error(t('common.loadFailed')) }
   loading.value = false
 }
 
@@ -293,7 +293,7 @@ async function loadTemplates() {
     const res = await attendanceAPI.listScheduleTemplates()
     const data = (res as any)?.data ?? res
     templates.value = Array.isArray(data) ? data : []
-  } catch { /* ignore */ }
+  } catch { message.error(t('common.loadFailed')) }
   templateLoading.value = false
 }
 
@@ -333,7 +333,7 @@ async function openEditTemplate(tmpl: ScheduleTemplate) {
         slot.is_rest_day = d.is_rest_day
       }
     }
-  } catch { /* ignore */ }
+  } catch { message.error(t('common.loadFailed')) }
   showTemplateModal.value = true
 }
 
@@ -394,7 +394,7 @@ async function loadAssignments() {
     const res = await attendanceAPI.listScheduleAssignments()
     const data = (res as any)?.data ?? res
     assignments.value = Array.isArray(data) ? data : []
-  } catch { /* ignore */ }
+  } catch { message.error(t('common.loadFailed')) }
 }
 
 function openAssignTemplate() {
@@ -546,7 +546,7 @@ onMounted(() => {
   </NCard>
 
   <!-- Bulk Assign Modal -->
-  <NModal v-model:show="showAssignModal" preset="card" :title="t('attendance.bulkAssign')" style="width: 500px;">
+  <NModal v-model:show="showAssignModal" preset="card" :title="t('attendance.bulkAssign')" style="max-width: 500px; width: 95vw;">
     <NForm label-placement="top">
       <NFormItem :label="t('attendance.selectEmployees')">
         <NSelect

@@ -155,7 +155,7 @@ async function updateStatus(row: Record<string, unknown>, status: string) {
 
     <NDataTable :columns="columns" :data="records" :loading="loading" />
 
-    <NModal v-model:show="showModal" :title="t('finalPay.compute')" preset="card" style="width: 600px;">
+    <NModal v-model:show="showModal" :title="t('finalPay.compute')" preset="card" style="max-width: 600px; width: 95vw;">
       <NForm @submit.prevent="submitFinalPay" label-placement="left" label-width="180">
         <NFormItem :label="t('employee.name')" required>
           <NSelect v-model:value="form.employee_id" :options="employeeOptions" filterable :placeholder="t('training.selectEmployee')" />

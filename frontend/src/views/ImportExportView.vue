@@ -258,7 +258,7 @@ const currentYear = computed(() => new Date().getFullYear())
 
     <!-- Export Section -->
     <NCard :title="t('common.actions')">
-      <NGrid :cols="2" :x-gap="24" :y-gap="24">
+      <NGrid :cols="2" :x-gap="24" :y-gap="24" responsive="screen">
         <NGridItem>
           <NCard size="small" :title="t('importExport.exportEmployees')">
             <NButton type="primary" @click="exportEmployees">{{ t('importExport.exportEmployees') }} (CSV)</NButton>

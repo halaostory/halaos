@@ -224,7 +224,7 @@ onMounted(() => {
     </NTabs>
 
     <!-- Report Incident Modal -->
-    <NModal v-model:show="showIncidentModal" :title="t('disciplinary.reportIncident')" preset="card" style="width: 520px;">
+    <NModal v-model:show="showIncidentModal" :title="t('disciplinary.reportIncident')" preset="card" style="max-width: 520px; width: 95vw;">
       <NForm @submit.prevent="submitIncident">
         <NFormItem :label="t('disciplinary.employee')" required>
           <NSelect v-model:value="incidentForm.employee_id" :options="employees" filterable :placeholder="t('disciplinary.selectEmployee')" />
@@ -254,7 +254,7 @@ onMounted(() => {
     </NModal>
 
     <!-- Issue Action Modal -->
-    <NModal v-model:show="showActionModal" :title="t('disciplinary.issueAction')" preset="card" style="width: 520px;">
+    <NModal v-model:show="showActionModal" :title="t('disciplinary.issueAction')" preset="card" style="max-width: 520px; width: 95vw;">
       <NForm @submit.prevent="submitAction">
         <NFormItem :label="t('disciplinary.employee')" required>
           <NSelect v-model:value="actionForm.employee_id" :options="employees" filterable :placeholder="t('disciplinary.selectEmployee')" />
@@ -292,7 +292,7 @@ onMounted(() => {
     </NModal>
 
     <!-- Appeal Modal -->
-    <NModal v-model:show="showAppealModal" :title="t('disciplinary.submitAppeal')" preset="card" style="width: 420px;">
+    <NModal v-model:show="showAppealModal" :title="t('disciplinary.submitAppeal')" preset="card" style="max-width: 420px; width: 95vw;">
       <NForm @submit.prevent="submitAppeal">
         <NFormItem :label="t('disciplinary.appealReason')" required>
           <NInput v-model:value="appealReason" type="textarea" :rows="4" />

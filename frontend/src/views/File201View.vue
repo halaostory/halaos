@@ -232,7 +232,7 @@ async function loadEmployeeDocs() {
     stats.value = (statsRes as any)?.data ?? statsRes
     compliance.value = extractData(compRes)
   } catch {
-    message.error('Failed to load documents')
+    message.error(t('file201.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -242,14 +242,14 @@ async function loadExpiring() {
   try {
     const res = await file201API.expiring()
     expiringDocs.value = extractData(res)
-  } catch { /* ignore */ }
+  } catch { message.error(t('common.loadFailed')) }
 }
 
 async function loadRequirements() {
   try {
     const res = await file201API.listRequirements()
     requirements.value = extractData(res)
-  } catch { /* ignore */ }
+  } catch { message.error(t('common.loadFailed')) }
 }
 
 function extractData(res: unknown): any[] {
@@ -373,7 +373,7 @@ onMounted(() => {
         </NSpace>
 
         <!-- Stats -->
-        <NGrid v-if="selectedEmployeeId && stats.total_documents > 0" :cols="4" :x-gap="16" :y-gap="16" style="margin-bottom: 16px;">
+        <NGrid v-if="selectedEmployeeId && stats.total_documents > 0" :cols="4" :x-gap="16" :y-gap="16" responsive="screen" style="margin-bottom: 16px;">
           <NGi><NStatistic :label="t('file201.totalDocs')" :value="stats.total_documents" /></NGi>
           <NGi><NStatistic :label="t('file201.active')" :value="stats.active_documents" /></NGi>
           <NGi><NStatistic :label="t('file201.expired')" :value="stats.expired_documents" /></NGi>
@@ -422,7 +422,7 @@ onMounted(() => {
     </NTabs>
 
     <!-- Upload Modal -->
-    <NModal v-model:show="showUploadModal" preset="card" :title="t('file201.uploadDocument')" style="width: 550px;">
+    <NModal v-model:show="showUploadModal" preset="card" :title="t('file201.uploadDocument')" style="max-width: 550px; width: 95vw;">
       <NForm label-placement="left" label-width="120">
         <NFormItem :label="t('file201.file')">
           <NUpload
@@ -455,7 +455,7 @@ onMounted(() => {
     </NModal>
 
     <!-- Requirement Modal -->
-    <NModal v-model:show="showReqModal" preset="card" :title="t('file201.addRequirement')" style="width: 500px;">
+    <NModal v-model:show="showReqModal" preset="card" :title="t('file201.addRequirement')" style="max-width: 500px; width: 95vw;">
       <NForm label-placement="left" label-width="120">
         <NFormItem :label="t('file201.category')">
           <NSelect v-model:value="reqForm.category_id" :options="categorySelectOptions" />

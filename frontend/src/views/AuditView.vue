@@ -142,7 +142,7 @@ async function loadData() {
     const data = (res as any)?.data ?? res
     logs.value = Array.isArray(data?.data) ? data.data : []
     total.value = data?.total ?? 0
-  } catch { /* ignore */ }
+  } catch { message.error(t('common.loadFailed')) }
   loading.value = false
 }
 

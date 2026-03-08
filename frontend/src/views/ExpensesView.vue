@@ -138,7 +138,7 @@ async function fetchAll() {
       summary.value = extractData(sumRes) as ExpenseSummary
     }
   } catch {
-    message.error('Failed to load expenses')
+    message.error(t('expense.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -341,7 +341,7 @@ onMounted(fetchAll)
     <h2 style="margin-bottom: 16px;">{{ t('expense.title') }}</h2>
 
     <!-- Summary Stats -->
-    <NGrid v-if="isManager && summary" :cols="4" :x-gap="12" style="margin-bottom: 16px;">
+    <NGrid v-if="isManager && summary" :cols="4" :x-gap="12" responsive="screen" style="margin-bottom: 16px;">
       <NGi>
         <NCard size="small">
           <NStatistic :label="t('expense.pending')" :value="summary.submitted_count" />
@@ -388,7 +388,7 @@ onMounted(fetchAll)
     </NTabs>
 
     <!-- New Claim Modal -->
-    <NModal v-model:show="showClaimModal" preset="card" :title="t('expense.newClaim')" style="width: 600px;">
+    <NModal v-model:show="showClaimModal" preset="card" :title="t('expense.newClaim')" style="max-width: 600px; width: 95vw;">
       <NForm label-placement="left" label-width="140">
         <NFormItem :label="t('expense.category')">
           <NSelect v-model:value="claimForm.category_id" :options="categoryOptions" :placeholder="t('expense.selectCategory')" />
@@ -417,7 +417,7 @@ onMounted(fetchAll)
     </NModal>
 
     <!-- Category Modal -->
-    <NModal v-model:show="showCatModal" preset="card" :title="editingCat ? t('expense.editCategory') : t('expense.addCategory')" style="width: 500px;">
+    <NModal v-model:show="showCatModal" preset="card" :title="editingCat ? t('expense.editCategory') : t('expense.addCategory')" style="max-width: 500px; width: 95vw;">
       <NForm label-placement="left" label-width="140">
         <NFormItem :label="t('expense.categoryName')">
           <NInput v-model:value="catForm.name" />
@@ -443,7 +443,7 @@ onMounted(fetchAll)
     </NModal>
 
     <!-- Reject Modal -->
-    <NModal v-model:show="showRejectModal" preset="card" :title="t('expense.rejectClaim')" style="width: 400px;">
+    <NModal v-model:show="showRejectModal" preset="card" :title="t('expense.rejectClaim')" style="max-width: 400px; width: 95vw;">
       <NForm label-placement="left" label-width="100">
         <NFormItem :label="t('expense.reason')">
           <NInput v-model:value="rejectReason" type="textarea" :rows="3" />
@@ -455,7 +455,7 @@ onMounted(fetchAll)
     </NModal>
 
     <!-- Pay Modal -->
-    <NModal v-model:show="showPayModal" preset="card" :title="t('expense.markPaid')" style="width: 400px;">
+    <NModal v-model:show="showPayModal" preset="card" :title="t('expense.markPaid')" style="max-width: 400px; width: 95vw;">
       <NForm label-placement="left" label-width="100">
         <NFormItem :label="t('expense.payReference')">
           <NInput v-model:value="payReference" />

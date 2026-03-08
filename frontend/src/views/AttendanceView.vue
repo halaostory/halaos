@@ -160,7 +160,7 @@ async function loadMyCorrections() {
     const res = await attendanceAPI.listMyCorrections()
     const data = (res as any)?.data ?? res
     myCorrections.value = Array.isArray(data) ? data : []
-  } catch { /* ignore */ }
+  } catch { message.error(t('common.loadFailed')) }
 }
 
 async function loadPendingCorrections() {
@@ -168,7 +168,7 @@ async function loadPendingCorrections() {
     const res = await attendanceAPI.listPendingCorrections()
     const data = (res as any)?.data ?? res
     pendingCorrections.value = Array.isArray(data) ? data : []
-  } catch { /* ignore */ }
+  } catch { message.error(t('common.loadFailed')) }
 }
 
 function openCorrectionModal() {

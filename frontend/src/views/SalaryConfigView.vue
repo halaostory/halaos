@@ -146,7 +146,7 @@ async function createComponent() {
     </NTabs>
 
     <!-- Structure Modal -->
-    <NModal v-model:show="showStructureModal" :title="t('salary.createStructure')" preset="card" style="width: 420px;">
+    <NModal v-model:show="showStructureModal" :title="t('salary.createStructure')" preset="card" style="max-width: 420px; width: 95vw;">
       <NForm @submit.prevent="createStructure">
         <NFormItem :label="t('employee.name')" required>
           <NInput v-model:value="structureForm.name" placeholder="e.g. Standard Employee" />
@@ -162,7 +162,7 @@ async function createComponent() {
     </NModal>
 
     <!-- Component Modal -->
-    <NModal v-model:show="showComponentModal" :title="t('salary.createComponent')" preset="card" style="width: 480px;">
+    <NModal v-model:show="showComponentModal" :title="t('salary.createComponent')" preset="card" style="max-width: 480px; width: 95vw;">
       <NForm @submit.prevent="createComponent">
         <NFormItem :label="t('common.code')" required>
           <NInput v-model:value="componentForm.code" placeholder="e.g. RICE, TRANSPO" />

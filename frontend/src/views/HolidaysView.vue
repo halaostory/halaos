@@ -130,7 +130,7 @@ async function handleDelete(id: number) {
 
     <NDataTable :columns="columns" :data="data" :loading="loading" />
 
-    <NModal v-model:show="showModal" :title="t('holiday.addHoliday')" preset="card" style="width: 480px;">
+    <NModal v-model:show="showModal" :title="t('holiday.addHoliday')" preset="card" style="max-width: 480px; width: 95vw;">
       <NForm label-placement="left" label-width="120">
         <NFormItem :label="t('holiday.name')" required>
           <NInput v-model:value="form.name" />

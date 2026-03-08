@@ -57,7 +57,7 @@ async function loadAnnouncements() {
       : await announcementAPI.list()
     const data = (res as any)?.data ?? res
     announcements.value = Array.isArray(data) ? data : []
-  } catch { /* ignore */ }
+  } catch { message.error(t('announcement.loadFailed')) }
 }
 
 onMounted(loadAnnouncements)
@@ -80,7 +80,7 @@ async function handleCreate() {
     form.value = { title: '', content: '', priority: 'normal', expires_at: null }
     await loadAnnouncements()
   } catch {
-    message.error('Failed to create announcement')
+    message.error(t('announcement.createFailed'))
   } finally {
     creating.value = false
   }
@@ -92,7 +92,7 @@ async function handleDelete(id: number) {
     message.success(t('announcement.deleted'))
     await loadAnnouncements()
   } catch {
-    message.error('Failed to delete')
+    message.error(t('announcement.deleteFailed'))
   }
 }
 
@@ -151,7 +151,7 @@ function toggleShowAll() {
     </div>
 
     <!-- Create Modal -->
-    <NModal v-model:show="showCreateModal" preset="card" :title="t('announcement.create')" style="width: 560px;">
+    <NModal v-model:show="showCreateModal" preset="card" :title="t('announcement.create')" style="max-width: 560px; width: 95vw;">
       <NForm @submit.prevent="handleCreate" label-placement="top">
         <NFormItem :label="t('announcement.titleLabel')">
           <NInput v-model:value="form.title" />

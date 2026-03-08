@@ -156,7 +156,7 @@ onMounted(loadData)
     </NSpace>
 
     <!-- Summary -->
-    <NGrid v-if="summary" :cols="5" :x-gap="16" style="margin-bottom: 20px;">
+    <NGrid v-if="summary" :cols="5" :x-gap="16" responsive="screen" style="margin-bottom: 20px;">
       <NGi><NStatistic :label="t('taxFiling.totalFilings')" :value="summary.total" /></NGi>
       <NGi><NStatistic :label="t('taxFiling.filed')"><template #prefix><NTag type="success" size="small">{{ summary.filed }}</NTag></template></NStatistic></NGi>
       <NGi><NStatistic :label="t('taxFiling.overdue')"><template #prefix><NTag type="error" size="small">{{ summary.overdue }}</NTag></template></NStatistic></NGi>
@@ -177,7 +177,7 @@ onMounted(loadData)
     </NTabs>
 
     <!-- Update Status Modal -->
-    <NModal v-model:show="showStatusModal" :title="t('taxFiling.updateStatus')" preset="card" style="width: 420px;">
+    <NModal v-model:show="showStatusModal" :title="t('taxFiling.updateStatus')" preset="card" style="max-width: 420px; width: 95vw;">
       <NForm @submit.prevent="submitStatusUpdate">
         <NFormItem :label="t('common.status')">
           <NSelect v-model:value="statusForm.status" :options="[

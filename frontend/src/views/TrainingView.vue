@@ -214,7 +214,7 @@ async function deleteCert(row: Record<string, unknown>) {
     </NTabs>
 
     <!-- Create Training Modal -->
-    <NModal v-model:show="showTrainingModal" :title="t('training.addTraining')" preset="card" style="width: 520px;">
+    <NModal v-model:show="showTrainingModal" :title="t('training.addTraining')" preset="card" style="max-width: 520px; width: 95vw;">
       <NForm @submit.prevent="createTraining">
         <NFormItem :label="t('training.trainingTitle')" required>
           <NInput v-model:value="trainingForm.title" />
@@ -245,7 +245,7 @@ async function deleteCert(row: Record<string, unknown>) {
     </NModal>
 
     <!-- Create Certification Modal -->
-    <NModal v-model:show="showCertModal" :title="t('training.addCert')" preset="card" style="width: 520px;">
+    <NModal v-model:show="showCertModal" :title="t('training.addCert')" preset="card" style="max-width: 520px; width: 95vw;">
       <NForm @submit.prevent="createCert">
         <NFormItem :label="t('employee.name')" required>
           <NSelect v-model:value="certForm.employee_id" :options="employeeOptions" filterable :placeholder="t('training.selectEmployee')" />

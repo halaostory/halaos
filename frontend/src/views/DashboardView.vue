@@ -421,7 +421,7 @@ async function handleClockOut() {
     </NCard>
 
     <!-- AI Smart Suggestions -->
-    <NCard v-if="suggestions.length > 0" title="Smart Suggestions" style="margin-bottom: 24px;">
+    <NCard v-if="suggestions.length > 0" :title="t('dashboard.smartSuggestions')" style="margin-bottom: 24px;">
       <div style="display: flex; flex-direction: column; gap: 10px;">
         <div v-for="s in suggestions" :key="s.type" style="display: flex; align-items: flex-start; gap: 10px; padding: 10px; border-radius: 8px; background: var(--n-color-hover, #f5f5f5);">
           <NTag :type="s.priority === 'high' ? 'error' : s.priority === 'medium' ? 'warning' : 'info'" size="small" style="flex-shrink: 0;">

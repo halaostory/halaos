@@ -58,7 +58,7 @@ async function fetchAll() {
     const settings = (settingsRes as any)?.data ?? settingsRes
     geofenceEnabled.value = settings?.geofence_enabled ?? false
   } catch {
-    message.error('Failed to load geofences')
+    message.error(t('geofence.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -198,7 +198,7 @@ onMounted(fetchAll)
     <NDataTable :columns="columns" :data="geofences" :loading="loading" :bordered="false" />
 
     <!-- Create/Edit Modal -->
-    <NModal v-model:show="showModal" preset="card" :title="editingGeofence ? t('geofence.editLocation') : t('geofence.addLocation')" style="width: 600px;">
+    <NModal v-model:show="showModal" preset="card" :title="editingGeofence ? t('geofence.editLocation') : t('geofence.addLocation')" style="max-width: 600px; width: 95vw;">
       <NForm label-placement="left" label-width="160">
         <NFormItem :label="t('geofence.locationName')">
           <NInput v-model:value="form.name" />

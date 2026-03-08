@@ -99,6 +99,18 @@ async function handleSubmit() {
     message.warning(t('profile.fillAllFields'))
     return
   }
+  if (form.value.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.value.email)) {
+    message.warning(t('auth.invalidEmail'))
+    return
+  }
+  if (form.value.birth_date && form.value.birth_date > Date.now()) {
+    message.warning(t('employee.invalidBirthDate'))
+    return
+  }
+  if (form.value.birth_date && form.value.birth_date > form.value.hire_date) {
+    message.warning(t('employee.birthBeforeHire'))
+    return
+  }
   loading.value = true
   try {
     const payload: Record<string, unknown> = {

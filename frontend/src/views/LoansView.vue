@@ -422,7 +422,7 @@ onMounted(async () => {
     </NTabs>
 
     <!-- Apply Loan Modal -->
-    <NModal v-model:show="showApplyModal" preset="card" :title="t('loan.apply')" style="width: 500px">
+    <NModal v-model:show="showApplyModal" preset="card" :title="t('loan.apply')" style="max-width: 500px; width: 95vw">
       <NForm label-placement="left" label-width="130">
         <NFormItem :label="t('loan.typeName')" required>
           <NSelect v-model:value="applyForm.loan_type_id" :options="loanTypeOptions" />
@@ -449,7 +449,7 @@ onMounted(async () => {
     </NModal>
 
     <!-- Create Loan Type Modal -->
-    <NModal v-model:show="showTypeModal" preset="card" :title="t('loan.createType')" style="width: 500px">
+    <NModal v-model:show="showTypeModal" preset="card" :title="t('loan.createType')" style="max-width: 500px; width: 95vw">
       <NForm label-placement="left" label-width="130">
         <NFormItem :label="t('common.name')" required>
           <NInput v-model:value="typeForm.name" />
@@ -473,7 +473,7 @@ onMounted(async () => {
     </NModal>
 
     <!-- Loan Detail Modal -->
-    <NModal v-model:show="showDetailModal" preset="card" :title="t('loan.typeName')" style="width: 700px">
+    <NModal v-model:show="showDetailModal" preset="card" :title="t('loan.typeName')" style="max-width: 700px; width: 95vw">
       <template v-if="loanDetail">
         <NDescriptions bordered :column="2" size="small" style="margin-bottom: 16px">
           <NDescriptionsItem v-if="loanDetail.first_name" :label="t('employee.name')">
@@ -512,7 +512,7 @@ onMounted(async () => {
     </NModal>
 
     <!-- Record Payment Modal -->
-    <NModal v-model:show="showPaymentModal" preset="card" :title="t('loan.recordPayment')" style="width: 400px">
+    <NModal v-model:show="showPaymentModal" preset="card" :title="t('loan.recordPayment')" style="max-width: 400px; width: 95vw">
       <NForm label-placement="left" label-width="100">
         <NFormItem :label="t('loan.paymentAmount')" required>
           <NInputNumber v-model:value="paymentForm.amount" :min="0" :precision="2" style="width: 100%" />

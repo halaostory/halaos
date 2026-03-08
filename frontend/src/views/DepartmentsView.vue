@@ -84,7 +84,7 @@ async function handleSave() {
     </NSpace>
     <NDataTable :columns="columns" :data="data" :loading="loading" />
 
-    <NModal v-model:show="showModal" :title="editingId ? t('department.edit') : t('department.create')" preset="card" style="width: 400px;">
+    <NModal v-model:show="showModal" :title="editingId ? t('department.edit') : t('department.create')" preset="card" style="max-width: 400px; width: 95vw;">
       <NForm @submit.prevent="handleSave">
         <NFormItem :label="t('common.code')" required>
           <NInput v-model:value="form.code" placeholder="e.g. HR, ENG" :disabled="!!editingId" />

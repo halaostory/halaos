@@ -169,7 +169,7 @@ onMounted(loadData)
 
     <NDataTable :columns="columns" :data="milestones" :loading="loading" :row-key="(r: Milestone) => r.id" />
 
-    <NModal v-model:show="showNotesModal" :title="actionType === 'acknowledge' ? t('milestone.acknowledge') : t('milestone.takeAction')" preset="card" style="width: 450px;">
+    <NModal v-model:show="showNotesModal" :title="actionType === 'acknowledge' ? t('milestone.acknowledge') : t('milestone.takeAction')" preset="card" style="max-width: 450px; width: 95vw;">
       <div v-if="actionTarget" style="margin-bottom: 12px;">
         <p><strong>{{ actionTarget.first_name }} {{ actionTarget.last_name }}</strong> ({{ actionTarget.employee_no }})</p>
         <p>{{ t(`milestone.${actionTarget.milestone_type}`) }} — {{ fmtDate(actionTarget.milestone_date) }}</p>

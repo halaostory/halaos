@@ -605,7 +605,7 @@ onMounted(loadCycles);
     </NTabs>
 
     <!-- Create Cycle Modal -->
-    <NModal v-model:show="showCycleModal" preset="card" :title="t('performance.createCycle')" style="width: 500px">
+    <NModal v-model:show="showCycleModal" preset="card" :title="t('performance.createCycle')" style="max-width: 500px; width: 95vw">
       <NForm label-placement="left" label-width="120">
         <NFormItem :label="t('performance.cycleName')" required>
           <NInput v-model:value="cycleForm.name" />
@@ -629,7 +629,7 @@ onMounted(loadCycles);
     </NModal>
 
     <!-- Create Goal Modal -->
-    <NModal v-model:show="showGoalModal" preset="card" :title="t('performance.createGoal')" style="width: 500px">
+    <NModal v-model:show="showGoalModal" preset="card" :title="t('performance.createGoal')" style="max-width: 500px; width: 95vw">
       <NForm label-placement="left" label-width="120">
         <NFormItem :label="t('performance.employee')" required>
           <NInputNumber v-model:value="goalForm.employee_id" :min="1" style="width: 100%" placeholder="Employee ID" />
@@ -659,7 +659,7 @@ onMounted(loadCycles);
     </NModal>
 
     <!-- Cycle Reviews Modal -->
-    <NModal v-model:show="showCycleReviews" preset="card" :title="selectedCycle?.name as string || t('performance.reviews')" style="width: 900px">
+    <NModal v-model:show="showCycleReviews" preset="card" :title="selectedCycle?.name as string || t('performance.reviews')" style="max-width: 900px; width: 95vw">
       <NSpace v-if="cycleStats.length" style="margin-bottom: 12px" :size="8">
         <NTag v-for="stat in cycleStats" :key="(stat.rating_label as string)" :type="stat.rating_label === 'Pending' ? 'default' : 'info'" size="small">
           {{ stat.rating_label }}: {{ stat.count }}
@@ -669,7 +669,7 @@ onMounted(loadCycles);
     </NModal>
 
     <!-- Review Detail Modal -->
-    <NModal v-model:show="showReviewDetail" preset="card" :title="t('performance.reviews')" style="width: 700px">
+    <NModal v-model:show="showReviewDetail" preset="card" :title="t('performance.reviews')" style="max-width: 700px; width: 95vw">
       <template v-if="reviewDetail">
         <NDescriptions bordered :column="2" size="small" style="margin-bottom: 16px">
           <NDescriptionsItem :label="t('common.status')">
@@ -723,7 +723,7 @@ onMounted(loadCycles);
     </NModal>
 
     <!-- Self Review Modal -->
-    <NModal v-model:show="showSelfModal" preset="card" :title="t('performance.selfReview')" style="width: 500px">
+    <NModal v-model:show="showSelfModal" preset="card" :title="t('performance.selfReview')" style="max-width: 500px; width: 95vw">
       <NForm label-placement="left" label-width="100">
         <NFormItem :label="t('performance.selfRating')">
           <NRate v-model:value="selfForm.self_rating" :count="5" />
@@ -739,7 +739,7 @@ onMounted(loadCycles);
     </NModal>
 
     <!-- Manager Review Modal -->
-    <NModal v-model:show="showManagerModal" preset="card" :title="t('performance.managerReview')" style="width: 600px">
+    <NModal v-model:show="showManagerModal" preset="card" :title="t('performance.managerReview')" style="max-width: 600px; width: 95vw">
       <NForm label-placement="left" label-width="130">
         <NFormItem :label="t('performance.managerRating')">
           <NRate v-model:value="managerForm.manager_rating" :count="5" />

@@ -66,7 +66,7 @@ const columns = computed<DataTableColumns<ReportRow>>(() => [
 
 async function generateReport() {
   if (!dateRange.value) {
-    message.warning('Please select a date range')
+    message.warning(t('attendanceReport.selectDateRange'))
     return
   }
   loading.value = true
@@ -77,7 +77,7 @@ async function generateReport() {
     const data = (res as any)?.data ?? res
     report.value = Array.isArray(data) ? data : []
   } catch {
-    message.error('Failed to generate report')
+    message.error(t('attendanceReport.generateFailed'))
   } finally {
     loading.value = false
   }
@@ -115,32 +115,32 @@ function handlePrint() {
       <NGrid :cols="6" :x-gap="12" :y-gap="12" responsive="screen" style="margin-bottom: 20px;" class="no-print">
         <NGi>
           <NCard size="small">
-            <NStatistic label="Employees" :value="totals.employees" />
+            <NStatistic :label="t('attendanceReport.employees')" :value="totals.employees" />
           </NCard>
         </NGi>
         <NGi>
           <NCard size="small">
-            <NStatistic label="Total Days" :value="totals.days" />
+            <NStatistic :label="t('attendanceReport.totalDays')" :value="totals.days" />
           </NCard>
         </NGi>
         <NGi>
           <NCard size="small">
-            <NStatistic label="Total Hours" :value="totals.hours" />
+            <NStatistic :label="t('attendanceReport.totalHours')" :value="totals.hours" />
           </NCard>
         </NGi>
         <NGi>
           <NCard size="small">
-            <NStatistic label="OT Hours" :value="totals.overtime" />
+            <NStatistic :label="t('attendanceReport.otHours')" :value="totals.overtime" />
           </NCard>
         </NGi>
         <NGi>
           <NCard size="small">
-            <NStatistic label="Late (min)" :value="totals.late" />
+            <NStatistic :label="t('attendanceReport.lateMin')" :value="totals.late" />
           </NCard>
         </NGi>
         <NGi>
           <NCard size="small">
-            <NStatistic label="Undertime (min)" :value="totals.undertime" />
+            <NStatistic :label="t('attendanceReport.undertimeMin')" :value="totals.undertime" />
           </NCard>
         </NGi>
       </NGrid>

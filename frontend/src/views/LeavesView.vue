@@ -302,7 +302,7 @@ async function runCarryover() {
     </NTabs>
 
     <!-- Create Leave Type Modal -->
-    <NModal v-model:show="showTypeModal" :title="t('leave.createType')" preset="card" style="width: 420px;">
+    <NModal v-model:show="showTypeModal" :title="t('leave.createType')" preset="card" style="max-width: 420px; width: 95vw;">
       <NForm @submit.prevent="createLeaveType">
         <NFormItem :label="t('employee.name')" required>
           <NInput v-model:value="typeForm.name" placeholder="e.g. Sick Leave, Vacation Leave" />
@@ -335,7 +335,7 @@ async function runCarryover() {
     </NModal>
 
     <!-- Adjust Balance Modal -->
-    <NModal v-model:show="showAdjustModal" :title="t('leave.adjustBalance')" preset="card" style="width: 420px;">
+    <NModal v-model:show="showAdjustModal" :title="t('leave.adjustBalance')" preset="card" style="max-width: 420px; width: 95vw;">
       <div v-if="adjustTarget" style="margin-bottom: 16px;">
         <p><strong>{{ adjustTarget.first_name }} {{ adjustTarget.last_name }}</strong> — {{ adjustTarget.leave_type_name }}</p>
         <p style="color: #666; font-size: 13px;">{{ t('leave.adjustHint') }}</p>
@@ -351,7 +351,7 @@ async function runCarryover() {
       </NForm>
     </NModal>
 
-    <NModal v-model:show="showModal" :title="t('leave.apply')" preset="card" style="width: 480px;" @after-leave="resetForm">
+    <NModal v-model:show="showModal" :title="t('leave.apply')" preset="card" style="max-width: 480px; width: 95vw;" @after-leave="resetForm">
       <NForm @submit.prevent="submitRequest">
         <NFormItem :label="t('leave.type')" required>
           <NSelect v-model:value="form.leave_type_id" :options="leaveTypes" :placeholder="t('leave.selectType')" />
