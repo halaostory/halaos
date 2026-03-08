@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/tonypk/aigonhr/internal/ai/provider"
@@ -145,6 +146,62 @@ func (r *ToolRegistry) Definitions() []provider.ToolDefinition {
 				},
 			}),
 		},
+		// --- Write Tools ---
+		{
+			Name:        "list_leave_types",
+			Description: "List all available leave types for the company (e.g., Vacation Leave, Sick Leave, Maternity Leave). Returns leave type IDs needed for create_leave_request.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "create_leave_request",
+			Description: "Submit a leave request for the current user. You MUST call list_leave_types first to get the correct leave_type_id. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"leave_type_id": map[string]any{"type": "integer", "description": "Leave type ID (from list_leave_types)."},
+					"start_date":    map[string]any{"type": "string", "description": "Start date in YYYY-MM-DD format."},
+					"end_date":      map[string]any{"type": "string", "description": "End date in YYYY-MM-DD format."},
+					"days":          map[string]any{"type": "number", "description": "Number of leave days (e.g., 1, 0.5, 2)."},
+					"reason":        map[string]any{"type": "string", "description": "Optional reason for the leave request."},
+				},
+				"required": []string{"leave_type_id", "start_date", "end_date", "days"},
+			}),
+		},
+		{
+			Name:        "clock_in",
+			Description: "Clock in (start work) for the current user. Records attendance with source='ai'. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "clock_out",
+			Description: "Clock out (end work) for the current user. Closes the current open attendance record. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "create_overtime_request",
+			Description: "Submit an overtime request for the current user. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"ot_date":  map[string]any{"type": "string", "description": "Overtime date in YYYY-MM-DD format."},
+					"start_at": map[string]any{"type": "string", "description": "OT start time in HH:MM format (24h)."},
+					"end_at":   map[string]any{"type": "string", "description": "OT end time in HH:MM format (24h)."},
+					"hours":    map[string]any{"type": "number", "description": "Total OT hours (e.g., 2, 1.5)."},
+					"ot_type":  map[string]any{"type": "string", "description": "OT type: regular, rest_day, holiday, special_holiday. Default: regular."},
+					"reason":   map[string]any{"type": "string", "description": "Optional reason for overtime."},
+				},
+				"required": []string{"ot_date", "start_at", "end_at", "hours"},
+			}),
+		},
 	}
 }
 
@@ -158,6 +215,7 @@ func (r *ToolRegistry) Execute(ctx context.Context, name string, companyID, user
 }
 
 func (r *ToolRegistry) registerTools() {
+	// Read tools
 	r.tools["query_leave_balance"] = r.toolQueryLeaveBalance
 	r.tools["query_attendance_summary"] = r.toolQueryAttendanceSummary
 	r.tools["get_my_attendance"] = r.toolGetMyAttendance
@@ -167,6 +225,12 @@ func (r *ToolRegistry) registerTools() {
 	r.tools["explain_policy"] = r.toolExplainPolicy
 	r.tools["check_compliance"] = r.toolCheckCompliance
 	r.tools["analyze_payroll_anomalies"] = r.toolAnalyzePayrollAnomalies
+	// Write tools
+	r.tools["list_leave_types"] = r.toolListLeaveTypes
+	r.tools["create_leave_request"] = r.toolCreateLeaveRequest
+	r.tools["clock_in"] = r.toolClockIn
+	r.tools["clock_out"] = r.toolClockOut
+	r.tools["create_overtime_request"] = r.toolCreateOvertimeRequest
 }
 
 func (r *ToolRegistry) toolQueryLeaveBalance(ctx context.Context, companyID, userID int64, input map[string]any) (string, error) {
@@ -425,6 +489,260 @@ func (r *ToolRegistry) toolAnalyzePayrollAnomalies(ctx context.Context, companyI
 	}
 
 	return toJSON(report)
+}
+
+// --- Write Tool Implementations ---
+
+func (r *ToolRegistry) toolListLeaveTypes(ctx context.Context, companyID, _ int64, _ map[string]any) (string, error) {
+	types, err := r.queries.ListLeaveTypes(ctx, companyID)
+	if err != nil {
+		return "", fmt.Errorf("list leave types: %w", err)
+	}
+
+	type leaveTypeResult struct {
+		ID          int64  `json:"id"`
+		Code        string `json:"code"`
+		Name        string `json:"name"`
+		IsPaid      bool   `json:"is_paid"`
+		DefaultDays string `json:"default_days"`
+	}
+
+	results := make([]leaveTypeResult, len(types))
+	for i, lt := range types {
+		results[i] = leaveTypeResult{
+			ID:          lt.ID,
+			Code:        lt.Code,
+			Name:        lt.Name,
+			IsPaid:      lt.IsPaid,
+			DefaultDays: numericToString(lt.DefaultDays),
+		}
+	}
+
+	return toJSON(results)
+}
+
+func (r *ToolRegistry) toolCreateLeaveRequest(ctx context.Context, companyID, userID int64, input map[string]any) (string, error) {
+	emp, err := r.queries.GetEmployeeByUserID(ctx, store.GetEmployeeByUserIDParams{
+		UserID:    &userID,
+		CompanyID: companyID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("employee not found: %w", err)
+	}
+
+	leaveTypeID, ok := input["leave_type_id"].(float64)
+	if !ok || leaveTypeID <= 0 {
+		return "", fmt.Errorf("leave_type_id is required")
+	}
+
+	startDateStr, _ := input["start_date"].(string)
+	endDateStr, _ := input["end_date"].(string)
+	daysFloat, _ := input["days"].(float64)
+
+	if startDateStr == "" || endDateStr == "" || daysFloat <= 0 {
+		return "", fmt.Errorf("start_date, end_date, and days are required")
+	}
+
+	startDate, err := time.Parse("2006-01-02", startDateStr)
+	if err != nil {
+		return "", fmt.Errorf("invalid start_date format, use YYYY-MM-DD")
+	}
+	endDate, err := time.Parse("2006-01-02", endDateStr)
+	if err != nil {
+		return "", fmt.Errorf("invalid end_date format, use YYYY-MM-DD")
+	}
+
+	var days pgtype.Numeric
+	_ = days.Scan(fmt.Sprintf("%.1f", daysFloat))
+
+	var reason *string
+	if r, ok := input["reason"].(string); ok && r != "" {
+		reason = &r
+	}
+
+	req, err := r.queries.CreateLeaveRequest(ctx, store.CreateLeaveRequestParams{
+		CompanyID:   companyID,
+		EmployeeID:  emp.ID,
+		LeaveTypeID: int64(leaveTypeID),
+		StartDate:   startDate,
+		EndDate:     endDate,
+		Days:        days,
+		Reason:      reason,
+	})
+	if err != nil {
+		return "", fmt.Errorf("create leave request: %w", err)
+	}
+
+	return toJSON(map[string]any{
+		"success":    true,
+		"request_id": req.ID,
+		"status":     req.Status,
+		"start_date": startDateStr,
+		"end_date":   endDateStr,
+		"days":       daysFloat,
+		"message":    "Leave request submitted successfully. It is now pending approval.",
+	})
+}
+
+func (r *ToolRegistry) toolClockIn(ctx context.Context, companyID, userID int64, _ map[string]any) (string, error) {
+	emp, err := r.queries.GetEmployeeByUserID(ctx, store.GetEmployeeByUserIDParams{
+		UserID:    &userID,
+		CompanyID: companyID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("employee not found: %w", err)
+	}
+
+	// Check if already clocked in
+	_, err = r.queries.GetOpenAttendance(ctx, store.GetOpenAttendanceParams{
+		EmployeeID: emp.ID,
+		CompanyID:  companyID,
+	})
+	if err == nil {
+		return toJSON(map[string]any{
+			"success": false,
+			"message": "You are already clocked in. Please clock out first.",
+		})
+	}
+
+	att, err := r.queries.ClockIn(ctx, store.ClockInParams{
+		CompanyID:     companyID,
+		EmployeeID:    emp.ID,
+		ClockInSource: "ai",
+	})
+	if err != nil {
+		return "", fmt.Errorf("clock in: %w", err)
+	}
+
+	return toJSON(map[string]any{
+		"success":       true,
+		"attendance_id": att.ID,
+		"clock_in_at":   att.ClockInAt.Time.Format(time.RFC3339),
+		"source":        "ai",
+		"message":       "Successfully clocked in.",
+	})
+}
+
+func (r *ToolRegistry) toolClockOut(ctx context.Context, companyID, userID int64, _ map[string]any) (string, error) {
+	emp, err := r.queries.GetEmployeeByUserID(ctx, store.GetEmployeeByUserIDParams{
+		UserID:    &userID,
+		CompanyID: companyID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("employee not found: %w", err)
+	}
+
+	// Find open attendance record
+	open, err := r.queries.GetOpenAttendance(ctx, store.GetOpenAttendanceParams{
+		EmployeeID: emp.ID,
+		CompanyID:  companyID,
+	})
+	if err != nil {
+		return toJSON(map[string]any{
+			"success": false,
+			"message": "No open attendance record found. You need to clock in first.",
+		})
+	}
+
+	source := "ai"
+	att, err := r.queries.ClockOut(ctx, store.ClockOutParams{
+		ID:             open.ID,
+		EmployeeID:     emp.ID,
+		ClockOutSource: &source,
+	})
+	if err != nil {
+		return "", fmt.Errorf("clock out: %w", err)
+	}
+
+	return toJSON(map[string]any{
+		"success":       true,
+		"attendance_id": att.ID,
+		"clock_in_at":   att.ClockInAt.Time.Format(time.RFC3339),
+		"clock_out_at":  att.ClockOutAt.Time.Format(time.RFC3339),
+		"source":        "ai",
+		"message":       "Successfully clocked out.",
+	})
+}
+
+func (r *ToolRegistry) toolCreateOvertimeRequest(ctx context.Context, companyID, userID int64, input map[string]any) (string, error) {
+	emp, err := r.queries.GetEmployeeByUserID(ctx, store.GetEmployeeByUserIDParams{
+		UserID:    &userID,
+		CompanyID: companyID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("employee not found: %w", err)
+	}
+
+	otDateStr, _ := input["ot_date"].(string)
+	startAtStr, _ := input["start_at"].(string)
+	endAtStr, _ := input["end_at"].(string)
+	hoursFloat, _ := input["hours"].(float64)
+
+	if otDateStr == "" || startAtStr == "" || endAtStr == "" || hoursFloat <= 0 {
+		return "", fmt.Errorf("ot_date, start_at, end_at, and hours are required")
+	}
+
+	otDate, err := time.Parse("2006-01-02", otDateStr)
+	if err != nil {
+		return "", fmt.Errorf("invalid ot_date format, use YYYY-MM-DD")
+	}
+
+	startAt, err := time.Parse("2006-01-02 15:04", otDateStr+" "+startAtStr)
+	if err != nil {
+		return "", fmt.Errorf("invalid start_at format, use HH:MM")
+	}
+	endAt, err := time.Parse("2006-01-02 15:04", otDateStr+" "+endAtStr)
+	if err != nil {
+		return "", fmt.Errorf("invalid end_at format, use HH:MM")
+	}
+
+	var hours pgtype.Numeric
+	_ = hours.Scan(fmt.Sprintf("%.1f", hoursFloat))
+
+	otType := "regular"
+	if t, ok := input["ot_type"].(string); ok && t != "" {
+		otType = t
+	}
+
+	var reason *string
+	if r, ok := input["reason"].(string); ok && r != "" {
+		reason = &r
+	}
+
+	req, err := r.queries.CreateOvertimeRequest(ctx, store.CreateOvertimeRequestParams{
+		CompanyID:  companyID,
+		EmployeeID: emp.ID,
+		OtDate:     otDate,
+		StartAt:    startAt,
+		EndAt:      endAt,
+		Hours:      hours,
+		OtType:     otType,
+		Reason:     reason,
+	})
+	if err != nil {
+		return "", fmt.Errorf("create overtime request: %w", err)
+	}
+
+	return toJSON(map[string]any{
+		"success":    true,
+		"request_id": req.ID,
+		"status":     req.Status,
+		"ot_date":    otDateStr,
+		"hours":      hoursFloat,
+		"ot_type":    otType,
+		"message":    "Overtime request submitted successfully. It is now pending approval.",
+	})
+}
+
+func numericToString(n pgtype.Numeric) string {
+	if !n.Valid {
+		return "0"
+	}
+	f, err := n.Float64Value()
+	if err != nil || !f.Valid {
+		return "0"
+	}
+	return fmt.Sprintf("%.1f", f.Float64)
 }
 
 func toJSON(v any) (string, error) {

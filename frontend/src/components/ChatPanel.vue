@@ -59,19 +59,9 @@ interface ChatMessage {
 interface ChatSession {
   id: string
   title: string
-  messages: ChatMessage[]
-  updatedAt: string
-}
-
-interface StoredSessions {
-  sessions: ChatSession[]
-}
-
-const STORAGE_KEY = 'aigonhr_chat_sessions'
-const MAX_SESSIONS = 20
-
-function generateId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
+  agent_slug: string
+  created_at: string
+  updated_at: string
 }
 
 function getSystemMessage(): ChatMessage {
@@ -85,61 +75,15 @@ function getSystemMessage(): ChatMessage {
 
 const messages = ref<ChatMessage[]>([getSystemMessage()])
 
-// --- localStorage helpers (immutable) ---
+// --- Server-side session helpers ---
 
-function loadSessions(): ChatSession[] {
+async function deleteSession(sessIdToDelete: string): Promise<void> {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return []
-    const parsed: StoredSessions = JSON.parse(raw)
-    return Array.isArray(parsed.sessions) ? parsed.sessions : []
+    await aiAPI.deleteSession(sessIdToDelete)
   } catch {
-    return []
+    // ignore — session may already be gone
   }
-}
-
-function saveSessions(sessions: ChatSession[]): void {
-  const data: StoredSessions = { sessions }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-}
-
-function deriveTitle(msgs: ChatMessage[]): string {
-  const firstUser = msgs.find(m => m.role === 'user')
-  if (!firstUser) return 'New Chat'
-  const text = firstUser.content.trim()
-  return text.length > 30 ? text.slice(0, 30) + '...' : text
-}
-
-function saveCurrentSession(): void {
-  // Only save if there are user messages beyond the system greeting
-  const hasUserMessages = messages.value.some(m => m.role === 'user')
-  if (!hasUserMessages) return
-
-  const now = new Date().toISOString()
-  const sessId = currentSessionId.value || generateId()
-
-  if (!currentSessionId.value) {
-    currentSessionId.value = sessId
-  }
-
-  const updatedSession: ChatSession = {
-    id: sessId,
-    title: deriveTitle(messages.value),
-    messages: [...messages.value.map(m => ({ ...m, tools: m.tools ? [...m.tools] : undefined }))],
-    updatedAt: now,
-  }
-
-  const existing = loadSessions()
-  const withoutCurrent = existing.filter(s => s.id !== sessId)
-  // Prepend current session, then trim to MAX_SESSIONS
-  const merged = [updatedSession, ...withoutCurrent].slice(0, MAX_SESSIONS)
-  saveSessions(merged)
-}
-
-function deleteSession(sessIdToDelete: string): void {
-  const existing = loadSessions()
-  const filtered = existing.filter(s => s.id !== sessIdToDelete)
-  saveSessions(filtered)
+  storedSessions.value = storedSessions.value.filter(s => s.id !== sessIdToDelete)
 
   // If we deleted the active session, start a new chat
   if (currentSessionId.value === sessIdToDelete) {
@@ -147,11 +91,27 @@ function deleteSession(sessIdToDelete: string): void {
   }
 }
 
-function loadSession(sess: ChatSession): void {
+async function loadSession(sess: ChatSession): Promise<void> {
   currentSessionId.value = sess.id
-  messages.value = [...sess.messages.map(m => ({ ...m, tools: m.tools ? [...m.tools] : undefined }))]
-  sessionId.value = undefined // reset API session — backend doesn't persist
+  sessionId.value = sess.id
+  selectedAgent.value = sess.agent_slug || 'general'
   showHistory.value = false
+
+  // Load messages from server
+  try {
+    const res = await aiAPI.getSessionMessages(sess.id)
+    const serverMsgs = res.data || []
+    messages.value = [
+      getSystemMessage(),
+      ...serverMsgs.map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+        tokensUsed: m.tokens_used || undefined,
+      })),
+    ]
+  } catch {
+    messages.value = [getSystemMessage()]
+  }
   scrollToBottom()
 }
 
@@ -164,9 +124,18 @@ function startNewChat(): void {
 
 // Reactive list of sessions for the sidebar
 const storedSessions = ref<ChatSession[]>([])
+const loadingSessions = ref(false)
 
-function refreshStoredSessions(): void {
-  storedSessions.value = loadSessions()
+async function refreshStoredSessions(): Promise<void> {
+  loadingSessions.value = true
+  try {
+    const res = await aiAPI.listSessions()
+    storedSessions.value = res.data || []
+  } catch {
+    storedSessions.value = []
+  } finally {
+    loadingSessions.value = false
+  }
 }
 
 // --- Relative time ---
@@ -268,6 +237,11 @@ async function sendMessage() {
           if (chunk.tokens_used) {
             assistantMsg.tokensUsed = chunk.tokens_used
           }
+          // Capture session_id from server for subsequent messages
+          if (chunk.session_id) {
+            sessionId.value = chunk.session_id
+            currentSessionId.value = chunk.session_id
+          }
           // Refresh balance after usage
           loadBalance()
           break
@@ -279,8 +253,7 @@ async function sendMessage() {
   } finally {
     loading.value = false
     scrollToBottom()
-    // Save to localStorage after assistant response completes
-    saveCurrentSession()
+    // Refresh session list from server (session saved server-side)
     refreshStoredSessions()
   }
 }
@@ -380,7 +353,7 @@ const chatPanelWidth = computed(() => showHistory.value ? '600px' : '400px')
               >
                 <div class="history-item-content">
                   <div class="history-item-title">{{ sess.title }}</div>
-                  <div class="history-item-time">{{ relativeTime(sess.updatedAt) }}</div>
+                  <div class="history-item-time">{{ relativeTime(sess.updated_at) }}</div>
                 </div>
                 <NButton
                   text
@@ -392,7 +365,10 @@ const chatPanelWidth = computed(() => showHistory.value ? '600px' : '400px')
                   ✕
                 </NButton>
               </div>
-              <div v-if="storedSessions.length === 0" class="history-empty">
+              <div v-if="loadingSessions" class="history-empty">
+                <NSpin size="small" />
+              </div>
+              <div v-else-if="storedSessions.length === 0" class="history-empty">
                 {{ locale === 'zh' ? '暂无聊天记录' : 'No chat history' }}
               </div>
             </div>

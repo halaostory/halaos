@@ -79,6 +79,19 @@ type AiAuditLog struct {
 	CreatedAt      time.Time `json:"created_at"`
 }
 
+type AiReminder struct {
+	ID             int64              `json:"id"`
+	CompanyID      int64              `json:"company_id"`
+	UserID         int64              `json:"user_id"`
+	ReminderType   string             `json:"reminder_type"`
+	EntityType     *string            `json:"entity_type"`
+	EntityID       *int64             `json:"entity_id"`
+	ScheduledDate  time.Time          `json:"scheduled_date"`
+	SentAt         pgtype.Timestamptz `json:"sent_at"`
+	NotificationID *int64             `json:"notification_id"`
+	CreatedAt      time.Time          `json:"created_at"`
+}
+
 type Announcement struct {
 	ID                int64              `json:"id"`
 	CompanyID         int64              `json:"company_id"`
@@ -254,6 +267,25 @@ type Certification struct {
 	AttachmentPath *string     `json:"attachment_path"`
 	CreatedAt      time.Time   `json:"created_at"`
 	UpdatedAt      time.Time   `json:"updated_at"`
+}
+
+type ChatMessage struct {
+	ID         int64     `json:"id"`
+	SessionID  uuid.UUID `json:"session_id"`
+	Role       string    `json:"role"`
+	Content    string    `json:"content"`
+	TokensUsed int32     `json:"tokens_used"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+type ChatSession struct {
+	ID        uuid.UUID `json:"id"`
+	CompanyID int64     `json:"company_id"`
+	UserID    int64     `json:"user_id"`
+	AgentSlug string    `json:"agent_slug"`
+	Title     string    `json:"title"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type ClearanceItem struct {

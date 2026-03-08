@@ -7,10 +7,12 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
 	"github.com/tonypk/aigonhr/internal/ai/agent"
 	"github.com/tonypk/aigonhr/internal/ai/provider"
 	"github.com/tonypk/aigonhr/internal/auth"
+	"github.com/tonypk/aigonhr/internal/store"
 	"github.com/tonypk/aigonhr/pkg/response"
 )
 
@@ -19,14 +21,16 @@ type Handler struct {
 	service  *Service
 	executor *agent.Executor
 	registry *agent.Registry
+	queries  *store.Queries
 }
 
 // NewHandler creates an AI handler.
-func NewHandler(service *Service, executor *agent.Executor, registry *agent.Registry) *Handler {
+func NewHandler(service *Service, executor *agent.Executor, registry *agent.Registry, queries *store.Queries) *Handler {
 	return &Handler{
 		service:  service,
 		executor: executor,
 		registry: registry,
+		queries:  queries,
 	}
 }
 
@@ -38,6 +42,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		ai.POST("/chat/stream", h.StreamChat)
 		ai.GET("/agents", h.ListAgents)
 		ai.GET("/agents/:slug", h.GetAgent)
+		ai.GET("/sessions", h.ListSessions)
+		ai.GET("/sessions/:id/messages", h.GetSessionMessages)
+		ai.DELETE("/sessions/:id", h.DeleteSession)
 	}
 }
 
@@ -214,8 +221,8 @@ func (h *Handler) StreamChat(c *gin.Context) {
 			}
 			flusher.Flush()
 		} else if resp != nil {
-			// Send final done event with token info
-			fmt.Fprintf(c.Writer, "data: {\"type\":\"done\",\"tokens_used\":%d,\"agent\":%q}\n\n", resp.TokensUsed, resp.Agent)
+			// Send final done event with token info and session_id
+			fmt.Fprintf(c.Writer, "data: {\"type\":\"done\",\"tokens_used\":%d,\"agent\":%q,\"session_id\":%q}\n\n", resp.TokensUsed, resp.Agent, resp.SessionID)
 			flusher.Flush()
 		}
 
@@ -250,4 +257,73 @@ func (h *Handler) StreamChat(c *gin.Context) {
 
 	_, _ = io.WriteString(c.Writer, "data: [DONE]\n\n")
 	flusher.Flush()
+}
+
+// ListSessions returns the user's chat sessions.
+func (h *Handler) ListSessions(c *gin.Context) {
+	companyID := auth.GetCompanyID(c)
+	userID := auth.GetUserID(c)
+
+	sessions, err := h.queries.ListUserChatSessions(c.Request.Context(), store.ListUserChatSessionsParams{
+		UserID:    userID,
+		CompanyID: companyID,
+	})
+	if err != nil {
+		response.InternalError(c, "Failed to list sessions")
+		return
+	}
+
+	response.OK(c, sessions)
+}
+
+// GetSessionMessages returns messages for a specific session.
+func (h *Handler) GetSessionMessages(c *gin.Context) {
+	companyID := auth.GetCompanyID(c)
+	sessionIDStr := c.Param("id")
+
+	sessionID, err := uuid.Parse(sessionIDStr)
+	if err != nil {
+		response.BadRequest(c, "Invalid session ID")
+		return
+	}
+
+	// Verify session belongs to user's company
+	_, err = h.queries.GetChatSession(c.Request.Context(), store.GetChatSessionParams{
+		ID:        sessionID,
+		CompanyID: companyID,
+	})
+	if err != nil {
+		response.NotFound(c, "Session not found")
+		return
+	}
+
+	messages, err := h.queries.ListChatMessages(c.Request.Context(), sessionID)
+	if err != nil {
+		response.InternalError(c, "Failed to list messages")
+		return
+	}
+
+	response.OK(c, messages)
+}
+
+// DeleteSession deletes a chat session.
+func (h *Handler) DeleteSession(c *gin.Context) {
+	userID := auth.GetUserID(c)
+	sessionIDStr := c.Param("id")
+
+	sessionID, err := uuid.Parse(sessionIDStr)
+	if err != nil {
+		response.BadRequest(c, "Invalid session ID")
+		return
+	}
+
+	if err := h.queries.DeleteChatSession(c.Request.Context(), store.DeleteChatSessionParams{
+		ID:     sessionID,
+		UserID: userID,
+	}); err != nil {
+		response.InternalError(c, "Failed to delete session")
+		return
+	}
+
+	response.OK(c, gin.H{"deleted": true})
 }

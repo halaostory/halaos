@@ -96,17 +96,14 @@ func (e *Executor) Chat(ctx context.Context, companyID, userID int64, agentSlug 
 	}
 
 	requestID := uuid.New().String()
-	sessionID := req.SessionID
-	if sessionID == "" {
-		sessionID = uuid.New().String()
-	}
-
 	start := time.Now()
 	redactedInput := redact.RedactText(req.Message)
 
-	messages := []provider.Message{
-		{Role: provider.RoleUser, Content: req.Message},
-	}
+	// Resolve or create session
+	sessionID, isNewSession := e.resolveSession(ctx, companyID, userID, agentCfg.Slug, req)
+
+	// Load history + append current user message
+	messages := e.loadSessionMessages(ctx, sessionID, req.Message)
 
 	toolDefs := e.tools.DefinitionsForAgent(agentCfg.Tools)
 
@@ -166,6 +163,9 @@ func (e *Executor) Chat(ctx context.Context, companyID, userID int64, agentSlug 
 
 	latency := time.Since(start)
 
+	// Save messages to session
+	e.saveSessionMessages(ctx, sessionID, req.Message, finalResponse, int32(tokenCost), isNewSession)
+
 	// Audit log
 	redactedOutput := redact.RedactText(finalResponse)
 	promptHash := fmt.Sprintf("%x", sha256.Sum256([]byte(redactedInput)))
@@ -201,17 +201,14 @@ func (e *Executor) StreamChat(ctx context.Context, companyID, userID int64, agen
 	}
 
 	requestID := uuid.New().String()
-	sessionID := req.SessionID
-	if sessionID == "" {
-		sessionID = uuid.New().String()
-	}
-
 	start := time.Now()
 	redactedInput := redact.RedactText(req.Message)
 
-	messages := []provider.Message{
-		{Role: provider.RoleUser, Content: req.Message},
-	}
+	// Resolve or create session
+	sessionID, isNewSession := e.resolveSession(ctx, companyID, userID, agentCfg.Slug, req)
+
+	// Load history + append current user message
+	messages := e.loadSessionMessages(ctx, sessionID, req.Message)
 
 	toolDefs := e.tools.DefinitionsForAgent(agentCfg.Tools)
 
@@ -296,6 +293,10 @@ func (e *Executor) StreamChat(ctx context.Context, companyID, userID int64, agen
 	}
 
 	latency := time.Since(start)
+
+	// Save messages to session
+	e.saveSessionMessages(ctx, sessionID, req.Message, finalText, int32(tokenCost), isNewSession)
+
 	redactedOutput := redact.RedactText(finalText)
 	promptHash := fmt.Sprintf("%x", sha256.Sum256([]byte(redactedInput)))
 
@@ -310,6 +311,109 @@ func (e *Executor) StreamChat(ctx context.Context, companyID, userID int64, agen
 		TokensUsed: tokenCost,
 		Agent:      agentCfg.Slug,
 	}, nil
+}
+
+// resolveSession returns an existing session ID or creates a new one.
+// Returns (sessionID string, isNewSession bool).
+func (e *Executor) resolveSession(ctx context.Context, companyID, userID int64, agentSlug string, req ChatRequest) (string, bool) {
+	if req.SessionID != "" {
+		// Validate the session exists and belongs to this user
+		sid, err := uuid.Parse(req.SessionID)
+		if err == nil {
+			_, err := e.queries.GetChatSession(ctx, store.GetChatSessionParams{
+				ID:        sid,
+				CompanyID: companyID,
+			})
+			if err == nil {
+				return req.SessionID, false
+			}
+		}
+		e.logger.Warn("invalid session_id, creating new session", "session_id", req.SessionID)
+	}
+
+	// Create new session
+	sess, err := e.queries.CreateChatSession(ctx, store.CreateChatSessionParams{
+		CompanyID: companyID,
+		UserID:    userID,
+		AgentSlug: agentSlug,
+		Title:     "",
+	})
+	if err != nil {
+		e.logger.Error("failed to create chat session", "error", err)
+		return uuid.New().String(), true
+	}
+	return sess.ID.String(), true
+}
+
+// loadSessionMessages loads history from DB and appends the current user message.
+func (e *Executor) loadSessionMessages(ctx context.Context, sessionID, currentMessage string) []provider.Message {
+	var messages []provider.Message
+
+	sid, err := uuid.Parse(sessionID)
+	if err == nil {
+		history, err := e.queries.ListChatMessages(ctx, sid)
+		if err == nil && len(history) > 0 {
+			for _, msg := range history {
+				messages = append(messages, provider.Message{
+					Role:    msg.Role,
+					Content: msg.Content,
+				})
+			}
+		}
+	}
+
+	// Append current user message
+	messages = append(messages, provider.Message{
+		Role:    provider.RoleUser,
+		Content: currentMessage,
+	})
+
+	return messages
+}
+
+// saveSessionMessages persists the user message and assistant response to the DB.
+func (e *Executor) saveSessionMessages(ctx context.Context, sessionID, userMsg, assistantMsg string, tokensUsed int32, isNewSession bool) {
+	sid, err := uuid.Parse(sessionID)
+	if err != nil {
+		return
+	}
+
+	// Save user message
+	_, err = e.queries.InsertChatMessage(ctx, store.InsertChatMessageParams{
+		SessionID:  sid,
+		Role:       "user",
+		Content:    userMsg,
+		TokensUsed: 0,
+	})
+	if err != nil {
+		e.logger.Error("failed to save user message", "error", err)
+	}
+
+	// Save assistant message
+	_, err = e.queries.InsertChatMessage(ctx, store.InsertChatMessageParams{
+		SessionID:  sid,
+		Role:       "assistant",
+		Content:    assistantMsg,
+		TokensUsed: tokensUsed,
+	})
+	if err != nil {
+		e.logger.Error("failed to save assistant message", "error", err)
+	}
+
+	// Update session title from first user message (first 30 chars)
+	if isNewSession && userMsg != "" {
+		title := userMsg
+		if len(title) > 30 {
+			title = title[:30] + "..."
+		}
+		_ = e.queries.UpdateChatSessionTitle(ctx, store.UpdateChatSessionTitleParams{
+			ID:    sid,
+			Title: title,
+		})
+	} else {
+		// Touch updated_at
+		_ = e.queries.TouchChatSession(ctx, sid)
+	}
 }
 
 // resolveAgent looks up the agent config, falling back to the default agent.
@@ -351,4 +455,3 @@ func (e *Executor) writeAuditLog(ctx context.Context, companyID, userID int64,
 		e.logger.Error("failed to write AI audit log", "error", err)
 	}
 }
-

@@ -15,6 +15,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/tonypk/aigonhr/internal/config"
+	"github.com/tonypk/aigonhr/internal/notification"
 	"github.com/tonypk/aigonhr/internal/payroll"
 	"github.com/tonypk/aigonhr/internal/store"
 )
@@ -157,6 +158,9 @@ func runPeriodicJobs(ctx context.Context, queries *store.Queries, _ *redis.Clien
 
 	// Mark expired documents (201 file)
 	_ = queries.MarkExpiredDocuments(ctx)
+
+	// Send proactive AI reminders (notifications)
+	sendProactiveReminders(ctx, queries, logger)
 }
 
 // grantFreeTokens grants monthly free tokens to eligible companies.
@@ -564,5 +568,236 @@ func isAnniversaryMilestone(years int) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+// sendProactiveReminders checks for important HR items and sends notifications.
+// Runs hourly but uses HasReminderBeenSent to avoid duplicate daily notifications.
+func sendProactiveReminders(ctx context.Context, queries *store.Queries, logger *slog.Logger) {
+	today := time.Now().Truncate(24 * time.Hour)
+
+	companies, err := queries.ListAllCompanies(ctx)
+	if err != nil {
+		logger.Error("reminders: failed to list companies", "error", err)
+		return
+	}
+
+	totalSent := 0
+	for _, company := range companies {
+		// Get admin users for this company
+		admins, err := queries.ListAdminUsersByCompany(ctx, company.ID)
+		if err != nil || len(admins) == 0 {
+			continue
+		}
+
+		// Get manager users (fallback to admins if no managers found)
+		managers, err := queries.ListManagerUsersByCompany(ctx, company.ID)
+		if err != nil || len(managers) == 0 {
+			// Convert admins to manager rows for type compatibility
+			managers = make([]store.ListManagerUsersByCompanyRow, len(admins))
+			for i, a := range admins {
+				managers[i] = store.ListManagerUsersByCompanyRow{ID: a.ID, CompanyID: a.CompanyID}
+			}
+		}
+
+		// 1. Contract milestones (notify admins)
+		milestones, err := queries.ListPendingMilestonesByCompany(ctx, company.ID)
+		if err == nil && len(milestones) > 0 {
+			for _, ms := range milestones {
+				entityType := "milestone"
+				for _, admin := range admins {
+					sent, _ := queries.HasReminderBeenSent(ctx, store.HasReminderBeenSentParams{
+						CompanyID:     company.ID,
+						ReminderType:  "contract_milestone",
+						EntityType:    &entityType,
+						Column4:       ms.ID,
+						ScheduledDate: today,
+					})
+					if sent {
+						continue
+					}
+
+					title := fmt.Sprintf("Contract Milestone: %s", ms.MilestoneType)
+					msg := fmt.Sprintf("Employee #%d has a %s milestone in %d days.",
+						ms.EmployeeID, ms.MilestoneType, ms.DaysRemaining)
+
+					notification.Notify(ctx, queries, logger, company.ID, admin.ID, title, msg, "ai_reminder", &entityType, &ms.ID)
+
+					_, _ = queries.InsertAIReminder(ctx, store.InsertAIReminderParams{
+						CompanyID:     company.ID,
+						UserID:        admin.ID,
+						ReminderType:  "contract_milestone",
+						EntityType:    &entityType,
+						EntityID:      &ms.ID,
+						ScheduledDate: today,
+					})
+					totalSent++
+				}
+			}
+		}
+
+		// 2. Expiring documents (notify admins)
+		docs, err := queries.List201ExpiringDocuments(ctx, company.ID)
+		if err == nil && len(docs) > 0 {
+			entityType := "document"
+			for _, admin := range admins {
+				sent, _ := queries.HasReminderBeenSent(ctx, store.HasReminderBeenSentParams{
+					CompanyID:     company.ID,
+					ReminderType:  "expiring_documents",
+					EntityType:    &entityType,
+					Column4:       0,
+					ScheduledDate: today,
+				})
+				if sent {
+					continue
+				}
+
+				title := "Expiring Documents Alert"
+				msg := fmt.Sprintf("%d employee document(s) are expiring soon. Please review and renew.", len(docs))
+
+				notification.Notify(ctx, queries, logger, company.ID, admin.ID, title, msg, "ai_reminder", &entityType, nil)
+
+				_, _ = queries.InsertAIReminder(ctx, store.InsertAIReminderParams{
+					CompanyID:     company.ID,
+					UserID:        admin.ID,
+					ReminderType:  "expiring_documents",
+					EntityType:    &entityType,
+					ScheduledDate: today,
+				})
+				totalSent++
+			}
+		}
+
+		// 3. Overdue tax filings (notify admins)
+		overdue, err := queries.ListOverdueFilings(ctx, company.ID)
+		if err == nil && len(overdue) > 0 {
+			entityType := "tax_filing"
+			for _, admin := range admins {
+				sent, _ := queries.HasReminderBeenSent(ctx, store.HasReminderBeenSentParams{
+					CompanyID:     company.ID,
+					ReminderType:  "overdue_filings",
+					EntityType:    &entityType,
+					Column4:       0,
+					ScheduledDate: today,
+				})
+				if sent {
+					continue
+				}
+
+				title := "Overdue Government Filings"
+				msg := fmt.Sprintf("%d government filing(s) are overdue. Please submit immediately.", len(overdue))
+
+				notification.Notify(ctx, queries, logger, company.ID, admin.ID, title, msg, "ai_reminder", &entityType, nil)
+
+				_, _ = queries.InsertAIReminder(ctx, store.InsertAIReminderParams{
+					CompanyID:     company.ID,
+					UserID:        admin.ID,
+					ReminderType:  "overdue_filings",
+					EntityType:    &entityType,
+					ScheduledDate: today,
+				})
+				totalSent++
+			}
+		}
+
+		// 4. Upcoming tax filings (notify admins)
+		upcoming, err := queries.ListUpcomingFilings(ctx, company.ID)
+		if err == nil && len(upcoming) > 0 {
+			entityType := "tax_filing"
+			for _, admin := range admins {
+				sent, _ := queries.HasReminderBeenSent(ctx, store.HasReminderBeenSentParams{
+					CompanyID:     company.ID,
+					ReminderType:  "upcoming_filings",
+					EntityType:    &entityType,
+					Column4:       0,
+					ScheduledDate: today,
+				})
+				if sent {
+					continue
+				}
+
+				title := "Upcoming Government Filings"
+				msg := fmt.Sprintf("%d government filing(s) are due soon. Please prepare and submit.", len(upcoming))
+
+				notification.Notify(ctx, queries, logger, company.ID, admin.ID, title, msg, "ai_reminder", &entityType, nil)
+
+				_, _ = queries.InsertAIReminder(ctx, store.InsertAIReminderParams{
+					CompanyID:     company.ID,
+					UserID:        admin.ID,
+					ReminderType:  "upcoming_filings",
+					EntityType:    &entityType,
+					ScheduledDate: today,
+				})
+				totalSent++
+			}
+		}
+
+		// 5. Pending leave approvals (notify managers)
+		pendingLeaves, err := queries.ListPendingLeaveApprovals(ctx, company.ID)
+		if err == nil && len(pendingLeaves) > 0 {
+			entityType := "leave_request"
+			for _, mgr := range managers {
+				sent, _ := queries.HasReminderBeenSent(ctx, store.HasReminderBeenSentParams{
+					CompanyID:     company.ID,
+					ReminderType:  "pending_approvals",
+					EntityType:    &entityType,
+					Column4:       0,
+					ScheduledDate: today,
+				})
+				if sent {
+					continue
+				}
+
+				title := "Pending Leave Approvals"
+				msg := fmt.Sprintf("%d leave request(s) are waiting for your approval.", len(pendingLeaves))
+
+				notification.Notify(ctx, queries, logger, company.ID, mgr.ID, title, msg, "ai_reminder", &entityType, nil)
+
+				_, _ = queries.InsertAIReminder(ctx, store.InsertAIReminderParams{
+					CompanyID:     company.ID,
+					UserID:        mgr.ID,
+					ReminderType:  "pending_approvals",
+					EntityType:    &entityType,
+					ScheduledDate: today,
+				})
+				totalSent++
+			}
+		}
+
+		// 6. Pending overtime approvals (notify managers)
+		pendingOT, err := queries.ListPendingOvertimeApprovals(ctx, company.ID)
+		if err == nil && len(pendingOT) > 0 {
+			entityType := "overtime_request"
+			for _, mgr := range managers {
+				sent, _ := queries.HasReminderBeenSent(ctx, store.HasReminderBeenSentParams{
+					CompanyID:     company.ID,
+					ReminderType:  "pending_ot_approvals",
+					EntityType:    &entityType,
+					Column4:       0,
+					ScheduledDate: today,
+				})
+				if sent {
+					continue
+				}
+
+				title := "Pending Overtime Approvals"
+				msg := fmt.Sprintf("%d overtime request(s) are waiting for your approval.", len(pendingOT))
+
+				notification.Notify(ctx, queries, logger, company.ID, mgr.ID, title, msg, "ai_reminder", &entityType, nil)
+
+				_, _ = queries.InsertAIReminder(ctx, store.InsertAIReminderParams{
+					CompanyID:     company.ID,
+					UserID:        mgr.ID,
+					ReminderType:  "pending_ot_approvals",
+					EntityType:    &entityType,
+					ScheduledDate: today,
+				})
+				totalSent++
+			}
+		}
+	}
+
+	if totalSent > 0 {
+		logger.Info("proactive reminders sent", "total", totalSent)
 	}
 }

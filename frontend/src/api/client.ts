@@ -853,6 +853,7 @@ export const aiAPI = {
             code?: number;
             tokens_used?: number;
             agent?: string;
+            session_id?: string;
           };
         } catch {
           // skip malformed chunks
@@ -874,6 +875,28 @@ export const aiAPI = {
       }>;
     }>("/v1/ai/agents"),
   getAgent: (slug: string) => get(`/v1/ai/agents/${slug}`),
+  listSessions: () =>
+    get<{
+      data: Array<{
+        id: string;
+        agent_slug: string;
+        title: string;
+        created_at: string;
+        updated_at: string;
+      }>;
+    }>("/v1/ai/sessions"),
+  getSessionMessages: (sessionId: string) =>
+    get<{
+      data: Array<{
+        id: number;
+        role: string;
+        content: string;
+        tokens_used: number;
+        created_at: string;
+      }>;
+    }>(`/v1/ai/sessions/${sessionId}/messages`),
+  deleteSession: (sessionId: string) =>
+    api(`/v1/ai/sessions/${sessionId}`, { method: "DELETE" }),
 };
 
 // Billing
