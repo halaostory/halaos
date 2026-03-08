@@ -2,7 +2,7 @@
 import { ref, h, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
-  NCard, NGrid, NGi, NStatistic, NSpace, NDataTable, NTag, NButton,
+  NCard, NGrid, NGi, NStatistic, NDataTable, NTag, NButton,
   NModal, NProgress, NSpin, useMessage,
   type DataTableColumns,
 } from 'naive-ui'
@@ -232,7 +232,7 @@ async function fetchBalance() {
 
 async function fetchDailyUsage() {
   try {
-    const res = await billingAPI.getDailyUsage()
+    const res = await billingAPI.dailyUsage()
     const data = extractData<DailyUsage[]>(res)
     dailyUsage.value = Array.isArray(data) ? data : []
   } catch {
@@ -242,7 +242,7 @@ async function fetchDailyUsage() {
 
 async function fetchAgentUsage() {
   try {
-    const res = await billingAPI.getAgentUsage()
+    const res = await billingAPI.usageByAgent()
     const data = extractData<AgentUsage[]>(res)
     agentUsage.value = Array.isArray(data) ? data : []
   } catch {
@@ -252,7 +252,7 @@ async function fetchAgentUsage() {
 
 async function fetchPackages() {
   try {
-    const res = await billingAPI.getPackages()
+    const res = await billingAPI.listPackages()
     const data = extractData<TokenPackage[]>(res)
     packages.value = Array.isArray(data) ? data.filter(p => p.is_active) : []
   } catch {
@@ -263,7 +263,7 @@ async function fetchPackages() {
 async function fetchTransactions() {
   try {
     const offset = (transactionPage.value - 1) * transactionLimit
-    const res = await billingAPI.getTransactions({
+    const res = await billingAPI.listTransactions({
       limit: String(transactionLimit),
       offset: String(offset),
     })
@@ -306,7 +306,7 @@ async function confirmPurchase() {
   if (!purchasingPackage.value) return
   purchaseLoading.value = true
   try {
-    await billingAPI.purchaseTokens({ package_id: purchasingPackage.value.id })
+    await billingAPI.purchaseTokens(purchasingPackage.value.id)
     message.success(t('billing.purchaseSuccess'))
     showPurchaseModal.value = false
     purchasingPackage.value = null
