@@ -468,3 +468,118 @@ func (h *Handler) GetTeamHealth(c *gin.Context) {
 
 	response.OK(c, result)
 }
+
+func (h *Handler) GetBurnoutRisk(c *gin.Context) {
+	companyID := auth.GetCompanyID(c)
+
+	rows, err := h.pool.Query(c.Request.Context(), `
+		SELECT ebs.employee_id, ebs.burnout_score, ebs.factors, ebs.calculated_at,
+		       e.employee_no, e.first_name, e.last_name,
+		       COALESCE(d.name, '') as department
+		FROM employee_burnout_scores ebs
+		JOIN employees e ON e.id = ebs.employee_id
+		LEFT JOIN departments d ON d.id = e.department_id
+		WHERE ebs.company_id = $1
+		ORDER BY ebs.burnout_score DESC
+		LIMIT 10
+	`, companyID)
+	if err != nil {
+		response.OK(c, []any{})
+		return
+	}
+	defer rows.Close()
+
+	type burnoutFactor struct {
+		Factor string `json:"factor"`
+		Points int    `json:"points"`
+		Detail string `json:"detail"`
+	}
+
+	var result []gin.H
+	for rows.Next() {
+		var employeeID int64
+		var burnoutScore int
+		var factorsJSON []byte
+		var calculatedAt time.Time
+		var employeeNo, firstName, lastName, department string
+
+		if err := rows.Scan(
+			&employeeID, &burnoutScore, &factorsJSON, &calculatedAt,
+			&employeeNo, &firstName, &lastName, &department,
+		); err != nil {
+			continue
+		}
+
+		var factors []burnoutFactor
+		_ = json.Unmarshal(factorsJSON, &factors)
+
+		result = append(result, gin.H{
+			"employee_id":   employeeID,
+			"employee_no":   employeeNo,
+			"name":          firstName + " " + lastName,
+			"department":    department,
+			"burnout_score": burnoutScore,
+			"factors":       factors,
+			"calculated_at": calculatedAt,
+		})
+	}
+
+	response.OK(c, result)
+}
+
+func (h *Handler) GetComplianceAlerts(c *gin.Context) {
+	companyID := auth.GetCompanyID(c)
+
+	rows, err := h.pool.Query(c.Request.Context(), `
+		SELECT id, alert_type, severity, title, description,
+		       entity_type, entity_id, due_date, days_remaining, calculated_at
+		FROM compliance_alerts
+		WHERE company_id = $1 AND is_resolved = false
+		ORDER BY
+			CASE severity
+				WHEN 'critical' THEN 1
+				WHEN 'high' THEN 2
+				WHEN 'medium' THEN 3
+				ELSE 4
+			END,
+			days_remaining ASC
+		LIMIT 20
+	`, companyID)
+	if err != nil {
+		response.OK(c, []any{})
+		return
+	}
+	defer rows.Close()
+
+	var result []gin.H
+	for rows.Next() {
+		var id, entityID int64
+		var daysRemaining int
+		var alertType, severity, title, description string
+		var entityType *string
+		var dueDate *time.Time
+		var calculatedAt time.Time
+
+		if err := rows.Scan(
+			&id, &alertType, &severity, &title, &description,
+			&entityType, &entityID, &dueDate, &daysRemaining, &calculatedAt,
+		); err != nil {
+			continue
+		}
+
+		result = append(result, gin.H{
+			"id":             id,
+			"alert_type":     alertType,
+			"severity":       severity,
+			"title":          title,
+			"description":    description,
+			"entity_type":    entityType,
+			"entity_id":      entityID,
+			"due_date":       dueDate,
+			"days_remaining": daysRemaining,
+			"calculated_at":  calculatedAt,
+		})
+	}
+
+	response.OK(c, result)
+}

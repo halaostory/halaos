@@ -16,6 +16,8 @@ func (h *Handler) RegisterRoutes(protected *gin.RouterGroup) {
 	protected.GET("/dashboard/suggestions", auth.ManagerOrAbove(), h.GetSuggestions)
 	protected.GET("/dashboard/flight-risk", auth.ManagerOrAbove(), h.GetFlightRisk)
 	protected.GET("/dashboard/team-health", auth.ManagerOrAbove(), h.GetTeamHealth)
+	protected.GET("/dashboard/burnout-risk", auth.ManagerOrAbove(), h.GetBurnoutRisk)
+	protected.GET("/dashboard/compliance-alerts", auth.ManagerOrAbove(), h.GetComplianceAlerts)
 
 	// AI briefing endpoint - accessible to all authenticated users.
 	// Manager/admin data is included conditionally based on role.

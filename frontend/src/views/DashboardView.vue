@@ -17,6 +17,8 @@ import { useThemeStore } from '../stores/theme'
 import DashboardBriefing from '../components/DashboardBriefing.vue'
 import FlightRiskWidget from '../components/FlightRiskWidget.vue'
 import TeamHealthWidget from '../components/TeamHealthWidget.vue'
+import BurnoutRiskWidget from '../components/BurnoutRiskWidget.vue'
+import ComplianceAlertsWidget from '../components/ComplianceAlertsWidget.vue'
 
 use([
   CanvasRenderer, BarChart, PieChart, LineChart,
@@ -445,6 +447,12 @@ async function handleClockOut() {
 
     <!-- Team Health Dashboard -->
     <TeamHealthWidget v-if="auth.isAdmin || auth.isManager" />
+
+    <!-- Burnout Risk Dashboard -->
+    <BurnoutRiskWidget v-if="auth.isAdmin || auth.isManager" />
+
+    <!-- Compliance Alerts Dashboard -->
+    <ComplianceAlertsWidget v-if="auth.isAdmin || auth.isManager" />
 
     <NGrid :cols="2" :x-gap="16" :y-gap="16" responsive="screen" style="margin-bottom: 24px;">
       <NGi v-if="deptData.length > 0">

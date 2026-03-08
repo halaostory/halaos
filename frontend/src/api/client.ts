@@ -379,6 +379,14 @@ export const teamHealthAPI = {
   getScores: () => get("/v1/dashboard/team-health"),
 };
 
+export const burnoutRiskAPI = {
+  getTopRisks: () => get("/v1/dashboard/burnout-risk"),
+};
+
+export const complianceAlertsAPI = {
+  getAlerts: () => get("/v1/dashboard/compliance-alerts"),
+};
+
 // Holidays
 export const holidayAPI = {
   list: (params?: Record<string, string>) => get("/v1/holidays", params),
