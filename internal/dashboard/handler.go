@@ -418,3 +418,53 @@ func (h *Handler) GetFlightRisk(c *gin.Context) {
 
 	response.OK(c, result)
 }
+
+func (h *Handler) GetTeamHealth(c *gin.Context) {
+	companyID := auth.GetCompanyID(c)
+
+	rows, err := h.pool.Query(c.Request.Context(), `
+		SELECT department_id, department_name, health_score, factors, calculated_at
+		FROM team_health_scores
+		WHERE company_id = $1
+		ORDER BY health_score ASC
+	`, companyID)
+	if err != nil {
+		response.OK(c, []any{})
+		return
+	}
+	defer rows.Close()
+
+	type healthFactor struct {
+		Name   string `json:"name"`
+		Score  int    `json:"score"`
+		Detail string `json:"detail"`
+	}
+
+	var result []gin.H
+	for rows.Next() {
+		var departmentID int64
+		var healthScore int
+		var factorsJSON []byte
+		var calculatedAt time.Time
+		var departmentName string
+
+		if err := rows.Scan(
+			&departmentID, &departmentName, &healthScore, &factorsJSON, &calculatedAt,
+		); err != nil {
+			continue
+		}
+
+		var factors []healthFactor
+		_ = json.Unmarshal(factorsJSON, &factors)
+
+		result = append(result, gin.H{
+			"department_id":   departmentID,
+			"department_name": departmentName,
+			"health_score":    healthScore,
+			"factors":         factors,
+			"calculated_at":   calculatedAt,
+		})
+	}
+
+	response.OK(c, result)
+}

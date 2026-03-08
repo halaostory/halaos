@@ -375,6 +375,10 @@ export const flightRiskAPI = {
   getTopRisks: () => get("/v1/dashboard/flight-risk"),
 };
 
+export const teamHealthAPI = {
+  getScores: () => get("/v1/dashboard/team-health"),
+};
+
 // Holidays
 export const holidayAPI = {
   list: (params?: Record<string, string>) => get("/v1/holidays", params),
@@ -972,4 +976,10 @@ export const billingAPI = {
 export const agentAPI = {
   list: () => aiAPI.listAgents(),
   get: (slug: string) => aiAPI.getAgent(slug),
+};
+
+// Form Prefill
+export const formPrefillAPI = {
+  get: (formType: string) =>
+    get("/v1/ai/form-prefill", { form_type: formType }),
 };

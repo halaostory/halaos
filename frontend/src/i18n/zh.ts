@@ -1514,6 +1514,18 @@ export default {
     factors: "风险因素",
     loadFailed: "加载离职风险数据失败",
   },
+  teamHealth: {
+    title: "团队健康",
+    noData: "暂无团队健康数据",
+    attendance: "考勤",
+    leaveBalance: "假期余额",
+    overtime: "加班",
+    turnover: "离职率",
+    grievances: "投诉",
+    healthy: "健康",
+    needsAttention: "需关注",
+    critical: "亮红灯",
+  },
   agentHub: {
     title: "AI Agent 中心",
     subtitle: "选择专业 AI 助手帮您处理 HR 任务",
@@ -1529,5 +1541,11 @@ export default {
     onboarding: "入职",
     performance: "绩效",
     training: "培训",
+  },
+  formPrefill: {
+    aiSuggested: "AI 推荐",
+    basedOnHistory: "基于你的历史记录",
+    applySuggestion: "应用",
+    dismiss: "忽略",
   },
 };

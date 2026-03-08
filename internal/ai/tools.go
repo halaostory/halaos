@@ -306,6 +306,25 @@ func (r *ToolRegistry) Definitions() []provider.ToolDefinition {
 				},
 			}),
 		},
+		// --- Onboarding Tools ---
+		{
+			Name:        "onboard_employee",
+			Description: "Create a new employee record from natural language input. Admin only. Extracts: first_name, last_name, department (name or ID), position (name or ID), hire_date (YYYY-MM-DD), basic_salary (monthly PHP). AI should parse the user's natural language and fill these fields. Always confirm all details with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"first_name":      map[string]any{"type": "string", "description": "Employee first name."},
+					"last_name":       map[string]any{"type": "string", "description": "Employee last name."},
+					"department":      map[string]any{"type": "string", "description": "Department name (will fuzzy-match to existing departments)."},
+					"position":        map[string]any{"type": "string", "description": "Job position/title (will fuzzy-match to existing positions)."},
+					"hire_date":       map[string]any{"type": "string", "description": "Hire/start date in YYYY-MM-DD format."},
+					"basic_salary":    map[string]any{"type": "number", "description": "Monthly basic salary in PHP."},
+					"employment_type": map[string]any{"type": "string", "description": "Employment type: regular, probationary, contractual. Default: probationary."},
+					"email":           map[string]any{"type": "string", "description": "Optional work email address."},
+				},
+				"required": []string{"first_name", "last_name", "department", "hire_date"},
+			}),
+		},
 		// --- Report Tools ---
 		{
 			Name:        "generate_attendance_report",
@@ -362,6 +381,8 @@ func (r *ToolRegistry) registerTools() {
 	r.tools["update_employee_profile"] = r.toolUpdateEmployeeProfile
 	// Reports
 	r.tools["generate_attendance_report"] = r.toolGenerateAttendanceReport
+	// Onboarding
+	r.tools["onboard_employee"] = r.toolOnboardEmployee
 }
 
 func (r *ToolRegistry) toolQueryLeaveBalance(ctx context.Context, companyID, userID int64, input map[string]any) (string, error) {
@@ -1487,6 +1508,133 @@ func numericToString(n pgtype.Numeric) string {
 		return "0"
 	}
 	return fmt.Sprintf("%.1f", f.Float64)
+}
+
+// --- Onboarding Tool Implementation ---
+
+func (r *ToolRegistry) toolOnboardEmployee(ctx context.Context, companyID, userID int64, input map[string]any) (string, error) {
+	// 1. Check admin/manager role
+	user, err := r.queries.GetUserByID(ctx, userID)
+	if err != nil {
+		return "", fmt.Errorf("user not found: %w", err)
+	}
+	if user.Role != "admin" && user.Role != "super_admin" && user.Role != "manager" {
+		return "", fmt.Errorf("only admins and managers can onboard employees")
+	}
+
+	// 2. Extract required fields
+	firstName, _ := input["first_name"].(string)
+	lastName, _ := input["last_name"].(string)
+	deptName, _ := input["department"].(string)
+	if firstName == "" || lastName == "" {
+		return "", fmt.Errorf("first_name and last_name are required")
+	}
+
+	hireDateStr, _ := input["hire_date"].(string)
+	if hireDateStr == "" {
+		hireDateStr = time.Now().Format("2006-01-02")
+	}
+	hireDate, err := time.Parse("2006-01-02", hireDateStr)
+	if err != nil {
+		return "", fmt.Errorf("invalid hire_date format, use YYYY-MM-DD")
+	}
+
+	// 3. Fuzzy-match department
+	var deptID int64
+	var matchedDeptName string
+	if deptName != "" {
+		err := r.pool.QueryRow(ctx, `
+			SELECT id, name FROM departments
+			WHERE company_id = $1 AND is_active = true AND name ILIKE '%' || $2 || '%'
+			ORDER BY CASE WHEN LOWER(name) = LOWER($2) THEN 0 ELSE 1 END, id
+			LIMIT 1
+		`, companyID, deptName).Scan(&deptID, &matchedDeptName)
+		if err != nil {
+			return "", fmt.Errorf("department '%s' not found. Please check available departments", deptName)
+		}
+	}
+
+	// 4. Fuzzy-match position (optional)
+	posName, _ := input["position"].(string)
+	var posID int64
+	var matchedPosName string
+	if posName != "" {
+		_ = r.pool.QueryRow(ctx, `
+			SELECT id, title FROM positions
+			WHERE company_id = $1 AND is_active = true AND title ILIKE '%' || $2 || '%'
+			ORDER BY CASE WHEN LOWER(title) = LOWER($2) THEN 0 ELSE 1 END, id
+			LIMIT 1
+		`, companyID, posName).Scan(&posID, &matchedPosName)
+	}
+
+	// 5. Generate employee number (EMP-XXXXX format)
+	var maxNum int
+	_ = r.pool.QueryRow(ctx, `
+		SELECT COALESCE(MAX(CAST(SUBSTRING(employee_no FROM 5) AS INTEGER)), 0)
+		FROM employees WHERE company_id = $1 AND employee_no LIKE 'EMP-%'
+	`, companyID).Scan(&maxNum)
+	employeeNo := fmt.Sprintf("EMP-%05d", maxNum+1)
+
+	empType := "probationary"
+	if t, ok := input["employment_type"].(string); ok && t != "" {
+		empType = t
+	}
+
+	email, _ := input["email"].(string)
+
+	// 6. Create employee via raw SQL
+	var empID int64
+	err = r.pool.QueryRow(ctx, `
+		INSERT INTO employees (
+			company_id, employee_no, first_name, last_name,
+			department_id, position_id, hire_date, employment_type,
+			status, email
+		) VALUES ($1, $2, $3, $4, $5, NULLIF($6::bigint, 0), $7, $8, 'active', NULLIF($9, ''))
+		RETURNING id
+	`, companyID, employeeNo, firstName, lastName,
+		deptID, posID, hireDate, empType, email).Scan(&empID)
+	if err != nil {
+		return "", fmt.Errorf("create employee: %w", err)
+	}
+
+	// 7. Create employment history record
+	_, _ = r.pool.Exec(ctx, `
+		INSERT INTO employment_history (
+			company_id, employee_id, action_type, effective_date,
+			to_department_id, to_position_id, remarks, created_by
+		) VALUES ($1, $2, 'hire', $3, NULLIF($4::bigint, 0), NULLIF($5::bigint, 0), $6, $7)
+	`, companyID, empID, hireDate, deptID, posID,
+		fmt.Sprintf("Onboarded via AI assistant by user %d", userID), userID)
+
+	// 8. Assign salary if provided
+	salaryMsg := ""
+	if salary, ok := input["basic_salary"].(float64); ok && salary > 0 {
+		_, salErr := r.pool.Exec(ctx, `
+			INSERT INTO employee_salaries (
+				company_id, employee_id, basic_salary, effective_from, remarks, created_by
+			) VALUES ($1, $2, $3, $4, 'Initial salary - onboarded via AI', $5)
+		`, companyID, empID, salary, hireDate, userID)
+		if salErr == nil {
+			salaryMsg = fmt.Sprintf(" with PHP %.2f/month salary", salary)
+		}
+	}
+
+	result := map[string]any{
+		"success":         true,
+		"employee_id":     empID,
+		"employee_no":     employeeNo,
+		"name":            firstName + " " + lastName,
+		"department":      matchedDeptName,
+		"hire_date":       hireDateStr,
+		"employment_type": empType,
+		"message": fmt.Sprintf("Employee %s (%s) has been successfully onboarded to %s department starting %s%s.",
+			firstName+" "+lastName, employeeNo, matchedDeptName, hireDateStr, salaryMsg),
+	}
+	if matchedPosName != "" {
+		result["position"] = matchedPosName
+	}
+
+	return toJSON(result)
 }
 
 func toJSON(v any) (string, error) {

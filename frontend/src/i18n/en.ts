@@ -1528,6 +1528,18 @@ export default {
     factors: "Risk Factors",
     loadFailed: "Failed to load flight risk data",
   },
+  teamHealth: {
+    title: "Team Health",
+    noData: "No team health data yet",
+    attendance: "Attendance",
+    leaveBalance: "Leave Balance",
+    overtime: "Overtime",
+    turnover: "Turnover",
+    grievances: "Grievances",
+    healthy: "Healthy",
+    needsAttention: "Needs Attention",
+    critical: "Critical",
+  },
   agentHub: {
     title: "AI Agent Hub",
     subtitle: "Choose a specialized AI agent to help you with your HR tasks",
@@ -1543,5 +1555,11 @@ export default {
     onboarding: "Onboarding",
     performance: "Performance",
     training: "Training",
+  },
+  formPrefill: {
+    aiSuggested: "AI Suggested",
+    basedOnHistory: "Based on your history",
+    applySuggestion: "Apply",
+    dismiss: "Dismiss",
   },
 };

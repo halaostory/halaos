@@ -269,6 +269,9 @@ func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.
 	// Calculate flight risk scores (weekly, Monday only)
 	calculateFlightRisk(ctx, queries, pool, logger)
 
+	// Calculate team health scores (weekly, Monday only)
+	calculateTeamHealth(ctx, queries, pool, logger)
+
 	// Send proactive AI reminders (notifications)
 	sendProactiveReminders(ctx, queries, logger)
 }

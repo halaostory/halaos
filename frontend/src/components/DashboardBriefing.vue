@@ -332,16 +332,15 @@ onMounted(async () => {
               style="margin-bottom: 8px;"
               closable
             >
-              <template #action>
-                <NButton
-                  v-if="alert.type === 'consecutive_absence'"
-                  text
-                  type="primary"
-                  @click="router.push('/attendance/records')"
-                >
-                  {{ t('common.view') }}
-                </NButton>
-              </template>
+              <NButton
+                v-if="alert.type === 'consecutive_absence'"
+                text
+                type="primary"
+                size="small"
+                @click="router.push('/attendance/records')"
+              >
+                {{ t('common.view') }}
+              </NButton>
             </NAlert>
           </div>
         </div>

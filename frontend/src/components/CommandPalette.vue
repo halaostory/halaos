@@ -37,6 +37,7 @@ interface CommandResult {
 
 const result = ref<CommandResult | null>(null)
 const recentCommands = ref<string[]>(loadRecent())
+const isMac = typeof window !== 'undefined' && window.navigator.platform.toUpperCase().includes('MAC')
 
 // Type icon/color mapping (no emojis, use text labels)
 const typeConfig: Record<string, { icon: string; tagType: 'success' | 'info' | 'warning' | 'default' }> = {
@@ -203,7 +204,7 @@ defineExpose({ open })
           </template>
           <template #suffix>
             <NTag size="small" :bordered="false" style="font-size: 11px; opacity: 0.6;">
-              {{ navigator.platform.toUpperCase().includes('MAC') ? 'Cmd+K' : 'Ctrl+K' }}
+              {{ isMac ? 'Cmd+K' : 'Ctrl+K' }}
             </NTag>
           </template>
         </NInput>

@@ -16,6 +16,7 @@ import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
 import DashboardBriefing from '../components/DashboardBriefing.vue'
 import FlightRiskWidget from '../components/FlightRiskWidget.vue'
+import TeamHealthWidget from '../components/TeamHealthWidget.vue'
 
 use([
   CanvasRenderer, BarChart, PieChart, LineChart,
@@ -441,6 +442,9 @@ async function handleClockOut() {
 
     <!-- Flight Risk Dashboard -->
     <FlightRiskWidget v-if="auth.isAdmin || auth.isManager" />
+
+    <!-- Team Health Dashboard -->
+    <TeamHealthWidget v-if="auth.isAdmin || auth.isManager" />
 
     <NGrid :cols="2" :x-gap="16" :y-gap="16" responsive="screen" style="margin-bottom: 24px;">
       <NGi v-if="deptData.length > 0">
