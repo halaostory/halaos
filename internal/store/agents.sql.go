@@ -48,7 +48,7 @@ func (q *Queries) CreateAgentTask(ctx context.Context, arg CreateAgentTaskParams
 }
 
 const getAgentBySlug = `-- name: GetAgentBySlug :one
-SELECT id, slug, name, description, system_prompt, tools, cost_multiplier, is_active, is_autonomous, max_rounds, max_tokens, icon, created_at, updated_at FROM agents WHERE slug = $1 AND is_active = true
+SELECT id, slug, name, description, system_prompt, tools, cost_multiplier, is_active, is_autonomous, max_rounds, max_tokens, icon, created_at, updated_at, model FROM agents WHERE slug = $1 AND is_active = true
 `
 
 func (q *Queries) GetAgentBySlug(ctx context.Context, slug string) (Agent, error) {
@@ -69,6 +69,7 @@ func (q *Queries) GetAgentBySlug(ctx context.Context, slug string) (Agent, error
 		&i.Icon,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Model,
 	)
 	return i, err
 }
@@ -120,7 +121,7 @@ func (q *Queries) ListAgentTasks(ctx context.Context, arg ListAgentTasksParams) 
 }
 
 const listAgents = `-- name: ListAgents :many
-SELECT id, slug, name, description, system_prompt, tools, cost_multiplier, is_active, is_autonomous, max_rounds, max_tokens, icon, created_at, updated_at FROM agents WHERE is_active = true ORDER BY slug
+SELECT id, slug, name, description, system_prompt, tools, cost_multiplier, is_active, is_autonomous, max_rounds, max_tokens, icon, created_at, updated_at, model FROM agents WHERE is_active = true ORDER BY slug
 `
 
 func (q *Queries) ListAgents(ctx context.Context) ([]Agent, error) {
@@ -147,6 +148,7 @@ func (q *Queries) ListAgents(ctx context.Context) ([]Agent, error) {
 			&i.Icon,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Model,
 		); err != nil {
 			return nil, err
 		}
@@ -186,4 +188,71 @@ func (q *Queries) UpdateAgentTask(ctx context.Context, arg UpdateAgentTaskParams
 		arg.ErrorMessage,
 	)
 	return err
+}
+
+const getPendingAgentTasks = `-- name: GetPendingAgentTasks :many
+SELECT id, company_id, user_id, agent_slug, status, input, output, tokens_consumed, error_message, started_at, completed_at, created_at FROM agent_tasks
+WHERE status = 'pending'
+ORDER BY created_at ASC
+LIMIT $1
+`
+
+func (q *Queries) GetPendingAgentTasks(ctx context.Context, limit int32) ([]AgentTask, error) {
+	rows, err := q.db.Query(ctx, getPendingAgentTasks, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AgentTask{}
+	for rows.Next() {
+		var i AgentTask
+		if err := rows.Scan(
+			&i.ID,
+			&i.CompanyID,
+			&i.UserID,
+			&i.AgentSlug,
+			&i.Status,
+			&i.Input,
+			&i.Output,
+			&i.TokensConsumed,
+			&i.ErrorMessage,
+			&i.StartedAt,
+			&i.CompletedAt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const claimAgentTask = `-- name: ClaimAgentTask :one
+UPDATE agent_tasks
+SET status = 'running', started_at = now()
+WHERE id = $1 AND status = 'pending'
+RETURNING id, company_id, user_id, agent_slug, status, input, output, tokens_consumed, error_message, started_at, completed_at, created_at
+`
+
+func (q *Queries) ClaimAgentTask(ctx context.Context, id int64) (AgentTask, error) {
+	row := q.db.QueryRow(ctx, claimAgentTask, id)
+	var i AgentTask
+	err := row.Scan(
+		&i.ID,
+		&i.CompanyID,
+		&i.UserID,
+		&i.AgentSlug,
+		&i.Status,
+		&i.Input,
+		&i.Output,
+		&i.TokensConsumed,
+		&i.ErrorMessage,
+		&i.StartedAt,
+		&i.CompletedAt,
+		&i.CreatedAt,
+	)
+	return i, err
 }

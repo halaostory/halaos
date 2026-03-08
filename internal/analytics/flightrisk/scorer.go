@@ -125,15 +125,24 @@ func (s *Scorer) ScoreAll(ctx context.Context, companyID int64) ([]EmployeeRisk,
 			}
 		}
 
-		// 3. Salary stagnation (+15)
+		// 3. Salary stagnation (up to +15)
 		if lastChange, ok := salaryStagnant[emp.id]; ok {
 			monthsSince := int(now.Sub(lastChange).Hours() / 24 / 30)
+			var salaryPoints int
+			switch {
+			case monthsSince >= 18:
+				salaryPoints = 15
+			case monthsSince >= 12:
+				salaryPoints = 10
+			default: // 6-12 months (loader already filters < 6)
+				salaryPoints = 5
+			}
 			factors = append(factors, RiskFactor{
 				Factor: "salary_stagnation",
-				Points: 15,
+				Points: salaryPoints,
 				Detail: fmt.Sprintf("No salary change in %d months (last: %s)", monthsSince, lastChange.Format("2006-01-02")),
 			})
-			score += 15
+			score += salaryPoints
 		}
 
 		// 4. High-risk tenure (+15)
@@ -149,15 +158,24 @@ func (s *Scorer) ScoreAll(ctx context.Context, companyID int64) ([]EmployeeRisk,
 			}
 		}
 
-		// 5. Department turnover (+15)
+		// 5. Department turnover (up to +15)
 		if emp.departmentID > 0 {
-			if sepCount, ok := deptTurnover[emp.departmentID]; ok && sepCount >= 3 {
+			if sepCount, ok := deptTurnover[emp.departmentID]; ok && sepCount >= 1 {
+				var deptPoints int
+				switch {
+				case sepCount >= 3:
+					deptPoints = 15
+				case sepCount == 2:
+					deptPoints = 10
+				default: // 1 departure
+					deptPoints = 5
+				}
 				factors = append(factors, RiskFactor{
 					Factor: "department_turnover",
-					Points: 15,
+					Points: deptPoints,
 					Detail: fmt.Sprintf("%d separations in department in last 6 months", sepCount),
 				})
-				score += 15
+				score += deptPoints
 			}
 		}
 
@@ -316,7 +334,7 @@ func (s *Scorer) loadSalaryStagnation(ctx context.Context, companyID int64) (map
 		FROM employee_salaries
 		WHERE company_id = $1
 		GROUP BY employee_id
-		HAVING MAX(effective_from) < NOW() - INTERVAL '18 months'
+		HAVING MAX(effective_from) < NOW() - INTERVAL '6 months'
 	`, companyID)
 	if err != nil {
 		return nil, err
@@ -344,7 +362,6 @@ func (s *Scorer) loadDepartmentTurnover(ctx context.Context, companyID int64) (m
 		  AND updated_at >= NOW() - INTERVAL '6 months'
 		  AND department_id IS NOT NULL
 		GROUP BY department_id
-		HAVING COUNT(*) >= 3
 	`, companyID)
 	if err != nil {
 		return nil, err

@@ -116,6 +116,7 @@ func (e *Executor) Chat(ctx context.Context, companyID, userID int64, agentSlug 
 			Messages:  messages,
 			Tools:     toolDefs,
 			MaxTokens: agentCfg.MaxTokens,
+			Model:     agentCfg.Model,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("llm generate: %w", err)
@@ -229,6 +230,7 @@ func (e *Executor) StreamChat(ctx context.Context, companyID, userID int64, agen
 				Messages:  messages,
 				Tools:     toolDefs,
 				MaxTokens: agentCfg.MaxTokens,
+				Model:     agentCfg.Model,
 			}, onChunk)
 			if err != nil {
 				return nil, fmt.Errorf("llm stream: %w", err)
@@ -241,6 +243,7 @@ func (e *Executor) StreamChat(ctx context.Context, companyID, userID int64, agen
 				Messages:  messages,
 				Tools:     toolDefs,
 				MaxTokens: agentCfg.MaxTokens,
+				Model:     agentCfg.Model,
 			})
 			if err != nil {
 				return nil, fmt.Errorf("llm generate round %d: %w", round, err)

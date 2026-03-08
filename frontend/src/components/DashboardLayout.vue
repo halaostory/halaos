@@ -153,6 +153,7 @@ const features: Record<string, boolean> = {
   'final-pay': false,
   '201file': false,
   milestones: false,
+  recruitment: true,
   geofences: false,
   'import-export': false,
   audit: false,
@@ -241,6 +242,7 @@ const menuOptions = computed<MenuOption[]>(() => {
     if (isEnabled('training')) items.push({ label: t('nav.training'), key: 'training', icon: renderIcon(SchoolOutline) })
     if (isEnabled('disciplinary')) items.push({ label: t('nav.disciplinary'), key: 'disciplinary', icon: renderIcon(AlertCircleOutline) })
     if (isEnabled('milestones')) items.push({ label: t('nav.milestones'), key: 'milestones', icon: renderIcon(RibbonOutline) })
+    if (isEnabled('recruitment')) items.push({ label: t('nav.recruitment'), key: 'recruitment', icon: renderIcon(PeopleOutline) })
     if (isEnabled('201file')) items.push({ label: t('nav.file201'), key: '201file', icon: renderIcon(FolderOpenOutline) })
   }
 

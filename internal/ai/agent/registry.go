@@ -24,6 +24,7 @@ type AgentConfig struct {
 	MaxRounds      int
 	MaxTokens      int
 	Icon           string
+	Model          string // LLM model override (empty = provider default)
 }
 
 // Registry loads agent definitions from the database and caches them in memory.
@@ -108,6 +109,7 @@ func (r *Registry) Refresh(ctx context.Context) error {
 			MaxRounds:      int(row.MaxRounds),
 			MaxTokens:      int(row.MaxTokens),
 			Icon:           row.Icon,
+			Model:          row.Model,
 		}
 	}
 

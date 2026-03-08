@@ -45,7 +45,7 @@ func main() {
 
 	logger.Info("worker started")
 
-	// Event outbox processor
+	// Event outbox processor + agent task executor
 	go func() {
 		ticker := time.NewTicker(5 * time.Second)
 		defer ticker.Stop()
@@ -55,6 +55,7 @@ func main() {
 				return
 			case <-ticker.C:
 				processEvents(ctx, queries, calculator, pool, logger)
+				processAgentTasks(ctx, cfg, queries, pool, logger)
 			}
 		}
 	}()

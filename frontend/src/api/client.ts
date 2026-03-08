@@ -808,6 +808,27 @@ export const milestoneAPI = {
     post(`/v1/milestones/${id}/action`, { notes }),
 };
 
+// Recruitment / ATS
+export const recruitmentAPI = {
+  listJobs: (params?: Record<string, string>) =>
+    get("/v1/recruitment/jobs", params),
+  getJob: (id: number) => get(`/v1/recruitment/jobs/${id}`),
+  createJob: (data: Record<string, unknown>) =>
+    post("/v1/recruitment/jobs", data),
+  updateJob: (id: number, data: Record<string, unknown>) =>
+    put(`/v1/recruitment/jobs/${id}`, data),
+  listApplicants: (params?: Record<string, string>) =>
+    get("/v1/recruitment/applicants", params),
+  getApplicant: (id: number) => get(`/v1/recruitment/applicants/${id}`),
+  createApplicant: (data: Record<string, unknown>) =>
+    post("/v1/recruitment/applicants", data),
+  updateApplicantStatus: (id: number, status: string, notes?: string) =>
+    put(`/v1/recruitment/applicants/${id}/status`, { status, notes }),
+  scheduleInterview: (applicantId: number, data: Record<string, unknown>) =>
+    post(`/v1/recruitment/applicants/${applicantId}/interviews`, data),
+  getStats: () => get("/v1/recruitment/stats"),
+};
+
 // AI Briefing
 export const briefingAPI = {
   get: () => get("/v1/ai/briefing"),

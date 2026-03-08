@@ -42,6 +42,7 @@ type Agent struct {
 	Icon           string         `json:"icon"`
 	CreatedAt      time.Time      `json:"created_at"`
 	UpdatedAt      time.Time      `json:"updated_at"`
+	Model          string         `json:"model"`
 }
 
 type AgentTask struct {

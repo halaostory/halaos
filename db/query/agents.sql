@@ -24,3 +24,15 @@ SELECT * FROM agent_tasks
 WHERE company_id = $1
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $3;
+
+-- name: GetPendingAgentTasks :many
+SELECT * FROM agent_tasks
+WHERE status = 'pending'
+ORDER BY created_at ASC
+LIMIT $1;
+
+-- name: ClaimAgentTask :one
+UPDATE agent_tasks
+SET status = 'running', started_at = now()
+WHERE id = $1 AND status = 'pending'
+RETURNING *;
