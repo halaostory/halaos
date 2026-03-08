@@ -141,8 +141,8 @@ func Load() *Config {
 		},
 		RateLimit: RateLimitConfig{
 			Enabled:     getEnvBool("RATE_LIMIT_ENABLED", true),
-			LoginRate:   int(getEnvInt64("RATE_LIMIT_LOGIN_RATE", 5)),
-			LoginWindow: getEnvDuration("RATE_LIMIT_LOGIN_WINDOW", 15*time.Minute),
+			LoginRate:   int(getEnvInt64("RATE_LIMIT_LOGIN_RATE", 10)),
+			LoginWindow: getEnvDuration("RATE_LIMIT_LOGIN_WINDOW", 5*time.Minute),
 			APIRate:     int(getEnvInt64("RATE_LIMIT_API_RATE", 100)),
 			APIWindow:   getEnvDuration("RATE_LIMIT_API_WINDOW", 1*time.Minute),
 		},
