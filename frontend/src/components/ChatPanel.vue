@@ -436,45 +436,17 @@ const chatPanelWidth = computed(() => showHistory.value ? '600px' : '400px')
 </template>
 
 <script lang="ts">
-// Simple markdown renderer (no external dep)
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-}
+import MarkdownIt from 'markdown-it'
+
+const md = new MarkdownIt({
+  html: false,
+  linkify: true,
+  breaks: true,
+})
 
 function renderMarkdown(text: string): string {
   if (!text) return ''
-  // Escape HTML entities first to prevent XSS
-  return escapeHtml(text)
-    // Code blocks
-    .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
-    // Inline code
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    // Bold
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    // Italic
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    // Headers
-    .replace(/^### (.+)$/gm, '<h4>$1</h4>')
-    .replace(/^## (.+)$/gm, '<h3>$1</h3>')
-    .replace(/^# (.+)$/gm, '<h2>$1</h2>')
-    // Lists
-    .replace(/^- (.+)$/gm, '<li>$1</li>')
-    .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
-    // Line breaks
-    .replace(/\n\n/g, '<br/><br/>')
-    .replace(/\n/g, '<br/>')
-    // Tables (basic)
-    .replace(/\|(.+)\|/g, (match) => {
-      const cells = match.split('|').filter(c => c.trim())
-      if (cells.every(c => c.trim().match(/^[-:]+$/))) return ''
-      const tag = 'td'
-      return '<tr>' + cells.map(c => `<${tag}>${c.trim()}</${tag}>`).join('') + '</tr>'
-    })
+  return md.render(text)
 }
 </script>
 
@@ -720,6 +692,34 @@ function renderMarkdown(text: string): string {
   border: 1px solid #ddd;
   padding: 4px 8px;
 }
+.chat-bubble :deep(p) {
+  margin: 0 0 6px;
+}
+.chat-bubble :deep(p:last-child) {
+  margin-bottom: 0;
+}
+.chat-bubble :deep(ul),
+.chat-bubble :deep(ol) {
+  margin: 4px 0;
+  padding-left: 20px;
+}
+.chat-bubble :deep(li) {
+  margin: 2px 0;
+}
+.chat-bubble :deep(li > p) {
+  margin: 0;
+}
+.chat-bubble :deep(blockquote) {
+  margin: 4px 0;
+  padding: 4px 10px;
+  border-left: 3px solid rgba(0, 0, 0, 0.15);
+  color: inherit;
+  opacity: 0.85;
+}
+.chat-bubble :deep(a) {
+  color: #18a058;
+  text-decoration: underline;
+}
 .chat-bubble :deep(strong) {
   font-weight: 600;
 }
@@ -728,6 +728,11 @@ function renderMarkdown(text: string): string {
 .chat-bubble :deep(h4) {
   margin: 6px 0 4px;
   font-weight: 600;
+}
+.chat-bubble :deep(hr) {
+  border: none;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  margin: 6px 0;
 }
 
 .chat-tools {

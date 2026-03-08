@@ -228,8 +228,8 @@ async function fetchBalance() {
       total_granted: data.total_granted || 0,
       total_consumed: data.total_consumed || 0,
     }
-  } catch {
-    // balance may not be available yet
+  } catch (e) {
+    console.error('Failed to load balance', e)
   }
 }
 

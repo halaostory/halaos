@@ -115,7 +115,7 @@ async function loadEmployees() {
     const res = await employeeAPI.list({ page: '1', limit: '500' }) as any
     const emps = res?.data?.data || res?.data || []
     employees.value = emps.map((e: any) => ({ label: `${e.first_name} ${e.last_name} (${e.employee_no})`, value: e.id }))
-  } catch { /* ok */ }
+  } catch (e) { console.error('Failed to load employees', e) }
 }
 
 async function loadIncidents() {

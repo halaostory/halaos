@@ -298,7 +298,7 @@ async function loadTimeline() {
     const res = await employeeAPI.getTimeline(id);
     const data = (res as { data: TimelineEvent[] }).data ?? res;
     timeline.value = Array.isArray(data) ? data : [];
-  } catch { timeline.value = []; }
+  } catch (e) { console.error('Failed to load timeline', e); timeline.value = []; }
 }
 
 // Documents
@@ -394,7 +394,7 @@ async function loadDocuments() {
     const res = await employeeAPI.listDocuments(id);
     const data = (res as any)?.data ?? res;
     documents.value = Array.isArray(data) ? data : [];
-  } catch { documents.value = []; }
+  } catch (e) { console.error('Failed to load documents', e); documents.value = []; }
 }
 
 async function handleUpload({ file }: { file: UploadFileInfo }) {

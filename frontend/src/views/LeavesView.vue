@@ -98,8 +98,8 @@ async function loadData() {
     const rawTypes = ((typeRes as { data: { id: number; name: string }[] }).data) || (Array.isArray(typeRes) ? typeRes : []) as { id: number; name: string }[]
     leaveTypesRaw.value = rawTypes as unknown as Record<string, unknown>[]
     leaveTypes.value = rawTypes.map(lt => ({ label: lt.name, value: lt.id }))
-  } catch {
-    // ok
+  } catch (e) {
+    console.error('Failed to load leave data', e)
   } finally {
     loading.value = false
   }
@@ -193,8 +193,8 @@ async function loadAllBalances() {
     const year = new Date().getFullYear()
     const res = await leaveAPI.listAllBalances({ year: String(year) })
     allBalances.value = ((res as { data: Record<string, unknown>[] }).data) || (Array.isArray(res) ? res : []) as Record<string, unknown>[]
-  } catch {
-    // ok
+  } catch (e) {
+    console.error('Failed to load all balances', e)
   } finally {
     allBalancesLoading.value = false
   }

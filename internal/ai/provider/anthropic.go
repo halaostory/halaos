@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -275,7 +276,9 @@ func (a *Anthropic) Stream(ctx context.Context, req Request, onChunk func(Stream
 		case "content_block_stop":
 			if currentToolCall != nil {
 				var input map[string]any
-				_ = json.Unmarshal([]byte(currentToolInput.String()), &input)
+				if err := json.Unmarshal([]byte(currentToolInput.String()), &input); err != nil {
+					slog.Warn("anthropic: failed to parse tool arguments", "tool", currentToolCall.Name, "error", err)
+				}
 				currentToolCall.Input = input
 				toolCalls = append(toolCalls, *currentToolCall)
 				onChunk(StreamChunk{Type: "tool_use", ToolCall: currentToolCall})

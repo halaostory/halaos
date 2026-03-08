@@ -125,14 +125,19 @@ func (h *Handler) RunPayroll(c *gin.Context) {
 		return
 	}
 
-	// Run payroll calculation synchronously (for now)
-	// TODO: Move to async worker for large payrolls
-	calculator := NewCalculator(h.queries, h.pool, h.logger)
-	go func() {
-		if err := calculator.RunPayroll(context.Background(), run.ID, companyID); err != nil {
-			h.logger.Error("payroll calculation failed", "run_id", run.ID, "error", err)
-		}
-	}()
+	// Dispatch to async worker via event outbox
+	_, err = h.queries.InsertHREvent(c.Request.Context(), store.InsertHREventParams{
+		CompanyID:     companyID,
+		AggregateType: "payroll_run",
+		AggregateID:   run.ID,
+		EventType:     "payroll.run_requested",
+		EventVersion:  1,
+		Payload:       json.RawMessage(fmt.Sprintf(`{"run_id":%d,"company_id":%d,"run_type":"%s"}`, run.ID, companyID, runType)),
+		ActorUserID:   &userID,
+	})
+	if err != nil {
+		h.logger.Error("failed to enqueue payroll event", "run_id", run.ID, "error", err)
+	}
 
 	response.Created(c, run)
 }

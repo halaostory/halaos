@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/tonypk/aigonhr/internal/auth"
+	"github.com/tonypk/aigonhr/internal/email"
 	"github.com/tonypk/aigonhr/internal/notification"
 	"github.com/tonypk/aigonhr/internal/store"
 	"github.com/tonypk/aigonhr/pkg/pagination"
@@ -21,10 +22,11 @@ type Handler struct {
 	queries *store.Queries
 	pool    *pgxpool.Pool
 	logger  *slog.Logger
+	email   *email.Sender
 }
 
-func NewHandler(queries *store.Queries, pool *pgxpool.Pool, logger *slog.Logger) *Handler {
-	return &Handler{queries: queries, pool: pool, logger: logger}
+func NewHandler(queries *store.Queries, pool *pgxpool.Pool, logger *slog.Logger, emailSender *email.Sender) *Handler {
+	return &Handler{queries: queries, pool: pool, logger: logger, email: emailSender}
 }
 
 func (h *Handler) ListTypes(c *gin.Context) {
@@ -246,6 +248,22 @@ func (h *Handler) ApproveRequest(c *gin.Context) {
 			"Leave Approved",
 			fmt.Sprintf("Your leave request (%s - %s) has been approved.", lr.StartDate.Format("Jan 2"), lr.EndDate.Format("Jan 2")),
 			"leave", &entityType, &lr.ID)
+
+		// Email notification
+		if reqEmp.Email != nil && *reqEmp.Email != "" {
+			empName := reqEmp.FirstName + " " + reqEmp.LastName
+			leaveTypeName := "Leave"
+			if types, err := h.queries.ListLeaveTypes(c.Request.Context(), companyID); err == nil {
+				for _, lt := range types {
+					if lt.ID == lr.LeaveTypeID {
+						leaveTypeName = lt.Name
+						break
+					}
+				}
+			}
+			subj, body := email.LeaveApprovedEmail(empName, leaveTypeName, lr.StartDate.Format("Jan 2, 2006"), lr.EndDate.Format("Jan 2, 2006"))
+			h.email.SendAsync(*reqEmp.Email, subj, body)
+		}
 	}
 
 	response.OK(c, lr)
@@ -290,6 +308,22 @@ func (h *Handler) RejectRequest(c *gin.Context) {
 		}
 		notification.Notify(c.Request.Context(), h.queries, h.logger, companyID, *reqEmp.UserID,
 			"Leave Rejected", msg, "leave", &entityType, &lr.ID)
+
+		// Email notification
+		if reqEmp.Email != nil && *reqEmp.Email != "" {
+			empName := reqEmp.FirstName + " " + reqEmp.LastName
+			leaveTypeName := "Leave"
+			if types, err := h.queries.ListLeaveTypes(c.Request.Context(), companyID); err == nil {
+				for _, lt := range types {
+					if lt.ID == lr.LeaveTypeID {
+						leaveTypeName = lt.Name
+						break
+					}
+				}
+			}
+			subj, body := email.LeaveRejectedEmail(empName, leaveTypeName, lr.StartDate.Format("Jan 2, 2006"), lr.EndDate.Format("Jan 2, 2006"), req.Reason)
+			h.email.SendAsync(*reqEmp.Email, subj, body)
+		}
 	}
 
 	response.OK(c, lr)

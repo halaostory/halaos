@@ -185,8 +185,8 @@ onMounted(async () => {
         clockedIn.value = true
       }
     }
-  } catch {
-    // ok if no data yet
+  } catch (e) {
+    console.error('Failed to load dashboard data', e)
   }
 
   // Load announcements
@@ -194,7 +194,7 @@ onMounted(async () => {
     const aRes = await announcementAPI.list()
     const aData = (aRes as any)?.data ?? aRes
     announcements.value = Array.isArray(aData) ? aData.slice(0, 3) : []
-  } catch { /* ignore */ }
+  } catch (e) { console.error('Failed to load announcements', e) }
 
   // Load suggestions
   if (auth.isAdmin || auth.isManager) {
@@ -202,7 +202,7 @@ onMounted(async () => {
       const sRes = await suggestionsAPI.list()
       const sData = (sRes as any)?.data ?? sRes
       suggestions.value = Array.isArray(sData) ? sData : []
-    } catch { /* ignore */ }
+    } catch (e) { console.error('Failed to load suggestions', e) }
   }
 
   // Load action items & expiring documents (admin/manager)
@@ -210,12 +210,12 @@ onMounted(async () => {
     dashboardAPI.getActionItems().then((res) => {
       const d = (res as any)?.data ?? res
       actionItems.value = Array.isArray(d) ? d : []
-    }).catch(() => {})
+    }).catch((e) => { console.error('Failed to load action items', e) })
 
     employeeAPI.listExpiringDocuments().then((res) => {
       const d = (res as any)?.data ?? res
       expiringDocs.value = Array.isArray(d) ? d : []
-    }).catch(() => {})
+    }).catch((e) => { console.error('Failed to load expiring documents', e) })
   }
 
   // Load celebrations
@@ -223,33 +223,33 @@ onMounted(async () => {
     const d = (res as any)?.data ?? res
     birthdays.value = d?.birthdays || []
     anniversaries.value = d?.anniversaries || []
-  }).catch(() => {})
+  }).catch((e) => { console.error('Failed to load celebrations', e) })
 
   // Load chart data in parallel
   const chartPromises = [
     dashboardAPI.getDepartmentDistribution().then((res) => {
       const d = (res as { data?: unknown[] }).data || res
       deptData.value = (d as { name: string; count: number }[]) || []
-    }).catch(() => {}),
+    }).catch((e) => { console.error('Failed to load department distribution', e) }),
     dashboardAPI.getLeaveSummary().then((res) => {
       const d = (res as { data?: unknown[] }).data || res
       leaveData.value = (d as { name: string; count: number }[]) || []
-    }).catch(() => {}),
+    }).catch((e) => { console.error('Failed to load leave summary', e) }),
   ]
   if (auth.isAdmin) {
     chartPromises.push(
       dashboardAPI.getPayrollTrend().then((res) => {
         const d = (res as { data?: unknown[] }).data || res
         payrollData.value = (d as { name: string; gross: number; deductions: number; net: number }[]) || []
-      }).catch(() => {}),
+      }).catch((e) => { console.error('Failed to load payroll trend', e) }),
       analyticsAPI.getHeadcountTrend().then((res) => {
         const d = (res as any)?.data ?? res
         headcountData.value = Array.isArray(d) ? d : []
-      }).catch(() => {}),
+      }).catch((e) => { console.error('Failed to load headcount trend', e) }),
       analyticsAPI.getTurnover().then((res) => {
         const d = (res as any)?.data ?? res
         turnoverData.value = Array.isArray(d) ? d : []
-      }).catch(() => {}),
+      }).catch((e) => { console.error('Failed to load turnover data', e) }),
     )
   }
   await Promise.allSettled(chartPromises)
@@ -260,8 +260,8 @@ async function refreshClockState() {
     const res = await attendanceAPI.getSummary() as { data?: Record<string, unknown> }
     const data = res.data || res as unknown as Record<string, unknown>
     clockedIn.value = !!(data.clock_in_at && !data.clock_out_at)
-  } catch {
-    // no attendance record
+  } catch (e) {
+    console.error('Failed to refresh clock state', e)
   }
 }
 

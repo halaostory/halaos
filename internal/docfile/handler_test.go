@@ -39,6 +39,7 @@ func TestListDocuments_DBError(t *testing.T) {
 	h := newTestHandler(mockDB)
 	mockDB.OnQuery(nil, fmt.Errorf("db error"))
 	c, w := testutil.NewGinContextWithQuery("GET", "/docfile/documents", nil, adminAuth)
+	c.Params = gin.Params{{Key: "id", Value: "1"}}
 	h.ListDocuments(c)
 	if w.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d: %s", w.Code, w.Body.String())

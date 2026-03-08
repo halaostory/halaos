@@ -102,7 +102,7 @@ async function loadEmployees() {
       return { label: `${name} (${e.employee_no})`, value: e.id }
     })
     employeeMap.value = newMap
-  } catch { /* ignore */ }
+  } catch (e) { console.error('Failed to load employees', e) }
 }
 
 function handleSearch() {

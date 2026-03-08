@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -290,12 +292,41 @@ func (h *Handler) UploadDocument(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 	userID := auth.GetUserID(c)
 
+	const maxEmpDocSize = 20 << 20 // 20MB
+
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
 		response.BadRequest(c, "File is required")
 		return
 	}
 	defer file.Close()
+
+	// Validate file size
+	if header.Size > maxEmpDocSize {
+		response.BadRequest(c, "File size exceeds 20MB limit")
+		return
+	}
+
+	// Detect actual MIME type from file content
+	buf := make([]byte, 512)
+	n, _ := file.Read(buf)
+	detectedMIME := http.DetectContentType(buf[:n])
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		response.InternalError(c, "Failed to process file")
+		return
+	}
+	allowedMIME := map[string]bool{
+		"application/pdf": true, "image/png": true, "image/jpeg": true, "image/webp": true,
+		"application/msword": true,
+		"application/vnd.openxmlformats-officedocument.wordprocessingml.document": true,
+		"application/vnd.ms-excel": true,
+		"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": true,
+		"text/plain": true, "text/csv": true,
+	}
+	if !allowedMIME[detectedMIME] {
+		response.BadRequest(c, "File type not allowed. Accepted: PDF, images, Office documents, CSV, text")
+		return
+	}
 
 	docType := c.PostForm("doc_type")
 	if docType == "" {
@@ -310,7 +341,9 @@ func (h *Handler) UploadDocument(c *gin.Context) {
 		return
 	}
 
-	fileName := fmt.Sprintf("%d_%s", time.Now().UnixMilli(), header.Filename)
+	// Use sanitized UUID filename to prevent path traversal
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+	fileName := fmt.Sprintf("%d_%s%s", time.Now().UnixMilli(), uuid.New().String()[:8], ext)
 	filePath := filepath.Join(uploadDir, fileName)
 
 	out, err := os.Create(filePath)
@@ -328,7 +361,7 @@ func (h *Handler) UploadDocument(c *gin.Context) {
 		return
 	}
 
-	mimeType := header.Header.Get("Content-Type")
+	mimeType := detectedMIME
 
 	var expiryDate pgtype.Date
 	if ed := c.PostForm("expiry_date"); ed != "" {

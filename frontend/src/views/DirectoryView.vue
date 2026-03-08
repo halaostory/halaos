@@ -143,7 +143,7 @@ async function fetchDepartments() {
       label: d.name,
       value: String(d.id),
     }))
-  } catch { /* ignore */ }
+  } catch (e) { console.error('Failed to load departments', e) }
 }
 
 function switchView(mode: 'list' | 'orgchart') {

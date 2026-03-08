@@ -209,7 +209,7 @@ async function loadGovForms() {
   try {
     const gf = await complianceAPI.listGovernmentForms();
     govFormsData.value = extract(gf);
-  } catch { /* ok */ }
+  } catch (e) { console.error('Failed to load government forms', e) }
 }
 
 onMounted(async () => {

@@ -9,6 +9,8 @@ import {
   NSpace,
   NDataTable,
   NSpin,
+  NButton,
+  NDatePicker,
   type DataTableColumns,
 } from "naive-ui";
 import VChart from "vue-echarts";
@@ -36,6 +38,16 @@ use([
 
 const { t } = useI18n();
 const loading = ref(true);
+
+// Date filter
+const now = new Date();
+const defaultStart = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+const dateRange = ref<[number, number]>([defaultStart.getTime(), now.getTime()]);
+
+function formatDate(ts: number): string {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 // Summary
 const summary = ref<Record<string, unknown>>({});
@@ -201,14 +213,18 @@ const deptCostColumns: DataTableColumns = [
   },
 ];
 
-onMounted(async () => {
+async function loadData() {
+  loading.value = true;
+  const startDate = formatDate(dateRange.value[0]);
+  const dateParams = { start_date: startDate };
+
   try {
     const [sumRes, hcRes, toRes, dcRes, apRes, etRes, luRes] = await Promise.allSettled([
       analyticsAPI.getSummary(),
-      analyticsAPI.getHeadcountTrend(),
-      analyticsAPI.getTurnover(),
+      analyticsAPI.getHeadcountTrend(dateParams),
+      analyticsAPI.getTurnover(dateParams),
       analyticsAPI.getDepartmentCosts(),
-      analyticsAPI.getAttendancePatterns(),
+      analyticsAPI.getAttendancePatterns(dateParams),
       analyticsAPI.getEmploymentTypes(),
       analyticsAPI.getLeaveUtilization(),
     ]);
@@ -229,13 +245,34 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
-});
+}
+
+function handleExport() {
+  analyticsAPI.exportCSV();
+}
+
+onMounted(loadData);
 </script>
 
 <template>
   <NSpin :show="loading">
     <NSpace vertical :size="16">
-      <h2>{{ t("analytics.title") }}</h2>
+      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px">
+        <h2 style="margin: 0">{{ t("analytics.title") }}</h2>
+        <NSpace :size="8" align="center">
+          <NDatePicker
+            v-model:value="dateRange"
+            type="daterange"
+            clearable
+            size="small"
+            style="width: 280px"
+            @update:value="loadData"
+          />
+          <NButton size="small" @click="handleExport">
+            CSV
+          </NButton>
+        </NSpace>
+      </div>
 
       <!-- Summary Cards -->
       <NGrid :cols="5" :x-gap="12" :y-gap="12" responsive="screen" :item-responsive="true">

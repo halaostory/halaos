@@ -113,8 +113,8 @@ async function loadEmployees() {
       { label: t('dtr.allEmployees'), value: 0 },
       ...emps.map((e: any) => ({ label: `${e.first_name} ${e.last_name} (${e.employee_no})`, value: e.id })),
     ]
-  } catch {
-    // ok
+  } catch (e) {
+    console.error('Failed to load employees', e)
   }
 }
 

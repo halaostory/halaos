@@ -135,8 +135,16 @@ func (h *Handler) ClockIn(c *gin.Context) {
 	gfEnabled, _ := h.queries.IsGeofenceEnabled(c.Request.Context(), companyID)
 	var gfResult geofenceResult
 	if gfEnabled && req.Lat != nil && req.Lng != nil {
-		lat, _ := strconv.ParseFloat(*req.Lat, 64)
-		lng, _ := strconv.ParseFloat(*req.Lng, 64)
+		lat, errLat := strconv.ParseFloat(*req.Lat, 64)
+		lng, errLng := strconv.ParseFloat(*req.Lng, 64)
+		if errLat != nil || errLng != nil {
+			response.BadRequest(c, "Invalid GPS coordinates")
+			return
+		}
+		if lat < -90 || lat > 90 || lng < -180 || lng > 180 {
+			response.BadRequest(c, "GPS coordinates out of range")
+			return
+		}
 		gfResult = h.checkGeofence(c, companyID, lat, lng, true)
 		if gfResult.status == "outside" {
 			response.Forbidden(c, "You are outside all allowed geofence areas. Please move to an approved location.")
@@ -217,8 +225,16 @@ func (h *Handler) ClockOut(c *gin.Context) {
 	gfEnabled, _ := h.queries.IsGeofenceEnabled(c.Request.Context(), companyID)
 	var gfResult geofenceResult
 	if gfEnabled && req.Lat != nil && req.Lng != nil {
-		lat, _ := strconv.ParseFloat(*req.Lat, 64)
-		lng, _ := strconv.ParseFloat(*req.Lng, 64)
+		lat, errLat := strconv.ParseFloat(*req.Lat, 64)
+		lng, errLng := strconv.ParseFloat(*req.Lng, 64)
+		if errLat != nil || errLng != nil {
+			response.BadRequest(c, "Invalid GPS coordinates")
+			return
+		}
+		if lat < -90 || lat > 90 || lng < -180 || lng > 180 {
+			response.BadRequest(c, "GPS coordinates out of range")
+			return
+		}
 		gfResult = h.checkGeofence(c, companyID, lat, lng, false)
 		if gfResult.status == "outside" {
 			response.Forbidden(c, "You are outside all allowed geofence areas. Please move to an approved location.")

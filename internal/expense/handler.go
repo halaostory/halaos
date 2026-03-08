@@ -68,7 +68,11 @@ func (h *Handler) CreateCategory(c *gin.Context) {
 
 func (h *Handler) UpdateCategory(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid category ID")
+		return
+	}
 	var req struct {
 		Name            string  `json:"name"`
 		Description     *string `json:"description"`
@@ -161,7 +165,11 @@ func (h *Handler) ListMy(c *gin.Context) {
 
 func (h *Handler) Get(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid expense claim ID")
+		return
+	}
 	claim, err := h.queries.GetExpenseClaim(c.Request.Context(), store.GetExpenseClaimParams{
 		ID:        id,
 		CompanyID: companyID,
@@ -239,7 +247,11 @@ func (h *Handler) Create(c *gin.Context) {
 func (h *Handler) Submit(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 	userID := auth.GetUserID(c)
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid expense claim ID")
+		return
+	}
 	emp, err := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
 		CompanyID: companyID,
 		UserID:    &userID,
@@ -263,7 +275,11 @@ func (h *Handler) Submit(c *gin.Context) {
 func (h *Handler) Approve(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 	userID := auth.GetUserID(c)
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid expense claim ID")
+		return
+	}
 	emp, err := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
 		CompanyID: companyID,
 		UserID:    &userID,
@@ -287,7 +303,11 @@ func (h *Handler) Approve(c *gin.Context) {
 func (h *Handler) Reject(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 	userID := auth.GetUserID(c)
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid expense claim ID")
+		return
+	}
 	var req struct {
 		Reason string `json:"reason"`
 	}
@@ -315,7 +335,11 @@ func (h *Handler) Reject(c *gin.Context) {
 
 func (h *Handler) MarkPaid(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid expense claim ID")
+		return
+	}
 	var req struct {
 		Reference string `json:"reference"`
 	}

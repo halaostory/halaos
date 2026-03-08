@@ -21,7 +21,7 @@ var adminAuth = testutil.AuthContext{
 func newTestHandler(mockDB *testutil.MockDBTX) *Handler {
 	queries := store.New(mockDB)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	return NewHandler(queries, nil, logger)
+	return NewHandler(queries, nil, logger, nil)
 }
 
 func TestListLoanTypes_Success(t *testing.T) {

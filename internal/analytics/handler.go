@@ -1,6 +1,8 @@
 package analytics
 
 import (
+	"encoding/csv"
+	"fmt"
 	"log/slog"
 	"strconv"
 	"time"
@@ -22,6 +24,16 @@ type Handler struct {
 
 func NewHandler(queries *store.Queries, pool *pgxpool.Pool, logger *slog.Logger) *Handler {
 	return &Handler{queries: queries, pool: pool, logger: logger}
+}
+
+// parseStartDate parses ?start_date=YYYY-MM-DD, defaulting to fallback.
+func parseStartDate(c *gin.Context, fallback time.Time) time.Time {
+	if s := c.Query("start_date"); s != "" {
+		if t, err := time.Parse("2006-01-02", s); err == nil {
+			return t
+		}
+	}
+	return fallback
 }
 
 // GetSummary returns high-level analytics summary
@@ -46,7 +58,7 @@ func (h *Handler) GetHeadcountTrend(c *gin.Context) {
 		}
 	}
 
-	since := time.Now().AddDate(0, -months, 0)
+	since := parseStartDate(c, time.Now().AddDate(0, -months, 0))
 	trend, err := h.queries.GetHeadcountTrend(c.Request.Context(), store.GetHeadcountTrendParams{
 		CompanyID: companyID,
 		HireDate:  since,
@@ -61,7 +73,7 @@ func (h *Handler) GetHeadcountTrend(c *gin.Context) {
 // GetTurnoverStats returns monthly turnover statistics
 func (h *Handler) GetTurnoverStats(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	since := time.Now().AddDate(-1, 0, 0)
+	since := parseStartDate(c, time.Now().AddDate(-1, 0, 0))
 
 	stats, err := h.queries.GetTurnoverStats(c.Request.Context(), store.GetTurnoverStatsParams{
 		CompanyID: companyID,
@@ -89,7 +101,7 @@ func (h *Handler) GetDepartmentCosts(c *gin.Context) {
 // GetAttendancePatterns returns attendance patterns by day of week
 func (h *Handler) GetAttendancePatterns(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	since := time.Now().AddDate(0, -3, 0) // last 3 months
+	since := parseStartDate(c, time.Now().AddDate(0, -3, 0))
 
 	patterns, err := h.queries.GetAttendancePatterns(c.Request.Context(), store.GetAttendancePatternsParams{
 		CompanyID: companyID,
@@ -124,8 +136,6 @@ func (h *Handler) GetLeaveUtilization(c *gin.Context) {
 		}
 	}
 
-	// Use Jan 1 of the target year as the start_date param
-	// (sqlc interprets EXTRACT(YEAR FROM lr.start_date) = $2 as start_date param)
 	yearStart := time.Date(int(year), 1, 1, 0, 0, 0, 0, time.UTC)
 	util, err := h.queries.GetLeaveUtilization(c.Request.Context(), store.GetLeaveUtilizationParams{
 		CompanyID: companyID,
@@ -136,4 +146,123 @@ func (h *Handler) GetLeaveUtilization(c *gin.Context) {
 		return
 	}
 	response.OK(c, util)
+}
+
+// ExportCSV exports analytics data as CSV
+func (h *Handler) ExportCSV(c *gin.Context) {
+	companyID := auth.GetCompanyID(c)
+	ctx := c.Request.Context()
+
+	filename := fmt.Sprintf("analytics_%s.csv", time.Now().Format("20060102"))
+	c.Header("Content-Type", "text/csv")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+
+	w := csv.NewWriter(c.Writer)
+	defer w.Flush()
+
+	// Summary
+	summary, err := h.queries.GetAnalyticsSummary(ctx, companyID)
+	if err == nil {
+		w.Write([]string{"=== HR Summary ==="})
+		w.Write([]string{"Metric", "Value"})
+		w.Write([]string{"Active Employees", fmt.Sprintf("%d", summary.ActiveEmployees)})
+		w.Write([]string{"Separated Employees", fmt.Sprintf("%d", summary.SeparatedEmployees)})
+		w.Write([]string{"New Hires This Month", fmt.Sprintf("%d", summary.NewHiresThisMonth)})
+		w.Write([]string{"Probationary", fmt.Sprintf("%d", summary.ProbationaryCount)})
+		w.Write([]string{"Avg Tenure (Years)", fmt.Sprintf("%v", summary.AvgTenureYears)})
+		w.Write([]string{""})
+	}
+
+	// Headcount trend
+	since := parseStartDate(c, time.Now().AddDate(-1, 0, 0))
+	trend, err := h.queries.GetHeadcountTrend(ctx, store.GetHeadcountTrendParams{
+		CompanyID: companyID,
+		HireDate:  since,
+	})
+	if err == nil && len(trend) > 0 {
+		w.Write([]string{"=== Headcount Trend ==="})
+		w.Write([]string{"Month", "Active", "Separated", "Total"})
+		for _, t := range trend {
+			w.Write([]string{
+				t.Month,
+				fmt.Sprintf("%d", t.ActiveCount),
+				fmt.Sprintf("%d", t.SeparatedCount),
+				fmt.Sprintf("%d", t.TotalCount),
+			})
+		}
+		w.Write([]string{""})
+	}
+
+	// Turnover
+	stats, err := h.queries.GetTurnoverStats(ctx, store.GetTurnoverStatsParams{
+		CompanyID: companyID,
+		UpdatedAt: since,
+	})
+	if err == nil && len(stats) > 0 {
+		w.Write([]string{"=== Turnover ==="})
+		w.Write([]string{"Month", "Separations", "Active Count"})
+		for _, s := range stats {
+			w.Write([]string{
+				s.Month,
+				fmt.Sprintf("%d", s.Separations),
+				fmt.Sprintf("%d", s.ActiveCount),
+			})
+		}
+		w.Write([]string{""})
+	}
+
+	// Department costs
+	costs, err := h.queries.GetDepartmentCostAnalysis(ctx, companyID)
+	if err == nil && len(costs) > 0 {
+		w.Write([]string{"=== Department Costs ==="})
+		w.Write([]string{"Department", "Employees", "Total Salary Cost"})
+		for _, dc := range costs {
+			costStr := fmt.Sprintf("%v", dc.TotalSalaryCost)
+			w.Write([]string{
+				fmt.Sprintf("%v", dc.DepartmentName),
+				fmt.Sprintf("%d", dc.EmployeeCount),
+				costStr,
+			})
+		}
+		w.Write([]string{""})
+	}
+
+	// Employment types
+	breakdown, err := h.queries.GetEmploymentTypeBreakdown(ctx, companyID)
+	if err == nil && len(breakdown) > 0 {
+		w.Write([]string{"=== Employment Types ==="})
+		w.Write([]string{"Type", "Count"})
+		for _, b := range breakdown {
+			w.Write([]string{
+				fmt.Sprintf("%v", b.EmploymentType),
+				fmt.Sprintf("%d", b.Count),
+			})
+		}
+		w.Write([]string{""})
+	}
+
+	// Leave utilization
+	year := int32(time.Now().Year())
+	if y := c.Query("year"); y != "" {
+		if v, err := strconv.ParseInt(y, 10, 32); err == nil {
+			year = int32(v)
+		}
+	}
+	yearStart := time.Date(int(year), 1, 1, 0, 0, 0, 0, time.UTC)
+	util, err := h.queries.GetLeaveUtilization(ctx, store.GetLeaveUtilizationParams{
+		CompanyID: companyID,
+		StartDate: yearStart,
+	})
+	if err == nil && len(util) > 0 {
+		w.Write([]string{fmt.Sprintf("=== Leave Utilization (%d) ===", year)})
+		w.Write([]string{"Leave Type", "Requests", "Days Used"})
+		for _, u := range util {
+			daysStr := fmt.Sprintf("%v", u.TotalDaysUsed)
+			w.Write([]string{
+				fmt.Sprintf("%v", u.LeaveType),
+				fmt.Sprintf("%d", u.TotalRequests),
+				daysStr,
+			})
+		}
+	}
 }

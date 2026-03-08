@@ -1,6 +1,7 @@
 package loan
 
 import (
+	"fmt"
 	"log/slog"
 	"math"
 	"strconv"
@@ -11,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/tonypk/aigonhr/internal/auth"
+	"github.com/tonypk/aigonhr/internal/email"
 	"github.com/tonypk/aigonhr/internal/notification"
 	"github.com/tonypk/aigonhr/internal/store"
 	"github.com/tonypk/aigonhr/pkg/response"
@@ -20,10 +22,11 @@ type Handler struct {
 	queries *store.Queries
 	pool    *pgxpool.Pool
 	logger  *slog.Logger
+	email   *email.Sender
 }
 
-func NewHandler(queries *store.Queries, pool *pgxpool.Pool, logger *slog.Logger) *Handler {
-	return &Handler{queries: queries, pool: pool, logger: logger}
+func NewHandler(queries *store.Queries, pool *pgxpool.Pool, logger *slog.Logger, emailSender *email.Sender) *Handler {
+	return &Handler{queries: queries, pool: pool, logger: logger, email: emailSender}
 }
 
 // --- Loan Types ---
@@ -272,6 +275,26 @@ func (h *Handler) ApproveLoan(c *gin.Context) {
 		notification.Notify(c.Request.Context(), h.queries, h.logger, companyID, *reqEmp.UserID,
 			"Loan Approved", "Your loan application has been approved.",
 			"loan", &entityType, &loan.ID)
+
+		// Email notification
+		if reqEmp.Email != nil && *reqEmp.Email != "" {
+			empName := reqEmp.FirstName + " " + reqEmp.LastName
+			loanTypeName := "Loan"
+			if types, err := h.queries.ListLoanTypes(c.Request.Context(), companyID); err == nil {
+				for _, lt := range types {
+					if lt.ID == loan.LoanTypeID {
+						loanTypeName = lt.Name
+						break
+					}
+				}
+			}
+			amount := "N/A"
+			if f, err := loan.PrincipalAmount.Float64Value(); err == nil && f.Valid {
+				amount = fmt.Sprintf("₱%.2f", f.Float64)
+			}
+			subj, body := email.LoanApprovedEmail(empName, loanTypeName, amount)
+			h.email.SendAsync(*reqEmp.Email, subj, body)
+		}
 	}
 
 	if activateErr == nil {

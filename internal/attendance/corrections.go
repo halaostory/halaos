@@ -131,7 +131,11 @@ func (h *Handler) ListMyCorrections(c *gin.Context) {
 }
 
 func (h *Handler) ApproveCorrection(c *gin.Context) {
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid correction ID")
+		return
+	}
 	companyID := auth.GetCompanyID(c)
 	userID := auth.GetUserID(c)
 
@@ -168,7 +172,11 @@ func (h *Handler) ApproveCorrection(c *gin.Context) {
 }
 
 func (h *Handler) RejectCorrection(c *gin.Context) {
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid correction ID")
+		return
+	}
 	companyID := auth.GetCompanyID(c)
 	userID := auth.GetUserID(c)
 

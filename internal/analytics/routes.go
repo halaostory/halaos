@@ -15,6 +15,8 @@ func (h *Handler) RegisterRoutes(protected *gin.RouterGroup) {
 	protected.GET("/analytics/employment-types", auth.AdminOnly(), h.GetEmploymentTypeBreakdown)
 	protected.GET("/analytics/leave-utilization", auth.AdminOnly(), h.GetLeaveUtilization)
 
+	protected.GET("/analytics/export/csv", auth.AdminOnly(), h.ExportCSV)
+
 	// Suggestions
 	protected.GET("/analytics/suggestions", auth.ManagerOrAbove(), h.GetSuggestions)
 }

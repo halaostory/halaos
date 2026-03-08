@@ -423,12 +423,28 @@ export const analyticsAPI = {
   getSummary: () => get("/v1/analytics/summary"),
   getHeadcountTrend: (params?: Record<string, string>) =>
     get("/v1/analytics/headcount-trend", params),
-  getTurnover: () => get("/v1/analytics/turnover"),
+  getTurnover: (params?: Record<string, string>) =>
+    get("/v1/analytics/turnover", params),
   getDepartmentCosts: () => get("/v1/analytics/department-costs"),
-  getAttendancePatterns: () => get("/v1/analytics/attendance-patterns"),
+  getAttendancePatterns: (params?: Record<string, string>) =>
+    get("/v1/analytics/attendance-patterns", params),
   getEmploymentTypes: () => get("/v1/analytics/employment-types"),
   getLeaveUtilization: (params?: Record<string, string>) =>
     get("/v1/analytics/leave-utilization", params),
+  exportCSV: async () => {
+    const baseURL = import.meta.env.VITE_API_URL || "/api";
+    const token = localStorage.getItem("token");
+    const resp = await fetch(`${baseURL}/v1/analytics/export/csv`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `analytics_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
 };
 
 // Self-Service

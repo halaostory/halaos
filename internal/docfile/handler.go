@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -18,6 +20,22 @@ import (
 	"github.com/tonypk/aigonhr/internal/store"
 	"github.com/tonypk/aigonhr/pkg/response"
 )
+
+const maxDocFileSize = 20 << 20 // 20MB
+
+// allowedDocMIME is the set of allowed MIME types for document uploads.
+var allowedDocMIME = map[string]bool{
+	"application/pdf":                                                   true,
+	"image/png":                                                         true,
+	"image/jpeg":                                                        true,
+	"image/webp":                                                        true,
+	"application/msword":                                                true,
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": true,
+	"application/vnd.ms-excel": true,
+	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": true,
+	"text/plain": true,
+	"text/csv":   true,
+}
 
 type Handler struct {
 	queries *store.Queries
@@ -68,7 +86,11 @@ func (h *Handler) CreateCategory(c *gin.Context) {
 
 func (h *Handler) ListDocuments(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	empID, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	empID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid employee ID")
+		return
+	}
 	categoryID, _ := strconv.ParseInt(c.Query("category_id"), 10, 64)
 	status := c.Query("status")
 	docs, err := h.queries.List201Documents(c.Request.Context(), store.List201DocumentsParams{
@@ -86,7 +108,11 @@ func (h *Handler) ListDocuments(c *gin.Context) {
 
 func (h *Handler) GetStats(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	empID, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	empID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid employee ID")
+		return
+	}
 	stats, err := h.queries.GetEmployee201Stats(c.Request.Context(), store.GetEmployee201StatsParams{
 		CompanyID:  companyID,
 		EmployeeID: empID,
@@ -101,7 +127,11 @@ func (h *Handler) GetStats(c *gin.Context) {
 func (h *Handler) Upload(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 	userID := auth.GetUserID(c)
-	empID, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	empID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid employee ID")
+		return
+	}
 
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
@@ -109,6 +139,26 @@ func (h *Handler) Upload(c *gin.Context) {
 		return
 	}
 	defer file.Close()
+
+	// Validate file size
+	if header.Size > maxDocFileSize {
+		response.BadRequest(c, "File size exceeds 20MB limit")
+		return
+	}
+
+	// Detect actual MIME type from file content (not from header)
+	buf := make([]byte, 512)
+	n, _ := file.Read(buf)
+	detectedMIME := http.DetectContentType(buf[:n])
+	// Reset reader position
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		response.InternalError(c, "Failed to process file")
+		return
+	}
+	if !allowedDocMIME[detectedMIME] {
+		response.BadRequest(c, "File type not allowed. Accepted: PDF, images, Office documents, CSV, text")
+		return
+	}
 
 	title := c.PostForm("title")
 	docType := c.PostForm("doc_type")
@@ -123,7 +173,9 @@ func (h *Handler) Upload(c *gin.Context) {
 		return
 	}
 
-	fileName := fmt.Sprintf("%d_%s", time.Now().UnixMilli(), header.Filename)
+	// Use sanitized UUID filename to prevent path traversal
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+	fileName := fmt.Sprintf("%d_%s%s", time.Now().UnixMilli(), uuid.New().String()[:8], ext)
 	filePath := filepath.Join(uploadDir, fileName)
 
 	out, err := os.Create(filePath)
@@ -139,7 +191,7 @@ func (h *Handler) Upload(c *gin.Context) {
 		return
 	}
 
-	mimeType := header.Header.Get("Content-Type")
+	mimeType := detectedMIME
 	var expiryDate pgtype.Date
 	if ed := c.PostForm("expiry_date"); ed != "" {
 		if parsed, err := time.Parse("2006-01-02", ed); err == nil {
@@ -288,7 +340,11 @@ func (h *Handler) ListExpiring(c *gin.Context) {
 
 func (h *Handler) GetCompliance(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	empID, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	empID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid employee ID")
+		return
+	}
 	checklist, err := h.queries.GetComplianceChecklist(c.Request.Context(), store.GetComplianceChecklistParams{
 		CompanyID:  companyID,
 		EmployeeID: empID,
@@ -344,7 +400,11 @@ func (h *Handler) CreateRequirement(c *gin.Context) {
 
 func (h *Handler) DeleteRequirement(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	reqID, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	reqID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid requirement ID")
+		return
+	}
 	if err := h.queries.DeleteDocumentRequirement(c.Request.Context(), store.DeleteDocumentRequirementParams{
 		ID: reqID, CompanyID: companyID,
 	}); err != nil {

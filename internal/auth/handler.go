@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -371,6 +373,8 @@ func (h *Handler) UpdateProfile(c *gin.Context) {
 
 // UploadAvatar handles profile photo upload.
 func (h *Handler) UploadAvatar(c *gin.Context) {
+	const maxAvatarSize = 5 << 20 // 5MB
+
 	file, header, err := c.Request.FormFile("avatar")
 	if err != nil {
 		response.BadRequest(c, "Avatar file is required")
@@ -378,9 +382,29 @@ func (h *Handler) UploadAvatar(c *gin.Context) {
 	}
 	defer file.Close()
 
-	ext := filepath.Ext(header.Filename)
-	allowed := map[string]bool{".png": true, ".jpg": true, ".jpeg": true, ".webp": true}
-	if !allowed[ext] {
+	// Validate file size
+	if header.Size > maxAvatarSize {
+		response.BadRequest(c, "Avatar file size exceeds 5MB limit")
+		return
+	}
+
+	// Detect actual MIME from content (not user-supplied header)
+	buf := make([]byte, 512)
+	n, _ := file.Read(buf)
+	detectedMIME := http.DetectContentType(buf[:n])
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		response.InternalError(c, "Failed to process file")
+		return
+	}
+	allowedMIME := map[string]bool{"image/png": true, "image/jpeg": true, "image/webp": true}
+	if !allowedMIME[detectedMIME] {
+		response.BadRequest(c, "Only PNG, JPG, and WebP images are allowed")
+		return
+	}
+
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+	allowedExt := map[string]bool{".png": true, ".jpg": true, ".jpeg": true, ".webp": true}
+	if !allowedExt[ext] {
 		response.BadRequest(c, "Only PNG, JPG, and WebP files are allowed")
 		return
 	}

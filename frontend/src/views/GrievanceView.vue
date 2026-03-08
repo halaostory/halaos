@@ -294,7 +294,7 @@ async function openComments(id: number) {
   try {
     const res = await grievanceAPI.listComments(id)
     comments.value = extractData(res)
-  } catch { comments.value = [] }
+  } catch (e) { console.error('Failed to load comments', e); comments.value = [] }
 }
 
 async function submitComment() {

@@ -65,7 +65,11 @@ func (h *Handler) CreateScheduleTemplate(c *gin.Context) {
 }
 
 func (h *Handler) GetScheduleTemplate(c *gin.Context) {
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid template ID")
+		return
+	}
 	companyID := auth.GetCompanyID(c)
 
 	tmpl, err := h.queries.GetScheduleTemplate(c.Request.Context(), store.GetScheduleTemplateParams{
@@ -80,7 +84,11 @@ func (h *Handler) GetScheduleTemplate(c *gin.Context) {
 }
 
 func (h *Handler) UpdateScheduleTemplate(c *gin.Context) {
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid template ID")
+		return
+	}
 	companyID := auth.GetCompanyID(c)
 
 	var req struct {
@@ -123,7 +131,11 @@ func (h *Handler) UpdateScheduleTemplate(c *gin.Context) {
 }
 
 func (h *Handler) DeleteScheduleTemplate(c *gin.Context) {
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid template ID")
+		return
+	}
 	companyID := auth.GetCompanyID(c)
 	_ = h.queries.DeleteScheduleTemplate(c.Request.Context(), store.DeleteScheduleTemplateParams{
 		ID: id, CompanyID: companyID,
@@ -132,7 +144,11 @@ func (h *Handler) DeleteScheduleTemplate(c *gin.Context) {
 }
 
 func (h *Handler) AssignTemplate(c *gin.Context) {
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid template ID")
+		return
+	}
 	companyID := auth.GetCompanyID(c)
 
 	var req struct {

@@ -50,7 +50,7 @@ async function checkGeofenceEnabled() {
     const res = await geofenceAPI.getSettings()
     const data = (res as any)?.data ?? res
     geofenceEnabled.value = data?.geofence_enabled ?? false
-  } catch { /* not admin or no settings */ }
+  } catch (e) { console.error('Failed to check geofence settings', e) }
 }
 
 function fmtTime(d: unknown): string {
@@ -71,8 +71,8 @@ onMounted(async () => {
     if (data.clock_in_at && !data.clock_out_at) {
       clockedIn.value = true
     }
-  } catch {
-    // no attendance today
+  } catch (e) {
+    console.error('Failed to load attendance summary', e)
   }
   checkGeofenceEnabled()
   loadMyCorrections()

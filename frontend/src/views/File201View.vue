@@ -214,7 +214,7 @@ async function fetchCategories() {
   try {
     const res = await file201API.listCategories()
     categories.value = extractData(res)
-  } catch { /* ignore */ }
+  } catch (e) { console.error('Failed to load categories', e) }
 }
 
 async function loadEmployeeDocs() {

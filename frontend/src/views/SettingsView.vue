@@ -73,8 +73,8 @@ onMounted(async () => {
     form.value.contact_email = company.contact_email || ''
     form.value.contact_phone = company.contact_phone || ''
     logoUrl.value = company.logo_url || null
-  } catch {
-    // ok
+  } catch (e) {
+    console.error('Failed to load company settings', e)
   }
 })
 

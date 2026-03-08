@@ -122,7 +122,7 @@ async function loadEmployees() {
     const res = await employeeAPI.list({ limit: '200', page: '1' })
     const data = ((res as { data: { id: number; first_name: string; last_name: string }[] }).data) || []
     employeeOptions.value = data.map(e => ({ label: `${e.first_name} ${e.last_name}`, value: e.id }))
-  } catch { /* ok */ }
+  } catch (e) { console.error('Failed to load employees', e) }
 }
 
 onMounted(() => { loadData(); loadEmployees() })

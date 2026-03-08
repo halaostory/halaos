@@ -216,7 +216,7 @@ async function loadEmployees() {
       label: `${e.employee_no} - ${e.last_name}, ${e.first_name}`,
       value: e.id,
     }))
-  } catch { /* ignore */ }
+  } catch (e) { console.error('Failed to load employees', e) }
 }
 
 function openAssign() {

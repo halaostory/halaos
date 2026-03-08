@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -336,7 +337,9 @@ func (o *OpenAI) Stream(ctx context.Context, req Request, onChunk func(StreamChu
 	for idx, tc := range toolCallMap {
 		if builder, ok := toolCallArgs[idx]; ok {
 			var input map[string]any
-			_ = json.Unmarshal([]byte(builder.String()), &input)
+			if err := json.Unmarshal([]byte(builder.String()), &input); err != nil {
+				slog.Warn("openai: failed to parse tool arguments", "tool", tc.Name, "error", err)
+			}
 			tc.Input = input
 		}
 		toolCalls = append(toolCalls, *tc)
@@ -379,7 +382,9 @@ func (o *OpenAI) parseResponse(resp *openaiResponse) *Response {
 	var toolCalls []ToolCall
 	for _, tc := range choice.Message.ToolCalls {
 		var input map[string]any
-		_ = json.Unmarshal([]byte(tc.Function.Arguments), &input)
+		if err := json.Unmarshal([]byte(tc.Function.Arguments), &input); err != nil {
+			slog.Warn("openai: failed to parse tool arguments", "tool", tc.Function.Name, "error", err)
+		}
 		toolCalls = append(toolCalls, ToolCall{
 			ID:    tc.ID,
 			Name:  tc.Function.Name,
