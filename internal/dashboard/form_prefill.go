@@ -75,8 +75,17 @@ func (h *Handler) GetFormPrefill(c *gin.Context) {
 	case "overtime":
 		result := h.prefillOvertime(ctx, companyID, emp.ID)
 		response.OK(c, result)
+	case "loan":
+		result := h.prefillLoan(ctx, companyID, emp.ID)
+		response.OK(c, result)
+	case "disciplinary":
+		result := h.prefillDisciplinary(ctx, companyID)
+		response.OK(c, result)
+	case "clearance":
+		result := h.prefillClearance(ctx, companyID)
+		response.OK(c, result)
 	default:
-		response.BadRequest(c, "Invalid form_type. Accepted values: leave, expense, overtime")
+		response.BadRequest(c, "Invalid form_type. Accepted values: leave, expense, overtime, loan, disciplinary, clearance")
 	}
 }
 
@@ -268,4 +277,100 @@ func nextWeekdayFrom(t time.Time, day time.Weekday) time.Time {
 func isSickType(name string) bool {
 	lower := strings.ToLower(name)
 	return strings.Contains(lower, "sick") || lower == "sl"
+}
+
+// loanPrefill is returned when form_type=loan.
+type loanPrefill struct {
+	LoanTypeID      int64   `json:"loan_type_id"`
+	LoanTypeName    string  `json:"loan_type_name"`
+	MaxAmount       float64 `json:"max_amount"`
+	SuggestedTerm   int     `json:"suggested_term"`
+	HasExistingLoan bool    `json:"has_existing_loan"`
+}
+
+// prefillLoan suggests loan form fields based on salary and existing loans.
+func (h *Handler) prefillLoan(ctx context.Context, companyID, employeeID int64) loanPrefill {
+	result := loanPrefill{
+		SuggestedTerm: 12,
+	}
+
+	// Get available loan types
+	var loanTypeID int64
+	var loanTypeName string
+	_ = h.pool.QueryRow(ctx, `
+		SELECT id, name FROM loan_types
+		WHERE company_id = $1 AND is_active = true
+		ORDER BY name LIMIT 1
+	`, companyID).Scan(&loanTypeID, &loanTypeName)
+	result.LoanTypeID = loanTypeID
+	result.LoanTypeName = loanTypeName
+
+	// Get current salary to compute max loan amount (3x monthly)
+	var basicSalary pgtype.Numeric
+	_ = h.pool.QueryRow(ctx, `
+		SELECT basic_salary FROM employee_salaries
+		WHERE company_id = $1 AND employee_id = $2
+		  AND effective_from <= NOW()
+		  AND (effective_to IS NULL OR effective_to >= NOW())
+		ORDER BY effective_from DESC LIMIT 1
+	`, companyID, employeeID).Scan(&basicSalary)
+
+	salaryFloat := numericutil.ToFloat(basicSalary)
+	maxAmount := salaryFloat * 3
+
+	// Check existing active loans
+	var existingBalance pgtype.Numeric
+	_ = h.pool.QueryRow(ctx, `
+		SELECT COALESCE(SUM(remaining_balance), 0) FROM loans
+		WHERE employee_id = $1 AND status IN ('active', 'approved')
+	`, employeeID).Scan(&existingBalance)
+
+	outstanding := numericutil.ToFloat(existingBalance)
+	result.MaxAmount = math.Max(0, maxAmount-outstanding)
+	result.HasExistingLoan = outstanding > 0
+
+	return result
+}
+
+// disciplinaryPrefill is returned when form_type=disciplinary.
+type disciplinaryPrefill struct {
+	SuggestedSeverity string   `json:"suggested_severity"`
+	Categories        []string `json:"categories"`
+	ActionTypes       []string `json:"action_types"`
+}
+
+// prefillDisciplinary provides disciplinary form defaults.
+func (h *Handler) prefillDisciplinary(_ context.Context, _ int64) disciplinaryPrefill {
+	return disciplinaryPrefill{
+		SuggestedSeverity: "minor",
+		Categories: []string{
+			"tardiness", "absence", "misconduct", "insubordination",
+			"policy_violation", "performance", "safety",
+		},
+		ActionTypes: []string{
+			"verbal_warning", "written_warning", "final_warning",
+			"suspension", "termination",
+		},
+	}
+}
+
+// clearancePrefill is returned when form_type=clearance.
+type clearancePrefill struct {
+	Departments    []string `json:"departments"`
+	TemplateItems  int      `json:"template_items"`
+}
+
+// prefillClearance provides clearance form defaults with template items.
+func (h *Handler) prefillClearance(ctx context.Context, companyID int64) clearancePrefill {
+	result := clearancePrefill{
+		Departments: []string{"IT", "HR", "Finance", "Admin", "Manager"},
+	}
+
+	// Count template items
+	templates, err := h.queries.ListClearanceTemplates(ctx, companyID)
+	if err == nil {
+		result.TemplateItems = len(templates)
+	}
+
+	return result
 }

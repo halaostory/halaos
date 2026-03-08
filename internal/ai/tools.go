@@ -392,6 +392,448 @@ func (r *ToolRegistry) Definitions() []provider.ToolDefinition {
 				"required": []string{"start_date", "end_date"},
 			}),
 		},
+		// --- Phase 1: Loan + Benefit + Encashment Tools ---
+		{
+			Name:        "query_my_loans",
+			Description: "Query the current user's loans with repayment progress. Returns loan type, principal, remaining balance, monthly amortization, and status.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "list_pending_loans",
+			Description: "List all pending loan applications awaiting approval. Manager/Admin only.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "approve_loan",
+			Description: "Approve a pending loan application. Manager/Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"loan_id": map[string]any{"type": "integer", "description": "Loan ID to approve (from list_pending_loans)."},
+				},
+				"required": []string{"loan_id"},
+			}),
+		},
+		{
+			Name:        "reject_loan",
+			Description: "Reject/cancel a pending loan application. Manager/Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"loan_id": map[string]any{"type": "integer", "description": "Loan ID to reject (from list_pending_loans)."},
+				},
+				"required": []string{"loan_id"},
+			}),
+		},
+		{
+			Name:        "query_loan_eligibility",
+			Description: "Check loan eligibility based on salary and existing loans. Returns max loan amount (3x monthly salary minus outstanding balances) and available loan types.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"employee_id": map[string]any{"type": "integer", "description": "Optional employee ID. Omit to check current user."},
+				},
+			}),
+		},
+		{
+			Name:        "query_my_benefits",
+			Description: "Query the current user's benefit enrollments and pending claims. Returns plan names, categories, contribution shares, and claim status.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "list_pending_benefit_claims",
+			Description: "List all pending benefit claims awaiting approval. Admin only.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "approve_benefit_claim",
+			Description: "Approve a pending benefit claim. Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"claim_id": map[string]any{"type": "integer", "description": "Benefit claim ID to approve."},
+				},
+				"required": []string{"claim_id"},
+			}),
+		},
+		{
+			Name:        "reject_benefit_claim",
+			Description: "Reject a pending benefit claim. Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"claim_id": map[string]any{"type": "integer", "description": "Benefit claim ID to reject."},
+					"reason":   map[string]any{"type": "string", "description": "Reason for rejection."},
+				},
+				"required": []string{"claim_id"},
+			}),
+		},
+		{
+			Name:        "query_encashment_eligibility",
+			Description: "Query convertible leave balances and estimate encashment value. Returns leave types with remaining days and estimated PHP value based on daily rate.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "approve_leave_encashment",
+			Description: "Approve a pending leave encashment request. Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"encashment_id": map[string]any{"type": "integer", "description": "Leave encashment ID to approve."},
+				},
+				"required": []string{"encashment_id"},
+			}),
+		},
+		// --- Phase 2: Performance + Training Tools ---
+		{
+			Name:        "list_review_cycles",
+			Description: "List performance review cycles for the company. Returns cycle name, type, period, deadline, and status.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "get_my_performance_review",
+			Description: "Get the current user's performance reviews. Returns review status, self-rating, final rating, and cycle information.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "create_goal",
+			Description: "Create a performance goal from natural language. AI parses the input to extract title, category, weight, target value, and due date. Always confirm details with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"title":           map[string]any{"type": "string", "description": "Goal title."},
+					"description":     map[string]any{"type": "string", "description": "Detailed goal description."},
+					"category":        map[string]any{"type": "string", "description": "Category: individual, team, company. Default: individual."},
+					"weight":          map[string]any{"type": "number", "description": "Goal weight percentage (0-100)."},
+					"target_value":    map[string]any{"type": "string", "description": "Target value to achieve (e.g., '90%', '100 units')."},
+					"due_date":        map[string]any{"type": "string", "description": "Due date in YYYY-MM-DD format."},
+					"review_cycle_id": map[string]any{"type": "integer", "description": "Optional review cycle to link the goal to."},
+				},
+				"required": []string{"title"},
+			}),
+		},
+		{
+			Name:        "submit_self_review",
+			Description: "Submit a self-assessment for a performance review. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"review_id": map[string]any{"type": "integer", "description": "Performance review ID (from get_my_performance_review)."},
+					"rating":    map[string]any{"type": "integer", "description": "Self-rating 1-5 (1=Unsatisfactory, 3=Meets, 5=Outstanding)."},
+					"comments":  map[string]any{"type": "string", "description": "Self-assessment comments."},
+				},
+				"required": []string{"review_id", "rating"},
+			}),
+		},
+		{
+			Name:        "submit_manager_review",
+			Description: "Submit a manager review for an employee's performance. Manager/Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"review_id":      map[string]any{"type": "integer", "description": "Performance review ID."},
+					"rating":         map[string]any{"type": "integer", "description": "Manager rating 1-5."},
+					"comments":       map[string]any{"type": "string", "description": "Manager comments."},
+					"strengths":      map[string]any{"type": "string", "description": "Employee strengths."},
+					"improvements":   map[string]any{"type": "string", "description": "Areas for improvement."},
+					"final_rating":   map[string]any{"type": "integer", "description": "Final overall rating 1-5. Defaults to manager rating if omitted."},
+					"final_comments": map[string]any{"type": "string", "description": "Final review comments."},
+				},
+				"required": []string{"review_id", "rating"},
+			}),
+		},
+		{
+			Name:        "list_trainings",
+			Description: "List available training programs. Returns title, type, trainer, dates, status, and participant count.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "list_my_certifications",
+			Description: "Query the current user's professional certifications and flag expiring ones.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "enroll_in_training",
+			Description: "Enroll the current user in a training program. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"training_id": map[string]any{"type": "integer", "description": "Training ID to enroll in (from list_trainings)."},
+				},
+				"required": []string{"training_id"},
+			}),
+		},
+		{
+			Name:        "mark_training_complete",
+			Description: "Mark a training participant as completed. Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"participant_id": map[string]any{"type": "integer", "description": "Participant ID."},
+					"training_id":    map[string]any{"type": "integer", "description": "Training ID."},
+					"score":          map[string]any{"type": "integer", "description": "Optional score 0-100."},
+					"feedback":       map[string]any{"type": "string", "description": "Optional feedback."},
+				},
+				"required": []string{"participant_id", "training_id"},
+			}),
+		},
+		// --- Phase 3: Disciplinary + Grievance Tools ---
+		{
+			Name:        "query_employee_disciplinary",
+			Description: "Query an employee's disciplinary history including incident counts and action breakdown (warnings, suspensions). Manager/Admin only. Use this before creating actions to reference progressive discipline history.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"employee_id": map[string]any{"type": "integer", "description": "Employee ID to query."},
+				},
+				"required": []string{"employee_id"},
+			}),
+		},
+		{
+			Name:        "create_disciplinary_incident",
+			Description: "Create a disciplinary incident record from a verbal or written description. Admin/Manager only. AI extracts structured data: category, severity, date, witnesses. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"employee_id":    map[string]any{"type": "integer", "description": "Employee ID involved."},
+					"category":       map[string]any{"type": "string", "description": "Category: tardiness, absence, misconduct, insubordination, policy_violation, performance, safety."},
+					"severity":       map[string]any{"type": "string", "description": "Severity: minor, moderate, major, grave. Default: minor."},
+					"description":    map[string]any{"type": "string", "description": "Description of the incident."},
+					"incident_date":  map[string]any{"type": "string", "description": "Incident date in YYYY-MM-DD format. Default: today."},
+					"witnesses":      map[string]any{"type": "string", "description": "Names of witnesses, if any."},
+					"evidence_notes": map[string]any{"type": "string", "description": "Notes about evidence collected."},
+				},
+				"required": []string{"employee_id", "category", "description"},
+			}),
+		},
+		{
+			Name:        "create_disciplinary_action",
+			Description: "Create a disciplinary action (warning, suspension, etc.). Admin/Manager only. AI should suggest action level based on disciplinary history. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"employee_id":     map[string]any{"type": "integer", "description": "Employee ID."},
+					"action_type":     map[string]any{"type": "string", "description": "Action: verbal_warning, written_warning, final_warning, suspension, termination."},
+					"description":     map[string]any{"type": "string", "description": "Action description."},
+					"incident_id":     map[string]any{"type": "integer", "description": "Optional linked incident ID."},
+					"suspension_days": map[string]any{"type": "integer", "description": "Number of suspension days (if suspension)."},
+					"effective_date":  map[string]any{"type": "string", "description": "Effective date in YYYY-MM-DD format."},
+					"end_date":        map[string]any{"type": "string", "description": "End date in YYYY-MM-DD format (for suspension)."},
+					"notes":           map[string]any{"type": "string", "description": "Additional notes."},
+				},
+				"required": []string{"employee_id", "action_type", "description"},
+			}),
+		},
+		{
+			Name:        "list_recent_incidents",
+			Description: "List recent disciplinary incidents across the company. Admin/Manager only.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "query_grievance_summary",
+			Description: "Get company-wide grievance/complaint statistics: open, under review, in mediation, resolved, and critical cases. Admin/Manager only.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "get_grievance_detail",
+			Description: "Get detailed information about a specific grievance case including comments thread. Admin/Manager only.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"grievance_id": map[string]any{"type": "integer", "description": "Grievance case ID."},
+				},
+				"required": []string{"grievance_id"},
+			}),
+		},
+		{
+			Name:        "resolve_grievance",
+			Description: "Resolve a grievance case with a resolution description. Admin only. AI can help draft the resolution. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"grievance_id": map[string]any{"type": "integer", "description": "Grievance case ID."},
+					"resolution":   map[string]any{"type": "string", "description": "Resolution description."},
+				},
+				"required": []string{"grievance_id", "resolution"},
+			}),
+		},
+		// --- Phase 4: Analytics + Tax Tools ---
+		{
+			Name:        "query_company_analytics",
+			Description: "Get comprehensive company analytics: headcount, new hires, tenure, department costs. Use this when users ask about overall company status.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "query_headcount_trend",
+			Description: "Get 12-month headcount trend showing active and separated employee counts per month.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "query_leave_utilization",
+			Description: "Get leave utilization analysis for the current year. Shows total requests and days used by leave type.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "query_tax_filing_status",
+			Description: "Get tax filing status for the current year: filed/overdue/upcoming counts, penalties, and detailed overdue items. Admin only.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "create_tax_filing_record",
+			Description: "Create a tax filing record (BIR, SSS, PhilHealth, PagIBIG). Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"filing_type":    map[string]any{"type": "string", "description": "Type: bir_1601c, sss_r3, philhealth_rf1, pagibig_ml1, bir_2316, bir_0619e."},
+					"period_type":    map[string]any{"type": "string", "description": "Period: monthly, quarterly, annual. Default: monthly."},
+					"period_year":    map[string]any{"type": "integer", "description": "Year. Default: current year."},
+					"period_month":   map[string]any{"type": "integer", "description": "Month (1-12) for monthly filings."},
+					"period_quarter": map[string]any{"type": "integer", "description": "Quarter (1-4) for quarterly filings."},
+					"due_date":       map[string]any{"type": "string", "description": "Due date in YYYY-MM-DD format."},
+					"amount":         map[string]any{"type": "number", "description": "Filing amount in PHP."},
+				},
+				"required": []string{"filing_type", "due_date"},
+			}),
+		},
+		// --- Phase 5: Clearance + Final Pay Tools ---
+		{
+			Name:        "get_clearance_status",
+			Description: "Get clearance/offboarding progress for an employee: items completed, pending departments, and overall status. Admin/Manager only.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"clearance_id": map[string]any{"type": "integer", "description": "Clearance request ID."},
+				},
+				"required": []string{"clearance_id"},
+			}),
+		},
+		{
+			Name:        "update_clearance_item",
+			Description: "Mark a clearance item as cleared or flagged. Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"item_id": map[string]any{"type": "integer", "description": "Clearance item ID."},
+					"status":  map[string]any{"type": "string", "description": "New status: cleared, flagged. Default: cleared."},
+					"remarks": map[string]any{"type": "string", "description": "Optional remarks."},
+				},
+				"required": []string{"item_id"},
+			}),
+		},
+		{
+			Name:        "query_final_pay_components",
+			Description: "Calculate final pay components for a separating employee: unpaid salary, leave encashment, pro-rated 13th month, minus outstanding loans. Admin only.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"employee_id":     map[string]any{"type": "integer", "description": "Employee ID."},
+					"separation_date": map[string]any{"type": "string", "description": "Separation date in YYYY-MM-DD. Default: today."},
+					"unpaid_days":     map[string]any{"type": "number", "description": "Working days since last payroll. Default: 15."},
+				},
+				"required": []string{"employee_id"},
+			}),
+		},
+		{
+			Name:        "create_final_pay",
+			Description: "Create a final pay payroll record for a separated employee. Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"employee_id": map[string]any{"type": "integer", "description": "Employee ID."},
+					"amount":      map[string]any{"type": "number", "description": "Total final pay amount in PHP."},
+					"notes":       map[string]any{"type": "string", "description": "Optional notes about the final pay."},
+				},
+				"required": []string{"employee_id", "amount"},
+			}),
+		},
+		{
+			Name:        "complete_clearance",
+			Description: "Complete the clearance process for an employee. Requires all items to be cleared first. Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"clearance_id": map[string]any{"type": "integer", "description": "Clearance request ID."},
+				},
+				"required": []string{"clearance_id"},
+			}),
+		},
+		// --- Phase 6: Schedule Tools ---
+		{
+			Name:        "list_schedule_templates",
+			Description: "List available schedule templates (shift patterns) for the company.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "get_employee_schedule",
+			Description: "Get the current schedule assignment for the user or a specific employee. Returns the weekly schedule with shift times and rest days.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"employee_id": map[string]any{"type": "integer", "description": "Optional employee ID. Omit to check current user."},
+				},
+			}),
+		},
+		{
+			Name:        "assign_schedule",
+			Description: "Assign a schedule template to an employee. Admin/Manager only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"employee_id":    map[string]any{"type": "integer", "description": "Employee ID."},
+					"template_id":    map[string]any{"type": "integer", "description": "Schedule template ID (from list_schedule_templates)."},
+					"effective_date": map[string]any{"type": "string", "description": "Effective date in YYYY-MM-DD. Default: today."},
+				},
+				"required": []string{"employee_id", "template_id"},
+			}),
+		},
 	}
 }
 
@@ -441,6 +883,52 @@ func (r *ToolRegistry) registerTools() {
 	r.tools["generate_attendance_report"] = r.toolGenerateAttendanceReport
 	// Onboarding
 	r.tools["onboard_employee"] = r.toolOnboardEmployee
+	// Phase 1: Loan + Benefit + Leave Encashment
+	r.tools["query_my_loans"] = r.toolQueryMyLoans
+	r.tools["list_pending_loans"] = r.toolListPendingLoans
+	r.tools["approve_loan"] = r.toolApproveLoan
+	r.tools["reject_loan"] = r.toolRejectLoan
+	r.tools["query_loan_eligibility"] = r.toolQueryLoanEligibility
+	r.tools["query_my_benefits"] = r.toolQueryMyBenefits
+	r.tools["list_pending_benefit_claims"] = r.toolListPendingBenefitClaims
+	r.tools["approve_benefit_claim"] = r.toolApproveBenefitClaim
+	r.tools["reject_benefit_claim"] = r.toolRejectBenefitClaim
+	r.tools["query_encashment_eligibility"] = r.toolQueryEncashmentEligibility
+	r.tools["approve_leave_encashment"] = r.toolApproveLeaveEncashment
+	// Phase 2: Performance + Training
+	r.tools["list_review_cycles"] = r.toolListReviewCycles
+	r.tools["get_my_performance_review"] = r.toolGetMyPerformanceReview
+	r.tools["create_goal"] = r.toolCreateGoal
+	r.tools["submit_self_review"] = r.toolSubmitSelfReview
+	r.tools["submit_manager_review"] = r.toolSubmitManagerReview
+	r.tools["list_trainings"] = r.toolListTrainings
+	r.tools["list_my_certifications"] = r.toolListMyCertifications
+	r.tools["enroll_in_training"] = r.toolEnrollInTraining
+	r.tools["mark_training_complete"] = r.toolMarkTrainingComplete
+	// Phase 3: Disciplinary + Grievance
+	r.tools["query_employee_disciplinary"] = r.toolQueryEmployeeDisciplinary
+	r.tools["create_disciplinary_incident"] = r.toolCreateDisciplinaryIncident
+	r.tools["create_disciplinary_action"] = r.toolCreateDisciplinaryAction
+	r.tools["list_recent_incidents"] = r.toolListRecentIncidents
+	r.tools["query_grievance_summary"] = r.toolQueryGrievanceSummary
+	r.tools["get_grievance_detail"] = r.toolGetGrievanceDetail
+	r.tools["resolve_grievance"] = r.toolResolveGrievance
+	// Phase 4: Analytics + Tax
+	r.tools["query_company_analytics"] = r.toolQueryCompanyAnalytics
+	r.tools["query_headcount_trend"] = r.toolQueryHeadcountTrend
+	r.tools["query_leave_utilization"] = r.toolQueryLeaveUtilization
+	r.tools["query_tax_filing_status"] = r.toolQueryTaxFilingStatus
+	r.tools["create_tax_filing_record"] = r.toolCreateTaxFilingRecord
+	// Phase 5: Clearance + Final Pay
+	r.tools["get_clearance_status"] = r.toolGetClearanceStatus
+	r.tools["update_clearance_item"] = r.toolUpdateClearanceItem
+	r.tools["query_final_pay_components"] = r.toolQueryFinalPayComponents
+	r.tools["create_final_pay"] = r.toolCreateFinalPay
+	r.tools["complete_clearance"] = r.toolCompleteClearance
+	// Phase 6: Schedule
+	r.tools["list_schedule_templates"] = r.toolListScheduleTemplates
+	r.tools["get_employee_schedule"] = r.toolGetEmployeeSchedule
+	r.tools["assign_schedule"] = r.toolAssignSchedule
 }
 
 func (r *ToolRegistry) toolQueryLeaveBalance(ctx context.Context, companyID, userID int64, input map[string]any) (string, error) {
