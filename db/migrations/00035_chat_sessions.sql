@@ -1,3 +1,4 @@
+-- +goose Up
 -- Chat sessions for AI conversation memory
 CREATE TABLE chat_sessions (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -20,3 +21,7 @@ CREATE TABLE chat_messages (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_chat_messages_session ON chat_messages(session_id, created_at ASC);
+
+-- +goose Down
+DROP TABLE IF EXISTS chat_messages;
+DROP TABLE IF EXISTS chat_sessions;

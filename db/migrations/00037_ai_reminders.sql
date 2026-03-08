@@ -1,3 +1,4 @@
+-- +goose Up
 -- AI proactive reminder tracking
 CREATE TABLE ai_reminders (
     id              BIGSERIAL PRIMARY KEY,
@@ -14,3 +15,6 @@ CREATE TABLE ai_reminders (
 CREATE UNIQUE INDEX idx_ai_reminders_unique
     ON ai_reminders(company_id, reminder_type, entity_type, COALESCE(entity_id, 0), scheduled_date);
 CREATE INDEX idx_ai_reminders_lookup ON ai_reminders(company_id, scheduled_date);
+
+-- +goose Down
+DROP TABLE IF EXISTS ai_reminders;
