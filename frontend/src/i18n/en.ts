@@ -1153,10 +1153,8 @@ export default {
     open: "Open",
     closed: "Closed",
     onHold: "On Hold",
-    on_hold: "On Hold",
     new: "New",
     offer: "Offer",
-    offer_status: "Offer",
     hired: "Hired",
     rejected: "Rejected",
     withdrawn: "Withdrawn",
@@ -1165,7 +1163,6 @@ export default {
     contractual: "Contractual",
     probationary: "Probationary",
     partTime: "Part Time",
-    part_time: "Part Time",
     intern: "Intern",
     // Source
     manual: "Manual",
