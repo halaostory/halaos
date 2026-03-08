@@ -11,6 +11,18 @@ interface User {
   company_id: number;
 }
 
+interface AuthResponse {
+  token: string;
+  refresh_token: string;
+  user: User;
+}
+
+// Handle both wrapped {success, data: {...}} and direct {...} responses
+function extractAuthData(raw: unknown): AuthResponse {
+  const r = raw as { data?: AuthResponse } & AuthResponse;
+  return (r.data ?? r) as AuthResponse;
+}
+
 export const useAuthStore = defineStore("auth", () => {
   const token = ref(localStorage.getItem("token") || "");
   const refreshToken = ref(localStorage.getItem("refresh_token") || "");
@@ -39,11 +51,8 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   async function login(email: string, password: string) {
-    const res = (await authAPI.login({ email, password })) as {
-      token: string;
-      refresh_token: string;
-      user: User;
-    };
+    const raw = await authAPI.login({ email, password });
+    const res = extractAuthData(raw);
     setTokens(res.token, res.refresh_token);
     setUser(res.user);
   }
@@ -55,11 +64,8 @@ export const useAuthStore = defineStore("auth", () => {
     first_name: string;
     last_name: string;
   }) {
-    const res = (await authAPI.register(data)) as {
-      token: string;
-      refresh_token: string;
-      user: User;
-    };
+    const raw = await authAPI.register(data);
+    const res = extractAuthData(raw);
     setTokens(res.token, res.refresh_token);
     setUser(res.user);
   }
@@ -67,8 +73,9 @@ export const useAuthStore = defineStore("auth", () => {
   async function fetchMe() {
     if (!token.value) return;
     try {
-      const res = (await authAPI.me()) as User;
-      setUser(res);
+      const raw = (await authAPI.me()) as Record<string, unknown>;
+      const u = (raw.data ?? raw) as User;
+      setUser(u);
     } catch {
       logout();
     }
