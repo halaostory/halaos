@@ -1158,7 +1158,7 @@ export default {
     final: "终面",
     hr: "HR 面试",
     inPerson: "现场面试",
-    phone: "电话面试",
+    phoneInterview: "电话面试",
     video: "视频面试",
   },
   dtr: {

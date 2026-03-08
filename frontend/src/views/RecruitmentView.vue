@@ -146,7 +146,7 @@ const showInterviewModal = ref(false)
 const interviewForm = ref({ interview_date: null as number | null, interview_type: 'in_person', interviewer: '', notes: '' })
 const interviewTypeOptions = [
   { label: t('recruitment.inPerson'), value: 'in_person' },
-  { label: t('recruitment.phone'), value: 'phone' },
+  { label: t('recruitment.phoneInterview'), value: 'phone' },
   { label: t('recruitment.video'), value: 'video' },
 ]
 

@@ -1175,7 +1175,7 @@ export default {
     final: "Final",
     hr: "HR",
     inPerson: "In Person",
-    phone: "Phone",
+    phoneInterview: "Phone",
     video: "Video",
   },
   dtr: {
