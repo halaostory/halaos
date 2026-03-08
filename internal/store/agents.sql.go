@@ -7,7 +7,95 @@ package store
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const claimAgentTask = `-- name: ClaimAgentTask :one
+UPDATE agent_tasks
+SET status = 'running', started_at = now()
+WHERE id = $1 AND status = 'pending'
+RETURNING id, company_id, user_id, agent_slug, status, input, output, tokens_consumed, error_message, started_at, completed_at, created_at
+`
+
+func (q *Queries) ClaimAgentTask(ctx context.Context, id int64) (AgentTask, error) {
+	row := q.db.QueryRow(ctx, claimAgentTask, id)
+	var i AgentTask
+	err := row.Scan(
+		&i.ID,
+		&i.CompanyID,
+		&i.UserID,
+		&i.AgentSlug,
+		&i.Status,
+		&i.Input,
+		&i.Output,
+		&i.TokensConsumed,
+		&i.ErrorMessage,
+		&i.StartedAt,
+		&i.CompletedAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const createAgent = `-- name: CreateAgent :one
+INSERT INTO agents (company_id, slug, name, description, system_prompt, tools,
+  cost_multiplier, is_autonomous, max_rounds, max_tokens, icon, model)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+RETURNING id, slug, name, description, system_prompt, tools, cost_multiplier, is_active, is_autonomous, max_rounds, max_tokens, icon, created_at, updated_at, model, company_id
+`
+
+type CreateAgentParams struct {
+	CompanyID      *int64         `json:"company_id"`
+	Slug           string         `json:"slug"`
+	Name           string         `json:"name"`
+	Description    string         `json:"description"`
+	SystemPrompt   string         `json:"system_prompt"`
+	Tools          []string       `json:"tools"`
+	CostMultiplier pgtype.Numeric `json:"cost_multiplier"`
+	IsAutonomous   bool           `json:"is_autonomous"`
+	MaxRounds      int32          `json:"max_rounds"`
+	MaxTokens      int32          `json:"max_tokens"`
+	Icon           string         `json:"icon"`
+	Model          string         `json:"model"`
+}
+
+func (q *Queries) CreateAgent(ctx context.Context, arg CreateAgentParams) (Agent, error) {
+	row := q.db.QueryRow(ctx, createAgent,
+		arg.CompanyID,
+		arg.Slug,
+		arg.Name,
+		arg.Description,
+		arg.SystemPrompt,
+		arg.Tools,
+		arg.CostMultiplier,
+		arg.IsAutonomous,
+		arg.MaxRounds,
+		arg.MaxTokens,
+		arg.Icon,
+		arg.Model,
+	)
+	var i Agent
+	err := row.Scan(
+		&i.ID,
+		&i.Slug,
+		&i.Name,
+		&i.Description,
+		&i.SystemPrompt,
+		&i.Tools,
+		&i.CostMultiplier,
+		&i.IsActive,
+		&i.IsAutonomous,
+		&i.MaxRounds,
+		&i.MaxTokens,
+		&i.Icon,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Model,
+		&i.CompanyID,
+	)
+	return i, err
+}
 
 const createAgentTask = `-- name: CreateAgentTask :one
 INSERT INTO agent_tasks (company_id, user_id, agent_slug, status, input)
@@ -47,8 +135,23 @@ func (q *Queries) CreateAgentTask(ctx context.Context, arg CreateAgentTaskParams
 	return i, err
 }
 
+const deactivateAgent = `-- name: DeactivateAgent :exec
+UPDATE agents SET is_active = false, updated_at = now()
+WHERE slug = $1 AND company_id = $2
+`
+
+type DeactivateAgentParams struct {
+	Slug      string `json:"slug"`
+	CompanyID *int64 `json:"company_id"`
+}
+
+func (q *Queries) DeactivateAgent(ctx context.Context, arg DeactivateAgentParams) error {
+	_, err := q.db.Exec(ctx, deactivateAgent, arg.Slug, arg.CompanyID)
+	return err
+}
+
 const getAgentBySlug = `-- name: GetAgentBySlug :one
-SELECT id, slug, name, description, system_prompt, tools, cost_multiplier, is_active, is_autonomous, max_rounds, max_tokens, icon, created_at, updated_at, model FROM agents WHERE slug = $1 AND is_active = true
+SELECT id, slug, name, description, system_prompt, tools, cost_multiplier, is_active, is_autonomous, max_rounds, max_tokens, icon, created_at, updated_at, model, company_id FROM agents WHERE slug = $1 AND is_active = true
 `
 
 func (q *Queries) GetAgentBySlug(ctx context.Context, slug string) (Agent, error) {
@@ -70,8 +173,49 @@ func (q *Queries) GetAgentBySlug(ctx context.Context, slug string) (Agent, error
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Model,
+		&i.CompanyID,
 	)
 	return i, err
+}
+
+const getPendingAgentTasks = `-- name: GetPendingAgentTasks :many
+SELECT id, company_id, user_id, agent_slug, status, input, output, tokens_consumed, error_message, started_at, completed_at, created_at FROM agent_tasks
+WHERE status = 'pending'
+ORDER BY created_at ASC
+LIMIT $1
+`
+
+func (q *Queries) GetPendingAgentTasks(ctx context.Context, limit int32) ([]AgentTask, error) {
+	rows, err := q.db.Query(ctx, getPendingAgentTasks, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AgentTask{}
+	for rows.Next() {
+		var i AgentTask
+		if err := rows.Scan(
+			&i.ID,
+			&i.CompanyID,
+			&i.UserID,
+			&i.AgentSlug,
+			&i.Status,
+			&i.Input,
+			&i.Output,
+			&i.TokensConsumed,
+			&i.ErrorMessage,
+			&i.StartedAt,
+			&i.CompletedAt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listAgentTasks = `-- name: ListAgentTasks :many
@@ -121,7 +265,7 @@ func (q *Queries) ListAgentTasks(ctx context.Context, arg ListAgentTasksParams) 
 }
 
 const listAgents = `-- name: ListAgents :many
-SELECT id, slug, name, description, system_prompt, tools, cost_multiplier, is_active, is_autonomous, max_rounds, max_tokens, icon, created_at, updated_at, model FROM agents WHERE is_active = true ORDER BY slug
+SELECT id, slug, name, description, system_prompt, tools, cost_multiplier, is_active, is_autonomous, max_rounds, max_tokens, icon, created_at, updated_at, model, company_id FROM agents WHERE is_active = true ORDER BY slug
 `
 
 func (q *Queries) ListAgents(ctx context.Context) ([]Agent, error) {
@@ -149,6 +293,7 @@ func (q *Queries) ListAgents(ctx context.Context) ([]Agent, error) {
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Model,
+			&i.CompanyID,
 		); err != nil {
 			return nil, err
 		}
@@ -158,6 +303,117 @@ func (q *Queries) ListAgents(ctx context.Context) ([]Agent, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const listAgentsByCompany = `-- name: ListAgentsByCompany :many
+SELECT id, slug, name, description, system_prompt, tools, cost_multiplier, is_active, is_autonomous, max_rounds, max_tokens, icon, created_at, updated_at, model, company_id FROM agents
+WHERE is_active = true
+  AND (company_id IS NULL OR company_id = $1)
+ORDER BY company_id NULLS FIRST, slug
+`
+
+func (q *Queries) ListAgentsByCompany(ctx context.Context, companyID *int64) ([]Agent, error) {
+	rows, err := q.db.Query(ctx, listAgentsByCompany, companyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Agent{}
+	for rows.Next() {
+		var i Agent
+		if err := rows.Scan(
+			&i.ID,
+			&i.Slug,
+			&i.Name,
+			&i.Description,
+			&i.SystemPrompt,
+			&i.Tools,
+			&i.CostMultiplier,
+			&i.IsActive,
+			&i.IsAutonomous,
+			&i.MaxRounds,
+			&i.MaxTokens,
+			&i.Icon,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Model,
+			&i.CompanyID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateAgent = `-- name: UpdateAgent :one
+UPDATE agents SET
+  name = COALESCE(NULLIF($1::varchar, ''), name),
+  description = COALESCE(NULLIF($2::text, ''), description),
+  system_prompt = COALESCE(NULLIF($3::text, ''), system_prompt),
+  tools = $4,
+  cost_multiplier = $5,
+  is_autonomous = $6,
+  max_rounds = $7,
+  max_tokens = $8,
+  icon = COALESCE(NULLIF($9::varchar, ''), icon),
+  model = $10,
+  updated_at = now()
+WHERE slug = $11 AND is_active = true
+RETURNING id, slug, name, description, system_prompt, tools, cost_multiplier, is_active, is_autonomous, max_rounds, max_tokens, icon, created_at, updated_at, model, company_id
+`
+
+type UpdateAgentParams struct {
+	Name           string         `json:"name"`
+	Description    string         `json:"description"`
+	SystemPrompt   string         `json:"system_prompt"`
+	Tools          []string       `json:"tools"`
+	CostMultiplier pgtype.Numeric `json:"cost_multiplier"`
+	IsAutonomous   bool           `json:"is_autonomous"`
+	MaxRounds      int32          `json:"max_rounds"`
+	MaxTokens      int32          `json:"max_tokens"`
+	Icon           string         `json:"icon"`
+	Model          string         `json:"model"`
+	Slug           string         `json:"slug"`
+}
+
+func (q *Queries) UpdateAgent(ctx context.Context, arg UpdateAgentParams) (Agent, error) {
+	row := q.db.QueryRow(ctx, updateAgent,
+		arg.Name,
+		arg.Description,
+		arg.SystemPrompt,
+		arg.Tools,
+		arg.CostMultiplier,
+		arg.IsAutonomous,
+		arg.MaxRounds,
+		arg.MaxTokens,
+		arg.Icon,
+		arg.Model,
+		arg.Slug,
+	)
+	var i Agent
+	err := row.Scan(
+		&i.ID,
+		&i.Slug,
+		&i.Name,
+		&i.Description,
+		&i.SystemPrompt,
+		&i.Tools,
+		&i.CostMultiplier,
+		&i.IsActive,
+		&i.IsAutonomous,
+		&i.MaxRounds,
+		&i.MaxTokens,
+		&i.Icon,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Model,
+		&i.CompanyID,
+	)
+	return i, err
 }
 
 const updateAgentTask = `-- name: UpdateAgentTask :exec
@@ -188,71 +444,4 @@ func (q *Queries) UpdateAgentTask(ctx context.Context, arg UpdateAgentTaskParams
 		arg.ErrorMessage,
 	)
 	return err
-}
-
-const getPendingAgentTasks = `-- name: GetPendingAgentTasks :many
-SELECT id, company_id, user_id, agent_slug, status, input, output, tokens_consumed, error_message, started_at, completed_at, created_at FROM agent_tasks
-WHERE status = 'pending'
-ORDER BY created_at ASC
-LIMIT $1
-`
-
-func (q *Queries) GetPendingAgentTasks(ctx context.Context, limit int32) ([]AgentTask, error) {
-	rows, err := q.db.Query(ctx, getPendingAgentTasks, limit)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []AgentTask{}
-	for rows.Next() {
-		var i AgentTask
-		if err := rows.Scan(
-			&i.ID,
-			&i.CompanyID,
-			&i.UserID,
-			&i.AgentSlug,
-			&i.Status,
-			&i.Input,
-			&i.Output,
-			&i.TokensConsumed,
-			&i.ErrorMessage,
-			&i.StartedAt,
-			&i.CompletedAt,
-			&i.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const claimAgentTask = `-- name: ClaimAgentTask :one
-UPDATE agent_tasks
-SET status = 'running', started_at = now()
-WHERE id = $1 AND status = 'pending'
-RETURNING id, company_id, user_id, agent_slug, status, input, output, tokens_consumed, error_message, started_at, completed_at, created_at
-`
-
-func (q *Queries) ClaimAgentTask(ctx context.Context, id int64) (AgentTask, error) {
-	row := q.db.QueryRow(ctx, claimAgentTask, id)
-	var i AgentTask
-	err := row.Scan(
-		&i.ID,
-		&i.CompanyID,
-		&i.UserID,
-		&i.AgentSlug,
-		&i.Status,
-		&i.Input,
-		&i.Output,
-		&i.TokensConsumed,
-		&i.ErrorMessage,
-		&i.StartedAt,
-		&i.CompletedAt,
-		&i.CreatedAt,
-	)
-	return i, err
 }

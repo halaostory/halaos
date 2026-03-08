@@ -993,10 +993,18 @@ export const billingAPI = {
     post("/v1/billing/purchase", { package_id: packageId }),
 };
 
-// Agent API (convenience alias)
+// Agent API (convenience alias + CRUD)
 export const agentAPI = {
   list: () => aiAPI.listAgents(),
   get: (slug: string) => aiAPI.getAgent(slug),
+  create: (data: Record<string, unknown>) => post("/v1/ai/agents", data),
+  update: (slug: string, data: Record<string, unknown>) =>
+    put(`/v1/ai/agents/${slug}`, data),
+  delete: (slug: string) => api(`/v1/ai/agents/${slug}`, { method: "DELETE" }),
+  listTools: () =>
+    get<{ data: Array<{ name: string; description: string }> }>(
+      "/v1/ai/agents/tools",
+    ),
 };
 
 // Form Prefill

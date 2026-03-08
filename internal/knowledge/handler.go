@@ -32,7 +32,7 @@ func (h *Handler) Search(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 	ctx := c.Request.Context()
 
-	// Primary search: websearch_to_tsquery supports natural language syntax
+	// Tier 1: websearch_to_tsquery — best for structured keyword matches
 	articles, err := h.queries.SearchKnowledgeArticles(ctx, store.SearchKnowledgeArticlesParams{
 		CompanyID:          &companyID,
 		WebsearchToTsquery: query,
@@ -43,16 +43,53 @@ func (h *Handler) Search(c *gin.Context) {
 		articles = nil
 	}
 
-	// Fallback: if full-text search returns no results, try ILIKE on title and content
+	// Tier 2: pg_trgm trigram similarity — good for fuzzy/typo matching
+	if len(articles) == 0 {
+		trigramRows, trgErr := h.queries.SearchKnowledgeByTrigram(ctx, store.SearchKnowledgeByTrigramParams{
+			Query:      query,
+			CompanyID:  &companyID,
+			MaxResults: 20,
+		})
+		if trgErr != nil {
+			h.logger.Error("trigram search failed", "error", trgErr, "query", query)
+		} else if len(trigramRows) > 0 {
+			articles = make([]store.SearchKnowledgeArticlesRow, len(trigramRows))
+			for i, tr := range trigramRows {
+				articles[i] = store.SearchKnowledgeArticlesRow{
+					ID:        tr.ID,
+					CompanyID: tr.CompanyID,
+					Category:  tr.Category,
+					Topic:     tr.Topic,
+					Title:     tr.Title,
+					Content:   tr.Content,
+					Tags:      tr.Tags,
+					Source:    tr.Source,
+					IsActive:  tr.IsActive,
+					CreatedAt: tr.CreatedAt,
+					UpdatedAt: tr.UpdatedAt,
+				}
+			}
+		}
+	}
+
+	// Tier 3: ILIKE substring fallback
 	if len(articles) == 0 {
 		fallbackRows, fbErr := h.queries.SearchKnowledgeArticlesByILIKE(ctx, store.SearchKnowledgeArticlesByILIKEParams{
 			CompanyID: &companyID,
-			Column2:   query,
+			Column2:   &query,
 		})
 		if fbErr != nil {
 			h.logger.Error("ILIKE fallback search failed", "error", fbErr, "query", query)
 		} else {
-			articles = fallbackRows
+			articles = make([]store.SearchKnowledgeArticlesRow, len(fallbackRows))
+			for i, fr := range fallbackRows {
+				articles[i] = store.SearchKnowledgeArticlesRow{
+					ID: fr.ID, CompanyID: fr.CompanyID, Category: fr.Category,
+					Topic: fr.Topic, Title: fr.Title, Content: fr.Content,
+					Tags: fr.Tags, Source: fr.Source, IsActive: fr.IsActive,
+					CreatedAt: fr.CreatedAt, UpdatedAt: fr.UpdatedAt,
+				}
+			}
 		}
 	}
 

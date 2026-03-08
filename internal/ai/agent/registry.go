@@ -25,6 +25,7 @@ type AgentConfig struct {
 	MaxTokens      int
 	Icon           string
 	Model          string // LLM model override (empty = provider default)
+	CompanyID      int64  // 0 = system agent, >0 = company-specific
 }
 
 // Registry loads agent definitions from the database and caches them in memory.
@@ -67,6 +68,19 @@ func (r *Registry) Get(ctx context.Context, slug string) (AgentConfig, bool) {
 	return cfg, ok
 }
 
+// GetForCompany returns the agent config for the given slug, only if
+// it's a system agent or belongs to the specified company.
+func (r *Registry) GetForCompany(ctx context.Context, slug string, companyID int64) (AgentConfig, bool) {
+	cfg, ok := r.Get(ctx, slug)
+	if !ok {
+		return cfg, false
+	}
+	if cfg.CompanyID != 0 && cfg.CompanyID != companyID {
+		return AgentConfig{}, false
+	}
+	return cfg, true
+}
+
 // List returns all agent configs sorted by slug.
 // It refreshes the cache if the TTL has expired.
 func (r *Registry) List(ctx context.Context) []AgentConfig {
@@ -89,6 +103,18 @@ func (r *Registry) List(ctx context.Context) []AgentConfig {
 	return configs
 }
 
+// ListForCompany returns system agents + company-specific agents, sorted.
+func (r *Registry) ListForCompany(ctx context.Context, companyID int64) []AgentConfig {
+	all := r.List(ctx)
+	filtered := make([]AgentConfig, 0, len(all))
+	for _, cfg := range all {
+		if cfg.CompanyID == 0 || cfg.CompanyID == companyID {
+			filtered = append(filtered, cfg)
+		}
+	}
+	return filtered
+}
+
 // Refresh reloads all agent definitions from the database.
 func (r *Registry) Refresh(ctx context.Context) error {
 	rows, err := r.queries.ListAgents(ctx)
@@ -98,6 +124,10 @@ func (r *Registry) Refresh(ctx context.Context) error {
 
 	agents := make(map[string]AgentConfig, len(rows))
 	for _, row := range rows {
+		var companyID int64
+		if row.CompanyID != nil {
+			companyID = *row.CompanyID
+		}
 		agents[row.Slug] = AgentConfig{
 			Slug:           row.Slug,
 			Name:           row.Name,
@@ -110,6 +140,7 @@ func (r *Registry) Refresh(ctx context.Context) error {
 			MaxTokens:      int(row.MaxTokens),
 			Icon:           row.Icon,
 			Model:          row.Model,
+			CompanyID:      companyID,
 		}
 	}
 
@@ -120,6 +151,13 @@ func (r *Registry) Refresh(ctx context.Context) error {
 
 	r.logger.Info("agent registry refreshed", "count", len(agents))
 	return nil
+}
+
+// InvalidateCache forces the next Get/List call to reload from DB.
+func (r *Registry) InvalidateCache() {
+	r.mu.Lock()
+	r.lastLoad = time.Time{}
+	r.mu.Unlock()
 }
 
 // cacheExpired returns true if the cache TTL has elapsed.

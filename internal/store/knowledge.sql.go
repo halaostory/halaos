@@ -8,6 +8,8 @@ package store
 import (
 	"context"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createKnowledgeArticle = `-- name: CreateKnowledgeArticle :one
@@ -239,19 +241,33 @@ LIMIT 3
 `
 
 type SearchKnowledgeArticlesByILIKEParams struct {
-	CompanyID *int64 `json:"company_id"`
-	Column2   string `json:"column_2"`
+	CompanyID *int64  `json:"company_id"`
+	Column2   *string `json:"column_2"`
 }
 
-func (q *Queries) SearchKnowledgeArticlesByILIKE(ctx context.Context, arg SearchKnowledgeArticlesByILIKEParams) ([]SearchKnowledgeArticlesRow, error) {
+type SearchKnowledgeArticlesByILIKERow struct {
+	ID        int64     `json:"id"`
+	CompanyID *int64    `json:"company_id"`
+	Category  string    `json:"category"`
+	Topic     string    `json:"topic"`
+	Title     string    `json:"title"`
+	Content   string    `json:"content"`
+	Tags      []string  `json:"tags"`
+	Source    *string   `json:"source"`
+	IsActive  bool      `json:"is_active"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+func (q *Queries) SearchKnowledgeArticlesByILIKE(ctx context.Context, arg SearchKnowledgeArticlesByILIKEParams) ([]SearchKnowledgeArticlesByILIKERow, error) {
 	rows, err := q.db.Query(ctx, searchKnowledgeArticlesByILIKE, arg.CompanyID, arg.Column2)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []SearchKnowledgeArticlesRow{}
+	items := []SearchKnowledgeArticlesByILIKERow{}
 	for rows.Next() {
-		var i SearchKnowledgeArticlesRow
+		var i SearchKnowledgeArticlesByILIKERow
 		if err := rows.Scan(
 			&i.ID,
 			&i.CompanyID,
@@ -264,6 +280,71 @@ func (q *Queries) SearchKnowledgeArticlesByILIKE(ctx context.Context, arg Search
 			&i.IsActive,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchKnowledgeByTrigram = `-- name: SearchKnowledgeByTrigram :many
+SELECT id, company_id, category, topic, title, content, tags, source, is_active, created_at, updated_at,
+       (similarity(title, $1::text) + similarity(content, $1::text))::numeric AS score
+FROM knowledge_articles
+WHERE is_active = true
+  AND (company_id IS NULL OR company_id = $2)
+  AND (title % $1::text OR content % $1::text)
+ORDER BY score DESC
+LIMIT $3
+`
+
+type SearchKnowledgeByTrigramParams struct {
+	Query      string `json:"query"`
+	CompanyID  *int64 `json:"company_id"`
+	MaxResults int32  `json:"max_results"`
+}
+
+type SearchKnowledgeByTrigramRow struct {
+	ID        int64          `json:"id"`
+	CompanyID *int64         `json:"company_id"`
+	Category  string         `json:"category"`
+	Topic     string         `json:"topic"`
+	Title     string         `json:"title"`
+	Content   string         `json:"content"`
+	Tags      []string       `json:"tags"`
+	Source    *string        `json:"source"`
+	IsActive  bool           `json:"is_active"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	Score     pgtype.Numeric `json:"score"`
+}
+
+func (q *Queries) SearchKnowledgeByTrigram(ctx context.Context, arg SearchKnowledgeByTrigramParams) ([]SearchKnowledgeByTrigramRow, error) {
+	rows, err := q.db.Query(ctx, searchKnowledgeByTrigram, arg.Query, arg.CompanyID, arg.MaxResults)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SearchKnowledgeByTrigramRow{}
+	for rows.Next() {
+		var i SearchKnowledgeByTrigramRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CompanyID,
+			&i.Category,
+			&i.Topic,
+			&i.Title,
+			&i.Content,
+			&i.Tags,
+			&i.Source,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Score,
 		); err != nil {
 			return nil, err
 		}

@@ -43,6 +43,7 @@ type Agent struct {
 	CreatedAt      time.Time      `json:"created_at"`
 	UpdatedAt      time.Time      `json:"updated_at"`
 	Model          string         `json:"model"`
+	CompanyID      *int64         `json:"company_id"`
 }
 
 type AgentTask struct {
@@ -105,6 +106,25 @@ type Announcement struct {
 	ExpiresAt         pgtype.Timestamptz `json:"expires_at"`
 	CreatedBy         *int64             `json:"created_by"`
 	CreatedAt         time.Time          `json:"created_at"`
+}
+
+type Applicant struct {
+	ID           int64     `json:"id"`
+	CompanyID    int64     `json:"company_id"`
+	JobPostingID int64     `json:"job_posting_id"`
+	FirstName    string    `json:"first_name"`
+	LastName     string    `json:"last_name"`
+	Email        string    `json:"email"`
+	Phone        *string   `json:"phone"`
+	ResumeUrl    *string   `json:"resume_url"`
+	ResumeText   *string   `json:"resume_text"`
+	AiScore      *int32    `json:"ai_score"`
+	AiSummary    *string   `json:"ai_summary"`
+	Status       string    `json:"status"`
+	Source       string    `json:"source"`
+	Notes        *string   `json:"notes"`
+	AppliedAt    time.Time `json:"applied_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 type ApprovalWorkflow struct {
@@ -557,6 +577,15 @@ type EmployeeProfile struct {
 	UpdatedAt         time.Time `json:"updated_at"`
 }
 
+type EmployeeRiskScore struct {
+	ID           int64           `json:"id"`
+	CompanyID    int64           `json:"company_id"`
+	EmployeeID   int64           `json:"employee_id"`
+	RiskScore    int32           `json:"risk_score"`
+	Factors      json.RawMessage `json:"factors"`
+	CalculatedAt time.Time       `json:"calculated_at"`
+}
+
 type EmployeeSalary struct {
 	ID            int64          `json:"id"`
 	CompanyID     int64          `json:"company_id"`
@@ -760,6 +789,40 @@ type HrEvent struct {
 	Status         string             `json:"status"`
 	ErrorMessage   *string            `json:"error_message"`
 	CreatedAt      time.Time          `json:"created_at"`
+}
+
+type InterviewSchedule struct {
+	ID              int64     `json:"id"`
+	ApplicantID     int64     `json:"applicant_id"`
+	InterviewerID   *int64    `json:"interviewer_id"`
+	ScheduledAt     time.Time `json:"scheduled_at"`
+	DurationMinutes int32     `json:"duration_minutes"`
+	Location        *string   `json:"location"`
+	InterviewType   string    `json:"interview_type"`
+	Status          string    `json:"status"`
+	Feedback        *string   `json:"feedback"`
+	Rating          *int32    `json:"rating"`
+	CreatedAt       time.Time `json:"created_at"`
+}
+
+type JobPosting struct {
+	ID             int64              `json:"id"`
+	CompanyID      int64              `json:"company_id"`
+	Title          string             `json:"title"`
+	DepartmentID   *int64             `json:"department_id"`
+	PositionID     *int64             `json:"position_id"`
+	Description    string             `json:"description"`
+	Requirements   string             `json:"requirements"`
+	SalaryMin      pgtype.Numeric     `json:"salary_min"`
+	SalaryMax      pgtype.Numeric     `json:"salary_max"`
+	EmploymentType string             `json:"employment_type"`
+	Location       string             `json:"location"`
+	Status         string             `json:"status"`
+	PostedAt       pgtype.Timestamptz `json:"posted_at"`
+	ClosesAt       pgtype.Timestamptz `json:"closes_at"`
+	CreatedBy      int64              `json:"created_by"`
+	CreatedAt      time.Time          `json:"created_at"`
+	UpdatedAt      time.Time          `json:"updated_at"`
 }
 
 type KnowledgeArticle struct {
@@ -1224,6 +1287,16 @@ type TaxFiling struct {
 	Notes         *string        `json:"notes"`
 	CreatedAt     time.Time      `json:"created_at"`
 	UpdatedAt     time.Time      `json:"updated_at"`
+}
+
+type TeamHealthScore struct {
+	ID             int64           `json:"id"`
+	CompanyID      int64           `json:"company_id"`
+	DepartmentID   int64           `json:"department_id"`
+	DepartmentName string          `json:"department_name"`
+	HealthScore    int32           `json:"health_score"`
+	Factors        json.RawMessage `json:"factors"`
+	CalculatedAt   time.Time       `json:"calculated_at"`
 }
 
 type ThirteenthMonthPay struct {

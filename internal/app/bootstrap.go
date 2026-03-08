@@ -234,7 +234,7 @@ func (a *App) setupRoutes() {
 			toolRegistry := ai.NewToolRegistry(a.Queries, a.Pool)
 			agentRegistry := agent.NewRegistry(a.Queries, a.Logger)
 			executor := agent.NewExecutor(aiProvider, toolRegistry, billingSvc, agentRegistry, a.Queries, a.Logger)
-			aiHandler = ai.NewHandler(aiService, executor, agentRegistry, a.Queries)
+			aiHandler = ai.NewHandler(aiService, executor, agentRegistry, toolRegistry, a.Queries)
 			a.Logger.Info("AI assistant enabled", "provider", aiProvider.Name(), "agents", len(agentRegistry.List(context.Background())))
 		} else {
 			a.Logger.Info("AI assistant disabled (no API key configured)")

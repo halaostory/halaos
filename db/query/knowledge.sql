@@ -45,6 +45,16 @@ RETURNING *;
 -- name: DeleteKnowledgeArticle :exec
 DELETE FROM knowledge_articles WHERE id = $1;
 
+-- name: SearchKnowledgeByTrigram :many
+SELECT id, company_id, category, topic, title, content, tags, source, is_active, created_at, updated_at,
+       (similarity(title, @query::text) + similarity(content, @query::text))::numeric AS score
+FROM knowledge_articles
+WHERE is_active = true
+  AND (company_id IS NULL OR company_id = @company_id)
+  AND (title % @query::text OR content % @query::text)
+ORDER BY score DESC
+LIMIT @max_results;
+
 -- name: ListKnowledgeCategories :many
 SELECT DISTINCT category FROM knowledge_articles
 WHERE is_active = true AND (company_id IS NULL OR company_id = $1)
