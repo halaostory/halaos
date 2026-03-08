@@ -1,3 +1,5 @@
+-- +goose Up
+
 -- Token packages available for purchase
 CREATE TABLE IF NOT EXISTS token_packages (
     id          BIGSERIAL PRIMARY KEY,
@@ -127,3 +129,10 @@ INSERT INTO agents (slug, name, description, system_prompt, tools, cost_multipli
      ARRAY['list_employees','search_knowledge_base','explain_policy','check_compliance'],
      1.2, '')
 ON CONFLICT (slug) DO NOTHING;
+
+-- +goose Down
+DROP TABLE IF EXISTS agent_tasks;
+DROP TABLE IF EXISTS agents;
+DROP TABLE IF EXISTS token_transactions;
+DROP TABLE IF EXISTS token_balances;
+DROP TABLE IF EXISTS token_packages;
