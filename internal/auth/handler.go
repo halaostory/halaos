@@ -127,6 +127,16 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 
+	// Create token balance with initial free tokens
+	_, tokenErr := qtx.CreateTokenBalance(c.Request.Context(), store.CreateTokenBalanceParams{
+		CompanyID: company.ID,
+		Balance:   1000, // Free tier tokens
+	})
+	if tokenErr != nil {
+		h.logger.Warn("failed to create initial token balance", "company_id", company.ID, "error", tokenErr)
+		// Non-fatal: continue registration even if token balance creation fails
+	}
+
 	if err := tx.Commit(c.Request.Context()); err != nil {
 		h.logger.Error("failed to commit transaction", "error", err)
 		response.InternalError(c, "Registration failed")

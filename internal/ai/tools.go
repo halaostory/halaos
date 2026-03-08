@@ -34,6 +34,25 @@ func NewToolRegistry(queries *store.Queries, pool *pgxpool.Pool) *ToolRegistry {
 	return r
 }
 
+// DefinitionsForAgent returns tool definitions filtered by the allowed tool names.
+func (r *ToolRegistry) DefinitionsForAgent(allowedTools []string) []provider.ToolDefinition {
+	if len(allowedTools) == 0 {
+		return r.Definitions()
+	}
+	allowed := make(map[string]bool, len(allowedTools))
+	for _, t := range allowedTools {
+		allowed[t] = true
+	}
+	all := r.Definitions()
+	filtered := make([]provider.ToolDefinition, 0, len(allowedTools))
+	for _, d := range all {
+		if allowed[d.Name] {
+			filtered = append(filtered, d)
+		}
+	}
+	return filtered
+}
+
 // Definitions returns tool definitions for the LLM.
 func (r *ToolRegistry) Definitions() []provider.ToolDefinition {
 	return []provider.ToolDefinition{

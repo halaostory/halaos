@@ -60,6 +60,7 @@ func NewService(p provider.Provider, queries *store.Queries, pool *pgxpool.Pool,
 type ChatRequest struct {
 	Message   string `json:"message"`
 	SessionID string `json:"session_id,omitempty"`
+	Agent     string `json:"agent,omitempty"`
 }
 
 // ChatResponse is the result of a chat interaction.

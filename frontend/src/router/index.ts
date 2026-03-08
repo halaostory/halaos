@@ -305,6 +305,19 @@ const router = createRouter({
           name: "profile",
           component: () => import("../views/ProfileView.vue"),
         },
+        // Billing
+        {
+          path: "billing",
+          name: "billing",
+          component: () => import("../views/BillingView.vue"),
+          meta: { roles: ["super_admin", "admin"] },
+        },
+        // Agent Hub
+        {
+          path: "agent-hub",
+          name: "agent-hub",
+          component: () => import("../views/AgentHubView.vue"),
+        },
         // Notifications
         {
           path: "notifications",

@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, nextTick, watch, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { NButton, NInput, NSpin } from 'naive-ui'
-import { aiAPI } from '../api/client'
+import { useRouter } from 'vue-router'
+import { NButton, NInput, NSpin, NSelect, NTag } from 'naive-ui'
+import { aiAPI, billingAPI } from '../api/client'
 
 const { t, locale } = useI18n()
+const router = useRouter()
 
 const isOpen = ref(false)
 const message = ref('')
@@ -14,10 +16,44 @@ const messagesContainer = ref<HTMLElement>()
 const showHistory = ref(false)
 const currentSessionId = ref<string | null>(null)
 
+// Agent selector
+const selectedAgent = ref<string>('general')
+const agents = ref<Array<{ slug: string; name: string; description: string; cost_multiplier: number; icon: string }>>([])
+const agentOptions = computed(() =>
+  agents.value.map(a => ({
+    label: `${a.icon || '🤖'} ${a.name} (${a.cost_multiplier}x)`,
+    value: a.slug,
+  }))
+)
+
+// Token balance
+const tokenBalance = ref<number | null>(null)
+const insufficientBalance = ref(false)
+
+async function loadAgents() {
+  try {
+    const res = await aiAPI.listAgents()
+    agents.value = res.data || []
+  } catch {
+    // fallback: just general agent
+    agents.value = [{ slug: 'general', name: 'General', description: 'General HR assistant', cost_multiplier: 1.0, icon: '🤖' }]
+  }
+}
+
+async function loadBalance() {
+  try {
+    const res = await billingAPI.getBalance()
+    tokenBalance.value = res.data?.balance ?? null
+  } catch {
+    tokenBalance.value = null
+  }
+}
+
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system'
   content: string
   tools?: string[]
+  tokensUsed?: number
 }
 
 interface ChatSession {
@@ -155,6 +191,18 @@ function relativeTime(isoString: string): string {
 
 onMounted(() => {
   refreshStoredSessions()
+  loadAgents()
+  loadBalance()
+
+  // Listen for agent-hub "Try It" button
+  window.addEventListener('open-agent-chat', ((e: CustomEvent) => {
+    const slug = e.detail?.slug
+    if (slug) {
+      selectedAgent.value = slug
+      isOpen.value = true
+      startNewChat()
+    }
+  }) as EventListener)
 })
 
 watch(locale, (newLocale) => {
@@ -193,7 +241,8 @@ async function sendMessage() {
   messages.value = [...messages.value, assistantMsg]
 
   try {
-    const stream = aiAPI.streamChat(text, sessionId.value)
+    const agentSlug = selectedAgent.value || undefined
+    const stream = aiAPI.streamChat(text, sessionId.value, agentSlug)
     for await (const chunk of stream) {
       switch (chunk.type) {
         case 'text':
@@ -206,9 +255,21 @@ async function sendMessage() {
           }
           break
         case 'error':
-          assistantMsg.content += `\n\n${chunk.message || 'An error occurred'}`
+          if (chunk.code === 402) {
+            insufficientBalance.value = true
+            assistantMsg.content = locale.value === 'zh'
+              ? '⚠️ Token 余额不足，请充值后继续使用 AI 功能。'
+              : '⚠️ Insufficient token balance. Please top up to continue using AI features.'
+          } else {
+            assistantMsg.content += `\n\n${chunk.message || 'An error occurred'}`
+          }
           break
         case 'done':
+          if (chunk.tokens_used) {
+            assistantMsg.tokensUsed = chunk.tokens_used
+          }
+          // Refresh balance after usage
+          loadBalance()
           break
       }
     }
@@ -235,7 +296,15 @@ function togglePanel() {
   isOpen.value = !isOpen.value
   if (isOpen.value) {
     refreshStoredSessions()
+    loadAgents()
+    loadBalance()
+    insufficientBalance.value = false
   }
+}
+
+function goToBilling() {
+  isOpen.value = false
+  router.push({ name: 'billing' })
 }
 
 function toggleHistory() {
@@ -274,8 +343,22 @@ const chatPanelWidth = computed(() => showHistory.value ? '600px' : '400px')
             <span style="font-size: 16px;">&#9776;</span>
           </NButton>
           <span class="chat-title">AigoNHR AI</span>
+          <NTag v-if="tokenBalance !== null" size="small" round class="balance-badge">
+            {{ tokenBalance.toLocaleString() }} tokens
+          </NTag>
         </div>
         <NButton text size="small" @click="isOpen = false" class="chat-close-btn">✕</NButton>
+      </div>
+
+      <!-- Agent selector bar -->
+      <div class="agent-selector-bar">
+        <NSelect
+          v-model:value="selectedAgent"
+          :options="agentOptions"
+          size="small"
+          :placeholder="locale === 'zh' ? '选择 Agent' : 'Select Agent'"
+          style="flex: 1;"
+        />
       </div>
 
       <div class="chat-body">
@@ -330,6 +413,9 @@ const chatPanelWidth = computed(() => showHistory.value ? '600px' : '400px')
                 </span>
               </div>
               <div class="chat-bubble" v-html="renderMarkdown(msg.content)" />
+              <div v-if="msg.tokensUsed" class="chat-tokens-used">
+                {{ msg.tokensUsed.toLocaleString() }} tokens
+              </div>
             </div>
 
             <div v-if="loading" class="chat-msg chat-msg-assistant">
@@ -338,6 +424,14 @@ const chatPanelWidth = computed(() => showHistory.value ? '600px' : '400px')
                 <span style="margin-left: 8px; color: #999;">{{ t('common.loading') }}</span>
               </div>
             </div>
+          </div>
+
+          <!-- Insufficient balance banner -->
+          <div v-if="insufficientBalance" class="insufficient-banner">
+            <span>{{ locale === 'zh' ? 'Token 余额不足' : 'Insufficient token balance' }}</span>
+            <NButton size="tiny" type="warning" @click="goToBilling">
+              {{ locale === 'zh' ? '去充值' : 'Top Up' }}
+            </NButton>
           </div>
 
           <div class="chat-input">
@@ -662,6 +756,46 @@ function renderMarkdown(text: string): string {
   background: rgba(24, 160, 88, 0.1);
   border-radius: 4px;
   color: #18a058;
+}
+
+/* --- Agent selector bar --- */
+.agent-selector-bar {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--n-border-color, #e0e0e0);
+  background: var(--n-color-modal, #fafafa);
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+/* --- Balance badge --- */
+.balance-badge {
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  font-size: 11px !important;
+}
+
+/* --- Token usage per message --- */
+.chat-tokens-used {
+  font-size: 10px;
+  color: #999;
+  margin-top: 2px;
+  padding-left: 4px;
+}
+
+/* --- Insufficient balance banner --- */
+.insufficient-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #fff3cd;
+  border-top: 1px solid #ffc107;
+  font-size: 12px;
+  color: #856404;
+  flex-shrink: 0;
 }
 
 .chat-input {

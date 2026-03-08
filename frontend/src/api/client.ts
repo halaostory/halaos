@@ -784,12 +784,21 @@ export const milestoneAPI = {
 
 // AI Chat
 export const aiAPI = {
-  chat: (data: { message: string; session_id?: string }) =>
-    post<{ data: { request_id: string; message: string; session_id: string } }>(
-      "/v1/ai/chat",
-      data,
-    ),
-  streamChat: async function* (message: string, sessionId?: string) {
+  chat: (data: { message: string; session_id?: string; agent?: string }) =>
+    post<{
+      data: {
+        request_id: string;
+        message: string;
+        session_id: string;
+        tokens_used?: number;
+        agent?: string;
+      };
+    }>("/v1/ai/chat", data),
+  streamChat: async function* (
+    message: string,
+    sessionId?: string,
+    agentSlug?: string,
+  ) {
     const baseURL = import.meta.env.VITE_API_URL || "/api";
     const token = localStorage.getItem("token");
     const response = await fetch(`${baseURL}/v1/ai/chat/stream`, {
@@ -798,9 +807,21 @@ export const aiAPI = {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ message, session_id: sessionId }),
+      body: JSON.stringify({
+        message,
+        session_id: sessionId,
+        agent: agentSlug,
+      }),
     });
 
+    if (response.status === 402) {
+      yield {
+        type: "error" as const,
+        code: 402,
+        message: "Insufficient token balance",
+      };
+      return;
+    }
     if (!response.ok) {
       throw new Error(`AI chat error: ${response.status}`);
     }
@@ -829,6 +850,9 @@ export const aiAPI = {
             text?: string;
             name?: string;
             message?: string;
+            code?: number;
+            tokens_used?: number;
+            agent?: string;
           };
         } catch {
           // skip malformed chunks
@@ -836,4 +860,44 @@ export const aiAPI = {
       }
     }
   },
+  listAgents: () =>
+    get<{
+      data: Array<{
+        slug: string;
+        name: string;
+        description: string;
+        tools: string[];
+        cost_multiplier: number;
+        is_autonomous: boolean;
+        max_rounds: number;
+        icon: string;
+      }>;
+    }>("/v1/ai/agents"),
+  getAgent: (slug: string) => get(`/v1/ai/agents/${slug}`),
+};
+
+// Billing
+export const billingAPI = {
+  getBalance: () =>
+    get<{
+      data: {
+        balance: number;
+        total_purchased: number;
+        total_granted: number;
+        total_consumed: number;
+      };
+    }>("/v1/billing/balance"),
+  listTransactions: (params?: Record<string, string>) =>
+    get("/v1/billing/transactions", params),
+  usageByAgent: () => get("/v1/billing/usage/agents"),
+  dailyUsage: () => get("/v1/billing/usage/daily"),
+  listPackages: () => get("/v1/billing/packages"),
+  purchaseTokens: (packageId: number) =>
+    post("/v1/billing/purchase", { package_id: packageId }),
+};
+
+// Agent API (convenience alias)
+export const agentAPI = {
+  list: () => aiAPI.listAgents(),
+  get: (slug: string) => aiAPI.getAgent(slug),
 };

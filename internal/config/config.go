@@ -17,6 +17,13 @@ type Config struct {
 	SMTP      SMTPConfig
 	CORS      CORSConfig
 	RateLimit RateLimitConfig
+	Billing   BillingConfig
+}
+
+type BillingConfig struct {
+	FreeTierTokens  int64
+	InputTokenRate  float64
+	OutputTokenRate float64
 }
 
 type CORSConfig struct {
@@ -138,6 +145,11 @@ func Load() *Config {
 			LoginWindow: getEnvDuration("RATE_LIMIT_LOGIN_WINDOW", 15*time.Minute),
 			APIRate:     int(getEnvInt64("RATE_LIMIT_API_RATE", 100)),
 			APIWindow:   getEnvDuration("RATE_LIMIT_API_WINDOW", 1*time.Minute),
+		},
+		Billing: BillingConfig{
+			FreeTierTokens:  getEnvInt64("BILLING_FREE_TIER_TOKENS", 1000),
+			InputTokenRate:  0.1,
+			OutputTokenRate: 0.3,
 		},
 	}
 }

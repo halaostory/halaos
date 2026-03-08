@@ -27,6 +27,38 @@ type ActivityLog struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+type Agent struct {
+	ID             int64          `json:"id"`
+	Slug           string         `json:"slug"`
+	Name           string         `json:"name"`
+	Description    string         `json:"description"`
+	SystemPrompt   string         `json:"system_prompt"`
+	Tools          []string       `json:"tools"`
+	CostMultiplier pgtype.Numeric `json:"cost_multiplier"`
+	IsActive       bool           `json:"is_active"`
+	IsAutonomous   bool           `json:"is_autonomous"`
+	MaxRounds      int32          `json:"max_rounds"`
+	MaxTokens      int32          `json:"max_tokens"`
+	Icon           string         `json:"icon"`
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
+}
+
+type AgentTask struct {
+	ID             int64              `json:"id"`
+	CompanyID      int64              `json:"company_id"`
+	UserID         int64              `json:"user_id"`
+	AgentSlug      string             `json:"agent_slug"`
+	Status         string             `json:"status"`
+	Input          string             `json:"input"`
+	Output         *string            `json:"output"`
+	TokensConsumed int64              `json:"tokens_consumed"`
+	ErrorMessage   *string            `json:"error_message"`
+	StartedAt      pgtype.Timestamptz `json:"started_at"`
+	CompletedAt    pgtype.Timestamptz `json:"completed_at"`
+	CreatedAt      time.Time          `json:"created_at"`
+}
+
 type AiAuditLog struct {
 	ID             int64     `json:"id"`
 	CompanyID      int64     `json:"company_id"`
@@ -1165,6 +1197,41 @@ type ThirteenthMonthPay struct {
 	PaidAt           pgtype.Timestamptz `json:"paid_at"`
 	CreatedAt        time.Time          `json:"created_at"`
 	UpdatedAt        time.Time          `json:"updated_at"`
+}
+
+type TokenBalance struct {
+	ID                int64              `json:"id"`
+	CompanyID         int64              `json:"company_id"`
+	Balance           int64              `json:"balance"`
+	TotalPurchased    int64              `json:"total_purchased"`
+	TotalGranted      int64              `json:"total_granted"`
+	TotalConsumed     int64              `json:"total_consumed"`
+	FreeTierGrantedAt pgtype.Timestamptz `json:"free_tier_granted_at"`
+	UpdatedAt         time.Time          `json:"updated_at"`
+}
+
+type TokenPackage struct {
+	ID        int64          `json:"id"`
+	Slug      string         `json:"slug"`
+	Name      string         `json:"name"`
+	Tokens    int64          `json:"tokens"`
+	PricePhp  pgtype.Numeric `json:"price_php"`
+	IsActive  bool           `json:"is_active"`
+	SortOrder int32          `json:"sort_order"`
+	CreatedAt time.Time      `json:"created_at"`
+}
+
+type TokenTransaction struct {
+	ID           int64     `json:"id"`
+	CompanyID    int64     `json:"company_id"`
+	UserID       int64     `json:"user_id"`
+	Type         string    `json:"type"`
+	Amount       int64     `json:"amount"`
+	BalanceAfter int64     `json:"balance_after"`
+	AgentSlug    *string   `json:"agent_slug"`
+	Description  *string   `json:"description"`
+	Metadata     []byte    `json:"metadata"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 type Training struct {

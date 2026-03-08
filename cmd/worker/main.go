@@ -143,6 +143,9 @@ func runPeriodicJobs(ctx context.Context, queries *store.Queries, _ *redis.Clien
 	// Year-end leave carryover (runs in January)
 	processLeaveCarryover(ctx, queries, logger)
 
+	// Monthly free tier token grant (1st of each month)
+	grantFreeTokens(ctx, queries, logger)
+
 	// Scan for contract milestones (probation ending, contract expiring, anniversaries)
 	scanContractMilestones(ctx, queries, logger)
 
@@ -154,6 +157,55 @@ func runPeriodicJobs(ctx context.Context, queries *store.Queries, _ *redis.Clien
 
 	// Mark expired documents (201 file)
 	_ = queries.MarkExpiredDocuments(ctx)
+}
+
+// grantFreeTokens grants monthly free tokens to eligible companies.
+// Runs on the 1st of each month. Grants 1000 tokens to companies that
+// haven't received a free grant this month.
+func grantFreeTokens(ctx context.Context, queries *store.Queries, logger *slog.Logger) {
+	now := time.Now()
+	if now.Day() != 1 {
+		return
+	}
+
+	logger.Info("running monthly free token grant")
+
+	companies, err := queries.ListCompaniesForFreeGrant(ctx)
+	if err != nil {
+		logger.Error("failed to list companies for free grant", "error", err)
+		return
+	}
+
+	if len(companies) == 0 {
+		logger.Info("no companies eligible for free token grant")
+		return
+	}
+
+	const freeTokens int64 = 1000
+	granted := 0
+
+	for _, companyID := range companies {
+		if err := queries.GrantFreeTokens(ctx, store.GrantFreeTokensParams{
+			CompanyID: companyID,
+			Balance:   freeTokens,
+		}); err != nil {
+			logger.Error("failed to grant free tokens",
+				"company_id", companyID,
+				"error", err,
+			)
+			continue
+		}
+		granted++
+		logger.Info("granted free tokens",
+			"company_id", companyID,
+			"tokens", freeTokens,
+		)
+	}
+
+	logger.Info("monthly free token grant completed",
+		"eligible", len(companies),
+		"granted", granted,
+	)
 }
 
 func autoCloseAttendance(ctx context.Context, queries *store.Queries, logger *slog.Logger) {

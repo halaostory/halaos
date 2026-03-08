@@ -110,15 +110,71 @@ function renderIcon(icon: Component) {
   return () => h(NIcon, null, { default: () => h(icon) })
 }
 
+// Phase 1 feature flags — set to true to show in sidebar
+const features: Record<string, boolean> = {
+  // Phase 1: Core HR + AI differentiator
+  dashboard: true,
+  employees: true,
+  directory: true,
+  attendance: true,
+  'attendance-report': true,
+  dtr: true,
+  leaves: true,
+  'leave-calendar': true,
+  payroll: true,
+  payslips: true,
+  'agent-hub': true,
+  billing: true,
+  users: true,
+  departments: true,
+  positions: true,
+  salary: true,
+  settings: true,
+  announcements: true,
+  approvals: true,
+  // Phase 2: hidden for now
+  overtime: false,
+  'leave-encashment': false,
+  schedules: false,
+  analytics: false,
+  onboarding: false,
+  performance: false,
+  training: false,
+  compliance: false,
+  'tax-filings': false,
+  knowledge: false,
+  benefits: false,
+  loans: false,
+  expenses: false,
+  disciplinary: false,
+  grievance: false,
+  clearance: false,
+  'final-pay': false,
+  '201file': false,
+  milestones: false,
+  geofences: false,
+  'import-export': false,
+  audit: false,
+  policies: false,
+  'self-service': false,
+  holidays: false,
+}
+
+function isEnabled(key: string): boolean {
+  return features[key] !== false
+}
+
 const menuOptions = computed<MenuOption[]>(() => {
   const items: MenuOption[] = [
     { label: t('nav.dashboard'), key: 'dashboard', icon: renderIcon(HomeOutline) },
   ]
 
-  items.push(
-    { label: t('nav.announcements'), key: 'announcements', icon: renderIcon(MegaphoneOutline) },
-    { label: t('nav.directory'), key: 'directory', icon: renderIcon(BookOutline) },
-  )
+  if (isEnabled('announcements')) {
+    items.push({ label: t('nav.announcements'), key: 'announcements', icon: renderIcon(MegaphoneOutline) })
+  }
+  if (isEnabled('directory')) {
+    items.push({ label: t('nav.directory'), key: 'directory', icon: renderIcon(BookOutline) })
+  }
 
   if (auth.isAdmin || auth.isManager) {
     items.push({ label: t('nav.employees'), key: 'employees', icon: renderIcon(PeopleOutline) })
@@ -127,74 +183,85 @@ const menuOptions = computed<MenuOption[]>(() => {
   items.push(
     { label: t('nav.attendance'), key: 'attendance', icon: renderIcon(TimeOutline) },
     { label: t('nav.leaves'), key: 'leaves', icon: renderIcon(CalendarOutline) },
-    { label: t('nav.leaveCalendar'), key: 'leave-calendar', icon: renderIcon(CalendarNumberOutline) },
-    { label: t('nav.leaveEncashment'), key: 'leave-encashment', icon: renderIcon(CashOutline) },
-    { label: t('nav.overtime'), key: 'overtime', icon: renderIcon(AlarmOutline) },
   )
+  if (isEnabled('leave-calendar')) {
+    items.push({ label: t('nav.leaveCalendar'), key: 'leave-calendar', icon: renderIcon(CalendarNumberOutline) })
+  }
+  if (isEnabled('leave-encashment')) {
+    items.push({ label: t('nav.leaveEncashment'), key: 'leave-encashment', icon: renderIcon(CashOutline) })
+  }
+  if (isEnabled('overtime')) {
+    items.push({ label: t('nav.overtime'), key: 'overtime', icon: renderIcon(AlarmOutline) })
+  }
 
   if (auth.isManager) {
-    items.push(
-      { label: t('nav.attendanceReport'), key: 'attendance-report', icon: renderIcon(DocumentTextOutline) },
-      { label: t('nav.dtr'), key: 'dtr', icon: renderIcon(ClipboardOutline) },
-      { label: t('nav.schedules'), key: 'schedules', icon: renderIcon(GridOutline) },
-      { label: t('nav.approvals'), key: 'approvals', icon: renderIcon(CheckmarkCircleOutline) },
-    )
+    if (isEnabled('attendance-report')) {
+      items.push({ label: t('nav.attendanceReport'), key: 'attendance-report', icon: renderIcon(DocumentTextOutline) })
+    }
+    if (isEnabled('dtr')) {
+      items.push({ label: t('nav.dtr'), key: 'dtr', icon: renderIcon(ClipboardOutline) })
+    }
+    if (isEnabled('schedules')) {
+      items.push({ label: t('nav.schedules'), key: 'schedules', icon: renderIcon(GridOutline) })
+    }
+    if (isEnabled('approvals')) {
+      items.push({ label: t('nav.approvals'), key: 'approvals', icon: renderIcon(CheckmarkCircleOutline) })
+    }
   }
 
   if (auth.isAdmin) {
-    items.push(
-      { label: t('nav.payroll'), key: 'payroll', icon: renderIcon(WalletOutline) },
-      { label: t('nav.analytics'), key: 'analytics', icon: renderIcon(BarChartOutline) },
-    )
+    items.push({ label: t('nav.payroll'), key: 'payroll', icon: renderIcon(WalletOutline) })
+    if (isEnabled('analytics')) {
+      items.push({ label: t('nav.analytics'), key: 'analytics', icon: renderIcon(BarChartOutline) })
+    }
   }
 
-  if (auth.isAdmin || auth.isManager) {
-    items.push(
-      { label: t('nav.onboarding'), key: 'onboarding', icon: renderIcon(ClipboardOutline) },
-      { label: t('nav.performance'), key: 'performance', icon: renderIcon(RibbonOutline) },
-      { label: t('nav.clearance'), key: 'clearance', icon: renderIcon(DocumentTextOutline) },
-    )
-  }
-
-  items.push(
-    { label: t('nav.training'), key: 'training', icon: renderIcon(SchoolOutline) },
-  )
-
-  if (auth.isAdmin || auth.isManager) {
-    items.push(
-      { label: t('nav.disciplinary'), key: 'disciplinary', icon: renderIcon(AlertCircleOutline) },
-      { label: t('nav.milestones'), key: 'milestones', icon: renderIcon(RibbonOutline) },
-      { label: t('nav.file201'), key: '201file', icon: renderIcon(FolderOpenOutline) },
-    )
+  // AI Agent Hub — visible to all
+  if (isEnabled('agent-hub')) {
+    items.push({ label: t('nav.agentHub'), key: 'agent-hub', icon: renderIcon(ChatbubblesOutline) })
   }
 
   items.push(
     { label: t('nav.payslips'), key: 'payslips', icon: renderIcon(ReceiptOutline) },
-    { label: t('nav.loans'), key: 'loans', icon: renderIcon(CardOutline) },
-    { label: t('nav.expenses'), key: 'expenses', icon: renderIcon(ReceiptOutline) },
-    { label: t('nav.benefits'), key: 'benefits', icon: renderIcon(MedkitOutline) },
-    { label: t('nav.grievance'), key: 'grievance', icon: renderIcon(ChatbubblesOutline) },
-    { label: t('nav.policies'), key: 'policies', icon: renderIcon(DocumentTextOutline) },
-    { label: t('nav.selfService'), key: 'self-service', icon: renderIcon(PersonCircleOutline) },
-    { type: 'divider', key: 'd1' },
   )
+
+  // Phase 2 items (conditionally shown)
+  if (isEnabled('loans')) items.push({ label: t('nav.loans'), key: 'loans', icon: renderIcon(CardOutline) })
+  if (isEnabled('expenses')) items.push({ label: t('nav.expenses'), key: 'expenses', icon: renderIcon(ReceiptOutline) })
+  if (isEnabled('benefits')) items.push({ label: t('nav.benefits'), key: 'benefits', icon: renderIcon(MedkitOutline) })
+  if (isEnabled('grievance')) items.push({ label: t('nav.grievance'), key: 'grievance', icon: renderIcon(ChatbubblesOutline) })
+  if (isEnabled('policies')) items.push({ label: t('nav.policies'), key: 'policies', icon: renderIcon(DocumentTextOutline) })
+  if (isEnabled('self-service')) items.push({ label: t('nav.selfService'), key: 'self-service', icon: renderIcon(PersonCircleOutline) })
+
+  if (auth.isAdmin || auth.isManager) {
+    if (isEnabled('onboarding')) items.push({ label: t('nav.onboarding'), key: 'onboarding', icon: renderIcon(ClipboardOutline) })
+    if (isEnabled('performance')) items.push({ label: t('nav.performance'), key: 'performance', icon: renderIcon(RibbonOutline) })
+    if (isEnabled('clearance')) items.push({ label: t('nav.clearance'), key: 'clearance', icon: renderIcon(DocumentTextOutline) })
+    if (isEnabled('training')) items.push({ label: t('nav.training'), key: 'training', icon: renderIcon(SchoolOutline) })
+    if (isEnabled('disciplinary')) items.push({ label: t('nav.disciplinary'), key: 'disciplinary', icon: renderIcon(AlertCircleOutline) })
+    if (isEnabled('milestones')) items.push({ label: t('nav.milestones'), key: 'milestones', icon: renderIcon(RibbonOutline) })
+    if (isEnabled('201file')) items.push({ label: t('nav.file201'), key: '201file', icon: renderIcon(FolderOpenOutline) })
+  }
+
+  items.push({ type: 'divider', key: 'd1' })
 
   if (auth.isAdmin) {
     items.push(
       { label: t('nav.departments'), key: 'departments', icon: renderIcon(BusinessOutline) },
       { label: t('nav.positions'), key: 'positions', icon: renderIcon(BriefcaseOutline) },
       { label: t('nav.salary'), key: 'salary', icon: renderIcon(CashOutline) },
-      { label: t('nav.finalPay'), key: 'final-pay', icon: renderIcon(WalletOutline) },
-      { label: t('nav.compliance'), key: 'compliance', icon: renderIcon(ShieldCheckmarkOutline) },
-      { label: t('nav.taxFilings'), key: 'tax-filings', icon: renderIcon(DocumentTextOutline) },
-      { label: t('holiday.title'), key: 'holidays', icon: renderIcon(TodayOutline) },
-      { label: t('nav.users'), key: 'users', icon: renderIcon(PeopleOutline) },
-      { label: t('nav.knowledge'), key: 'knowledge', icon: renderIcon(LibraryOutline) },
-      { label: t('nav.audit'), key: 'audit', icon: renderIcon(FileTrayFullOutline) },
-      { label: t('nav.geofences'), key: 'geofences', icon: renderIcon(LocationOutline) },
-      { label: t('nav.importExport'), key: 'import-export', icon: renderIcon(CloudDownloadOutline) },
-      { label: t('nav.settings'), key: 'settings', icon: renderIcon(SettingsOutline) },
     )
+    if (isEnabled('final-pay')) items.push({ label: t('nav.finalPay'), key: 'final-pay', icon: renderIcon(WalletOutline) })
+    if (isEnabled('compliance')) items.push({ label: t('nav.compliance'), key: 'compliance', icon: renderIcon(ShieldCheckmarkOutline) })
+    if (isEnabled('tax-filings')) items.push({ label: t('nav.taxFilings'), key: 'tax-filings', icon: renderIcon(DocumentTextOutline) })
+    if (isEnabled('holidays')) items.push({ label: t('holiday.title'), key: 'holidays', icon: renderIcon(TodayOutline) })
+    items.push({ label: t('nav.users'), key: 'users', icon: renderIcon(PeopleOutline) })
+    if (isEnabled('knowledge')) items.push({ label: t('nav.knowledge'), key: 'knowledge', icon: renderIcon(LibraryOutline) })
+    if (isEnabled('audit')) items.push({ label: t('nav.audit'), key: 'audit', icon: renderIcon(FileTrayFullOutline) })
+    if (isEnabled('geofences')) items.push({ label: t('nav.geofences'), key: 'geofences', icon: renderIcon(LocationOutline) })
+    if (isEnabled('billing')) items.push({ label: t('nav.billing'), key: 'billing', icon: renderIcon(WalletOutline) })
+    if (isEnabled('import-export')) items.push({ label: t('nav.importExport'), key: 'import-export', icon: renderIcon(CloudDownloadOutline) })
+    items.push({ label: t('nav.settings'), key: 'settings', icon: renderIcon(SettingsOutline) })
   }
 
   return items

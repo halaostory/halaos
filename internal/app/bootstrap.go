@@ -17,7 +17,9 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/tonypk/aigonhr/internal/ai"
+	"github.com/tonypk/aigonhr/internal/ai/agent"
 	"github.com/tonypk/aigonhr/internal/ai/provider"
+	"github.com/tonypk/aigonhr/internal/billing"
 	"github.com/tonypk/aigonhr/internal/analytics"
 	"github.com/tonypk/aigonhr/internal/announcement"
 	"github.com/tonypk/aigonhr/internal/approval"
@@ -209,13 +211,20 @@ func (a *App) setupRoutes() {
 	announcementHandler := announcement.NewHandler(a.Queries, a.Pool, a.Logger)
 	dashboardHandler := dashboard.NewHandler(a.Queries, a.Pool, a.Logger)
 
+	// Billing service
+	billingSvc := billing.NewService(a.Queries, a.Logger)
+	billingHandler := billing.NewHandler(billingSvc, a.Queries, a.Logger)
+
 	// AI service (optional)
 	var aiHandler *ai.Handler
 	if a.Cfg.AI.Enabled && a.Cfg.AI.AnthropicKey != "" {
 		aiProvider := provider.NewAnthropic(a.Cfg.AI.AnthropicKey, "")
 		aiService := ai.NewService(aiProvider, a.Queries, a.Pool, a.Logger)
-		aiHandler = ai.NewHandler(aiService)
-		a.Logger.Info("AI assistant enabled")
+		toolRegistry := ai.NewToolRegistry(a.Queries, a.Pool)
+		agentRegistry := agent.NewRegistry(a.Queries, a.Logger)
+		executor := agent.NewExecutor(aiProvider, toolRegistry, billingSvc, agentRegistry, a.Queries, a.Logger)
+		aiHandler = ai.NewHandler(aiService, executor, agentRegistry)
+		a.Logger.Info("AI assistant enabled", "agents", len(agentRegistry.List(context.Background())))
 	} else {
 		a.Logger.Info("AI assistant disabled (no API key or AI_ENABLED=false)")
 	}
@@ -259,6 +268,8 @@ func (a *App) setupRoutes() {
 	holidayHandler.RegisterRoutes(protected)
 	announcementHandler.RegisterRoutes(protected)
 	dashboardHandler.RegisterRoutes(protected)
+
+	billingHandler.RegisterRoutes(protected)
 
 	if aiHandler != nil {
 		aiHandler.RegisterRoutes(protected)
