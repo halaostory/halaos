@@ -12,9 +12,9 @@ CREATE TABLE compliance_alerts (
     days_remaining INT,
     is_resolved BOOLEAN NOT NULL DEFAULT false,
     resolved_at TIMESTAMPTZ,
-    calculated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE(company_id, alert_type, entity_type, COALESCE(entity_id, 0), due_date)
+    calculated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+CREATE UNIQUE INDEX idx_compliance_alerts_dedup ON compliance_alerts(company_id, alert_type, entity_type, COALESCE(entity_id, 0), due_date);
 CREATE INDEX idx_compliance_alerts_active ON compliance_alerts(company_id, is_resolved, severity);
 CREATE INDEX idx_compliance_alerts_due ON compliance_alerts(company_id, due_date) WHERE NOT is_resolved;
 
