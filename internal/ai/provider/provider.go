@@ -13,9 +13,10 @@ const (
 
 // Message represents a single chat message.
 type Message struct {
-	Role    string      `json:"role"`
-	Content string      `json:"content,omitempty"`
-	Tool    *ToolResult `json:"tool_result,omitempty"`
+	Role      string      `json:"role"`
+	Content   string      `json:"content,omitempty"`
+	Tool      *ToolResult `json:"tool_result,omitempty"`
+	ToolCalls []ToolCall  `json:"tool_calls,omitempty"`
 }
 
 // ToolDefinition describes a tool the LLM can invoke.

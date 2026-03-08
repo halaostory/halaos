@@ -61,16 +61,17 @@ func (q *Queries) DeleteChatSession(ctx context.Context, arg DeleteChatSessionPa
 
 const getChatSession = `-- name: GetChatSession :one
 SELECT id, company_id, user_id, agent_slug, title, created_at, updated_at FROM chat_sessions
-WHERE id = $1 AND company_id = $2
+WHERE id = $1 AND company_id = $2 AND user_id = $3
 `
 
 type GetChatSessionParams struct {
 	ID        uuid.UUID `json:"id"`
 	CompanyID int64     `json:"company_id"`
+	UserID    int64     `json:"user_id"`
 }
 
 func (q *Queries) GetChatSession(ctx context.Context, arg GetChatSessionParams) (ChatSession, error) {
-	row := q.db.QueryRow(ctx, getChatSession, arg.ID, arg.CompanyID)
+	row := q.db.QueryRow(ctx, getChatSession, arg.ID, arg.CompanyID, arg.UserID)
 	var i ChatSession
 	err := row.Scan(
 		&i.ID,

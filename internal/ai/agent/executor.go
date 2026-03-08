@@ -126,8 +126,9 @@ func (e *Executor) Chat(ctx context.Context, companyID, userID int64, agentSlug 
 
 		if resp.StopReason == provider.StopToolUse && len(resp.ToolCalls) > 0 {
 			messages = append(messages, provider.Message{
-				Role:    provider.RoleAssistant,
-				Content: resp.Content,
+				Role:      provider.RoleAssistant,
+				Content:   resp.Content,
+				ToolCalls: resp.ToolCalls,
 			})
 
 			for _, tc := range resp.ToolCalls {
@@ -218,9 +219,24 @@ func (e *Executor) StreamChat(ctx context.Context, companyID, userID int64, agen
 	for round := 0; round < agentCfg.MaxRounds; round++ {
 		isLastRound := round == agentCfg.MaxRounds-1
 
-		if round > 0 || len(messages) > 1 {
-			// After tool execution, use non-streaming for tool rounds
-			resp, err := e.provider.Generate(ctx, provider.Request{
+		var resp *provider.Response
+
+		if round == 0 {
+			// First round: always stream for user-visible output
+			var err error
+			resp, err = e.provider.Stream(ctx, provider.Request{
+				System:    agentCfg.SystemPrompt,
+				Messages:  messages,
+				Tools:     toolDefs,
+				MaxTokens: agentCfg.MaxTokens,
+			}, onChunk)
+			if err != nil {
+				return nil, fmt.Errorf("llm stream: %w", err)
+			}
+		} else {
+			// Subsequent rounds (after tool use): non-streaming
+			var err error
+			resp, err = e.provider.Generate(ctx, provider.Request{
 				System:    agentCfg.SystemPrompt,
 				Messages:  messages,
 				Tools:     toolDefs,
@@ -229,45 +245,17 @@ func (e *Executor) StreamChat(ctx context.Context, companyID, userID int64, agen
 			if err != nil {
 				return nil, fmt.Errorf("llm generate round %d: %w", round, err)
 			}
-			totalInput += resp.Usage.InputTokens
-			totalOutput += resp.Usage.OutputTokens
-
-			if resp.StopReason == provider.StopToolUse && len(resp.ToolCalls) > 0 && !isLastRound {
-				messages = append(messages, provider.Message{Role: provider.RoleAssistant, Content: resp.Content})
-				for _, tc := range resp.ToolCalls {
-					result, execErr := e.tools.Execute(ctx, tc.Name, companyID, userID, tc.Input)
-					if execErr != nil {
-						result = fmt.Sprintf("Error: %s", execErr.Error())
-					}
-					messages = append(messages, provider.Message{
-						Role: provider.RoleUser,
-						Tool: &provider.ToolResult{ToolUseID: tc.ID, Content: result, IsError: execErr != nil},
-					})
-				}
-				continue
-			}
-
-			finalText = resp.Content
-			onChunk(provider.StreamChunk{Type: "text_delta", Text: resp.Content})
-			onChunk(provider.StreamChunk{Type: "message_stop", Usage: &resp.Usage})
-			break
 		}
 
-		// First round: stream directly
-		resp, err := e.provider.Stream(ctx, provider.Request{
-			System:    agentCfg.SystemPrompt,
-			Messages:  messages,
-			Tools:     toolDefs,
-			MaxTokens: agentCfg.MaxTokens,
-		}, onChunk)
-		if err != nil {
-			return nil, fmt.Errorf("llm stream: %w", err)
-		}
 		totalInput += resp.Usage.InputTokens
 		totalOutput += resp.Usage.OutputTokens
 
-		if resp.StopReason == provider.StopToolUse && len(resp.ToolCalls) > 0 {
-			messages = append(messages, provider.Message{Role: provider.RoleAssistant, Content: resp.Content})
+		if resp.StopReason == provider.StopToolUse && len(resp.ToolCalls) > 0 && !isLastRound {
+			messages = append(messages, provider.Message{
+				Role:      provider.RoleAssistant,
+				Content:   resp.Content,
+				ToolCalls: resp.ToolCalls,
+			})
 			for _, tc := range resp.ToolCalls {
 				result, execErr := e.tools.Execute(ctx, tc.Name, companyID, userID, tc.Input)
 				if execErr != nil {
@@ -279,6 +267,13 @@ func (e *Executor) StreamChat(ctx context.Context, companyID, userID int64, agen
 				})
 			}
 			continue
+		}
+
+		// Final response
+		if round > 0 {
+			// Non-streamed rounds: send text as a single chunk
+			onChunk(provider.StreamChunk{Type: "text_delta", Text: resp.Content})
+			onChunk(provider.StreamChunk{Type: "message_stop", Usage: &resp.Usage})
 		}
 
 		finalText = resp.Content
@@ -323,6 +318,7 @@ func (e *Executor) resolveSession(ctx context.Context, companyID, userID int64, 
 			_, err := e.queries.GetChatSession(ctx, store.GetChatSessionParams{
 				ID:        sid,
 				CompanyID: companyID,
+				UserID:    userID,
 			})
 			if err == nil {
 				return req.SessionID, false

@@ -99,15 +99,39 @@ func (a *Anthropic) buildRequest(req Request, stream bool) (*http.Request, error
 	msgs := make([]anthropicMsg, 0, len(req.Messages))
 	for _, m := range req.Messages {
 		if m.Tool != nil {
+			// Merge consecutive tool_result messages into a single user message
+			block := contentBlock{
+				Type:      "tool_result",
+				ToolUseID: m.Tool.ToolUseID,
+				Content:   m.Tool.Content,
+				IsError:   m.Tool.IsError,
+			}
+			if len(msgs) > 0 && msgs[len(msgs)-1].Role == "user" {
+				// Check if last message is already a tool_result array
+				if blocks, ok := msgs[len(msgs)-1].Content.([]contentBlock); ok {
+					msgs[len(msgs)-1].Content = append(blocks, block)
+					continue
+				}
+			}
 			msgs = append(msgs, anthropicMsg{
-				Role: "user",
-				Content: []contentBlock{{
-					Type:      "tool_result",
-					ToolUseID: m.Tool.ToolUseID,
-					Content:   m.Tool.Content,
-					IsError:   m.Tool.IsError,
-				}},
+				Role:    "user",
+				Content: []contentBlock{block},
 			})
+		} else if m.Role == RoleAssistant && len(m.ToolCalls) > 0 {
+			// Assistant message with tool_use: build full content blocks
+			blocks := make([]contentBlock, 0, len(m.ToolCalls)+1)
+			if m.Content != "" {
+				blocks = append(blocks, contentBlock{Type: "text", Text: m.Content})
+			}
+			for _, tc := range m.ToolCalls {
+				blocks = append(blocks, contentBlock{
+					Type:  "tool_use",
+					ID:    tc.ID,
+					Name:  tc.Name,
+					Input: tc.Input,
+				})
+			}
+			msgs = append(msgs, anthropicMsg{Role: "assistant", Content: blocks})
 		} else {
 			msgs = append(msgs, anthropicMsg{Role: m.Role, Content: m.Content})
 		}

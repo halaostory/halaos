@@ -5,7 +5,7 @@ RETURNING *;
 
 -- name: GetChatSession :one
 SELECT * FROM chat_sessions
-WHERE id = $1 AND company_id = $2;
+WHERE id = $1 AND company_id = $2 AND user_id = $3;
 
 -- name: UpdateChatSessionTitle :exec
 UPDATE chat_sessions SET title = $2, updated_at = NOW()

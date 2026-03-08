@@ -437,9 +437,19 @@ const chatPanelWidth = computed(() => showHistory.value ? '600px' : '400px')
 
 <script lang="ts">
 // Simple markdown renderer (no external dep)
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 function renderMarkdown(text: string): string {
   if (!text) return ''
-  return text
+  // Escape HTML entities first to prevent XSS
+  return escapeHtml(text)
     // Code blocks
     .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
     // Inline code

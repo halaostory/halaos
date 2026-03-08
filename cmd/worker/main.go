@@ -606,13 +606,17 @@ func sendProactiveReminders(ctx context.Context, queries *store.Queries, logger 
 			for _, ms := range milestones {
 				entityType := "milestone"
 				for _, admin := range admins {
-					sent, _ := queries.HasReminderBeenSent(ctx, store.HasReminderBeenSentParams{
+					sent, err := queries.HasReminderBeenSent(ctx, store.HasReminderBeenSentParams{
 						CompanyID:     company.ID,
 						ReminderType:  "contract_milestone",
 						EntityType:    &entityType,
 						Column4:       ms.ID,
 						ScheduledDate: today,
 					})
+					if err != nil {
+						logger.Warn("failed to check reminder status, skipping", "type", "HasReminderBeenSent", "error", err)
+						continue
+					}
 					if sent {
 						continue
 					}
@@ -641,13 +645,17 @@ func sendProactiveReminders(ctx context.Context, queries *store.Queries, logger 
 		if err == nil && len(docs) > 0 {
 			entityType := "document"
 			for _, admin := range admins {
-				sent, _ := queries.HasReminderBeenSent(ctx, store.HasReminderBeenSentParams{
+				sent, err := queries.HasReminderBeenSent(ctx, store.HasReminderBeenSentParams{
 					CompanyID:     company.ID,
 					ReminderType:  "expiring_documents",
 					EntityType:    &entityType,
 					Column4:       0,
 					ScheduledDate: today,
 				})
+				if err != nil {
+					logger.Warn("failed to check reminder status, skipping", "type", "HasReminderBeenSent", "error", err)
+					continue
+				}
 				if sent {
 					continue
 				}
@@ -673,13 +681,17 @@ func sendProactiveReminders(ctx context.Context, queries *store.Queries, logger 
 		if err == nil && len(overdue) > 0 {
 			entityType := "tax_filing"
 			for _, admin := range admins {
-				sent, _ := queries.HasReminderBeenSent(ctx, store.HasReminderBeenSentParams{
+				sent, err := queries.HasReminderBeenSent(ctx, store.HasReminderBeenSentParams{
 					CompanyID:     company.ID,
 					ReminderType:  "overdue_filings",
 					EntityType:    &entityType,
 					Column4:       0,
 					ScheduledDate: today,
 				})
+				if err != nil {
+					logger.Warn("failed to check reminder status, skipping", "type", "HasReminderBeenSent", "error", err)
+					continue
+				}
 				if sent {
 					continue
 				}
@@ -705,13 +717,17 @@ func sendProactiveReminders(ctx context.Context, queries *store.Queries, logger 
 		if err == nil && len(upcoming) > 0 {
 			entityType := "tax_filing"
 			for _, admin := range admins {
-				sent, _ := queries.HasReminderBeenSent(ctx, store.HasReminderBeenSentParams{
+				sent, err := queries.HasReminderBeenSent(ctx, store.HasReminderBeenSentParams{
 					CompanyID:     company.ID,
 					ReminderType:  "upcoming_filings",
 					EntityType:    &entityType,
 					Column4:       0,
 					ScheduledDate: today,
 				})
+				if err != nil {
+					logger.Warn("failed to check reminder status, skipping", "type", "HasReminderBeenSent", "error", err)
+					continue
+				}
 				if sent {
 					continue
 				}
@@ -737,13 +753,17 @@ func sendProactiveReminders(ctx context.Context, queries *store.Queries, logger 
 		if err == nil && len(pendingLeaves) > 0 {
 			entityType := "leave_request"
 			for _, mgr := range managers {
-				sent, _ := queries.HasReminderBeenSent(ctx, store.HasReminderBeenSentParams{
+				sent, err := queries.HasReminderBeenSent(ctx, store.HasReminderBeenSentParams{
 					CompanyID:     company.ID,
 					ReminderType:  "pending_approvals",
 					EntityType:    &entityType,
 					Column4:       0,
 					ScheduledDate: today,
 				})
+				if err != nil {
+					logger.Warn("failed to check reminder status, skipping", "type", "HasReminderBeenSent", "error", err)
+					continue
+				}
 				if sent {
 					continue
 				}
@@ -769,13 +789,17 @@ func sendProactiveReminders(ctx context.Context, queries *store.Queries, logger 
 		if err == nil && len(pendingOT) > 0 {
 			entityType := "overtime_request"
 			for _, mgr := range managers {
-				sent, _ := queries.HasReminderBeenSent(ctx, store.HasReminderBeenSentParams{
+				sent, err := queries.HasReminderBeenSent(ctx, store.HasReminderBeenSentParams{
 					CompanyID:     company.ID,
 					ReminderType:  "pending_ot_approvals",
 					EntityType:    &entityType,
 					Column4:       0,
 					ScheduledDate: today,
 				})
+				if err != nil {
+					logger.Warn("failed to check reminder status, skipping", "type", "HasReminderBeenSent", "error", err)
+					continue
+				}
 				if sent {
 					continue
 				}

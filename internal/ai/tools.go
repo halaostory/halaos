@@ -552,6 +552,10 @@ func (r *ToolRegistry) toolCreateLeaveRequest(ctx context.Context, companyID, us
 		return "", fmt.Errorf("invalid end_date format, use YYYY-MM-DD")
 	}
 
+	if endDate.Before(startDate) {
+		return "", fmt.Errorf("end_date must not be before start_date")
+	}
+
 	var days pgtype.Numeric
 	_ = days.Scan(fmt.Sprintf("%.1f", daysFloat))
 
@@ -609,6 +613,8 @@ func (r *ToolRegistry) toolClockIn(ctx context.Context, companyID, userID int64,
 		CompanyID:     companyID,
 		EmployeeID:    emp.ID,
 		ClockInSource: "ai",
+		ClockInLat:    pgtype.Numeric{Valid: false},
+		ClockInLng:    pgtype.Numeric{Valid: false},
 	})
 	if err != nil {
 		return "", fmt.Errorf("clock in: %w", err)
@@ -649,6 +655,8 @@ func (r *ToolRegistry) toolClockOut(ctx context.Context, companyID, userID int64
 		ID:             open.ID,
 		EmployeeID:     emp.ID,
 		ClockOutSource: &source,
+		ClockOutLat:    pgtype.Numeric{Valid: false},
+		ClockOutLng:    pgtype.Numeric{Valid: false},
 	})
 	if err != nil {
 		return "", fmt.Errorf("clock out: %w", err)
@@ -694,6 +702,10 @@ func (r *ToolRegistry) toolCreateOvertimeRequest(ctx context.Context, companyID,
 	endAt, err := time.Parse("2006-01-02 15:04", otDateStr+" "+endAtStr)
 	if err != nil {
 		return "", fmt.Errorf("invalid end_at format, use HH:MM")
+	}
+
+	if !endAt.After(startAt) {
+		return "", fmt.Errorf("end_at must be after start_at")
 	}
 
 	var hours pgtype.Numeric
