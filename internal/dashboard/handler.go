@@ -1,6 +1,7 @@
 package dashboard
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"time"
@@ -357,4 +358,63 @@ func (h *Handler) GetSuggestions(c *gin.Context) {
 	}
 
 	response.OK(c, suggestions)
+}
+
+// GetFlightRisk returns the top 10 employees with the highest flight risk scores.
+func (h *Handler) GetFlightRisk(c *gin.Context) {
+	companyID := auth.GetCompanyID(c)
+
+	rows, err := h.pool.Query(c.Request.Context(), `
+		SELECT ers.employee_id, ers.risk_score, ers.factors, ers.calculated_at,
+		       e.employee_no, e.first_name, e.last_name,
+		       COALESCE(d.name, '') as department
+		FROM employee_risk_scores ers
+		JOIN employees e ON e.id = ers.employee_id
+		LEFT JOIN departments d ON d.id = e.department_id
+		WHERE ers.company_id = $1
+		ORDER BY ers.risk_score DESC
+		LIMIT 10
+	`, companyID)
+	if err != nil {
+		response.OK(c, []any{})
+		return
+	}
+	defer rows.Close()
+
+	type riskFactor struct {
+		Factor string `json:"factor"`
+		Points int    `json:"points"`
+		Detail string `json:"detail"`
+	}
+
+	var result []gin.H
+	for rows.Next() {
+		var employeeID int64
+		var riskScore int
+		var factorsJSON []byte
+		var calculatedAt time.Time
+		var employeeNo, firstName, lastName, department string
+
+		if err := rows.Scan(
+			&employeeID, &riskScore, &factorsJSON, &calculatedAt,
+			&employeeNo, &firstName, &lastName, &department,
+		); err != nil {
+			continue
+		}
+
+		var factors []riskFactor
+		_ = json.Unmarshal(factorsJSON, &factors)
+
+		result = append(result, gin.H{
+			"employee_id":   employeeID,
+			"employee_no":   employeeNo,
+			"name":          firstName + " " + lastName,
+			"department":    department,
+			"risk_score":    riskScore,
+			"factors":       factors,
+			"calculated_at": calculatedAt,
+		})
+	}
+
+	response.OK(c, result)
 }

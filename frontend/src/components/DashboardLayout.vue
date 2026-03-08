@@ -22,6 +22,7 @@ import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
 import { notificationAPI } from '../api/client'
 import ChatPanel from './ChatPanel.vue'
+import CommandPalette from './CommandPalette.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -381,5 +382,6 @@ function handleUserAction(key: string) {
       </NLayoutContent>
     </NLayout>
     <ChatPanel />
+    <CommandPalette />
   </NLayout>
 </template>

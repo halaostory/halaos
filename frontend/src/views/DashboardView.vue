@@ -14,6 +14,8 @@ import {
 import { attendanceAPI, dashboardAPI, analyticsAPI, suggestionsAPI, announcementAPI, employeeAPI } from '../api/client'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
+import DashboardBriefing from '../components/DashboardBriefing.vue'
+import FlightRiskWidget from '../components/FlightRiskWidget.vue'
 
 use([
   CanvasRenderer, BarChart, PieChart, LineChart,
@@ -311,6 +313,8 @@ async function handleClockOut() {
   <div>
     <h2 style="margin-bottom: 24px;">{{ t('dashboard.title') }}</h2>
 
+    <DashboardBriefing />
+
     <NGrid :cols="4" :x-gap="16" :y-gap="16" responsive="screen" style="margin-bottom: 24px;">
       <NGi>
         <NCard>
@@ -434,6 +438,9 @@ async function handleClockOut() {
         </div>
       </div>
     </NCard>
+
+    <!-- Flight Risk Dashboard -->
+    <FlightRiskWidget v-if="auth.isAdmin || auth.isManager" />
 
     <NGrid :cols="2" :x-gap="16" :y-gap="16" responsive="screen" style="margin-bottom: 24px;">
       <NGi v-if="deptData.length > 0">

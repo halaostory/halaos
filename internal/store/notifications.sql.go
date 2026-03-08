@@ -22,9 +22,9 @@ func (q *Queries) CountUnreadNotifications(ctx context.Context, userID int64) (i
 }
 
 const createNotification = `-- name: CreateNotification :one
-INSERT INTO notifications (company_id, user_id, title, message, category, entity_type, entity_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, company_id, user_id, title, message, category, entity_type, entity_id, is_read, read_at, created_at
+INSERT INTO notifications (company_id, user_id, title, message, category, entity_type, entity_id, actions)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, company_id, user_id, title, message, category, entity_type, entity_id, is_read, read_at, created_at, actions
 `
 
 type CreateNotificationParams struct {
@@ -35,6 +35,7 @@ type CreateNotificationParams struct {
 	Category   string  `json:"category"`
 	EntityType *string `json:"entity_type"`
 	EntityID   *int64  `json:"entity_id"`
+	Actions    []byte  `json:"actions"`
 }
 
 func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotificationParams) (Notification, error) {
@@ -46,6 +47,7 @@ func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotification
 		arg.Category,
 		arg.EntityType,
 		arg.EntityID,
+		arg.Actions,
 	)
 	var i Notification
 	err := row.Scan(
@@ -60,6 +62,7 @@ func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotification
 		&i.IsRead,
 		&i.ReadAt,
 		&i.CreatedAt,
+		&i.Actions,
 	)
 	return i, err
 }
@@ -78,8 +81,38 @@ func (q *Queries) DeleteNotification(ctx context.Context, arg DeleteNotification
 	return err
 }
 
+const getNotificationByID = `-- name: GetNotificationByID :one
+SELECT id, company_id, user_id, title, message, category, entity_type, entity_id, is_read, read_at, created_at, actions FROM notifications
+WHERE id = $1 AND user_id = $2
+`
+
+type GetNotificationByIDParams struct {
+	ID     int64 `json:"id"`
+	UserID int64 `json:"user_id"`
+}
+
+func (q *Queries) GetNotificationByID(ctx context.Context, arg GetNotificationByIDParams) (Notification, error) {
+	row := q.db.QueryRow(ctx, getNotificationByID, arg.ID, arg.UserID)
+	var i Notification
+	err := row.Scan(
+		&i.ID,
+		&i.CompanyID,
+		&i.UserID,
+		&i.Title,
+		&i.Message,
+		&i.Category,
+		&i.EntityType,
+		&i.EntityID,
+		&i.IsRead,
+		&i.ReadAt,
+		&i.CreatedAt,
+		&i.Actions,
+	)
+	return i, err
+}
+
 const listNotifications = `-- name: ListNotifications :many
-SELECT id, company_id, user_id, title, message, category, entity_type, entity_id, is_read, read_at, created_at FROM notifications
+SELECT id, company_id, user_id, title, message, category, entity_type, entity_id, is_read, read_at, created_at, actions FROM notifications
 WHERE user_id = $1
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $3
@@ -112,6 +145,7 @@ func (q *Queries) ListNotifications(ctx context.Context, arg ListNotificationsPa
 			&i.IsRead,
 			&i.ReadAt,
 			&i.CreatedAt,
+			&i.Actions,
 		); err != nil {
 			return nil, err
 		}
@@ -145,5 +179,21 @@ type MarkNotificationReadParams struct {
 
 func (q *Queries) MarkNotificationRead(ctx context.Context, arg MarkNotificationReadParams) error {
 	_, err := q.db.Exec(ctx, markNotificationRead, arg.ID, arg.UserID)
+	return err
+}
+
+const updateNotificationActions = `-- name: UpdateNotificationActions :exec
+UPDATE notifications SET actions = $3
+WHERE id = $1 AND user_id = $2
+`
+
+type UpdateNotificationActionsParams struct {
+	ID      int64  `json:"id"`
+	UserID  int64  `json:"user_id"`
+	Actions []byte `json:"actions"`
+}
+
+func (q *Queries) UpdateNotificationActions(ctx context.Context, arg UpdateNotificationActionsParams) error {
+	_, err := q.db.Exec(ctx, updateNotificationActions, arg.ID, arg.UserID, arg.Actions)
 	return err
 }

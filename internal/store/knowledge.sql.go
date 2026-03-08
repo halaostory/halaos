@@ -171,15 +171,15 @@ SELECT id, company_id, category, topic, title, content, tags, source, is_active,
 FROM knowledge_articles
 WHERE is_active = true
   AND (company_id IS NULL OR company_id = $1)
-  AND search_vector @@ plainto_tsquery('english', $2)
-ORDER BY ts_rank(search_vector, plainto_tsquery('english', $2)) DESC
+  AND search_vector @@ websearch_to_tsquery('english', $2)
+ORDER BY ts_rank(search_vector, websearch_to_tsquery('english', $2)) DESC
 LIMIT $3
 `
 
 type SearchKnowledgeArticlesParams struct {
-	CompanyID      *int64 `json:"company_id"`
-	PlaintoTsquery string `json:"plainto_tsquery"`
-	Limit          int32  `json:"limit"`
+	CompanyID          *int64 `json:"company_id"`
+	WebsearchToTsquery string `json:"websearch_to_tsquery"`
+	Limit              int32  `json:"limit"`
 }
 
 type SearchKnowledgeArticlesRow struct {
@@ -197,7 +197,54 @@ type SearchKnowledgeArticlesRow struct {
 }
 
 func (q *Queries) SearchKnowledgeArticles(ctx context.Context, arg SearchKnowledgeArticlesParams) ([]SearchKnowledgeArticlesRow, error) {
-	rows, err := q.db.Query(ctx, searchKnowledgeArticles, arg.CompanyID, arg.PlaintoTsquery, arg.Limit)
+	rows, err := q.db.Query(ctx, searchKnowledgeArticles, arg.CompanyID, arg.WebsearchToTsquery, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SearchKnowledgeArticlesRow{}
+	for rows.Next() {
+		var i SearchKnowledgeArticlesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CompanyID,
+			&i.Category,
+			&i.Topic,
+			&i.Title,
+			&i.Content,
+			&i.Tags,
+			&i.Source,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchKnowledgeArticlesByILIKE = `-- name: SearchKnowledgeArticlesByILIKE :many
+SELECT id, company_id, category, topic, title, content, tags, source, is_active, created_at, updated_at
+FROM knowledge_articles
+WHERE is_active = true
+  AND (company_id IS NULL OR company_id = $1)
+  AND (title ILIKE '%' || $2 || '%' OR content ILIKE '%' || $2 || '%')
+ORDER BY updated_at DESC
+LIMIT 3
+`
+
+type SearchKnowledgeArticlesByILIKEParams struct {
+	CompanyID *int64 `json:"company_id"`
+	Column2   string `json:"column_2"`
+}
+
+func (q *Queries) SearchKnowledgeArticlesByILIKE(ctx context.Context, arg SearchKnowledgeArticlesByILIKEParams) ([]SearchKnowledgeArticlesRow, error) {
+	rows, err := q.db.Query(ctx, searchKnowledgeArticlesByILIKE, arg.CompanyID, arg.Column2)
 	if err != nil {
 		return nil, err
 	}

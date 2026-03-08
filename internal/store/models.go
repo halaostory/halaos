@@ -278,6 +278,16 @@ type ChatMessage struct {
 	CreatedAt  time.Time `json:"created_at"`
 }
 
+type ChatMessageFeedback struct {
+	ID        int64     `json:"id"`
+	MessageID int64     `json:"message_id"`
+	CompanyID int64     `json:"company_id"`
+	UserID    int64     `json:"user_id"`
+	Rating    string    `json:"rating"`
+	Comment   *string   `json:"comment"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 type ChatSession struct {
 	ID        uuid.UUID `json:"id"`
 	CompanyID int64     `json:"company_id"`
@@ -896,6 +906,7 @@ type Notification struct {
 	IsRead     bool               `json:"is_read"`
 	ReadAt     pgtype.Timestamptz `json:"read_at"`
 	CreatedAt  time.Time          `json:"created_at"`
+	Actions    []byte             `json:"actions"`
 }
 
 type OnboardingTask struct {

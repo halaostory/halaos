@@ -30,15 +30,32 @@ func (h *Handler) Search(c *gin.Context) {
 	}
 
 	companyID := auth.GetCompanyID(c)
-	articles, err := h.queries.SearchKnowledgeArticles(c.Request.Context(), store.SearchKnowledgeArticlesParams{
-		CompanyID:      &companyID,
-		PlaintoTsquery: query,
-		Limit:          20,
+	ctx := c.Request.Context()
+
+	// Primary search: websearch_to_tsquery supports natural language syntax
+	articles, err := h.queries.SearchKnowledgeArticles(ctx, store.SearchKnowledgeArticlesParams{
+		CompanyID:          &companyID,
+		WebsearchToTsquery: query,
+		Limit:              20,
 	})
 	if err != nil {
-		response.InternalError(c, "Search failed")
-		return
+		h.logger.Error("websearch_to_tsquery search failed", "error", err, "query", query)
+		articles = nil
 	}
+
+	// Fallback: if full-text search returns no results, try ILIKE on title and content
+	if len(articles) == 0 {
+		fallbackRows, fbErr := h.queries.SearchKnowledgeArticlesByILIKE(ctx, store.SearchKnowledgeArticlesByILIKEParams{
+			CompanyID: &companyID,
+			Column2:   query,
+		})
+		if fbErr != nil {
+			h.logger.Error("ILIKE fallback search failed", "error", fbErr, "query", query)
+		} else {
+			articles = fallbackRows
+		}
+	}
+
 	response.OK(c, articles)
 }
 

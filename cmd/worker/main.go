@@ -54,7 +54,7 @@ func main() {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				processEvents(ctx, queries, calculator, logger)
+				processEvents(ctx, queries, calculator, pool, logger)
 			}
 		}
 	}()
@@ -68,7 +68,7 @@ func main() {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				runPeriodicJobs(ctx, queries, rdb, logger)
+				runPeriodicJobs(ctx, queries, pool, rdb, logger)
 			}
 		}
 	}()
@@ -83,7 +83,7 @@ func main() {
 	logger.Info("worker stopped")
 }
 
-func processEvents(ctx context.Context, queries *store.Queries, calculator *payroll.Calculator, logger *slog.Logger) {
+func processEvents(ctx context.Context, queries *store.Queries, calculator *payroll.Calculator, pool *pgxpool.Pool, logger *slog.Logger) {
 	events, err := queries.GetPendingEvents(ctx, 50)
 	if err != nil {
 		logger.Error("failed to get pending events", "error", err)
@@ -91,7 +91,7 @@ func processEvents(ctx context.Context, queries *store.Queries, calculator *payr
 	}
 
 	for _, ev := range events {
-		if err := dispatchEvent(ctx, queries, calculator, ev, logger); err != nil {
+		if err := dispatchEvent(ctx, queries, calculator, pool, ev, logger); err != nil {
 			logger.Error("event dispatch failed",
 				"event_id", ev.ID,
 				"event_type", ev.EventType,
@@ -107,12 +107,12 @@ func processEvents(ctx context.Context, queries *store.Queries, calculator *payr
 	}
 }
 
-func dispatchEvent(ctx context.Context, queries *store.Queries, calculator *payroll.Calculator, ev store.HrEvent, logger *slog.Logger) error {
+func dispatchEvent(ctx context.Context, queries *store.Queries, calculator *payroll.Calculator, pool *pgxpool.Pool, ev store.HrEvent, logger *slog.Logger) error {
 	logger.Info("processing event", "type", ev.EventType, "aggregate", ev.AggregateType, "id", ev.AggregateID)
 
 	switch ev.EventType {
 	case "payroll.run_requested":
-		return calculator.RunPayroll(ctx, ev.AggregateID, ev.CompanyID)
+		return handlePayrollRunRequested(ctx, queries, calculator, pool, ev, logger)
 
 	case "employee.hired", "employee.terminated", "employee.transferred":
 		logger.Info("employee lifecycle event processed", "type", ev.EventType, "employee_id", ev.AggregateID)
@@ -132,7 +132,111 @@ func dispatchEvent(ctx context.Context, queries *store.Queries, calculator *payr
 	}
 }
 
-func runPeriodicJobs(ctx context.Context, queries *store.Queries, _ *redis.Client, logger *slog.Logger) {
+// handlePayrollRunRequested runs payroll calculation and then performs automatic
+// anomaly detection. If no critical anomalies are found, it updates the payroll
+// run status to 'ready_for_approval'. Otherwise, it keeps 'completed' status.
+// In both cases, HR admins are notified with the result.
+func handlePayrollRunRequested(ctx context.Context, queries *store.Queries, calculator *payroll.Calculator, pool *pgxpool.Pool, ev store.HrEvent, logger *slog.Logger) error {
+	runID := ev.AggregateID
+	companyID := ev.CompanyID
+
+	// Step 1: Run payroll calculation
+	if err := calculator.RunPayroll(ctx, runID, companyID); err != nil {
+		return err
+	}
+
+	// Step 2: Run anomaly detection as automatic pre-check
+	logger.Info("running automatic anomaly pre-check", "run_id", runID, "company_id", companyID)
+
+	report, err := calculator.DetectAnomalies(ctx, runID, companyID)
+	if err != nil {
+		// Anomaly detection failure should not fail the entire payroll run.
+		// Log the error and proceed with default 'completed' status.
+		logger.Error("anomaly detection failed, payroll remains completed",
+			"run_id", runID,
+			"error", err,
+		)
+		notifyAdminsPayrollResult(ctx, queries, logger, companyID, runID,
+			"Payroll Completed",
+			"Payroll computation completed. Anomaly pre-check could not be performed automatically. Please review manually.",
+		)
+		return nil
+	}
+
+	criticalCount := report.Summary.Critical
+	totalAnomalies := len(report.Anomalies)
+
+	logger.Info("anomaly pre-check completed",
+		"run_id", runID,
+		"total_anomalies", totalAnomalies,
+		"critical", criticalCount,
+		"high", report.Summary.High,
+		"medium", report.Summary.Medium,
+		"low", report.Summary.Low,
+	)
+
+	// Step 3: Update status and notify based on results
+	if criticalCount == 0 {
+		// No critical anomalies: promote to ready_for_approval
+		_, err := pool.Exec(ctx,
+			"UPDATE payroll_runs SET status = 'ready_for_approval' WHERE id = $1",
+			runID,
+		)
+		if err != nil {
+			logger.Error("failed to update payroll run to ready_for_approval",
+				"run_id", runID,
+				"error", err,
+			)
+			// Continue to notify even if status update fails
+		} else {
+			logger.Info("payroll run promoted to ready_for_approval", "run_id", runID)
+		}
+
+		msg := "Payroll ready for approval, no anomalies detected."
+		if totalAnomalies > 0 {
+			msg = fmt.Sprintf("Payroll ready for approval. %d non-critical anomaly(ies) noted — please review at your convenience.", totalAnomalies)
+		}
+		notifyAdminsPayrollResult(ctx, queries, logger, companyID, runID,
+			"Payroll Ready for Approval",
+			msg,
+		)
+	} else {
+		// Critical anomalies found: keep 'completed' status, alert HR
+		notifyAdminsPayrollResult(ctx, queries, logger, companyID, runID,
+			"Payroll Requires Review",
+			fmt.Sprintf("Payroll completed with %d anomaly(ies) (%d critical). Please review before approving.",
+				totalAnomalies, criticalCount),
+		)
+	}
+
+	return nil
+}
+
+// notifyAdminsPayrollResult sends a payroll notification to all admin users
+// for the given company with an action to review the payroll page.
+func notifyAdminsPayrollResult(ctx context.Context, queries *store.Queries, logger *slog.Logger, companyID, runID int64, title, msg string) {
+	admins, err := queries.ListAdminUsersByCompany(ctx, companyID)
+	if err != nil {
+		logger.Error("failed to list admins for payroll notification",
+			"company_id", companyID,
+			"error", err,
+		)
+		return
+	}
+
+	entityType := "payroll_run"
+	actions := []notification.NotificationAction{
+		{Label: "Review Payroll", Route: "/payroll", Action: "review_payroll"},
+	}
+
+	for _, admin := range admins {
+		notification.Notify(ctx, queries, logger, companyID, admin.ID,
+			title, msg, "payroll", &entityType, &runID, actions,
+		)
+	}
+}
+
+func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.Pool, _ *redis.Client, logger *slog.Logger) {
 	logger.Info("running periodic jobs")
 
 	// Auto-close open attendance records from previous day
@@ -158,6 +262,12 @@ func runPeriodicJobs(ctx context.Context, queries *store.Queries, _ *redis.Clien
 
 	// Mark expired documents (201 file)
 	_ = queries.MarkExpiredDocuments(ctx)
+
+	// Detect no-show employees and send notifications (10 AM only)
+	checkNoShows(ctx, queries, pool, logger)
+
+	// Calculate flight risk scores (weekly, Monday only)
+	calculateFlightRisk(ctx, queries, pool, logger)
 
 	// Send proactive AI reminders (notifications)
 	sendProactiveReminders(ctx, queries, logger)
@@ -625,7 +735,10 @@ func sendProactiveReminders(ctx context.Context, queries *store.Queries, logger 
 					msg := fmt.Sprintf("Employee #%d has a %s milestone in %d days.",
 						ms.EmployeeID, ms.MilestoneType, ms.DaysRemaining)
 
-					notification.Notify(ctx, queries, logger, company.ID, admin.ID, title, msg, "ai_reminder", &entityType, &ms.ID)
+					actions := []notification.NotificationAction{
+						{Label: "View Employee", Route: fmt.Sprintf("/employees/%d", ms.EmployeeID), Action: "view_employee"},
+					}
+					notification.Notify(ctx, queries, logger, company.ID, admin.ID, title, msg, "ai_reminder", &entityType, &ms.ID, actions)
 
 					_, _ = queries.InsertAIReminder(ctx, store.InsertAIReminderParams{
 						CompanyID:     company.ID,
@@ -663,7 +776,10 @@ func sendProactiveReminders(ctx context.Context, queries *store.Queries, logger 
 				title := "Expiring Documents Alert"
 				msg := fmt.Sprintf("%d employee document(s) are expiring soon. Please review and renew.", len(docs))
 
-				notification.Notify(ctx, queries, logger, company.ID, admin.ID, title, msg, "ai_reminder", &entityType, nil)
+				actions := []notification.NotificationAction{
+					{Label: "View Documents", Route: "/employees", Action: "view_documents"},
+				}
+				notification.Notify(ctx, queries, logger, company.ID, admin.ID, title, msg, "ai_reminder", &entityType, nil, actions)
 
 				_, _ = queries.InsertAIReminder(ctx, store.InsertAIReminderParams{
 					CompanyID:     company.ID,
@@ -771,7 +887,10 @@ func sendProactiveReminders(ctx context.Context, queries *store.Queries, logger 
 				title := "Pending Leave Approvals"
 				msg := fmt.Sprintf("%d leave request(s) are waiting for your approval.", len(pendingLeaves))
 
-				notification.Notify(ctx, queries, logger, company.ID, mgr.ID, title, msg, "ai_reminder", &entityType, nil)
+				actions := []notification.NotificationAction{
+					{Label: "Review All", Route: "/approvals", Action: "review_leave_approvals"},
+				}
+				notification.Notify(ctx, queries, logger, company.ID, mgr.ID, title, msg, "ai_reminder", &entityType, nil, actions)
 
 				_, _ = queries.InsertAIReminder(ctx, store.InsertAIReminderParams{
 					CompanyID:     company.ID,
@@ -807,7 +926,10 @@ func sendProactiveReminders(ctx context.Context, queries *store.Queries, logger 
 				title := "Pending Overtime Approvals"
 				msg := fmt.Sprintf("%d overtime request(s) are waiting for your approval.", len(pendingOT))
 
-				notification.Notify(ctx, queries, logger, company.ID, mgr.ID, title, msg, "ai_reminder", &entityType, nil)
+				actions := []notification.NotificationAction{
+					{Label: "Review", Route: "/approvals", Action: "review_ot_approvals"},
+				}
+				notification.Notify(ctx, queries, logger, company.ID, mgr.ID, title, msg, "ai_reminder", &entityType, nil, actions)
 
 				_, _ = queries.InsertAIReminder(ctx, store.InsertAIReminderParams{
 					CompanyID:     company.ID,

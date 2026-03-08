@@ -367,6 +367,12 @@ export const dashboardAPI = {
   getLeaveSummary: () => get("/v1/dashboard/leave-summary"),
   getCelebrations: () => get("/v1/dashboard/celebrations"),
   getActionItems: () => get("/v1/dashboard/action-items"),
+  getFlightRisk: () => get("/v1/dashboard/flight-risk"),
+};
+
+// Flight Risk (convenience alias)
+export const flightRiskAPI = {
+  getTopRisks: () => get("/v1/dashboard/flight-risk"),
 };
 
 // Holidays
@@ -796,6 +802,33 @@ export const milestoneAPI = {
     post(`/v1/milestones/${id}/acknowledge`, { notes }),
   action: (id: number, notes?: string) =>
     post(`/v1/milestones/${id}/action`, { notes }),
+};
+
+// AI Briefing
+export const briefingAPI = {
+  get: () => get("/v1/ai/briefing"),
+};
+
+// AI Command Palette
+export const commandAPI = {
+  execute: (query: string) =>
+    post<{
+      data: {
+        result: {
+          type: "action" | "query" | "info" | "navigation";
+          title: string;
+          message: string;
+          data?: Record<string, unknown>;
+          actions?: Array<{
+            label: string;
+            route?: string;
+            action?: string;
+            params?: Record<string, unknown>;
+          }>;
+        };
+        tokens_used: number;
+      };
+    }>("/v1/ai/command", { query }),
 };
 
 // AI Chat

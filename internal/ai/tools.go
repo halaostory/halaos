@@ -486,12 +486,28 @@ func (r *ToolRegistry) toolSearchKnowledgeBase(ctx context.Context, companyID in
 		limit = 10
 	}
 
+	// Primary search: websearch_to_tsquery supports natural language syntax
 	articles, err := r.queries.SearchKnowledgeArticles(ctx, store.SearchKnowledgeArticlesParams{
-		CompanyID:      &companyID,
-		PlaintoTsquery: query,
-		Limit:          limit,
+		CompanyID:          &companyID,
+		WebsearchToTsquery: query,
+		Limit:              limit,
 	})
-	if err != nil || len(articles) == 0 {
+	if err != nil {
+		articles = nil
+	}
+
+	// Fallback: if full-text search returns no results, try ILIKE on title and content (top 3)
+	if len(articles) == 0 {
+		fallbackRows, fbErr := r.queries.SearchKnowledgeArticlesByILIKE(ctx, store.SearchKnowledgeArticlesByILIKEParams{
+			CompanyID: &companyID,
+			Column2:   query,
+		})
+		if fbErr == nil {
+			articles = fallbackRows
+		}
+	}
+
+	if len(articles) == 0 {
 		return "No relevant knowledge articles found. Try rephrasing your query.", nil
 	}
 

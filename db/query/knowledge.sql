@@ -3,9 +3,18 @@ SELECT id, company_id, category, topic, title, content, tags, source, is_active,
 FROM knowledge_articles
 WHERE is_active = true
   AND (company_id IS NULL OR company_id = $1)
-  AND search_vector @@ plainto_tsquery('english', $2)
-ORDER BY ts_rank(search_vector, plainto_tsquery('english', $2)) DESC
+  AND search_vector @@ websearch_to_tsquery('english', $2)
+ORDER BY ts_rank(search_vector, websearch_to_tsquery('english', $2)) DESC
 LIMIT $3;
+
+-- name: SearchKnowledgeArticlesByILIKE :many
+SELECT id, company_id, category, topic, title, content, tags, source, is_active, created_at, updated_at
+FROM knowledge_articles
+WHERE is_active = true
+  AND (company_id IS NULL OR company_id = $1)
+  AND (title ILIKE '%' || $2 || '%' OR content ILIKE '%' || $2 || '%')
+ORDER BY updated_at DESC
+LIMIT 3;
 
 -- name: ListKnowledgeArticles :many
 SELECT * FROM knowledge_articles
