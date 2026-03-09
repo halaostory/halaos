@@ -38,7 +38,10 @@ func (r *ToolRegistry) toolUpdateEmployeeProfile(ctx context.Context, companyID,
 	}
 
 	// Get existing profile (may not exist yet)
-	existing, err := r.queries.GetEmployeeProfile(ctx, emp.ID)
+	existing, err := r.queries.GetEmployeeProfile(ctx, store.GetEmployeeProfileParams{
+		EmployeeID: emp.ID,
+		CompanyID:  companyID,
+	})
 	if err != nil {
 		// No existing profile — start with empty
 		existing = store.EmployeeProfile{EmployeeID: emp.ID}

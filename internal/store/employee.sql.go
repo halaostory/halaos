@@ -235,11 +235,16 @@ func (q *Queries) CreateEmploymentHistory(ctx context.Context, arg CreateEmploym
 }
 
 const deleteEmployeeDocument = `-- name: DeleteEmployeeDocument :exec
-DELETE FROM employee_documents WHERE id = $1
+DELETE FROM employee_documents WHERE id = $1 AND company_id = $2
 `
 
-func (q *Queries) DeleteEmployeeDocument(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, deleteEmployeeDocument, id)
+type DeleteEmployeeDocumentParams struct {
+	ID        uuid.UUID `json:"id"`
+	CompanyID int64     `json:"company_id"`
+}
+
+func (q *Queries) DeleteEmployeeDocument(ctx context.Context, arg DeleteEmployeeDocumentParams) error {
+	_, err := q.db.Exec(ctx, deleteEmployeeDocument, arg.ID, arg.CompanyID)
 	return err
 }
 
@@ -376,11 +381,16 @@ func (q *Queries) GetEmployeeByUserID(ctx context.Context, arg GetEmployeeByUser
 }
 
 const getEmployeeDocument = `-- name: GetEmployeeDocument :one
-SELECT id, company_id, employee_id, doc_type, file_name, file_path, file_size, mime_type, file_hash, uploaded_by, verified_at, verified_by, notes, created_at, expiry_date, category_id, title, version, is_required, status, updated_at FROM employee_documents WHERE id = $1
+SELECT id, company_id, employee_id, doc_type, file_name, file_path, file_size, mime_type, file_hash, uploaded_by, verified_at, verified_by, notes, created_at, expiry_date, category_id, title, version, is_required, status, updated_at FROM employee_documents WHERE id = $1 AND company_id = $2
 `
 
-func (q *Queries) GetEmployeeDocument(ctx context.Context, id uuid.UUID) (EmployeeDocument, error) {
-	row := q.db.QueryRow(ctx, getEmployeeDocument, id)
+type GetEmployeeDocumentParams struct {
+	ID        uuid.UUID `json:"id"`
+	CompanyID int64     `json:"company_id"`
+}
+
+func (q *Queries) GetEmployeeDocument(ctx context.Context, arg GetEmployeeDocumentParams) (EmployeeDocument, error) {
+	row := q.db.QueryRow(ctx, getEmployeeDocument, arg.ID, arg.CompanyID)
 	var i EmployeeDocument
 	err := row.Scan(
 		&i.ID,
@@ -456,11 +466,18 @@ func (q *Queries) GetEmployeeForCOE(ctx context.Context, arg GetEmployeeForCOEPa
 }
 
 const getEmployeeProfile = `-- name: GetEmployeeProfile :one
-SELECT employee_id, address_line1, address_line2, city, province, zip_code, emergency_name, emergency_phone, emergency_relation, bank_name, bank_account_no, bank_account_name, tin, sss_no, philhealth_no, pagibig_no, blood_type, religion, updated_at FROM employee_profiles WHERE employee_id = $1
+SELECT ep.employee_id, ep.address_line1, ep.address_line2, ep.city, ep.province, ep.zip_code, ep.emergency_name, ep.emergency_phone, ep.emergency_relation, ep.bank_name, ep.bank_account_no, ep.bank_account_name, ep.tin, ep.sss_no, ep.philhealth_no, ep.pagibig_no, ep.blood_type, ep.religion, ep.updated_at FROM employee_profiles ep
+JOIN employees e ON e.id = ep.employee_id
+WHERE ep.employee_id = $1 AND e.company_id = $2
 `
 
-func (q *Queries) GetEmployeeProfile(ctx context.Context, employeeID int64) (EmployeeProfile, error) {
-	row := q.db.QueryRow(ctx, getEmployeeProfile, employeeID)
+type GetEmployeeProfileParams struct {
+	EmployeeID int64 `json:"employee_id"`
+	CompanyID  int64 `json:"company_id"`
+}
+
+func (q *Queries) GetEmployeeProfile(ctx context.Context, arg GetEmployeeProfileParams) (EmployeeProfile, error) {
+	row := q.db.QueryRow(ctx, getEmployeeProfile, arg.EmployeeID, arg.CompanyID)
 	var i EmployeeProfile
 	err := row.Scan(
 		&i.EmployeeID,
@@ -670,11 +687,16 @@ func (q *Queries) ListEmployeeDirectory(ctx context.Context, arg ListEmployeeDir
 }
 
 const listEmployeeDocuments = `-- name: ListEmployeeDocuments :many
-SELECT id, company_id, employee_id, doc_type, file_name, file_path, file_size, mime_type, file_hash, uploaded_by, verified_at, verified_by, notes, created_at, expiry_date, category_id, title, version, is_required, status, updated_at FROM employee_documents WHERE employee_id = $1 ORDER BY created_at DESC
+SELECT id, company_id, employee_id, doc_type, file_name, file_path, file_size, mime_type, file_hash, uploaded_by, verified_at, verified_by, notes, created_at, expiry_date, category_id, title, version, is_required, status, updated_at FROM employee_documents WHERE employee_id = $1 AND company_id = $2 ORDER BY created_at DESC
 `
 
-func (q *Queries) ListEmployeeDocuments(ctx context.Context, employeeID int64) ([]EmployeeDocument, error) {
-	rows, err := q.db.Query(ctx, listEmployeeDocuments, employeeID)
+type ListEmployeeDocumentsParams struct {
+	EmployeeID int64 `json:"employee_id"`
+	CompanyID  int64 `json:"company_id"`
+}
+
+func (q *Queries) ListEmployeeDocuments(ctx context.Context, arg ListEmployeeDocumentsParams) ([]EmployeeDocument, error) {
+	rows, err := q.db.Query(ctx, listEmployeeDocuments, arg.EmployeeID, arg.CompanyID)
 	if err != nil {
 		return nil, err
 	}
@@ -932,11 +954,16 @@ func (q *Queries) ListEmployeesForDOLERegister(ctx context.Context, companyID in
 }
 
 const listEmploymentHistory = `-- name: ListEmploymentHistory :many
-SELECT id, company_id, employee_id, action_type, effective_date, from_department_id, to_department_id, from_position_id, to_position_id, remarks, created_by, created_at FROM employment_history WHERE employee_id = $1 ORDER BY effective_date DESC
+SELECT id, company_id, employee_id, action_type, effective_date, from_department_id, to_department_id, from_position_id, to_position_id, remarks, created_by, created_at FROM employment_history WHERE employee_id = $1 AND company_id = $2 ORDER BY effective_date DESC
 `
 
-func (q *Queries) ListEmploymentHistory(ctx context.Context, employeeID int64) ([]EmploymentHistory, error) {
-	rows, err := q.db.Query(ctx, listEmploymentHistory, employeeID)
+type ListEmploymentHistoryParams struct {
+	EmployeeID int64 `json:"employee_id"`
+	CompanyID  int64 `json:"company_id"`
+}
+
+func (q *Queries) ListEmploymentHistory(ctx context.Context, arg ListEmploymentHistoryParams) ([]EmploymentHistory, error) {
+	rows, err := q.db.Query(ctx, listEmploymentHistory, arg.EmployeeID, arg.CompanyID)
 	if err != nil {
 		return nil, err
 	}

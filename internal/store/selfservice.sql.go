@@ -225,8 +225,13 @@ SELECT e.id, e.employee_no, e.first_name, e.last_name, e.email, e.phone,
 FROM employees e
 LEFT JOIN departments d ON d.id = e.department_id
 LEFT JOIN positions p ON p.id = e.position_id
-WHERE e.id = $1
+WHERE e.id = $1 AND e.company_id = $2
 `
+
+type GetMyManagerParams struct {
+	ID        int64 `json:"id"`
+	CompanyID int64 `json:"company_id"`
+}
 
 type GetMyManagerRow struct {
 	ID             int64   `json:"id"`
@@ -239,8 +244,8 @@ type GetMyManagerRow struct {
 	PositionTitle  *string `json:"position_title"`
 }
 
-func (q *Queries) GetMyManager(ctx context.Context, id int64) (GetMyManagerRow, error) {
-	row := q.db.QueryRow(ctx, getMyManager, id)
+func (q *Queries) GetMyManager(ctx context.Context, arg GetMyManagerParams) (GetMyManagerRow, error) {
+	row := q.db.QueryRow(ctx, getMyManager, arg.ID, arg.CompanyID)
 	var i GetMyManagerRow
 	err := row.Scan(
 		&i.ID,

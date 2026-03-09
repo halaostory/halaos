@@ -145,9 +145,11 @@ func (h *Handler) ListTasks(c *gin.Context) {
 	}
 	workflowType := c.DefaultQuery("type", "onboarding")
 
+	companyID := auth.GetCompanyID(c)
 	tasks, err := h.queries.ListOnboardingTasks(c.Request.Context(), store.ListOnboardingTasksParams{
 		EmployeeID:   employeeID,
 		WorkflowType: workflowType,
+		CompanyID:    companyID,
 	})
 	if err != nil {
 		response.InternalError(c, "Failed to list tasks")
@@ -155,7 +157,10 @@ func (h *Handler) ListTasks(c *gin.Context) {
 	}
 
 	// Get progress
-	progress, _ := h.queries.GetOnboardingProgress(c.Request.Context(), employeeID)
+	progress, _ := h.queries.GetOnboardingProgress(c.Request.Context(), store.GetOnboardingProgressParams{
+		EmployeeID: employeeID,
+		CompanyID:  companyID,
+	})
 
 	response.OK(c, gin.H{
 		"tasks":    tasks,
@@ -221,7 +226,11 @@ func (h *Handler) GetProgress(c *gin.Context) {
 		return
 	}
 
-	progress, err := h.queries.GetOnboardingProgress(c.Request.Context(), employeeID)
+	companyID := auth.GetCompanyID(c)
+	progress, err := h.queries.GetOnboardingProgress(c.Request.Context(), store.GetOnboardingProgressParams{
+		EmployeeID: employeeID,
+		CompanyID:  companyID,
+	})
 	if err != nil {
 		response.InternalError(c, "Failed to get progress")
 		return

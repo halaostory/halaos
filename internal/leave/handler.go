@@ -351,6 +351,7 @@ func (h *Handler) CancelRequest(c *gin.Context) {
 	lr, err := h.queries.CancelLeaveRequest(c.Request.Context(), store.CancelLeaveRequestParams{
 		ID:         id,
 		EmployeeID: emp.ID,
+		CompanyID:  auth.GetCompanyID(c),
 	})
 	if err != nil {
 		response.NotFound(c, "Leave request not found or cannot be cancelled")

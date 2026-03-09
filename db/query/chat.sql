@@ -9,16 +9,17 @@ WHERE id = $1 AND company_id = $2 AND user_id = $3;
 
 -- name: UpdateChatSessionTitle :exec
 UPDATE chat_sessions SET title = $2, updated_at = NOW()
-WHERE id = $1;
+WHERE id = $1 AND company_id = $3 AND user_id = $4;
 
 -- name: TouchChatSession :exec
 UPDATE chat_sessions SET updated_at = NOW()
-WHERE id = $1;
+WHERE id = $1 AND company_id = $2;
 
 -- name: ListChatMessages :many
-SELECT * FROM chat_messages
-WHERE session_id = $1
-ORDER BY created_at ASC
+SELECT cm.* FROM chat_messages cm
+JOIN chat_sessions cs ON cs.id = cm.session_id
+WHERE cm.session_id = $1 AND cs.company_id = $2 AND cs.user_id = $3
+ORDER BY cm.created_at ASC
 LIMIT 50;
 
 -- name: InsertChatMessage :one
@@ -34,4 +35,4 @@ LIMIT 20;
 
 -- name: DeleteChatSession :exec
 DELETE FROM chat_sessions
-WHERE id = $1 AND user_id = $2;
+WHERE id = $1 AND user_id = $2 AND company_id = $3;

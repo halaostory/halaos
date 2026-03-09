@@ -104,7 +104,7 @@ func (e *Executor) Chat(ctx context.Context, companyID, userID int64, agentSlug 
 	sessionID, isNewSession := e.resolveSession(ctx, companyID, userID, agentCfg.Slug, req)
 
 	// Load history + append current user message
-	messages := e.loadSessionMessages(ctx, sessionID, req.Message)
+	messages := e.loadSessionMessages(ctx, sessionID, req.Message, companyID, userID)
 
 	toolDefs := e.tools.DefinitionsForAgent(agentCfg.Tools)
 
@@ -167,7 +167,7 @@ func (e *Executor) Chat(ctx context.Context, companyID, userID int64, agentSlug 
 	latency := time.Since(start)
 
 	// Save messages to session
-	e.saveSessionMessages(ctx, sessionID, req.Message, finalResponse, int32(tokenCost), isNewSession)
+	e.saveSessionMessages(ctx, sessionID, req.Message, finalResponse, int32(tokenCost), isNewSession, companyID, userID)
 
 	// Audit log
 	redactedOutput := redact.RedactText(finalResponse)
@@ -211,7 +211,7 @@ func (e *Executor) StreamChat(ctx context.Context, companyID, userID int64, agen
 	sessionID, isNewSession := e.resolveSession(ctx, companyID, userID, agentCfg.Slug, req)
 
 	// Load history + append current user message
-	messages := e.loadSessionMessages(ctx, sessionID, req.Message)
+	messages := e.loadSessionMessages(ctx, sessionID, req.Message, companyID, userID)
 
 	toolDefs := e.tools.DefinitionsForAgent(agentCfg.Tools)
 
@@ -294,7 +294,7 @@ func (e *Executor) StreamChat(ctx context.Context, companyID, userID int64, agen
 	latency := time.Since(start)
 
 	// Save messages to session
-	msgID := e.saveSessionMessages(ctx, sessionID, req.Message, finalText, int32(tokenCost), isNewSession)
+	msgID := e.saveSessionMessages(ctx, sessionID, req.Message, finalText, int32(tokenCost), isNewSession, companyID, userID)
 
 	redactedOutput := redact.RedactText(finalText)
 	promptHash := fmt.Sprintf("%x", sha256.Sum256([]byte(redactedInput)))
@@ -352,12 +352,16 @@ const maxHistoryMessages = 40
 
 // loadSessionMessages loads recent history from DB and appends the current user message.
 // Older messages beyond maxHistoryMessages are dropped to prevent context overflow.
-func (e *Executor) loadSessionMessages(ctx context.Context, sessionID, currentMessage string) []provider.Message {
+func (e *Executor) loadSessionMessages(ctx context.Context, sessionID, currentMessage string, companyID, userID int64) []provider.Message {
 	var messages []provider.Message
 
 	sid, err := uuid.Parse(sessionID)
 	if err == nil {
-		history, err := e.queries.ListChatMessages(ctx, sid)
+		history, err := e.queries.ListChatMessages(ctx, store.ListChatMessagesParams{
+			SessionID: sid,
+			CompanyID: companyID,
+			UserID:    userID,
+		})
 		if err == nil && len(history) > 0 {
 			// Keep only the most recent messages
 			start := 0
@@ -389,7 +393,7 @@ func (e *Executor) loadSessionMessages(ctx context.Context, sessionID, currentMe
 
 // saveSessionMessages persists the user message and assistant response to the DB.
 // Returns the assistant message ID (0 if saving failed).
-func (e *Executor) saveSessionMessages(ctx context.Context, sessionID, userMsg, assistantMsg string, tokensUsed int32, isNewSession bool) int64 {
+func (e *Executor) saveSessionMessages(ctx context.Context, sessionID, userMsg, assistantMsg string, tokensUsed int32, isNewSession bool, companyID, userID int64) int64 {
 	sid, err := uuid.Parse(sessionID)
 	if err != nil {
 		return 0
@@ -426,12 +430,17 @@ func (e *Executor) saveSessionMessages(ctx context.Context, sessionID, userMsg, 
 			title = title[:30] + "..."
 		}
 		_ = e.queries.UpdateChatSessionTitle(ctx, store.UpdateChatSessionTitleParams{
-			ID:    sid,
-			Title: title,
+			ID:        sid,
+			Title:     title,
+			CompanyID: companyID,
+			UserID:    userID,
 		})
 	} else {
 		// Touch updated_at
-		_ = e.queries.TouchChatSession(ctx, sid)
+		_ = e.queries.TouchChatSession(ctx, store.TouchChatSessionParams{
+			ID:        sid,
+			CompanyID: companyID,
+		})
 	}
 
 	return msgID

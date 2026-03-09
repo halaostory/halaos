@@ -234,6 +234,7 @@ func (h *Handler) ListSessions(c *gin.Context) {
 // GetSessionMessages returns messages for a specific session.
 func (h *Handler) GetSessionMessages(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
+	userID := auth.GetUserID(c)
 	sessionIDStr := c.Param("id")
 
 	sessionID, err := uuid.Parse(sessionIDStr)
@@ -246,13 +247,18 @@ func (h *Handler) GetSessionMessages(c *gin.Context) {
 	_, err = h.queries.GetChatSession(c.Request.Context(), store.GetChatSessionParams{
 		ID:        sessionID,
 		CompanyID: companyID,
+		UserID:    userID,
 	})
 	if err != nil {
 		response.NotFound(c, "Session not found")
 		return
 	}
 
-	messages, err := h.queries.ListChatMessages(c.Request.Context(), sessionID)
+	messages, err := h.queries.ListChatMessages(c.Request.Context(), store.ListChatMessagesParams{
+		SessionID: sessionID,
+		CompanyID: companyID,
+		UserID:    userID,
+	})
 	if err != nil {
 		response.InternalError(c, "Failed to list messages")
 		return
@@ -272,9 +278,11 @@ func (h *Handler) DeleteSession(c *gin.Context) {
 		return
 	}
 
+	companyID := auth.GetCompanyID(c)
 	if err := h.queries.DeleteChatSession(c.Request.Context(), store.DeleteChatSessionParams{
-		ID:     sessionID,
-		UserID: userID,
+		ID:        sessionID,
+		UserID:    userID,
+		CompanyID: companyID,
 	}); err != nil {
 		response.InternalError(c, "Failed to delete session")
 		return

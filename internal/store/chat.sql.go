@@ -46,16 +46,17 @@ func (q *Queries) CreateChatSession(ctx context.Context, arg CreateChatSessionPa
 
 const deleteChatSession = `-- name: DeleteChatSession :exec
 DELETE FROM chat_sessions
-WHERE id = $1 AND user_id = $2
+WHERE id = $1 AND user_id = $2 AND company_id = $3
 `
 
 type DeleteChatSessionParams struct {
-	ID     uuid.UUID `json:"id"`
-	UserID int64     `json:"user_id"`
+	ID        uuid.UUID `json:"id"`
+	UserID    int64     `json:"user_id"`
+	CompanyID int64     `json:"company_id"`
 }
 
 func (q *Queries) DeleteChatSession(ctx context.Context, arg DeleteChatSessionParams) error {
-	_, err := q.db.Exec(ctx, deleteChatSession, arg.ID, arg.UserID)
+	_, err := q.db.Exec(ctx, deleteChatSession, arg.ID, arg.UserID, arg.CompanyID)
 	return err
 }
 
@@ -118,14 +119,21 @@ func (q *Queries) InsertChatMessage(ctx context.Context, arg InsertChatMessagePa
 }
 
 const listChatMessages = `-- name: ListChatMessages :many
-SELECT id, session_id, role, content, tokens_used, created_at FROM chat_messages
-WHERE session_id = $1
-ORDER BY created_at ASC
+SELECT cm.id, cm.session_id, cm.role, cm.content, cm.tokens_used, cm.created_at FROM chat_messages cm
+JOIN chat_sessions cs ON cs.id = cm.session_id
+WHERE cm.session_id = $1 AND cs.company_id = $2 AND cs.user_id = $3
+ORDER BY cm.created_at ASC
 LIMIT 50
 `
 
-func (q *Queries) ListChatMessages(ctx context.Context, sessionID uuid.UUID) ([]ChatMessage, error) {
-	rows, err := q.db.Query(ctx, listChatMessages, sessionID)
+type ListChatMessagesParams struct {
+	SessionID uuid.UUID `json:"session_id"`
+	CompanyID int64     `json:"company_id"`
+	UserID    int64     `json:"user_id"`
+}
+
+func (q *Queries) ListChatMessages(ctx context.Context, arg ListChatMessagesParams) ([]ChatMessage, error) {
+	rows, err := q.db.Query(ctx, listChatMessages, arg.SessionID, arg.CompanyID, arg.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -193,25 +201,37 @@ func (q *Queries) ListUserChatSessions(ctx context.Context, arg ListUserChatSess
 
 const touchChatSession = `-- name: TouchChatSession :exec
 UPDATE chat_sessions SET updated_at = NOW()
-WHERE id = $1
+WHERE id = $1 AND company_id = $2
 `
 
-func (q *Queries) TouchChatSession(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, touchChatSession, id)
+type TouchChatSessionParams struct {
+	ID        uuid.UUID `json:"id"`
+	CompanyID int64     `json:"company_id"`
+}
+
+func (q *Queries) TouchChatSession(ctx context.Context, arg TouchChatSessionParams) error {
+	_, err := q.db.Exec(ctx, touchChatSession, arg.ID, arg.CompanyID)
 	return err
 }
 
 const updateChatSessionTitle = `-- name: UpdateChatSessionTitle :exec
 UPDATE chat_sessions SET title = $2, updated_at = NOW()
-WHERE id = $1
+WHERE id = $1 AND company_id = $3 AND user_id = $4
 `
 
 type UpdateChatSessionTitleParams struct {
-	ID    uuid.UUID `json:"id"`
-	Title string    `json:"title"`
+	ID        uuid.UUID `json:"id"`
+	Title     string    `json:"title"`
+	CompanyID int64     `json:"company_id"`
+	UserID    int64     `json:"user_id"`
 }
 
 func (q *Queries) UpdateChatSessionTitle(ctx context.Context, arg UpdateChatSessionTitleParams) error {
-	_, err := q.db.Exec(ctx, updateChatSessionTitle, arg.ID, arg.Title)
+	_, err := q.db.Exec(ctx, updateChatSessionTitle,
+		arg.ID,
+		arg.Title,
+		arg.CompanyID,
+		arg.UserID,
+	)
 	return err
 }

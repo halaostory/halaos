@@ -57,20 +57,30 @@ func (q *Queries) CreateKnowledgeArticle(ctx context.Context, arg CreateKnowledg
 }
 
 const deleteKnowledgeArticle = `-- name: DeleteKnowledgeArticle :exec
-DELETE FROM knowledge_articles WHERE id = $1
+DELETE FROM knowledge_articles WHERE id = $1 AND company_id = $2
 `
 
-func (q *Queries) DeleteKnowledgeArticle(ctx context.Context, id int64) error {
-	_, err := q.db.Exec(ctx, deleteKnowledgeArticle, id)
+type DeleteKnowledgeArticleParams struct {
+	ID        int64  `json:"id"`
+	CompanyID *int64 `json:"company_id"`
+}
+
+func (q *Queries) DeleteKnowledgeArticle(ctx context.Context, arg DeleteKnowledgeArticleParams) error {
+	_, err := q.db.Exec(ctx, deleteKnowledgeArticle, arg.ID, arg.CompanyID)
 	return err
 }
 
 const getKnowledgeArticle = `-- name: GetKnowledgeArticle :one
-SELECT id, company_id, category, topic, title, content, tags, source, is_active, search_vector, created_at, updated_at FROM knowledge_articles WHERE id = $1
+SELECT id, company_id, category, topic, title, content, tags, source, is_active, search_vector, created_at, updated_at FROM knowledge_articles WHERE id = $1 AND (company_id IS NULL OR company_id = $2)
 `
 
-func (q *Queries) GetKnowledgeArticle(ctx context.Context, id int64) (KnowledgeArticle, error) {
-	row := q.db.QueryRow(ctx, getKnowledgeArticle, id)
+type GetKnowledgeArticleParams struct {
+	ID        int64  `json:"id"`
+	CompanyID *int64 `json:"company_id"`
+}
+
+func (q *Queries) GetKnowledgeArticle(ctx context.Context, arg GetKnowledgeArticleParams) (KnowledgeArticle, error) {
+	row := q.db.QueryRow(ctx, getKnowledgeArticle, arg.ID, arg.CompanyID)
 	var i KnowledgeArticle
 	err := row.Scan(
 		&i.ID,
@@ -364,18 +374,19 @@ UPDATE knowledge_articles SET
     content = COALESCE(NULLIF($5, ''), content),
     tags = $6,
     source = $7
-WHERE id = $1
+WHERE id = $1 AND company_id = $8
 RETURNING id, company_id, category, topic, title, content, tags, source, is_active, search_vector, created_at, updated_at
 `
 
 type UpdateKnowledgeArticleParams struct {
-	ID      int64       `json:"id"`
-	Column2 interface{} `json:"column_2"`
-	Column3 interface{} `json:"column_3"`
-	Column4 interface{} `json:"column_4"`
-	Column5 interface{} `json:"column_5"`
-	Tags    []string    `json:"tags"`
-	Source  *string     `json:"source"`
+	ID        int64       `json:"id"`
+	Column2   interface{} `json:"column_2"`
+	Column3   interface{} `json:"column_3"`
+	Column4   interface{} `json:"column_4"`
+	Column5   interface{} `json:"column_5"`
+	Tags      []string    `json:"tags"`
+	Source    *string     `json:"source"`
+	CompanyID *int64      `json:"company_id"`
 }
 
 func (q *Queries) UpdateKnowledgeArticle(ctx context.Context, arg UpdateKnowledgeArticleParams) (KnowledgeArticle, error) {
@@ -387,6 +398,7 @@ func (q *Queries) UpdateKnowledgeArticle(ctx context.Context, arg UpdateKnowledg
 		arg.Column5,
 		arg.Tags,
 		arg.Source,
+		arg.CompanyID,
 	)
 	var i KnowledgeArticle
 	err := row.Scan(

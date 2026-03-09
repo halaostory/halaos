@@ -13,19 +13,25 @@ import (
 )
 
 const countClearanceItemsByStatus = `-- name: CountClearanceItemsByStatus :many
-SELECT status, COUNT(*) as count
-FROM clearance_items
-WHERE clearance_id = $1
-GROUP BY status
+SELECT ci.status, COUNT(*) as count
+FROM clearance_items ci
+JOIN clearance_requests cr ON cr.id = ci.clearance_id
+WHERE ci.clearance_id = $1 AND cr.company_id = $2
+GROUP BY ci.status
 `
+
+type CountClearanceItemsByStatusParams struct {
+	ClearanceID int64 `json:"clearance_id"`
+	CompanyID   int64 `json:"company_id"`
+}
 
 type CountClearanceItemsByStatusRow struct {
 	Status string `json:"status"`
 	Count  int64  `json:"count"`
 }
 
-func (q *Queries) CountClearanceItemsByStatus(ctx context.Context, clearanceID int64) ([]CountClearanceItemsByStatusRow, error) {
-	rows, err := q.db.Query(ctx, countClearanceItemsByStatus, clearanceID)
+func (q *Queries) CountClearanceItemsByStatus(ctx context.Context, arg CountClearanceItemsByStatusParams) ([]CountClearanceItemsByStatusRow, error) {
+	rows, err := q.db.Query(ctx, countClearanceItemsByStatus, arg.ClearanceID, arg.CompanyID)
 	if err != nil {
 		return nil, err
 	}
@@ -243,9 +249,15 @@ SELECT ci.id, ci.clearance_id, ci.department, ci.item_name, ci.status, ci.cleare
        COALESCE(u.email, '') as cleared_by_email
 FROM clearance_items ci
 LEFT JOIN users u ON u.id = ci.cleared_by
-WHERE ci.clearance_id = $1
+JOIN clearance_requests cr ON cr.id = ci.clearance_id
+WHERE ci.clearance_id = $1 AND cr.company_id = $2
 ORDER BY ci.department, ci.id
 `
+
+type ListClearanceItemsParams struct {
+	ClearanceID int64 `json:"clearance_id"`
+	CompanyID   int64 `json:"company_id"`
+}
 
 type ListClearanceItemsRow struct {
 	ID             int64              `json:"id"`
@@ -260,8 +272,8 @@ type ListClearanceItemsRow struct {
 	ClearedByEmail string             `json:"cleared_by_email"`
 }
 
-func (q *Queries) ListClearanceItems(ctx context.Context, clearanceID int64) ([]ListClearanceItemsRow, error) {
-	rows, err := q.db.Query(ctx, listClearanceItems, clearanceID)
+func (q *Queries) ListClearanceItems(ctx context.Context, arg ListClearanceItemsParams) ([]ListClearanceItemsRow, error) {
+	rows, err := q.db.Query(ctx, listClearanceItems, arg.ClearanceID, arg.CompanyID)
 	if err != nil {
 		return nil, err
 	}
@@ -401,7 +413,7 @@ UPDATE clearance_items SET
     cleared_by = $3,
     cleared_at = NOW(),
     remarks = $4
-WHERE id = $1
+WHERE clearance_items.id = $1 AND clearance_id IN (SELECT cr.id FROM clearance_requests cr WHERE cr.company_id = $5)
 RETURNING id, clearance_id, department, item_name, status, cleared_by, cleared_at, remarks, created_at
 `
 
@@ -410,6 +422,7 @@ type UpdateClearanceItemParams struct {
 	Status    string  `json:"status"`
 	ClearedBy *int64  `json:"cleared_by"`
 	Remarks   *string `json:"remarks"`
+	CompanyID int64   `json:"company_id"`
 }
 
 func (q *Queries) UpdateClearanceItem(ctx context.Context, arg UpdateClearanceItemParams) (ClearanceItem, error) {
@@ -418,6 +431,7 @@ func (q *Queries) UpdateClearanceItem(ctx context.Context, arg UpdateClearanceIt
 		arg.Status,
 		arg.ClearedBy,
 		arg.Remarks,
+		arg.CompanyID,
 	)
 	var i ClearanceItem
 	err := row.Scan(

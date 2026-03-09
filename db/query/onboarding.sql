@@ -23,7 +23,7 @@ RETURNING *;
 
 -- name: ListOnboardingTasks :many
 SELECT * FROM onboarding_tasks
-WHERE employee_id = $1 AND workflow_type = $2
+WHERE employee_id = $1 AND workflow_type = $2 AND company_id = $3
 ORDER BY sort_order;
 
 -- name: ListOnboardingTasksByCompany :many
@@ -56,7 +56,7 @@ SELECT
     COUNT(*) FILTER (WHERE status = 'skipped') as skipped,
     COUNT(*) FILTER (WHERE status IN ('pending', 'in_progress')) as remaining
 FROM onboarding_tasks
-WHERE employee_id = $1
+WHERE employee_id = $1 AND company_id = $2
 GROUP BY workflow_type;
 
 -- name: CountPendingOnboardingTasks :one

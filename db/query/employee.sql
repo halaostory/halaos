@@ -77,7 +77,9 @@ ON CONFLICT (employee_id) DO UPDATE SET
 RETURNING *;
 
 -- name: GetEmployeeProfile :one
-SELECT * FROM employee_profiles WHERE employee_id = $1;
+SELECT ep.* FROM employee_profiles ep
+JOIN employees e ON e.id = ep.employee_id
+WHERE ep.employee_id = $1 AND e.company_id = $2;
 
 -- name: CreateEmployeeDocument :one
 INSERT INTO employee_documents (
@@ -87,13 +89,13 @@ INSERT INTO employee_documents (
 RETURNING *;
 
 -- name: ListEmployeeDocuments :many
-SELECT * FROM employee_documents WHERE employee_id = $1 ORDER BY created_at DESC;
+SELECT * FROM employee_documents WHERE employee_id = $1 AND company_id = $2 ORDER BY created_at DESC;
 
 -- name: GetEmployeeDocument :one
-SELECT * FROM employee_documents WHERE id = $1;
+SELECT * FROM employee_documents WHERE id = $1 AND company_id = $2;
 
 -- name: DeleteEmployeeDocument :exec
-DELETE FROM employee_documents WHERE id = $1;
+DELETE FROM employee_documents WHERE id = $1 AND company_id = $2;
 
 -- name: ListExpiringDocuments :many
 SELECT ed.id, ed.company_id, ed.employee_id, ed.doc_type, ed.file_name,
@@ -115,7 +117,7 @@ INSERT INTO employment_history (
 RETURNING *;
 
 -- name: ListEmploymentHistory :many
-SELECT * FROM employment_history WHERE employee_id = $1 ORDER BY effective_date DESC;
+SELECT * FROM employment_history WHERE employee_id = $1 AND company_id = $2 ORDER BY effective_date DESC;
 
 -- name: ListEmployeeTimeline :many
 SELECT eh.id, eh.action_type, eh.effective_date, eh.remarks, eh.created_at,

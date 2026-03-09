@@ -324,12 +324,17 @@ func (q *Queries) ListExpiringCertifications(ctx context.Context, companyID int6
 
 const listMyCertifications = `-- name: ListMyCertifications :many
 SELECT id, company_id, employee_id, name, issuing_body, credential_id, issue_date, expiry_date, status, attachment_path, created_at, updated_at FROM certifications
-WHERE employee_id = $1
+WHERE employee_id = $1 AND company_id = $2
 ORDER BY issue_date DESC
 `
 
-func (q *Queries) ListMyCertifications(ctx context.Context, employeeID int64) ([]Certification, error) {
-	rows, err := q.db.Query(ctx, listMyCertifications, employeeID)
+type ListMyCertificationsParams struct {
+	EmployeeID int64 `json:"employee_id"`
+	CompanyID  int64 `json:"company_id"`
+}
+
+func (q *Queries) ListMyCertifications(ctx context.Context, arg ListMyCertificationsParams) ([]Certification, error) {
+	rows, err := q.db.Query(ctx, listMyCertifications, arg.EmployeeID, arg.CompanyID)
 	if err != nil {
 		return nil, err
 	}
@@ -366,9 +371,14 @@ SELECT t.id, t.title, t.trainer, t.training_type, t.start_date, t.end_date,
        t.status as training_status, tp.status as participant_status, tp.score
 FROM training_participants tp
 JOIN trainings t ON t.id = tp.training_id
-WHERE tp.employee_id = $1
+WHERE tp.employee_id = $1 AND t.company_id = $2
 ORDER BY t.start_date DESC
 `
+
+type ListMyTrainingsParams struct {
+	EmployeeID int64 `json:"employee_id"`
+	CompanyID  int64 `json:"company_id"`
+}
 
 type ListMyTrainingsRow struct {
 	ID                int64          `json:"id"`
@@ -382,8 +392,8 @@ type ListMyTrainingsRow struct {
 	Score             pgtype.Numeric `json:"score"`
 }
 
-func (q *Queries) ListMyTrainings(ctx context.Context, employeeID int64) ([]ListMyTrainingsRow, error) {
-	rows, err := q.db.Query(ctx, listMyTrainings, employeeID)
+func (q *Queries) ListMyTrainings(ctx context.Context, arg ListMyTrainingsParams) ([]ListMyTrainingsRow, error) {
+	rows, err := q.db.Query(ctx, listMyTrainings, arg.EmployeeID, arg.CompanyID)
 	if err != nil {
 		return nil, err
 	}
@@ -416,9 +426,15 @@ const listTrainingParticipants = `-- name: ListTrainingParticipants :many
 SELECT tp.id, tp.training_id, tp.employee_id, tp.status, tp.score, tp.feedback, tp.completed_at, tp.created_at, e.employee_no, e.first_name, e.last_name
 FROM training_participants tp
 JOIN employees e ON e.id = tp.employee_id
-WHERE tp.training_id = $1
+JOIN trainings t ON t.id = tp.training_id
+WHERE tp.training_id = $1 AND t.company_id = $2
 ORDER BY e.last_name, e.first_name
 `
+
+type ListTrainingParticipantsParams struct {
+	TrainingID int64 `json:"training_id"`
+	CompanyID  int64 `json:"company_id"`
+}
 
 type ListTrainingParticipantsRow struct {
 	ID          int64              `json:"id"`
@@ -434,8 +450,8 @@ type ListTrainingParticipantsRow struct {
 	LastName    string             `json:"last_name"`
 }
 
-func (q *Queries) ListTrainingParticipants(ctx context.Context, trainingID int64) ([]ListTrainingParticipantsRow, error) {
-	rows, err := q.db.Query(ctx, listTrainingParticipants, trainingID)
+func (q *Queries) ListTrainingParticipants(ctx context.Context, arg ListTrainingParticipantsParams) ([]ListTrainingParticipantsRow, error) {
+	rows, err := q.db.Query(ctx, listTrainingParticipants, arg.TrainingID, arg.CompanyID)
 	if err != nil {
 		return nil, err
 	}

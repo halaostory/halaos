@@ -99,7 +99,7 @@ GROUP BY lr.employee_id;
 UPDATE leave_requests SET
     status = 'cancelled',
     updated_at = NOW()
-WHERE id = $1 AND employee_id = $2 AND status = 'pending'
+WHERE id = $1 AND employee_id = $2 AND company_id = $3 AND status = 'pending'
 RETURNING *;
 
 -- name: ListApprovedLeavesForCalendar :many

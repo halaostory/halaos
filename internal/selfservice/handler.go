@@ -36,7 +36,10 @@ func (h *Handler) GetMyInfo(c *gin.Context) {
 	}
 
 	// Also get profile
-	profile, _ := h.queries.GetEmployeeProfile(c.Request.Context(), emp.ID)
+	profile, _ := h.queries.GetEmployeeProfile(c.Request.Context(), store.GetEmployeeProfileParams{
+		EmployeeID: emp.ID,
+		CompanyID:  companyID,
+	})
 
 	response.OK(c, gin.H{
 		"employee": emp,
@@ -76,7 +79,10 @@ func (h *Handler) GetMyTeam(c *gin.Context) {
 	// Get manager info
 	var manager *store.GetMyManagerRow
 	if emp.ManagerID != nil {
-		m, err := h.queries.GetMyManager(c.Request.Context(), *emp.ManagerID)
+		m, err := h.queries.GetMyManager(c.Request.Context(), store.GetMyManagerParams{
+			ID:        *emp.ManagerID,
+			CompanyID: companyID,
+		})
 		if err == nil {
 			manager = &m
 		}
@@ -136,8 +142,12 @@ func (h *Handler) GetMyOnboarding(c *gin.Context) {
 	tasks, _ := h.queries.ListOnboardingTasks(c.Request.Context(), store.ListOnboardingTasksParams{
 		EmployeeID:   emp.ID,
 		WorkflowType: "onboarding",
+		CompanyID:    companyID,
 	})
-	progress, _ := h.queries.GetOnboardingProgress(c.Request.Context(), emp.ID)
+	progress, _ := h.queries.GetOnboardingProgress(c.Request.Context(), store.GetOnboardingProgressParams{
+		EmployeeID: emp.ID,
+		CompanyID:  companyID,
+	})
 
 	response.OK(c, gin.H{
 		"tasks":    tasks,

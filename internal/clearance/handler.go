@@ -137,7 +137,10 @@ func (h *Handler) Get(c *gin.Context) {
 		response.NotFound(c, "Clearance request not found")
 		return
 	}
-	items, err := h.queries.ListClearanceItems(c.Request.Context(), id)
+	items, err := h.queries.ListClearanceItems(c.Request.Context(), store.ListClearanceItemsParams{
+		ClearanceID: id,
+		CompanyID:   companyID,
+	})
 	if err != nil {
 		response.InternalError(c, "Failed to list clearance items")
 		return
@@ -189,11 +192,13 @@ func (h *Handler) UpdateItem(c *gin.Context) {
 		response.BadRequest(c, "Invalid request")
 		return
 	}
+	companyID := auth.GetCompanyID(c)
 	item, err := h.queries.UpdateClearanceItem(c.Request.Context(), store.UpdateClearanceItemParams{
 		ID:        id,
 		Status:    req.Status,
 		ClearedBy: &userID,
 		Remarks:   req.Remarks,
+		CompanyID: companyID,
 	})
 	if err != nil {
 		response.InternalError(c, "Failed to update clearance item")

@@ -54,7 +54,8 @@ SELECT ci.*,
        COALESCE(u.email, '') as cleared_by_email
 FROM clearance_items ci
 LEFT JOIN users u ON u.id = ci.cleared_by
-WHERE ci.clearance_id = $1
+JOIN clearance_requests cr ON cr.id = ci.clearance_id
+WHERE ci.clearance_id = $1 AND cr.company_id = $2
 ORDER BY ci.department, ci.id;
 
 -- name: UpdateClearanceItem :one
@@ -63,7 +64,7 @@ UPDATE clearance_items SET
     cleared_by = $3,
     cleared_at = NOW(),
     remarks = $4
-WHERE id = $1
+WHERE clearance_items.id = $1 AND clearance_id IN (SELECT cr.id FROM clearance_requests cr WHERE cr.company_id = $5)
 RETURNING *;
 
 -- name: ListClearanceTemplates :many
@@ -81,7 +82,8 @@ RETURNING *;
 DELETE FROM clearance_templates WHERE id = $1 AND company_id = $2;
 
 -- name: CountClearanceItemsByStatus :many
-SELECT status, COUNT(*) as count
-FROM clearance_items
-WHERE clearance_id = $1
-GROUP BY status;
+SELECT ci.status, COUNT(*) as count
+FROM clearance_items ci
+JOIN clearance_requests cr ON cr.id = ci.clearance_id
+WHERE ci.clearance_id = $1 AND cr.company_id = $2
+GROUP BY ci.status;

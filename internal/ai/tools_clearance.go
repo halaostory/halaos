@@ -28,8 +28,14 @@ func (r *ToolRegistry) toolGetClearanceStatus(ctx context.Context, companyID, us
 		return "", fmt.Errorf("clearance request not found: %w", err)
 	}
 
-	items, _ := r.queries.ListClearanceItems(ctx, int64(clearanceID))
-	statusCounts, _ := r.queries.CountClearanceItemsByStatus(ctx, int64(clearanceID))
+	items, _ := r.queries.ListClearanceItems(ctx, store.ListClearanceItemsParams{
+		ClearanceID: int64(clearanceID),
+		CompanyID:   companyID,
+	})
+	statusCounts, _ := r.queries.CountClearanceItemsByStatus(ctx, store.CountClearanceItemsByStatusParams{
+		ClearanceID: int64(clearanceID),
+		CompanyID:   companyID,
+	})
 
 	var totalItems, clearedItems int64
 	for _, sc := range statusCounts {
@@ -99,6 +105,7 @@ func (r *ToolRegistry) toolUpdateClearanceItem(ctx context.Context, companyID, u
 		Status:    status,
 		ClearedBy: &userID,
 		Remarks:   remarks,
+		CompanyID: companyID,
 	})
 	if err != nil {
 		return "", fmt.Errorf("update clearance item: %w", err)
@@ -259,7 +266,10 @@ func (r *ToolRegistry) toolCompleteClearance(ctx context.Context, companyID, use
 	}
 
 	// Check all items are cleared
-	statusCounts, err := r.queries.CountClearanceItemsByStatus(ctx, int64(clearanceID))
+	statusCounts, err := r.queries.CountClearanceItemsByStatus(ctx, store.CountClearanceItemsByStatusParams{
+		ClearanceID: int64(clearanceID),
+		CompanyID:   companyID,
+	})
 	if err != nil {
 		return "", fmt.Errorf("check clearance items: %w", err)
 	}

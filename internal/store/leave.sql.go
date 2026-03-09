@@ -95,17 +95,18 @@ const cancelLeaveRequest = `-- name: CancelLeaveRequest :one
 UPDATE leave_requests SET
     status = 'cancelled',
     updated_at = NOW()
-WHERE id = $1 AND employee_id = $2 AND status = 'pending'
+WHERE id = $1 AND employee_id = $2 AND company_id = $3 AND status = 'pending'
 RETURNING id, company_id, employee_id, leave_type_id, start_date, end_date, days, reason, attachment_path, status, approver_id, approved_at, rejection_reason, created_at, updated_at
 `
 
 type CancelLeaveRequestParams struct {
 	ID         int64 `json:"id"`
 	EmployeeID int64 `json:"employee_id"`
+	CompanyID  int64 `json:"company_id"`
 }
 
 func (q *Queries) CancelLeaveRequest(ctx context.Context, arg CancelLeaveRequestParams) (LeaveRequest, error) {
-	row := q.db.QueryRow(ctx, cancelLeaveRequest, arg.ID, arg.EmployeeID)
+	row := q.db.QueryRow(ctx, cancelLeaveRequest, arg.ID, arg.EmployeeID, arg.CompanyID)
 	var i LeaveRequest
 	err := row.Scan(
 		&i.ID,

@@ -136,9 +136,14 @@ SELECT
     COUNT(*) FILTER (WHERE status = 'skipped') as skipped,
     COUNT(*) FILTER (WHERE status IN ('pending', 'in_progress')) as remaining
 FROM onboarding_tasks
-WHERE employee_id = $1
+WHERE employee_id = $1 AND company_id = $2
 GROUP BY workflow_type
 `
+
+type GetOnboardingProgressParams struct {
+	EmployeeID int64 `json:"employee_id"`
+	CompanyID  int64 `json:"company_id"`
+}
 
 type GetOnboardingProgressRow struct {
 	WorkflowType string `json:"workflow_type"`
@@ -148,8 +153,8 @@ type GetOnboardingProgressRow struct {
 	Remaining    int64  `json:"remaining"`
 }
 
-func (q *Queries) GetOnboardingProgress(ctx context.Context, employeeID int64) ([]GetOnboardingProgressRow, error) {
-	rows, err := q.db.Query(ctx, getOnboardingProgress, employeeID)
+func (q *Queries) GetOnboardingProgress(ctx context.Context, arg GetOnboardingProgressParams) ([]GetOnboardingProgressRow, error) {
+	rows, err := q.db.Query(ctx, getOnboardingProgress, arg.EmployeeID, arg.CompanyID)
 	if err != nil {
 		return nil, err
 	}
@@ -176,17 +181,18 @@ func (q *Queries) GetOnboardingProgress(ctx context.Context, employeeID int64) (
 
 const listOnboardingTasks = `-- name: ListOnboardingTasks :many
 SELECT id, company_id, employee_id, template_id, workflow_type, title, description, is_required, assignee_role, assigned_to, due_date, status, completed_by, completed_at, notes, sort_order, created_at, updated_at FROM onboarding_tasks
-WHERE employee_id = $1 AND workflow_type = $2
+WHERE employee_id = $1 AND workflow_type = $2 AND company_id = $3
 ORDER BY sort_order
 `
 
 type ListOnboardingTasksParams struct {
 	EmployeeID   int64  `json:"employee_id"`
 	WorkflowType string `json:"workflow_type"`
+	CompanyID    int64  `json:"company_id"`
 }
 
 func (q *Queries) ListOnboardingTasks(ctx context.Context, arg ListOnboardingTasksParams) ([]OnboardingTask, error) {
-	rows, err := q.db.Query(ctx, listOnboardingTasks, arg.EmployeeID, arg.WorkflowType)
+	rows, err := q.db.Query(ctx, listOnboardingTasks, arg.EmployeeID, arg.WorkflowType, arg.CompanyID)
 	if err != nil {
 		return nil, err
 	}

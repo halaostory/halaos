@@ -103,7 +103,11 @@ func (h *Handler) UpdateTrainingStatus(c *gin.Context) {
 
 func (h *Handler) ListParticipants(c *gin.Context) {
 	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
-	items, err := h.queries.ListTrainingParticipants(c.Request.Context(), id)
+	companyID := auth.GetCompanyID(c)
+	items, err := h.queries.ListTrainingParticipants(c.Request.Context(), store.ListTrainingParticipantsParams{
+		TrainingID: id,
+		CompanyID:  companyID,
+	})
 	if err != nil {
 		response.InternalError(c, "Failed to list participants")
 		return

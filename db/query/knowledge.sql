@@ -24,7 +24,7 @@ ORDER BY category, topic
 LIMIT $3 OFFSET $4;
 
 -- name: GetKnowledgeArticle :one
-SELECT * FROM knowledge_articles WHERE id = $1;
+SELECT * FROM knowledge_articles WHERE id = $1 AND (company_id IS NULL OR company_id = $2);
 
 -- name: CreateKnowledgeArticle :one
 INSERT INTO knowledge_articles (company_id, category, topic, title, content, tags, source)
@@ -39,11 +39,11 @@ UPDATE knowledge_articles SET
     content = COALESCE(NULLIF($5, ''), content),
     tags = $6,
     source = $7
-WHERE id = $1
+WHERE id = $1 AND company_id = $8
 RETURNING *;
 
 -- name: DeleteKnowledgeArticle :exec
-DELETE FROM knowledge_articles WHERE id = $1;
+DELETE FROM knowledge_articles WHERE id = $1 AND company_id = $2;
 
 -- name: SearchKnowledgeByTrigram :many
 SELECT id, company_id, category, topic, title, content, tags, source, is_active, created_at, updated_at,

@@ -26,7 +26,8 @@ RETURNING *;
 SELECT tp.*, e.employee_no, e.first_name, e.last_name
 FROM training_participants tp
 JOIN employees e ON e.id = tp.employee_id
-WHERE tp.training_id = $1
+JOIN trainings t ON t.id = tp.training_id
+WHERE tp.training_id = $1 AND t.company_id = $2
 ORDER BY e.last_name, e.first_name;
 
 -- name: AddTrainingParticipant :one
@@ -78,10 +79,10 @@ SELECT t.id, t.title, t.trainer, t.training_type, t.start_date, t.end_date,
        t.status as training_status, tp.status as participant_status, tp.score
 FROM training_participants tp
 JOIN trainings t ON t.id = tp.training_id
-WHERE tp.employee_id = $1
+WHERE tp.employee_id = $1 AND t.company_id = $2
 ORDER BY t.start_date DESC;
 
 -- name: ListMyCertifications :many
 SELECT * FROM certifications
-WHERE employee_id = $1
+WHERE employee_id = $1 AND company_id = $2
 ORDER BY issue_date DESC;

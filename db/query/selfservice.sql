@@ -14,7 +14,7 @@ SELECT e.id, e.employee_no, e.first_name, e.last_name, e.email, e.phone,
 FROM employees e
 LEFT JOIN departments d ON d.id = e.department_id
 LEFT JOIN positions p ON p.id = e.position_id
-WHERE e.id = $1;
+WHERE e.id = $1 AND e.company_id = $2;
 
 -- name: GetMyCompensation :one
 SELECT es.basic_salary, es.effective_from,

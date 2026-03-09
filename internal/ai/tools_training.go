@@ -62,7 +62,10 @@ func (r *ToolRegistry) toolListMyCertifications(ctx context.Context, companyID, 
 		return "", fmt.Errorf("employee not found: %w", err)
 	}
 
-	certs, err := r.queries.ListMyCertifications(ctx, emp.ID)
+	certs, err := r.queries.ListMyCertifications(ctx, store.ListMyCertificationsParams{
+		EmployeeID: emp.ID,
+		CompanyID:  companyID,
+	})
 	if err != nil {
 		return "", fmt.Errorf("list certifications: %w", err)
 	}

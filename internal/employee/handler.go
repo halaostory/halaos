@@ -236,7 +236,11 @@ func (h *Handler) GetProfile(c *gin.Context) {
 		return
 	}
 
-	profile, err := h.queries.GetEmployeeProfile(c.Request.Context(), id)
+	companyID := auth.GetCompanyID(c)
+	profile, err := h.queries.GetEmployeeProfile(c.Request.Context(), store.GetEmployeeProfileParams{
+		EmployeeID: id,
+		CompanyID:  companyID,
+	})
 	if err != nil {
 		response.NotFound(c, "Profile not found")
 		return
@@ -274,7 +278,11 @@ func (h *Handler) ListDocuments(c *gin.Context) {
 		return
 	}
 
-	docs, err := h.queries.ListEmployeeDocuments(c.Request.Context(), id)
+	companyID := auth.GetCompanyID(c)
+	docs, err := h.queries.ListEmployeeDocuments(c.Request.Context(), store.ListEmployeeDocumentsParams{
+		EmployeeID: id,
+		CompanyID:  companyID,
+	})
 	if err != nil {
 		response.InternalError(c, "Failed to list documents")
 		return
@@ -396,7 +404,11 @@ func (h *Handler) DownloadDocument(c *gin.Context) {
 		return
 	}
 
-	doc, err := h.queries.GetEmployeeDocument(c.Request.Context(), docID)
+	companyID := auth.GetCompanyID(c)
+	doc, err := h.queries.GetEmployeeDocument(c.Request.Context(), store.GetEmployeeDocumentParams{
+		ID:        docID,
+		CompanyID: companyID,
+	})
 	if err != nil {
 		response.NotFound(c, "Document not found")
 		return
@@ -412,7 +424,11 @@ func (h *Handler) DeleteDocument(c *gin.Context) {
 		return
 	}
 
-	doc, err := h.queries.GetEmployeeDocument(c.Request.Context(), docID)
+	companyID := auth.GetCompanyID(c)
+	doc, err := h.queries.GetEmployeeDocument(c.Request.Context(), store.GetEmployeeDocumentParams{
+		ID:        docID,
+		CompanyID: companyID,
+	})
 	if err != nil {
 		response.NotFound(c, "Document not found")
 		return
@@ -421,7 +437,10 @@ func (h *Handler) DeleteDocument(c *gin.Context) {
 	// Delete file from disk
 	_ = os.Remove(doc.FilePath)
 
-	if err := h.queries.DeleteEmployeeDocument(c.Request.Context(), docID); err != nil {
+	if err := h.queries.DeleteEmployeeDocument(c.Request.Context(), store.DeleteEmployeeDocumentParams{
+		ID:        docID,
+		CompanyID: companyID,
+	}); err != nil {
 		response.InternalError(c, "Failed to delete document")
 		return
 	}

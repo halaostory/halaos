@@ -120,7 +120,11 @@ func (h *Handler) Get(c *gin.Context) {
 		return
 	}
 
-	article, err := h.queries.GetKnowledgeArticle(c.Request.Context(), id)
+	companyID := auth.GetCompanyID(c)
+	article, err := h.queries.GetKnowledgeArticle(c.Request.Context(), store.GetKnowledgeArticleParams{
+		ID:        id,
+		CompanyID: &companyID,
+	})
 	if err != nil {
 		response.NotFound(c, "Article not found")
 		return
@@ -187,14 +191,16 @@ func (h *Handler) Update(c *gin.Context) {
 		req.Tags = []string{}
 	}
 
+	companyID := auth.GetCompanyID(c)
 	article, err := h.queries.UpdateKnowledgeArticle(c.Request.Context(), store.UpdateKnowledgeArticleParams{
-		ID:      id,
-		Column2: req.Category,
-		Column3: req.Topic,
-		Column4: req.Title,
-		Column5: req.Content,
-		Tags:    req.Tags,
-		Source:  req.Source,
+		ID:        id,
+		Column2:   req.Category,
+		Column3:   req.Topic,
+		Column4:   req.Title,
+		Column5:   req.Content,
+		Tags:      req.Tags,
+		Source:    req.Source,
+		CompanyID: &companyID,
 	})
 	if err != nil {
 		response.InternalError(c, "Failed to update article")
@@ -210,7 +216,11 @@ func (h *Handler) Delete(c *gin.Context) {
 		return
 	}
 
-	if err := h.queries.DeleteKnowledgeArticle(c.Request.Context(), id); err != nil {
+	companyID := auth.GetCompanyID(c)
+	if err := h.queries.DeleteKnowledgeArticle(c.Request.Context(), store.DeleteKnowledgeArticleParams{
+		ID:        id,
+		CompanyID: &companyID,
+	}); err != nil {
 		response.InternalError(c, "Failed to delete article")
 		return
 	}
