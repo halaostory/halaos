@@ -19,6 +19,7 @@ import {
   showConfirmDialog,
 } from "vant";
 import { leaveAPI, formPrefillAPI } from "../api/client";
+import AiFormAssist from "../components/ai/AiFormAssist.vue";
 import { format } from "date-fns";
 import type {
   LeaveBalance,
@@ -206,6 +207,10 @@ function statusTag(status: string) {
   }
 }
 
+function onAiReasonSelect(text: string) {
+  reason.value = text;
+}
+
 onMounted(() => {
   loadBalances();
   loadTypes();
@@ -276,7 +281,17 @@ onMounted(() => {
               type="textarea"
               rows="3"
               :rules="[{ required: true }]"
-            />
+            >
+              <template #button>
+                <AiFormAssist
+                  form-type="leave"
+                  :leave-type="selectedTypeName"
+                  :start-date="startDate"
+                  :end-date="endDate"
+                  @select="onAiReasonSelect"
+                />
+              </template>
+            </Field>
           </CellGroup>
 
           <div class="form-actions">

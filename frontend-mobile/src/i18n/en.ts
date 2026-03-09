@@ -163,5 +163,8 @@ export default {
     rejectFailed: "Failed to reject action",
     prefillHint: "AI auto-filled based on your history",
     deleteSessionConfirm: "Delete this chat session?",
+    suggestReason: "AI Suggest",
+    reasonSuggestions: "Reason Suggestions",
+    remindClockIn: "Remind me to clock in",
   },
 };

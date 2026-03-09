@@ -13,6 +13,7 @@ import {
 import { useAuthStore } from "../stores/auth";
 import { attendanceAPI, leaveAPI, notificationAPI } from "../api/client";
 import AiQuickAsk from "../components/ai/AiQuickAsk.vue";
+import { getSuggestions } from "../composables/useAiContext";
 import { format } from "date-fns";
 import type { AttendanceSummary, LeaveBalance, ApiResponse } from "../types";
 
@@ -59,6 +60,15 @@ const clockStatusType = computed(() => {
     default:
       return "default";
   }
+});
+
+const aiSuggestions = computed(() => {
+  const base = getSuggestions("home");
+  // Add contextual suggestions based on current state
+  if (clockSummary.value?.status !== "clocked_in" && clockSummary.value?.status !== "clocked_out") {
+    return [t("ai.remindClockIn"), ...base];
+  }
+  return base;
 });
 
 async function loadData() {
@@ -156,11 +166,7 @@ onMounted(loadData);
         </CellGroup>
       </Skeleton>
 
-      <AiQuickAsk :questions="[
-        'How many leave days do I have?',
-        'Show my attendance today',
-        'Any pending notifications?',
-      ]" />
+      <AiQuickAsk :questions="aiSuggestions" />
 
       <!-- Quick Actions -->
       <CellGroup inset :title="t('home.quickActions')">

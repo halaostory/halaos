@@ -163,5 +163,8 @@ export default {
     rejectFailed: "拒绝操作失败",
     prefillHint: "AI 根据历史记录自动填写",
     deleteSessionConfirm: "删除此对话记录？",
+    suggestReason: "AI 建议",
+    reasonSuggestions: "原因建议",
+    remindClockIn: "提醒我打卡",
   },
 };

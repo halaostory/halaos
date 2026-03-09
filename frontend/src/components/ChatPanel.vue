@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, nextTick, watch, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { NButton, NInput, NSpin, NSelect, NTag } from 'naive-ui'
 import { aiAPI, billingAPI, feedbackAPI } from '../api/client'
 
 const { t, locale } = useI18n()
 const router = useRouter()
+const currentRoute = useRoute()
 
 const isOpen = ref(false)
 const message = ref('')
@@ -293,6 +294,76 @@ async function submitFeedback(msg: ChatMessage, rating: 'positive' | 'negative')
 }
 
 const chatPanelWidth = computed(() => showHistory.value ? '600px' : '400px')
+
+// Context-aware suggestions based on current page route
+const currentSection = computed(() => {
+  const path = currentRoute.path
+  if (path.includes('/employees')) return 'employees'
+  if (path.includes('/attendance')) return 'attendance'
+  if (path.includes('/leaves')) return 'leaves'
+  if (path.includes('/payroll') || path.includes('/payslips')) return 'payroll'
+  if (path.includes('/approvals')) return 'approvals'
+  if (path.includes('/integrations')) return 'integrations'
+  if (path.includes('/recruitment')) return 'recruitment'
+  if (path.includes('/training')) return 'training'
+  return 'dashboard'
+})
+
+const suggestionChips = computed(() => {
+  const map: Record<string, string[]> = {
+    dashboard: [
+      t('chat.suggestion.leaveBalance'),
+      t('chat.suggestion.todayAttendance'),
+      t('chat.suggestion.pendingApprovals'),
+    ],
+    employees: [
+      t('chat.suggestion.searchEmployee'),
+      t('chat.suggestion.onboardNew'),
+      t('chat.suggestion.flightRisk'),
+    ],
+    attendance: [
+      t('chat.suggestion.attendanceReport'),
+      t('chat.suggestion.lateEmployees'),
+      t('chat.suggestion.overtimeStats'),
+    ],
+    leaves: [
+      t('chat.suggestion.leaveBalance'),
+      t('chat.suggestion.applyLeave'),
+      t('chat.suggestion.leavePolicy'),
+    ],
+    payroll: [
+      t('chat.suggestion.latestPayslip'),
+      t('chat.suggestion.payrollAnomalies'),
+      t('chat.suggestion.taxFiling'),
+    ],
+    approvals: [
+      t('chat.suggestion.pendingApprovals'),
+      t('chat.suggestion.approveAll'),
+      t('chat.suggestion.rejectReasons'),
+    ],
+    integrations: [
+      t('chat.suggestion.connectionStatus'),
+      t('chat.suggestion.provisionUser'),
+      t('chat.suggestion.integrationHelp'),
+    ],
+    recruitment: [
+      t('chat.suggestion.openPositions'),
+      t('chat.suggestion.screenCandidate'),
+      t('chat.suggestion.rankCandidates'),
+    ],
+    training: [
+      t('chat.suggestion.availableTraining'),
+      t('chat.suggestion.myCertifications'),
+      t('chat.suggestion.enrollTraining'),
+    ],
+  }
+  return map[currentSection.value] || map.dashboard
+})
+
+function sendSuggestion(text: string) {
+  message.value = text
+  sendMessage()
+}
 </script>
 
 <template>
@@ -434,6 +505,21 @@ const chatPanelWidth = computed(() => showHistory.value ? '600px' : '400px')
             <NButton size="tiny" type="warning" @click="goToBilling">
               {{ t('chat.topUp') }}
             </NButton>
+          </div>
+
+          <!-- Suggestion chips -->
+          <div v-if="messages.length <= 2 && !loading" class="suggestion-chips">
+            <NTag
+              v-for="chip in suggestionChips"
+              :key="chip"
+              round
+              :bordered="true"
+              size="small"
+              class="suggestion-chip"
+              @click="sendSuggestion(chip)"
+            >
+              {{ chip }}
+            </NTag>
           </div>
 
           <div class="chat-input">
@@ -847,6 +933,23 @@ function renderMarkdown(text: string): string {
   font-size: 12px;
   color: #856404;
   flex-shrink: 0;
+}
+
+/* --- Suggestion chips --- */
+.suggestion-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px 0;
+  flex-shrink: 0;
+}
+.suggestion-chip {
+  cursor: pointer;
+  transition: background 0.15s;
+  font-size: 12px;
+}
+.suggestion-chip:hover {
+  background: rgba(24, 160, 88, 0.1);
 }
 
 .chat-input {
