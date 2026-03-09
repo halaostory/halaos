@@ -322,8 +322,8 @@ func (h *Handler) prefillLoan(ctx context.Context, companyID, employeeID int64) 
 	var existingBalance pgtype.Numeric
 	_ = h.pool.QueryRow(ctx, `
 		SELECT COALESCE(SUM(remaining_balance), 0) FROM loans
-		WHERE employee_id = $1 AND status IN ('active', 'approved')
-	`, employeeID).Scan(&existingBalance)
+		WHERE company_id = $1 AND employee_id = $2 AND status IN ('active', 'approved')
+	`, companyID, employeeID).Scan(&existingBalance)
 
 	outstanding := numericutil.ToFloat(existingBalance)
 	result.MaxAmount = math.Max(0, maxAmount-outstanding)

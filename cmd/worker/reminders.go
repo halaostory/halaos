@@ -86,14 +86,16 @@ func sendMilestoneReminders(ctx context.Context, queries *store.Queries, logger 
 			}
 			notification.Notify(ctx, queries, logger, companyID, admin.ID, title, msg, "ai_reminder", &entityType, &ms.ID, actions)
 
-			_, _ = queries.InsertAIReminder(ctx, store.InsertAIReminderParams{
+			if _, err := queries.InsertAIReminder(ctx, store.InsertAIReminderParams{
 				CompanyID:     companyID,
 				UserID:        admin.ID,
 				ReminderType:  "contract_milestone",
 				EntityType:    &entityType,
 				EntityID:      &ms.ID,
 				ScheduledDate: today,
-			})
+			}); err != nil {
+				logger.Warn("failed to insert AI reminder", "type", "contract_milestone", "error", err)
+			}
 			sent++
 		}
 	}
@@ -132,13 +134,15 @@ func sendExpiringDocReminders(ctx context.Context, queries *store.Queries, logge
 		}
 		notification.Notify(ctx, queries, logger, companyID, admin.ID, title, msg, "ai_reminder", &entityType, nil, actions)
 
-		_, _ = queries.InsertAIReminder(ctx, store.InsertAIReminderParams{
+		if _, err := queries.InsertAIReminder(ctx, store.InsertAIReminderParams{
 			CompanyID:     companyID,
 			UserID:        admin.ID,
 			ReminderType:  "expiring_documents",
 			EntityType:    &entityType,
 			ScheduledDate: today,
-		})
+		}); err != nil {
+			logger.Warn("failed to insert AI reminder", "type", "expiring_documents", "error", err)
+		}
 		sent++
 	}
 	return sent
@@ -173,13 +177,15 @@ func sendOverdueFilingReminders(ctx context.Context, queries *store.Queries, log
 
 		notification.Notify(ctx, queries, logger, companyID, admin.ID, title, msg, "ai_reminder", &entityType, nil)
 
-		_, _ = queries.InsertAIReminder(ctx, store.InsertAIReminderParams{
+		if _, err := queries.InsertAIReminder(ctx, store.InsertAIReminderParams{
 			CompanyID:     companyID,
 			UserID:        admin.ID,
 			ReminderType:  "overdue_filings",
 			EntityType:    &entityType,
 			ScheduledDate: today,
-		})
+		}); err != nil {
+			logger.Warn("failed to insert AI reminder", "type", "overdue_filings", "error", err)
+		}
 		sent++
 	}
 	return sent
@@ -214,13 +220,15 @@ func sendUpcomingFilingReminders(ctx context.Context, queries *store.Queries, lo
 
 		notification.Notify(ctx, queries, logger, companyID, admin.ID, title, msg, "ai_reminder", &entityType, nil)
 
-		_, _ = queries.InsertAIReminder(ctx, store.InsertAIReminderParams{
+		if _, err := queries.InsertAIReminder(ctx, store.InsertAIReminderParams{
 			CompanyID:     companyID,
 			UserID:        admin.ID,
 			ReminderType:  "upcoming_filings",
 			EntityType:    &entityType,
 			ScheduledDate: today,
-		})
+		}); err != nil {
+			logger.Warn("failed to insert AI reminder", "type", "upcoming_filings", "error", err)
+		}
 		sent++
 	}
 	return sent
@@ -258,13 +266,15 @@ func sendPendingLeaveReminders(ctx context.Context, queries *store.Queries, logg
 		}
 		notification.Notify(ctx, queries, logger, companyID, mgr.ID, title, msg, "ai_reminder", &entityType, nil, actions)
 
-		_, _ = queries.InsertAIReminder(ctx, store.InsertAIReminderParams{
+		if _, err := queries.InsertAIReminder(ctx, store.InsertAIReminderParams{
 			CompanyID:     companyID,
 			UserID:        mgr.ID,
 			ReminderType:  "pending_approvals",
 			EntityType:    &entityType,
 			ScheduledDate: today,
-		})
+		}); err != nil {
+			logger.Warn("failed to insert AI reminder", "type", "pending_approvals", "error", err)
+		}
 		sent++
 	}
 	return sent
@@ -302,13 +312,15 @@ func sendPendingOTReminders(ctx context.Context, queries *store.Queries, logger 
 		}
 		notification.Notify(ctx, queries, logger, companyID, mgr.ID, title, msg, "ai_reminder", &entityType, nil, actions)
 
-		_, _ = queries.InsertAIReminder(ctx, store.InsertAIReminderParams{
+		if _, err := queries.InsertAIReminder(ctx, store.InsertAIReminderParams{
 			CompanyID:     companyID,
 			UserID:        mgr.ID,
 			ReminderType:  "pending_ot_approvals",
 			EntityType:    &entityType,
 			ScheduledDate: today,
-		})
+		}); err != nil {
+			logger.Warn("failed to insert AI reminder", "type", "pending_ot_approvals", "error", err)
+		}
 		sent++
 	}
 	return sent

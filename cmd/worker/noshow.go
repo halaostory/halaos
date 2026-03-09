@@ -150,14 +150,16 @@ func checkNoShowsForCompany(
 
 		notification.Notify(ctx, queries, logger, companyID, *emp.UserID, title, msg, "ai_reminder", &entityType, &emp.ID, actions)
 
-		_, _ = queries.InsertAIReminder(ctx, store.InsertAIReminderParams{
+		if _, err := queries.InsertAIReminder(ctx, store.InsertAIReminderParams{
 			CompanyID:     companyID,
 			UserID:        *emp.UserID,
 			ReminderType:  "no_show",
 			EntityType:    &entityType,
 			EntityID:      &emp.ID,
 			ScheduledDate: today,
-		})
+		}); err != nil {
+			logger.Warn("failed to insert AI reminder", "type", "no_show", "error", err)
+		}
 		notified++
 	}
 
@@ -233,13 +235,15 @@ func notifyManagersNoShow(
 
 		notification.Notify(ctx, queries, logger, companyID, mgr.ID, title, msg, "ai_reminder", &entityType, nil, actions)
 
-		_, _ = queries.InsertAIReminder(ctx, store.InsertAIReminderParams{
+		if _, err := queries.InsertAIReminder(ctx, store.InsertAIReminderParams{
 			CompanyID:     companyID,
 			UserID:        mgr.ID,
 			ReminderType:  "no_show_summary",
 			EntityType:    &entityType,
 			ScheduledDate: today,
-		})
+		}); err != nil {
+			logger.Warn("failed to insert AI reminder", "type", "no_show_summary", "error", err)
+		}
 	}
 
 	return nil

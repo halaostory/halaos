@@ -66,16 +66,18 @@ func autoRegularize(ctx context.Context, queries *store.Queries, pool *pgxpool.P
 			milestones, _ := queries.ListPendingMilestonesByCompany(ctx, company.ID)
 			for _, m := range milestones {
 				if m.EmployeeID == emp.ID && m.MilestoneType == "probation_ending" {
-					_, _ = queries.ActionMilestone(ctx, store.ActionMilestoneParams{
+					if _, err := queries.ActionMilestone(ctx, store.ActionMilestoneParams{
 						ID:        m.ID,
 						CompanyID: company.ID,
 						Notes:     strPtr("Auto-regularized by system"),
-					})
+					}); err != nil {
+						logger.Warn("failed to action milestone", "milestone_id", m.ID, "error", err)
+					}
 				}
 			}
 
 			// Create notification for HR/admin
-			_, _ = pool.Exec(ctx,
+			if _, err := pool.Exec(ctx,
 				`INSERT INTO notifications (company_id, user_id, title, body, category, priority)
 				 SELECT $1, u.id, $2, $3, 'hr', 'info'
 				 FROM users u WHERE u.company_id = $1 AND u.role IN ('admin', 'super_admin')`,
@@ -83,7 +85,9 @@ func autoRegularize(ctx context.Context, queries *store.Queries, pool *pgxpool.P
 				fmt.Sprintf("Employee Regularized: %s %s", result.FirstName, result.LastName),
 				fmt.Sprintf("%s %s (%s) has been automatically regularized after completing the 6-month probation period.",
 					result.FirstName, result.LastName, result.EmployeeNo),
-			)
+			); err != nil {
+				logger.Warn("failed to create regularization notification", "employee_id", emp.ID, "error", err)
+			}
 		}
 	}
 

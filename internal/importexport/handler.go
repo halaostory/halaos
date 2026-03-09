@@ -374,7 +374,11 @@ func (h *Handler) ExportLeaveBalancesCSV(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 
 	yearStr := c.DefaultQuery("year", fmt.Sprintf("%d", time.Now().Year()))
-	year, _ := strconv.ParseInt(yearStr, 10, 32)
+	year, err := strconv.ParseInt(yearStr, 10, 32)
+	if err != nil {
+		response.BadRequest(c, "Invalid year parameter")
+		return
+	}
 
 	balances, err := h.queries.ExportLeaveBalances(c.Request.Context(), store.ExportLeaveBalancesParams{
 		CompanyID: companyID,

@@ -99,8 +99,8 @@ func (h *Handler) ListAIAuditLog(c *gin.Context) {
 
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	if limit > 100 {
-		limit = 100
+	if limit < 1 || limit > 100 {
+		limit = 50
 	}
 	if page < 1 {
 		page = 1

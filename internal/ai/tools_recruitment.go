@@ -3,6 +3,7 @@ package ai
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/tonypk/aigonhr/internal/ai/provider"
@@ -324,13 +325,15 @@ func (r *ToolRegistry) toolOnboardEmployee(ctx context.Context, companyID, userI
 	}
 
 	// 7. Create employment history record
-	_, _ = r.pool.Exec(ctx, `
+	if _, err := r.pool.Exec(ctx, `
 		INSERT INTO employment_history (
 			company_id, employee_id, action_type, effective_date,
 			to_department_id, to_position_id, remarks, created_by
 		) VALUES ($1, $2, 'hire', $3, NULLIF($4::bigint, 0), NULLIF($5::bigint, 0), $6, $7)
 	`, companyID, empID, hireDate, deptID, posID,
-		fmt.Sprintf("Onboarded via AI assistant by user %d", userID), userID)
+		fmt.Sprintf("Onboarded via AI assistant by user %d", userID), userID); err != nil {
+		slog.Error("failed to create employment history for onboarded employee", "employee_id", empID, "error", err)
+	}
 
 	// 8. Assign salary if provided
 	salaryMsg := ""

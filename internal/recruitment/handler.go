@@ -6,20 +6,20 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/tonypk/aigonhr/internal/auth"
+	"github.com/tonypk/aigonhr/internal/store"
 	"github.com/tonypk/aigonhr/pkg/response"
 )
 
 // Handler manages recruitment endpoints.
 type Handler struct {
-	pool   *pgxpool.Pool
+	pool   store.DBTX
 	logger *slog.Logger
 }
 
 // NewHandler creates a recruitment handler.
-func NewHandler(pool *pgxpool.Pool, logger *slog.Logger) *Handler {
+func NewHandler(pool store.DBTX, logger *slog.Logger) *Handler {
 	return &Handler{pool: pool, logger: logger}
 }
 
@@ -516,10 +516,12 @@ func (h *Handler) ScheduleInterview(c *gin.Context) {
 	}
 
 	// Update applicant status to 'interview' if still in screening
-	_, _ = h.pool.Exec(c.Request.Context(), `
+	if _, err := h.pool.Exec(c.Request.Context(), `
 		UPDATE applicants SET status = 'interview', updated_at = now()
 		WHERE id = $1 AND company_id = $2 AND status IN ('new', 'screening')
-	`, applicantID, companyID)
+	`, applicantID, companyID); err != nil {
+		h.logger.Error("failed to update applicant status to interview", "applicant_id", applicantID, "error", err)
+	}
 
 	response.Created(c, gin.H{"id": id, "message": "Interview scheduled"})
 }

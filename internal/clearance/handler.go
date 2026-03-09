@@ -108,6 +108,12 @@ func (h *Handler) List(c *gin.Context) {
 	status := c.Query("status")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	if limit < 1 || limit > 100 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
 
 	items, err := h.queries.ListClearanceRequests(c.Request.Context(), store.ListClearanceRequestsParams{
 		CompanyID: companyID,
