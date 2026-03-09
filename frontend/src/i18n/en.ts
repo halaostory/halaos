@@ -305,6 +305,7 @@ export default {
     created: "Department created",
     updated: "Department updated",
     namePlaceholder: "e.g. Human Resources",
+    codePlaceholder: "e.g. HR, ENG",
   },
   position: {
     create: "Create Position",
@@ -314,6 +315,7 @@ export default {
     grade: "Grade",
     namePlaceholder: "e.g. Software Engineer",
     gradePlaceholder: "e.g. L1, L2",
+    codePlaceholder: "e.g. SE-1, MGR-2",
   },
   leave: {
     title: "Leave Management",
@@ -353,6 +355,7 @@ export default {
     accrualAnnual: "Annual",
     accrualMonthly: "Monthly",
     allBalances: "All Leave Balances",
+    namePlaceholder: "e.g. Sick Leave, Vacation Leave",
   },
   overtime: {
     title: "Overtime",
@@ -457,6 +460,9 @@ export default {
     createComponent: "Create Salary Component",
     structureCreated: "Salary structure created",
     componentCreated: "Salary component created",
+    structurePlaceholder: "e.g. Standard Employee",
+    codePlaceholder: "e.g. RICE, TRANSPO",
+    componentPlaceholder: "e.g. Rice Allowance",
   },
   compliance: {
     title: "Compliance Tables",
@@ -489,6 +495,7 @@ export default {
     formGenerated: "Government form generated",
     doleRegister: "DOLE Register",
     downloadDOLERegister: "Download DOLE Employee Register",
+    downloaded: "Downloaded",
   },
   profile: {
     basicInfo: "Basic Information",
@@ -692,6 +699,8 @@ export default {
     sssLoan: "SSS Salary Loan",
     pagibigLoan: "Pag-IBIG MPL",
     cashAdvance: "Cash Advance",
+    refNoPlaceholder: "SSS/Pag-IBIG loan number",
+    codePlaceholder: "e.g. sss_salary, pagibig_mpl",
   },
   analytics: {
     title: "Analytics & Reports",
@@ -829,6 +838,7 @@ export default {
     meets: "Meets Expectations",
     below: "Below Expectations",
     unsatisfactory: "Unsatisfactory",
+    finalComments: "Final comments",
   },
   knowledge: {
     title: "Knowledge Base",
@@ -851,6 +861,7 @@ export default {
     payroll: "Payroll",
     leave: "Leave",
     hr_policy: "HR Policy",
+    sourcePlaceholder: "e.g. RA 11210, DOLE Labor Advisory No. 06-20",
   },
   importExport: {
     title: "Import / Export",

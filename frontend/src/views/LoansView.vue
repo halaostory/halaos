@@ -434,7 +434,7 @@ onMounted(async () => {
           <NInputNumber v-model:value="applyForm.term_months" :min="1" :max="60" style="width: 100%" />
         </NFormItem>
         <NFormItem :label="t('loan.referenceNo')">
-          <NInput v-model:value="applyForm.reference_no" placeholder="SSS/Pag-IBIG loan number" />
+          <NInput v-model:value="applyForm.reference_no" :placeholder="t('loan.refNoPlaceholder')" />
         </NFormItem>
         <NFormItem :label="t('loan.startDate')" required>
           <NDatePicker v-model:value="applyForm.start_date" type="date" style="width: 100%" />
@@ -455,7 +455,7 @@ onMounted(async () => {
           <NInput v-model:value="typeForm.name" />
         </NFormItem>
         <NFormItem :label="t('loan.code')" required>
-          <NInput v-model:value="typeForm.code" placeholder="e.g. sss_salary, pagibig_mpl" />
+          <NInput v-model:value="typeForm.code" :placeholder="t('loan.codePlaceholder')" />
         </NFormItem>
         <NFormItem :label="t('loan.provider')">
           <NSelect v-model:value="typeForm.provider" :options="providerOptions" />

@@ -253,7 +253,7 @@ async function handleCreateTemplate() {
           <NInput
             :value="String(initiateForm.employee_id || '')"
             @update:value="(v: string) => (initiateForm.employee_id = v ? Number(v) : null)"
-            placeholder="Employee ID"
+            :placeholder="t('common.placeholder.employeeId')"
           />
         </NFormItem>
         <NFormItem :label="t('common.type')">

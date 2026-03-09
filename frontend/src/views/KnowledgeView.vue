@@ -242,7 +242,7 @@ onMounted(loadArticles)
         <NDynamicTags v-model:value="form.tags" />
       </NFormItem>
       <NFormItem :label="t('knowledge.source')">
-        <NInput v-model:value="form.source" placeholder="e.g., RA 11210, DOLE Labor Advisory No. 06-20" />
+        <NInput v-model:value="form.source" :placeholder="t('knowledge.sourcePlaceholder')" />
       </NFormItem>
     </NForm>
     <template #footer>

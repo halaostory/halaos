@@ -49,7 +49,7 @@ async function handleLogin() {
     <NCard style="width: 400px;" :title="t('auth.loginTitle')">
       <NForm ref="formRef" :model="form" :rules="rules" @submit.prevent="handleLogin">
         <NFormItem :label="t('auth.email')" path="email">
-          <NInput v-model:value="form.email" type="text" placeholder="email@company.com" />
+          <NInput v-model:value="form.email" type="text" :placeholder="t('common.placeholder.email')" />
         </NFormItem>
         <NFormItem :label="t('auth.password')" path="password">
           <NInput v-model:value="form.password" type="password" show-password-on="click" />

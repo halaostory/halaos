@@ -149,7 +149,7 @@ async function createComponent() {
     <NModal v-model:show="showStructureModal" :title="t('salary.createStructure')" preset="card" style="max-width: 420px; width: 95vw;">
       <NForm @submit.prevent="createStructure">
         <NFormItem :label="t('employee.name')" required>
-          <NInput v-model:value="structureForm.name" placeholder="e.g. Standard Employee" />
+          <NInput v-model:value="structureForm.name" :placeholder="t('salary.structurePlaceholder')" />
         </NFormItem>
         <NFormItem :label="t('salary.description')">
           <NInput v-model:value="structureForm.description" type="textarea" />
@@ -165,10 +165,10 @@ async function createComponent() {
     <NModal v-model:show="showComponentModal" :title="t('salary.createComponent')" preset="card" style="max-width: 480px; width: 95vw;">
       <NForm @submit.prevent="createComponent">
         <NFormItem :label="t('common.code')" required>
-          <NInput v-model:value="componentForm.code" placeholder="e.g. RICE, TRANSPO" />
+          <NInput v-model:value="componentForm.code" :placeholder="t('salary.codePlaceholder')" />
         </NFormItem>
         <NFormItem :label="t('employee.name')" required>
-          <NInput v-model:value="componentForm.name" placeholder="e.g. Rice Allowance" />
+          <NInput v-model:value="componentForm.name" :placeholder="t('salary.componentPlaceholder')" />
         </NFormItem>
         <NFormItem :label="t('common.type')">
           <NSelect v-model:value="componentForm.component_type" :options="componentTypes" />

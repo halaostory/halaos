@@ -632,7 +632,7 @@ onMounted(loadCycles);
     <NModal v-model:show="showGoalModal" preset="card" :title="t('performance.createGoal')" style="max-width: 500px; width: 95vw">
       <NForm label-placement="left" label-width="120">
         <NFormItem :label="t('performance.employee')" required>
-          <NInputNumber v-model:value="goalForm.employee_id" :min="1" style="width: 100%" placeholder="Employee ID" />
+          <NInputNumber v-model:value="goalForm.employee_id" :min="1" style="width: 100%" :placeholder="t('common.placeholder.employeeId')" />
         </NFormItem>
         <NFormItem :label="t('performance.goalTitle')" required>
           <NInput v-model:value="goalForm.title" />
@@ -759,7 +759,7 @@ onMounted(loadCycles);
           <span style="margin-left: 8px">{{ ratingLabel(managerForm.final_rating) }}</span>
         </NFormItem>
         <NFormItem :label="t('performance.comments')">
-          <NInput v-model:value="managerForm.final_comments" type="textarea" :rows="2" placeholder="Final comments" />
+          <NInput v-model:value="managerForm.final_comments" type="textarea" :rows="2" :placeholder="t('performance.finalComments')" />
         </NFormItem>
         <NFormItem>
           <NButton type="primary" @click="handleSubmitManager">{{ t("common.submit") }}</NButton>

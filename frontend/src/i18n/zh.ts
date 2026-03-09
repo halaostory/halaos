@@ -303,6 +303,7 @@ export default {
     created: "部门已创建",
     updated: "部门已更新",
     namePlaceholder: "例如：人力资源部",
+    codePlaceholder: "例如：HR, ENG",
   },
   position: {
     create: "创建职位",
@@ -312,6 +313,7 @@ export default {
     grade: "等级",
     namePlaceholder: "例如：软件工程师",
     gradePlaceholder: "例如：L1, L2",
+    codePlaceholder: "例如：SE-1, MGR-2",
   },
   leave: {
     title: "假期管理",
@@ -351,6 +353,7 @@ export default {
     accrualAnnual: "年度",
     accrualMonthly: "月度",
     allBalances: "全部假期余额",
+    namePlaceholder: "例如：病假、年假",
   },
   overtime: {
     title: "加班管理",
@@ -455,6 +458,9 @@ export default {
     createComponent: "创建薪资组件",
     structureCreated: "薪资结构已创建",
     componentCreated: "薪资组件已创建",
+    structurePlaceholder: "例如：标准员工",
+    codePlaceholder: "例如：RICE, TRANSPO",
+    componentPlaceholder: "例如：餐补",
   },
   compliance: {
     title: "合规表",
@@ -487,6 +493,7 @@ export default {
     formGenerated: "政府表格已生成",
     doleRegister: "DOLE员工名册",
     downloadDOLERegister: "下载DOLE员工名册",
+    downloaded: "下载完成",
   },
   profile: {
     basicInfo: "基本信息",
@@ -690,6 +697,8 @@ export default {
     sssLoan: "SSS工资贷款",
     pagibigLoan: "Pag-IBIG多用途贷款",
     cashAdvance: "公司预支",
+    refNoPlaceholder: "SSS/Pag-IBIG 贷款编号",
+    codePlaceholder: "例如：sss_salary, pagibig_mpl",
   },
   analytics: {
     title: "数据分析",
@@ -826,6 +835,7 @@ export default {
     meets: "达到预期",
     below: "低于预期",
     unsatisfactory: "不合格",
+    finalComments: "最终评语",
   },
   knowledge: {
     title: "知识库",
@@ -848,6 +858,7 @@ export default {
     payroll: "薪资",
     leave: "假期",
     hr_policy: "人力资源政策",
+    sourcePlaceholder: "例如：RA 11210, DOLE Labor Advisory No. 06-20",
   },
   importExport: {
     title: "导入 / 导出",

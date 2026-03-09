@@ -197,7 +197,7 @@ async function downloadDOLERegister() {
     a.download = `DOLE_Register_${new Date().toISOString().slice(0, 10)}.pdf`;
     a.click();
     URL.revokeObjectURL(url);
-    message.success("Downloaded");
+    message.success(t("compliance.downloaded"));
   } catch {
     message.error(t("common.failed"));
   } finally {

@@ -320,7 +320,7 @@ async function runCarryover() {
     <NModal v-model:show="showTypeModal" :title="t('leave.createType')" preset="card" style="max-width: 420px; width: 95vw;">
       <NForm @submit.prevent="createLeaveType">
         <NFormItem :label="t('employee.name')" required>
-          <NInput v-model:value="typeForm.name" placeholder="e.g. Sick Leave, Vacation Leave" />
+          <NInput v-model:value="typeForm.name" :placeholder="t('leave.namePlaceholder')" />
         </NFormItem>
         <NFormItem :label="t('leave.defaultDays')">
           <NInputNumber v-model:value="typeForm.default_days" :min="0" :step="1" />

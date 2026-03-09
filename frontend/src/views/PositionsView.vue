@@ -88,13 +88,13 @@ async function handleSave() {
     <NModal v-model:show="showModal" :title="editingId ? t('position.edit') : t('position.create')" preset="card" style="max-width: 400px; width: 95vw;">
       <NForm @submit.prevent="handleSave">
         <NFormItem :label="t('common.code')" required>
-          <NInput v-model:value="form.code" placeholder="e.g. SE-1, MGR-2" :disabled="!!editingId" />
+          <NInput v-model:value="form.code" :placeholder="t('position.codePlaceholder')" :disabled="!!editingId" />
         </NFormItem>
         <NFormItem :label="t('employee.position')" required>
-          <NInput v-model:value="form.title" placeholder="e.g. Software Engineer" />
+          <NInput v-model:value="form.title" :placeholder="t('position.namePlaceholder')" />
         </NFormItem>
         <NFormItem :label="t('position.grade')">
-          <NInput v-model:value="form.grade" placeholder="e.g. L1, L2" />
+          <NInput v-model:value="form.grade" :placeholder="t('position.gradePlaceholder')" />
         </NFormItem>
         <NSpace>
           <NButton type="primary" attr-type="submit">{{ t('common.save') }}</NButton>

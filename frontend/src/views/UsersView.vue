@@ -203,7 +203,7 @@ async function handleResetPassword() {
       <p>{{ passwordTarget?.first_name }} {{ passwordTarget?.last_name }} ({{ passwordTarget?.email }})</p>
       <NForm @submit.prevent="handleResetPassword">
         <NFormItem :label="t('userMgmt.newPassword')">
-          <NInput v-model:value="newPassword" type="password" show-password-on="click" placeholder="Min 8 characters" />
+          <NInput v-model:value="newPassword" type="password" show-password-on="click" :placeholder="t('common.placeholder.minChars')" />
         </NFormItem>
         <NButton type="warning" attr-type="submit" :disabled="newPassword.length < 8">{{ t('userMgmt.resetPassword') }}</NButton>
       </NForm>

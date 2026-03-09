@@ -500,7 +500,7 @@ onMounted(fetchAll)
     <NModal v-model:show="showEnrollModal" preset="card" :title="t('benefit.enrollEmployee')" style="max-width: 500px; width: 95vw;">
       <NForm label-placement="left" label-width="140">
         <NFormItem :label="t('benefit.employee')">
-          <NInputNumber v-model:value="enrollForm.employee_id" :min="1" placeholder="Employee ID" style="width: 100%;" />
+          <NInputNumber v-model:value="enrollForm.employee_id" :min="1" :placeholder="t('common.placeholder.employeeId')" style="width: 100%;" />
         </NFormItem>
         <NFormItem :label="t('benefit.plan')">
           <NSelect v-model:value="enrollForm.plan_id" :options="planOptions" />
