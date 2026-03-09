@@ -69,9 +69,7 @@ interface ChatSession {
 function getSystemMessage(): ChatMessage {
   return {
     role: 'system',
-    content: locale.value === 'zh'
-      ? '你好！我是 AigoNHR AI 助手。我可以帮你查询假期余额、薪资信息、考勤状况、菲律宾劳工法规等。请问有什么可以帮你的？'
-      : 'Hello! I\'m the AigoNHR AI Assistant. I can help you check leave balances, payroll info, attendance, and Philippine labor regulations. How can I help you?'
+    content: t('chat.welcomeMessage'),
   }
 }
 
@@ -149,14 +147,14 @@ function relativeTime(isoString: string): string {
   const diffMs = now - then
   const diffMin = Math.floor(diffMs / 60000)
 
-  if (diffMin < 1) return locale.value === 'zh' ? '刚刚' : 'just now'
-  if (diffMin < 60) return locale.value === 'zh' ? `${diffMin}分钟前` : `${diffMin}m ago`
+  if (diffMin < 1) return t('chat.justNow')
+  if (diffMin < 60) return t('chat.minutesAgo', { n: diffMin })
   const diffHr = Math.floor(diffMin / 60)
-  if (diffHr < 24) return locale.value === 'zh' ? `${diffHr}小时前` : `${diffHr}h ago`
+  if (diffHr < 24) return t('chat.hoursAgo', { n: diffHr })
   const diffDay = Math.floor(diffHr / 24)
-  if (diffDay < 30) return locale.value === 'zh' ? `${diffDay}天前` : `${diffDay}d ago`
+  if (diffDay < 30) return t('chat.daysAgo', { n: diffDay })
   const diffMon = Math.floor(diffDay / 30)
-  return locale.value === 'zh' ? `${diffMon}个月前` : `${diffMon}mo ago`
+  return t('chat.monthsAgo', { n: diffMon })
 }
 
 // --- Lifecycle ---
@@ -177,16 +175,9 @@ onMounted(() => {
   }) as EventListener)
 })
 
-watch(locale, (newLocale) => {
+watch(locale, () => {
   if (messages.value.length === 1 && messages.value[0].role === 'system') {
-    messages.value = [
-      {
-        ...messages.value[0],
-        content: newLocale === 'zh'
-          ? '你好！我是 AigoNHR AI 助手。我可以帮你查询假期余额、薪资信息、考勤状况、菲律宾劳工法规等。请问有什么可以帮你的？'
-          : 'Hello! I\'m the AigoNHR AI Assistant. I can help you check leave balances, payroll info, attendance, and Philippine labor regulations. How can I help you?'
-      }
-    ]
+    messages.value = [getSystemMessage()]
   }
 })
 
@@ -229,9 +220,7 @@ async function sendMessage() {
         case 'error':
           if (chunk.code === 402) {
             insufficientBalance.value = true
-            assistantMsg.content = locale.value === 'zh'
-              ? '⚠️ Token 余额不足，请充值后继续使用 AI 功能。'
-              : '⚠️ Insufficient token balance. Please top up to continue using AI features.'
+            assistantMsg.content = `⚠️ ${t('chat.insufficientMessage')}`
           } else {
             assistantMsg.content += `\n\n${chunk.message || 'An error occurred'}`
           }
@@ -327,7 +316,7 @@ const chatPanelWidth = computed(() => showHistory.value ? '600px' : '400px')
             size="small"
             class="history-toggle-btn"
             @click="toggleHistory"
-            :title="locale === 'zh' ? '聊天记录' : 'Chat History'"
+            :title="t('chat.history')"
           >
             <span style="font-size: 16px;">&#9776;</span>
           </NButton>
@@ -345,7 +334,7 @@ const chatPanelWidth = computed(() => showHistory.value ? '600px' : '400px')
           v-model:value="selectedAgent"
           :options="agentOptions"
           size="small"
-          :placeholder="locale === 'zh' ? '选择 Agent' : 'Select Agent'"
+          :placeholder="t('chat.selectAgent')"
           style="flex: 1;"
         />
       </div>
@@ -355,9 +344,9 @@ const chatPanelWidth = computed(() => showHistory.value ? '600px' : '400px')
         <Transition name="history-slide">
           <div v-if="showHistory" class="chat-history-sidebar">
             <div class="history-header">
-              <span class="history-title">{{ locale === 'zh' ? '聊天记录' : 'History' }}</span>
+              <span class="history-title">{{ t('chat.historyShort') }}</span>
               <NButton size="tiny" type="primary" @click="startNewChat" class="new-chat-btn">
-                {{ locale === 'zh' ? '新对话' : 'New Chat' }}
+                {{ t('chat.newChat') }}
               </NButton>
             </div>
             <div class="history-list">
@@ -376,7 +365,7 @@ const chatPanelWidth = computed(() => showHistory.value ? '600px' : '400px')
                   size="tiny"
                   class="history-delete-btn"
                   @click.stop="deleteSession(sess.id)"
-                  :title="locale === 'zh' ? '删除' : 'Delete'"
+                  :title="t('common.delete')"
                 >
                   ✕
                 </NButton>
@@ -385,7 +374,7 @@ const chatPanelWidth = computed(() => showHistory.value ? '600px' : '400px')
                 <NSpin size="small" />
               </div>
               <div v-else-if="storedSessions.length === 0" class="history-empty">
-                {{ locale === 'zh' ? '暂无聊天记录' : 'No chat history' }}
+                {{ t('chat.noChatHistory') }}
               </div>
             </div>
           </div>
@@ -415,14 +404,14 @@ const chatPanelWidth = computed(() => showHistory.value ? '600px' : '400px')
                     :class="{ active: msg.feedback === 'positive' }"
                     :disabled="!!msg.feedback"
                     @click="submitFeedback(msg, 'positive')"
-                    :title="locale === 'zh' ? '有帮助' : 'Helpful'"
+                    :title="t('chat.helpful')"
                   >👍</button>
                   <button
                     class="feedback-btn"
                     :class="{ active: msg.feedback === 'negative' }"
                     :disabled="!!msg.feedback"
                     @click="submitFeedback(msg, 'negative')"
-                    :title="locale === 'zh' ? '没帮助' : 'Not helpful'"
+                    :title="t('chat.notHelpful')"
                   >👎</button>
                 </span>
               </div>
@@ -441,9 +430,9 @@ const chatPanelWidth = computed(() => showHistory.value ? '600px' : '400px')
 
           <!-- Insufficient balance banner -->
           <div v-if="insufficientBalance" class="insufficient-banner">
-            <span>{{ locale === 'zh' ? 'Token 余额不足' : 'Insufficient token balance' }}</span>
+            <span>{{ t('chat.insufficientBalance') }}</span>
             <NButton size="tiny" type="warning" @click="goToBilling">
-              {{ locale === 'zh' ? '去充值' : 'Top Up' }}
+              {{ t('chat.topUp') }}
             </NButton>
           </div>
 
@@ -452,7 +441,7 @@ const chatPanelWidth = computed(() => showHistory.value ? '600px' : '400px')
               v-model:value="message"
               type="textarea"
               :autosize="{ minRows: 1, maxRows: 4 }"
-              :placeholder="locale === 'zh' ? '输入消息...' : 'Type a message...'"
+              :placeholder="t('chat.typeMessage')"
               @keydown="handleKeyDown"
               :disabled="loading"
             />
@@ -463,7 +452,7 @@ const chatPanelWidth = computed(() => showHistory.value ? '600px' : '400px')
               @click="sendMessage"
               style="margin-left: 8px; align-self: flex-end;"
             >
-              {{ locale === 'zh' ? '发送' : 'Send' }}
+              {{ t('chat.send') }}
             </NButton>
           </div>
         </div>

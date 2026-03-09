@@ -1728,6 +1728,28 @@ export default {
       deleteError: "Failed to delete agent",
     },
   },
+  chat: {
+    history: "Chat History",
+    historyShort: "History",
+    selectAgent: "Select Agent",
+    newChat: "New Chat",
+    noChatHistory: "No chat history",
+    helpful: "Helpful",
+    notHelpful: "Not helpful",
+    insufficientBalance: "Insufficient token balance",
+    topUp: "Top Up",
+    typeMessage: "Type a message...",
+    send: "Send",
+    welcomeMessage:
+      "Hello! I'm the AigoNHR AI Assistant. I can help you check leave balances, payroll info, attendance, and Philippine labor regulations. How can I help you?",
+    insufficientMessage:
+      "Insufficient token balance. Please top up to continue using AI features.",
+    justNow: "just now",
+    minutesAgo: "{n}m ago",
+    hoursAgo: "{n}h ago",
+    daysAgo: "{n}d ago",
+    monthsAgo: "{n}mo ago",
+  },
   formPrefill: {
     aiSuggested: "AI Suggested",
     basedOnHistory: "Based on your history",
