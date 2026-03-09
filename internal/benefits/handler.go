@@ -37,7 +37,11 @@ func (h *Handler) ListPlans(c *gin.Context) {
 
 func (h *Handler) GetPlan(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	planID, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	planID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	plan, err := h.queries.GetBenefitPlan(c.Request.Context(), store.GetBenefitPlanParams{
 		ID: planID, CompanyID: companyID,
 	})
@@ -101,7 +105,11 @@ func (h *Handler) CreatePlan(c *gin.Context) {
 
 func (h *Handler) UpdatePlan(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	planID, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	planID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	var req struct {
 		Name              string  `json:"name" binding:"required"`
 		Category          string  `json:"category" binding:"required"`
@@ -242,7 +250,11 @@ func (h *Handler) CreateEnrollment(c *gin.Context) {
 
 func (h *Handler) CancelEnrollment(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	enrollmentID, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	enrollmentID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	enrollment, err := h.queries.CancelBenefitEnrollment(c.Request.Context(), store.CancelBenefitEnrollmentParams{
 		ID: enrollmentID, CompanyID: companyID,
 	})
@@ -255,7 +267,11 @@ func (h *Handler) CancelEnrollment(c *gin.Context) {
 
 func (h *Handler) ListDependents(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	enrollmentID, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	enrollmentID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	deps, err := h.queries.ListBenefitDependents(c.Request.Context(), store.ListBenefitDependentsParams{
 		EnrollmentID: enrollmentID, CompanyID: companyID,
 	})
@@ -277,7 +293,11 @@ func (h *Handler) AddDependent(c *gin.Context) {
 		return
 	}
 	employeeID := emp.ID
-	enrollmentID, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	enrollmentID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	var req struct {
 		Name         string `json:"name" binding:"required"`
 		Relationship string `json:"relationship" binding:"required"`
@@ -313,8 +333,12 @@ func (h *Handler) AddDependent(c *gin.Context) {
 
 func (h *Handler) DeleteDependent(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	depID, _ := strconv.ParseInt(c.Param("id"), 10, 64)
-	err := h.queries.DeleteBenefitDependent(c.Request.Context(), store.DeleteBenefitDependentParams{
+	depID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
+	err = h.queries.DeleteBenefitDependent(c.Request.Context(), store.DeleteBenefitDependentParams{
 		ID: depID, CompanyID: companyID,
 	})
 	if err != nil {
@@ -397,7 +421,11 @@ func (h *Handler) CreateClaim(c *gin.Context) {
 func (h *Handler) ApproveClaim(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 	userID := auth.GetUserID(c)
-	claimID, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	claimID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	claim, err := h.queries.ApproveBenefitClaim(c.Request.Context(), store.ApproveBenefitClaimParams{
 		ID: claimID, CompanyID: companyID, ApprovedBy: &userID,
 	})
@@ -410,7 +438,11 @@ func (h *Handler) ApproveClaim(c *gin.Context) {
 
 func (h *Handler) RejectClaim(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	claimID, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	claimID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	var req struct {
 		Reason string `json:"reason"`
 	}

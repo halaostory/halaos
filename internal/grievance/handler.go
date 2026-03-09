@@ -69,7 +69,11 @@ func (h *Handler) List(c *gin.Context) {
 
 func (h *Handler) Get(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	g, err := h.queries.GetGrievance(c.Request.Context(), store.GetGrievanceParams{
 		ID: id, CompanyID: companyID,
 	})
@@ -147,7 +151,11 @@ func (h *Handler) ListMy(c *gin.Context) {
 
 func (h *Handler) UpdateStatus(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	var req struct {
 		Status string `json:"status" binding:"required"`
 	}
@@ -167,7 +175,11 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 
 func (h *Handler) Assign(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	var req struct {
 		AssignedTo int64 `json:"assigned_to" binding:"required"`
 	}
@@ -187,7 +199,11 @@ func (h *Handler) Assign(c *gin.Context) {
 
 func (h *Handler) Resolve(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	var req struct {
 		Resolution string `json:"resolution" binding:"required"`
 	}
@@ -208,7 +224,11 @@ func (h *Handler) Resolve(c *gin.Context) {
 func (h *Handler) Withdraw(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 	userID := auth.GetUserID(c)
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	emp, err := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
 		CompanyID: companyID, UserID: &userID,
 	})
@@ -227,7 +247,11 @@ func (h *Handler) Withdraw(c *gin.Context) {
 }
 
 func (h *Handler) ListComments(c *gin.Context) {
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	comments, err := h.queries.ListGrievanceComments(c.Request.Context(), id)
 	if err != nil {
 		response.InternalError(c, "Failed to list comments")
@@ -238,7 +262,11 @@ func (h *Handler) ListComments(c *gin.Context) {
 
 func (h *Handler) AddComment(c *gin.Context) {
 	userID := auth.GetUserID(c)
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	var req struct {
 		Comment    string `json:"comment" binding:"required"`
 		IsInternal bool   `json:"is_internal"`

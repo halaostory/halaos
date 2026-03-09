@@ -51,7 +51,11 @@ func (h *Handler) ListUsers(c *gin.Context) {
 }
 
 func (h *Handler) UpdateUserRole(c *gin.Context) {
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	companyID := GetCompanyID(c)
 	var req struct {
 		Role string `json:"role" binding:"required"`
@@ -75,7 +79,11 @@ func (h *Handler) UpdateUserRole(c *gin.Context) {
 }
 
 func (h *Handler) UpdateUserStatus(c *gin.Context) {
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	companyID := GetCompanyID(c)
 	var req struct {
 		Status string `json:"status" binding:"required"`
@@ -99,7 +107,11 @@ func (h *Handler) UpdateUserStatus(c *gin.Context) {
 }
 
 func (h *Handler) AdminResetPassword(c *gin.Context) {
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	companyID := GetCompanyID(c)
 	var req struct {
 		Password string `json:"password" binding:"required"`

@@ -84,7 +84,11 @@ func (h *Handler) CreateTraining(c *gin.Context) {
 }
 
 func (h *Handler) UpdateTrainingStatus(c *gin.Context) {
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	var req struct { Status string `json:"status" binding:"required"` }
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, err.Error())
@@ -102,7 +106,11 @@ func (h *Handler) UpdateTrainingStatus(c *gin.Context) {
 }
 
 func (h *Handler) ListParticipants(c *gin.Context) {
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	companyID := auth.GetCompanyID(c)
 	items, err := h.queries.ListTrainingParticipants(c.Request.Context(), store.ListTrainingParticipantsParams{
 		TrainingID: id,
@@ -116,7 +124,11 @@ func (h *Handler) ListParticipants(c *gin.Context) {
 }
 
 func (h *Handler) AddParticipant(c *gin.Context) {
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	var req struct { EmployeeID int64 `json:"employee_id" binding:"required"` }
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, err.Error())
@@ -192,7 +204,11 @@ func (h *Handler) CreateCertification(c *gin.Context) {
 }
 
 func (h *Handler) DeleteCertification(c *gin.Context) {
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	companyID := auth.GetCompanyID(c)
 	if err := h.queries.DeleteCertification(c.Request.Context(), store.DeleteCertificationParams{
 		ID: id, CompanyID: companyID,

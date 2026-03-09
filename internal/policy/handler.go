@@ -35,7 +35,11 @@ func (h *Handler) ListPolicies(c *gin.Context) {
 
 func (h *Handler) GetPolicy(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	policy, err := h.queries.GetPolicy(c.Request.Context(), store.GetPolicyParams{
 		ID: id, CompanyID: companyID,
 	})
@@ -89,7 +93,11 @@ func (h *Handler) CreatePolicy(c *gin.Context) {
 
 func (h *Handler) UpdatePolicy(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	var req struct {
 		Title                  string `json:"title" binding:"required"`
 		Content                string `json:"content" binding:"required"`
@@ -129,8 +137,12 @@ func (h *Handler) UpdatePolicy(c *gin.Context) {
 
 func (h *Handler) DeletePolicy(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
-	_, err := h.queries.DeactivatePolicy(c.Request.Context(), store.DeactivatePolicyParams{
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
+	_, err = h.queries.DeactivatePolicy(c.Request.Context(), store.DeactivatePolicyParams{
 		ID: id, CompanyID: companyID,
 	})
 	if err != nil {
@@ -143,7 +155,11 @@ func (h *Handler) DeletePolicy(c *gin.Context) {
 func (h *Handler) AcknowledgePolicy(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 	userID := auth.GetUserID(c)
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	emp, err := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
 		CompanyID: companyID, UserID: &userID,
 	})
@@ -167,7 +183,11 @@ func (h *Handler) AcknowledgePolicy(c *gin.Context) {
 
 func (h *Handler) ListAcknowledgments(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	acks, err := h.queries.ListPolicyAcknowledgments(c.Request.Context(), store.ListPolicyAcknowledgmentsParams{
 		PolicyID: id, CompanyID: companyID,
 	})
@@ -180,7 +200,11 @@ func (h *Handler) ListAcknowledgments(c *gin.Context) {
 
 func (h *Handler) GetAckStats(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	stats, err := h.queries.GetPolicyAckStats(c.Request.Context(), store.GetPolicyAckStatsParams{
 		CompanyID: companyID, PolicyID: id,
 	})

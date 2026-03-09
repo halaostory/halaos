@@ -72,7 +72,11 @@ func (h *Handler) ListPending(c *gin.Context) {
 func (h *Handler) Acknowledge(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 	userID := auth.GetUserID(c)
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	var req struct {
 		Notes string `json:"notes"`
 	}
@@ -93,7 +97,11 @@ func (h *Handler) Acknowledge(c *gin.Context) {
 // Action records an action taken on a milestone.
 func (h *Handler) Action(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	var req struct {
 		Notes string `json:"notes"`
 	}

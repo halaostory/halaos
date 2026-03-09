@@ -36,7 +36,11 @@ func (h *Handler) ListCycleItems(c *gin.Context) {
 }
 
 func (h *Handler) LockCycle(c *gin.Context) {
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	companyID := auth.GetCompanyID(c)
 	userID := auth.GetUserID(c)
 	if err := h.queries.LockPayrollCycle(c.Request.Context(), store.LockPayrollCycleParams{
@@ -51,7 +55,11 @@ func (h *Handler) LockCycle(c *gin.Context) {
 }
 
 func (h *Handler) UnlockCycle(c *gin.Context) {
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	companyID := auth.GetCompanyID(c)
 	if err := h.queries.UnlockPayrollCycle(c.Request.Context(), store.UnlockPayrollCycleParams{
 		ID:        id,

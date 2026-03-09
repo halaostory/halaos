@@ -57,7 +57,11 @@ func (h *Handler) List(c *gin.Context) {
 
 // Get returns the final pay record for a specific employee.
 func (h *Handler) Get(c *gin.Context) {
-	empID, _ := strconv.ParseInt(c.Param("employee_id"), 10, 64)
+	empID, err := strconv.ParseInt(c.Param("employee_id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	companyID := auth.GetCompanyID(c)
 	fp, err := h.queries.GetFinalPay(c.Request.Context(), store.GetFinalPayParams{
 		CompanyID:  companyID,
@@ -117,7 +121,11 @@ func (h *Handler) Create(c *gin.Context) {
 
 // UpdateStatus updates the status of a final pay record.
 func (h *Handler) UpdateStatus(c *gin.Context) {
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	var req struct {
 		Status string `json:"status" binding:"required"`
 	}

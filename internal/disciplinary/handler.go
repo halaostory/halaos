@@ -101,7 +101,11 @@ func (h *Handler) ListIncidents(c *gin.Context) {
 
 func (h *Handler) GetIncident(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	incident, err := h.queries.GetDisciplinaryIncident(c.Request.Context(), store.GetDisciplinaryIncidentParams{
 		ID:        id,
 		CompanyID: companyID,
@@ -123,7 +127,11 @@ func (h *Handler) GetIncident(c *gin.Context) {
 func (h *Handler) UpdateIncidentStatus(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 	userID := auth.GetUserID(c)
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	var req struct {
 		Status          string `json:"status" binding:"required"`
 		ResolutionNotes string `json:"resolution_notes"`
@@ -233,7 +241,11 @@ func (h *Handler) ListActions(c *gin.Context) {
 
 func (h *Handler) AcknowledgeAction(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	action, err := h.queries.AcknowledgeDisciplinaryAction(c.Request.Context(), store.AcknowledgeDisciplinaryActionParams{
 		ID:        id,
 		CompanyID: companyID,
@@ -247,7 +259,11 @@ func (h *Handler) AcknowledgeAction(c *gin.Context) {
 
 func (h *Handler) AppealAction(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	var req struct {
 		Reason string `json:"reason" binding:"required"`
 	}
@@ -270,7 +286,11 @@ func (h *Handler) AppealAction(c *gin.Context) {
 func (h *Handler) ResolveAppeal(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 	userID := auth.GetUserID(c)
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	var req struct {
 		Status     string `json:"status" binding:"required"`
 		Resolution string `json:"resolution"`
@@ -295,7 +315,11 @@ func (h *Handler) ResolveAppeal(c *gin.Context) {
 
 func (h *Handler) GetEmployeeSummary(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	empID, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	empID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	incSummary, err := h.queries.GetEmployeeDisciplinarySummary(c.Request.Context(), store.GetEmployeeDisciplinarySummaryParams{
 		CompanyID:  companyID,
 		EmployeeID: empID,

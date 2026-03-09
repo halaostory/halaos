@@ -79,7 +79,11 @@ func (h *Handler) Create(c *gin.Context) {
 
 // Delete removes a holiday.
 func (h *Handler) Delete(c *gin.Context) {
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	companyID := auth.GetCompanyID(c)
 	if err := h.queries.DeleteHoliday(c.Request.Context(), store.DeleteHolidayParams{
 		ID: id, CompanyID: companyID,

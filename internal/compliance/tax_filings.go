@@ -79,7 +79,11 @@ func (h *Handler) CreateTaxFiling(c *gin.Context) {
 func (h *Handler) UpdateTaxFilingStatus(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 	userID := auth.GetUserID(c)
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid ID")
+		return
+	}
 	var req struct {
 		Status      string `json:"status" binding:"required"`
 		ReferenceNo string `json:"reference_no"`
