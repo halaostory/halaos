@@ -75,6 +75,7 @@ services:
       AI_ENABLED: ${AI_ENABLED:-true}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      INTEGRATION_ENCRYPTION_KEY: ${INTEGRATION_ENCRYPTION_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -121,6 +122,7 @@ services:
       AI_ENABLED: ${AI_ENABLED:-true}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      INTEGRATION_ENCRYPTION_KEY: ${INTEGRATION_ENCRYPTION_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
