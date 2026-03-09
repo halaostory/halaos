@@ -1035,3 +1035,50 @@ export const feedbackAPI = {
     comment?: string,
   ) => post(`/v1/ai/messages/${messageId}/feedback`, { rating, comment }),
 };
+
+// Integrations
+export const integrationAPI = {
+  // Connections
+  listConnections: () => get("/v1/integrations/connections"),
+  getConnection: (id: string) => get(`/v1/integrations/connections/${id}`),
+  createConnection: (data: Record<string, unknown>) =>
+    post("/v1/integrations/connections", data),
+  updateConnection: (id: string, data: Record<string, unknown>) =>
+    put(`/v1/integrations/connections/${id}`, data),
+  deleteConnection: (id: string) =>
+    api(`/v1/integrations/connections/${id}`, { method: "DELETE" }),
+  testConnection: (id: string) =>
+    post(`/v1/integrations/connections/${id}/test`),
+  // Templates
+  listTemplates: (params?: Record<string, string>) =>
+    get("/v1/integrations/templates", params),
+  createTemplate: (data: Record<string, unknown>) =>
+    post("/v1/integrations/templates", data),
+  updateTemplate: (id: string, data: Record<string, unknown>) =>
+    put(`/v1/integrations/templates/${id}`, data),
+  deleteTemplate: (id: string) =>
+    api(`/v1/integrations/templates/${id}`, { method: "DELETE" }),
+  // Jobs
+  listJobs: (params?: Record<string, string>) =>
+    get("/v1/integrations/jobs", params),
+  retryJob: (id: string) => post(`/v1/integrations/jobs/${id}/retry`),
+  skipJob: (id: string) => post(`/v1/integrations/jobs/${id}/skip`),
+  // Audit
+  listAudit: (params?: Record<string, string>) =>
+    get("/v1/integrations/audit", params),
+  // Employee integrations
+  getEmployeeIntegrations: (id: number) =>
+    get(`/v1/employees/${id}/integrations`),
+};
+
+// Bot
+export const botAPI = {
+  getLinkCode: () => get("/v1/bot/link-code"),
+  getLinkStatus: () => get("/v1/bot/link-status"),
+  unlinkPlatform: (platform: string) =>
+    api(`/v1/bot/link/${platform}`, { method: "DELETE" }),
+  // Admin
+  listBotConfigs: () => get("/v1/admin/bot/configs"),
+  saveBotConfig: (data: Record<string, unknown>) =>
+    post("/v1/admin/bot/configs", data),
+};

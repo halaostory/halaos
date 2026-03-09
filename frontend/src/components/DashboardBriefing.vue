@@ -177,8 +177,9 @@ onMounted(async () => {
     <NCard v-else-if="briefing">
       <!-- Header: Greeting + Schedule + Payday -->
       <div style="margin-bottom: 16px;">
-        <div style="font-size: 18px; font-weight: 600; margin-bottom: 4px;">
-          {{ briefing.greeting }}! {{ t('briefing.todayIs') }} {{ t(`briefing.${briefing.day_of_week.toLowerCase()}`) }}, {{ formattedDate }}
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 600; margin-bottom: 4px;">
+          <span>{{ briefing.greeting }}! {{ t('briefing.todayIs') }} {{ t(`briefing.${briefing.day_of_week.toLowerCase()}`) }}, {{ formattedDate }}</span>
+          <NTag size="small" :bordered="false" type="info">{{ t('briefing.aiPowered') }}</NTag>
         </div>
         <div style="font-size: 14px; color: #666; display: flex; flex-wrap: wrap; gap: 16px;">
           <span v-if="briefing.schedule">

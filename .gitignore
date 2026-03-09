@@ -35,6 +35,8 @@ uploads/
 # Frontend
 frontend/node_modules/
 frontend/dist/
+frontend-mobile/node_modules/
+frontend-mobile/dist/
 
 # Go
 vendor/

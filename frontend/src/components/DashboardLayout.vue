@@ -17,6 +17,7 @@ import {
   BarChartOutline, CardOutline, NotificationsOutline, LibraryOutline,
   GridOutline, FileTrayFullOutline, CloudDownloadOutline, BookOutline, CalendarNumberOutline,
   MegaphoneOutline, DocumentTextOutline, SchoolOutline, AlertCircleOutline, MedkitOutline, FolderOpenOutline, ChatbubblesOutline, LocationOutline,
+  LinkOutline,
 } from '@vicons/ionicons5'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
@@ -133,6 +134,7 @@ const features: Record<string, boolean> = {
   settings: true,
   announcements: true,
   approvals: true,
+  integrations: true,
   // Phase 2: all enabled
   overtime: true,
   'leave-encashment': true,
@@ -244,6 +246,11 @@ const menuOptions = computed<MenuOption[]>(() => {
     if (isEnabled('milestones')) items.push({ label: t('nav.milestones'), key: 'milestones', icon: renderIcon(RibbonOutline) })
     if (isEnabled('recruitment')) items.push({ label: t('nav.recruitment'), key: 'recruitment', icon: renderIcon(PeopleOutline) })
     if (isEnabled('201file')) items.push({ label: t('nav.file201'), key: '201file', icon: renderIcon(FolderOpenOutline) })
+  }
+
+  // Integrations (admin only)
+  if (auth.isAdmin && isEnabled('integrations')) {
+    items.push({ label: t('nav.integrations'), key: 'integrations', icon: renderIcon(LinkOutline) })
   }
 
   items.push({ type: 'divider', key: 'd1' })

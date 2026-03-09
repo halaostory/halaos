@@ -1,0 +1,60 @@
+:root {
+  --app-bg: #f7f8fa;
+  --card-bg: #ffffff;
+  --text-primary: #323233;
+  --text-secondary: #969799;
+  --brand-color: #1989fa;
+  --success-color: #07c160;
+  --warning-color: #ff976a;
+  --danger-color: #ee0a24;
+}
+
+.dark {
+  --app-bg: #1a1a2e;
+  --card-bg: #16213e;
+  --text-primary: #e0e0e0;
+  --text-secondary: #a0a0a0;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica,
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+  background: var(--app-bg);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#app {
+  height: 100%;
+}
+
+/* Safe area padding for notched devices */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Clock-in button animation */
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(25, 137, 250, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 20px rgba(25, 137, 250, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(25, 137, 250, 0);
+  }
+}
+
+.clock-btn-pulse {
+  animation: pulse 2s infinite;
+}

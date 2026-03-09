@@ -325,6 +325,25 @@ const router = createRouter({
           name: "agent-hub",
           component: () => import("../views/AgentHubView.vue"),
         },
+        // Integrations
+        {
+          path: "integrations",
+          name: "integrations",
+          component: () => import("../views/IntegrationsView.vue"),
+          meta: { roles: ["super_admin", "admin"] },
+        },
+        {
+          path: "integrations/jobs",
+          name: "provisioning-jobs",
+          component: () => import("../views/ProvisioningJobsView.vue"),
+          meta: { roles: ["super_admin", "admin"] },
+        },
+        {
+          path: "integrations/:id",
+          name: "integration-detail",
+          component: () => import("../views/IntegrationDetailView.vue"),
+          meta: { roles: ["super_admin", "admin"] },
+        },
         // Notifications
         {
           path: "notifications",

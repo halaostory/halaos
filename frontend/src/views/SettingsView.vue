@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { NCard, NForm, NFormItem, NInput, NSelect, NButton, NSpace, NUpload, NAvatar, useMessage } from 'naive-ui'
+import { NCard, NForm, NFormItem, NInput, NSelect, NButton, NSpace, NUpload, NAvatar, NSwitch, useMessage } from 'naive-ui'
 import type { UploadFileInfo } from 'naive-ui'
-import { companyAPI } from '../api/client'
+import { companyAPI, botAPI } from '../api/client'
 
 const { t } = useI18n()
 const message = useMessage()
@@ -76,6 +76,7 @@ onMounted(async () => {
   } catch (e) {
     console.error('Failed to load company settings', e)
   }
+  loadBotConfig()
 })
 
 async function handleSave() {
@@ -106,6 +107,47 @@ async function handleLogoUpload({ file }: { file: UploadFileInfo }) {
     message.error(t('settings.logoUploadFailed'))
   } finally {
     logoUploading.value = false
+  }
+}
+
+// Bot Configuration
+const botForm = ref({
+  platform: 'telegram',
+  bot_token: '',
+  bot_username: '',
+  is_active: false,
+})
+const botLoading = ref(false)
+
+async function loadBotConfig() {
+  try {
+    const res = await botAPI.listBotConfigs() as { data?: Array<Record<string, unknown>> }
+    const configs = res.data || (Array.isArray(res) ? res : [])
+    const tg = (configs as Array<Record<string, unknown>>).find((c) => c.platform === 'telegram')
+    if (tg) {
+      botForm.value.bot_token = (tg.bot_token as string) || ''
+      botForm.value.bot_username = (tg.bot_username as string) || ''
+      botForm.value.is_active = !!tg.is_active
+    }
+  } catch {
+    // no config yet
+  }
+}
+
+async function saveBotConfig() {
+  botLoading.value = true
+  try {
+    await botAPI.saveBotConfig({
+      platform: 'telegram',
+      bot_token: botForm.value.bot_token,
+      bot_username: botForm.value.bot_username,
+      is_active: botForm.value.is_active,
+    })
+    message.success(t('settings.saved'))
+  } catch {
+    message.error(t('settings.saveFailed'))
+  } finally {
+    botLoading.value = false
   }
 }
 
@@ -241,6 +283,27 @@ async function handleRemoveLogo() {
           <NInput v-model:value="form.contact_phone" />
         </NFormItem>
         <NButton type="primary" :loading="loading" attr-type="submit">{{ t('common.save') }}</NButton>
+      </NForm>
+    </NCard>
+    <!-- Bot Configuration -->
+    <NCard :title="t('settings.botConfig')" style="margin-top: 24px;">
+      <NForm @submit.prevent="saveBotConfig" label-placement="left" label-width="140">
+        <NFormItem :label="t('settings.botPlatform')">
+          <NInput :value="botForm.platform" disabled />
+        </NFormItem>
+        <NFormItem :label="t('settings.botToken')">
+          <NInput v-model:value="botForm.bot_token" type="password" show-password-on="click" :placeholder="t('settings.botTokenHint')" />
+        </NFormItem>
+        <NFormItem :label="t('settings.botUsername')">
+          <NInput v-model:value="botForm.bot_username" placeholder="@your_bot" />
+        </NFormItem>
+        <NFormItem :label="t('settings.botActive')">
+          <NSpace align="center" :size="8">
+            <NSwitch v-model:value="botForm.is_active" />
+            <span v-if="botForm.is_active" style="color: #18a058; font-size: 12px;">● {{ t('settings.botRunning') }}</span>
+          </NSpace>
+        </NFormItem>
+        <NButton type="primary" :loading="botLoading" attr-type="submit">{{ t('common.save') }}</NButton>
       </NForm>
     </NCard>
   </div>

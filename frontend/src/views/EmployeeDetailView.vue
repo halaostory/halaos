@@ -28,7 +28,7 @@ import {
   type UploadFileInfo,
 } from "naive-ui";
 import { h } from "vue";
-import { employeeAPI, salaryAPI, companyAPI } from "../api/client";
+import { employeeAPI, salaryAPI, companyAPI, integrationAPI } from "../api/client";
 import { format } from "date-fns";
 
 const route = useRoute();
@@ -159,6 +159,7 @@ onMounted(async () => {
     }
     loadDocuments();
     loadTimeline();
+    loadIntegrations();
   } catch {
     error.value = t("employee.loadFailed");
   } finally {
@@ -257,6 +258,66 @@ async function generateLetter() {
     message.error(t("common.failed"));
   } finally {
     letterLoading.value = false;
+  }
+}
+
+// Connected Accounts (Integration Identities)
+interface IntegrationIdentity {
+  id: string;
+  provider: string;
+  external_email: string | null;
+  external_username: string | null;
+  account_status: string;
+  provisioned_at: string | null;
+}
+const integrationIdentities = ref<IntegrationIdentity[]>([]);
+
+const identityColumns: DataTableColumns<IntegrationIdentity> = [
+  {
+    title: t("integration.provider"),
+    key: "provider",
+    width: 120,
+    render: (row) => row.provider.charAt(0).toUpperCase() + row.provider.slice(1),
+  },
+  {
+    title: t("integration.externalEmail"),
+    key: "external_email",
+    render: (row) => row.external_email || "-",
+  },
+  {
+    title: t("integration.externalUsername"),
+    key: "external_username",
+    render: (row) => row.external_username || "-",
+  },
+  {
+    title: t("common.status"),
+    key: "account_status",
+    width: 100,
+    render: (row) => {
+      const typeMap: Record<string, "success" | "warning" | "error" | "default"> = {
+        active: "success",
+        suspended: "warning",
+        deleted: "error",
+      };
+      return h(NTag, { type: typeMap[row.account_status] || "default", size: "small" }, { default: () => row.account_status });
+    },
+  },
+  {
+    title: t("integration.provisionedAt"),
+    key: "provisioned_at",
+    width: 140,
+    render: (row) => (row.provisioned_at ? fmtDate(row.provisioned_at) : "-"),
+  },
+];
+
+async function loadIntegrations() {
+  try {
+    const id = Number(route.params.id);
+    const res = await integrationAPI.getEmployeeIntegrations(id);
+    const data = (res as { data?: IntegrationIdentity[] }).data ?? res;
+    integrationIdentities.value = Array.isArray(data) ? data : [];
+  } catch {
+    integrationIdentities.value = [];
   }
 }
 
@@ -635,6 +696,12 @@ async function handleAssignSalary() {
         </template>
         <NDataTable v-if="documents.length" :columns="docColumns" :data="documents" :row-key="(row: EmployeeDoc) => row.id" size="small" />
         <NEmpty v-else :description="t('employee.noDocuments')" />
+      </NCard>
+
+      <!-- Connected Accounts -->
+      <NCard :title="t('integration.connectedAccounts')">
+        <NDataTable v-if="integrationIdentities.length" :columns="identityColumns" :data="integrationIdentities" :row-key="(row: IntegrationIdentity) => row.id" size="small" />
+        <NEmpty v-else :description="t('integration.noConnectedAccounts')" />
       </NCard>
 
       <!-- Employment Timeline -->

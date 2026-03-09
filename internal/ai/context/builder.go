@@ -50,6 +50,12 @@ func (b *Builder) Build(ctx context.Context, companyID, userID int64, page PageC
 		parts = append(parts, snapshot)
 	}
 
+	// Layer 4: Integration status (~100 tokens)
+	integrations := b.integrationSnapshot(ctx, companyID, userID)
+	if integrations != "" {
+		parts = append(parts, integrations)
+	}
+
 	if len(parts) == 0 {
 		return ""
 	}
@@ -96,6 +102,7 @@ func (b *Builder) buildPageContext(page PageContext) string {
 		"payslips":      "The user is on the Payslips page. They can view and download their pay slips.",
 		"profile":       "The user is on their Profile page. They can view personal info and change settings.",
 		"notifications": "The user is viewing their Notifications.",
+		"integrations":  "The user is on the Integrations page. They can manage connected services (Slack, Google, GitHub, etc.) and provisioning templates.",
 	}
 
 	desc, ok := descriptions[page.Section]
@@ -182,6 +189,39 @@ func (b *Builder) attendanceSnapshot(ctx context.Context, companyID, userID int6
 	}
 
 	return "Today's attendance: Not clocked in yet."
+}
+
+// integrationSnapshot returns a summary of the employee's connected integrations.
+func (b *Builder) integrationSnapshot(ctx context.Context, companyID, userID int64) string {
+	emp, err := b.queries.GetEmployeeByUserID(ctx, store.GetEmployeeByUserIDParams{
+		UserID:    &userID,
+		CompanyID: companyID,
+	})
+	if err != nil {
+		return ""
+	}
+
+	identities, err := b.queries.ListEmployeeIntegrations(ctx, store.ListEmployeeIntegrationsParams{
+		EmployeeID: emp.ID,
+		CompanyID:  companyID,
+	})
+	if err != nil || len(identities) == 0 {
+		return ""
+	}
+
+	lines := []string{"Connected integrations:"}
+	for _, id := range identities {
+		status := id.AccountStatus
+		name := id.Provider
+		if id.ExternalEmail != nil && *id.ExternalEmail != "" {
+			lines = append(lines, fmt.Sprintf("- %s: %s (status: %s)", name, *id.ExternalEmail, status))
+		} else if id.ExternalUsername != nil && *id.ExternalUsername != "" {
+			lines = append(lines, fmt.Sprintf("- %s: @%s (status: %s)", name, *id.ExternalUsername, status))
+		} else {
+			lines = append(lines, fmt.Sprintf("- %s: connected (status: %s)", name, status))
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 // numericToFloat converts a pgtype.Numeric to float64.

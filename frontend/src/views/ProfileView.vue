@@ -7,7 +7,7 @@ import {
 } from 'naive-ui'
 import type { UploadFileInfo } from 'naive-ui'
 import { useAuthStore } from '../stores/auth'
-import { authAPI } from '../api/client'
+import { authAPI, botAPI } from '../api/client'
 
 const { t } = useI18n()
 const message = useMessage()
@@ -43,6 +43,7 @@ onMounted(() => {
     profileForm.value.last_name = auth.user.last_name
     avatarUrl.value = (auth.user as any).avatar_url || null
   }
+  loadBotStatus()
 })
 
 async function saveProfile() {
@@ -114,6 +115,51 @@ async function changePassword() {
   }
 }
 
+// Telegram Bot Link
+const botLinked = ref(false)
+const botUsername = ref('')
+const botLinkCode = ref('')
+const botLoading = ref(false)
+
+async function loadBotStatus() {
+  try {
+    const res = await botAPI.getLinkStatus() as { data?: { linked: boolean; platform_username?: string } }
+    const data = res.data || (res as unknown as { linked: boolean; platform_username?: string })
+    botLinked.value = !!data.linked
+    botUsername.value = data.platform_username || ''
+  } catch {
+    // not linked
+  }
+}
+
+async function generateLinkCode() {
+  botLoading.value = true
+  try {
+    const res = await botAPI.getLinkCode() as { data?: { code: string } }
+    const data = res.data || (res as unknown as { code: string })
+    botLinkCode.value = data.code || ''
+  } catch {
+    message.error(t('common.failed'))
+  } finally {
+    botLoading.value = false
+  }
+}
+
+async function unlinkTelegram() {
+  botLoading.value = true
+  try {
+    await botAPI.unlinkPlatform('telegram')
+    botLinked.value = false
+    botUsername.value = ''
+    botLinkCode.value = ''
+    message.success(t('profile.telegramUnlinked'))
+  } catch {
+    message.error(t('common.failed'))
+  } finally {
+    botLoading.value = false
+  }
+}
+
 const roleMap: Record<string, 'success' | 'warning' | 'info' | 'default'> = {
   super_admin: 'success',
   admin: 'success',
@@ -178,6 +224,31 @@ const roleMap: Record<string, 'success' | 'warning' | 'info' | 'default'> = {
             <NButton @click="editMode = false">{{ t('common.cancel') }}</NButton>
           </NSpace>
         </NForm>
+      </template>
+    </NCard>
+
+    <!-- Telegram Bot Link -->
+    <NCard :title="t('profile.telegramBot')">
+      <template v-if="botLinked">
+        <NSpace align="center" :size="12">
+          <NTag type="success" size="small">{{ t('profile.telegramConnected') }}</NTag>
+          <span>@{{ botUsername }}</span>
+          <NButton size="small" type="error" quaternary :loading="botLoading" @click="unlinkTelegram">
+            {{ t('profile.telegramDisconnect') }}
+          </NButton>
+        </NSpace>
+      </template>
+      <template v-else>
+        <template v-if="botLinkCode">
+          <p style="margin-bottom: 8px;">{{ t('profile.telegramCodeInstructions') }}</p>
+          <div style="font-size: 28px; font-weight: 700; letter-spacing: 4px; font-family: monospace; padding: 12px 0;">
+            {{ botLinkCode }}
+          </div>
+          <p style="font-size: 12px; color: var(--n-text-color3);">{{ t('profile.telegramCodeHint') }}</p>
+        </template>
+        <NButton v-else type="primary" :loading="botLoading" @click="generateLinkCode">
+          {{ t('profile.telegramGenerate') }}
+        </NButton>
       </template>
     </NCard>
 
