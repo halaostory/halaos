@@ -55,10 +55,14 @@ func (h *Handler) Approve(c *gin.Context) {
 	userID := auth.GetUserID(c)
 	companyID := auth.GetCompanyID(c)
 
-	emp, _ := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
+	emp, err := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
 		UserID:    &userID,
 		CompanyID: companyID,
 	})
+	if err != nil {
+		response.BadRequest(c, "Employee profile not found")
+		return
+	}
 
 	var req struct {
 		Comments *string `json:"comments"`
@@ -87,10 +91,14 @@ func (h *Handler) Reject(c *gin.Context) {
 	userID := auth.GetUserID(c)
 	companyID := auth.GetCompanyID(c)
 
-	emp, _ := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
+	emp, err := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
 		UserID:    &userID,
 		CompanyID: companyID,
 	})
+	if err != nil {
+		response.BadRequest(c, "Employee profile not found")
+		return
+	}
 
 	var req struct {
 		Comments *string `json:"comments"`

@@ -124,10 +124,14 @@ func (h *Handler) ApproveRequest(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 	userID := auth.GetUserID(c)
 
-	emp, _ := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
+	emp, err := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
 		UserID:    &userID,
 		CompanyID: companyID,
 	})
+	if err != nil {
+		response.BadRequest(c, "Employee profile not found")
+		return
+	}
 
 	ot, err := h.queries.ApproveOvertimeRequest(c.Request.Context(), store.ApproveOvertimeRequestParams{
 		ID:         id,
@@ -165,10 +169,14 @@ func (h *Handler) RejectRequest(c *gin.Context) {
 	}
 	_ = c.ShouldBindJSON(&req)
 
-	emp, _ := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
+	emp, err := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
 		UserID:    &userID,
 		CompanyID: companyID,
 	})
+	if err != nil {
+		response.BadRequest(c, "Employee profile not found")
+		return
+	}
 
 	ot, err := h.queries.RejectOvertimeRequest(c.Request.Context(), store.RejectOvertimeRequestParams{
 		ID:              id,

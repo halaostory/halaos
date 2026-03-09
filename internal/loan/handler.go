@@ -248,10 +248,14 @@ func (h *Handler) ApproveLoan(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 	userID := auth.GetUserID(c)
 
-	emp, _ := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
+	emp, err := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
 		UserID:    &userID,
 		CompanyID: companyID,
 	})
+	if err != nil {
+		response.BadRequest(c, "Employee profile not found")
+		return
+	}
 
 	loan, err := h.queries.ApproveLoan(c.Request.Context(), store.ApproveLoanParams{
 		ID:         loanID,
@@ -361,7 +365,18 @@ func (h *Handler) RecordPayment(c *gin.Context) {
 	_ = principalPortion.Scan(strconv.FormatFloat(req.Amount*0.9, 'f', 2, 64)) // approximate split
 	_ = interestPortion.Scan(strconv.FormatFloat(req.Amount*0.1, 'f', 2, 64))
 
-	payment, err := h.queries.CreateLoanPayment(c.Request.Context(), store.CreateLoanPaymentParams{
+	// Use transaction to ensure payment + balance update are atomic
+	tx, err := h.pool.Begin(c.Request.Context())
+	if err != nil {
+		h.logger.Error("failed to begin transaction", "error", err)
+		response.InternalError(c, "Failed to record payment")
+		return
+	}
+	defer tx.Rollback(c.Request.Context())
+
+	qtx := h.queries.WithTx(tx)
+
+	payment, err := qtx.CreateLoanPayment(c.Request.Context(), store.CreateLoanPaymentParams{
 		LoanID:           loanID,
 		PaymentDate:      payDate,
 		Amount:           amount,
@@ -375,14 +390,24 @@ func (h *Handler) RecordPayment(c *gin.Context) {
 		return
 	}
 
-	// Update loan balance
+	// Update loan balance within the same transaction
 	var amtNum pgtype.Numeric
 	_ = amtNum.Scan(strconv.FormatFloat(req.Amount, 'f', 2, 64))
-	_, _ = h.queries.UpdateLoanBalance(c.Request.Context(), store.UpdateLoanBalanceParams{
+	if _, err := qtx.UpdateLoanBalance(c.Request.Context(), store.UpdateLoanBalanceParams{
 		ID:        loanID,
 		CompanyID: companyID,
 		TotalPaid: amtNum,
-	})
+	}); err != nil {
+		h.logger.Error("failed to update loan balance", "error", err)
+		response.InternalError(c, "Failed to update loan balance")
+		return
+	}
+
+	if err := tx.Commit(c.Request.Context()); err != nil {
+		h.logger.Error("failed to commit loan payment", "error", err)
+		response.InternalError(c, "Failed to record payment")
+		return
+	}
 
 	response.Created(c, payment)
 }

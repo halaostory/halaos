@@ -289,10 +289,14 @@ func (h *Handler) RejectRequest(c *gin.Context) {
 
 	companyID := auth.GetCompanyID(c)
 	userID := auth.GetUserID(c)
-	emp, _ := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
+	emp, err := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
 		UserID:    &userID,
 		CompanyID: companyID,
 	})
+	if err != nil {
+		response.BadRequest(c, "Employee profile not found")
+		return
+	}
 
 	lr, err := h.queries.RejectLeaveRequest(c.Request.Context(), store.RejectLeaveRequestParams{
 		ID:              id,
@@ -343,10 +347,14 @@ func (h *Handler) CancelRequest(c *gin.Context) {
 	}
 
 	userID := auth.GetUserID(c)
-	emp, _ := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
+	emp, err := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
 		UserID:    &userID,
 		CompanyID: auth.GetCompanyID(c),
 	})
+	if err != nil {
+		response.BadRequest(c, "Employee profile not found")
+		return
+	}
 
 	lr, err := h.queries.CancelLeaveRequest(c.Request.Context(), store.CancelLeaveRequestParams{
 		ID:         id,

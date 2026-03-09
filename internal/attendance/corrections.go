@@ -144,7 +144,18 @@ func (h *Handler) ApproveCorrection(c *gin.Context) {
 	}
 	_ = c.ShouldBindJSON(&req)
 
-	correction, err := h.queries.ApproveAttendanceCorrection(c.Request.Context(), store.ApproveAttendanceCorrectionParams{
+	// Use transaction to ensure approval + clock time updates are atomic
+	tx, err := h.pool.Begin(c.Request.Context())
+	if err != nil {
+		h.logger.Error("failed to begin transaction", "error", err)
+		response.InternalError(c, "Failed to approve correction")
+		return
+	}
+	defer tx.Rollback(c.Request.Context())
+
+	qtx := h.queries.WithTx(tx)
+
+	correction, err := qtx.ApproveAttendanceCorrection(c.Request.Context(), store.ApproveAttendanceCorrectionParams{
 		ID:         id,
 		CompanyID:  companyID,
 		ReviewedBy: &userID,
@@ -157,15 +168,29 @@ func (h *Handler) ApproveCorrection(c *gin.Context) {
 
 	if correction.AttendanceID != nil {
 		if correction.RequestedClockIn.Valid {
-			_, _ = h.pool.Exec(c.Request.Context(),
+			if _, err := tx.Exec(c.Request.Context(),
 				"UPDATE attendance_logs SET clock_in_at = $1, is_corrected = true, corrected_by = $2 WHERE id = $3",
-				correction.RequestedClockIn.Time, userID, *correction.AttendanceID)
+				correction.RequestedClockIn.Time, userID, *correction.AttendanceID); err != nil {
+				h.logger.Error("failed to update clock_in", "error", err)
+				response.InternalError(c, "Failed to apply clock-in correction")
+				return
+			}
 		}
 		if correction.RequestedClockOut.Valid {
-			_, _ = h.pool.Exec(c.Request.Context(),
+			if _, err := tx.Exec(c.Request.Context(),
 				"UPDATE attendance_logs SET clock_out_at = $1, is_corrected = true, corrected_by = $2 WHERE id = $3",
-				correction.RequestedClockOut.Time, userID, *correction.AttendanceID)
+				correction.RequestedClockOut.Time, userID, *correction.AttendanceID); err != nil {
+				h.logger.Error("failed to update clock_out", "error", err)
+				response.InternalError(c, "Failed to apply clock-out correction")
+				return
+			}
 		}
+	}
+
+	if err := tx.Commit(c.Request.Context()); err != nil {
+		h.logger.Error("failed to commit correction", "error", err)
+		response.InternalError(c, "Failed to approve correction")
+		return
 	}
 
 	response.OK(c, correction)
