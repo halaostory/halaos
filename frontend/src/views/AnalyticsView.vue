@@ -308,13 +308,13 @@ onMounted(loadData);
         <NGi span="2 m:1">
           <NCard :title="t('analytics.headcountTrend')" size="small">
             <VChart v-if="headcountData.length" :option="headcountOption" style="height: 300px" autoresize />
-            <p v-else style="color: #999; text-align: center; padding: 40px 0">No data</p>
+            <p v-else style="color: #999; text-align: center; padding: 40px 0">{{ t('common.noData') }}</p>
           </NCard>
         </NGi>
         <NGi span="2 m:1">
           <NCard :title="t('analytics.turnoverRate')" size="small">
             <VChart v-if="turnoverData.length" :option="turnoverOption" style="height: 300px" autoresize />
-            <p v-else style="color: #999; text-align: center; padding: 40px 0">No data</p>
+            <p v-else style="color: #999; text-align: center; padding: 40px 0">{{ t('common.noData') }}</p>
           </NCard>
         </NGi>
       </NGrid>
@@ -330,7 +330,7 @@ onMounted(loadData);
         <NGi span="2 m:1">
           <NCard :title="t('analytics.attendancePatterns')" size="small">
             <VChart v-if="attendancePatterns.length" :option="attendanceOption" style="height: 300px" autoresize />
-            <p v-else style="color: #999; text-align: center; padding: 40px 0">No data</p>
+            <p v-else style="color: #999; text-align: center; padding: 40px 0">{{ t('common.noData') }}</p>
           </NCard>
         </NGi>
       </NGrid>
@@ -340,7 +340,7 @@ onMounted(loadData);
         <NGi span="2 m:1">
           <NCard :title="t('analytics.employmentTypes')" size="small">
             <VChart v-if="employmentTypes.length" :option="employmentTypeOption" style="height: 300px" autoresize />
-            <p v-else style="color: #999; text-align: center; padding: 40px 0">No data</p>
+            <p v-else style="color: #999; text-align: center; padding: 40px 0">{{ t('common.noData') }}</p>
           </NCard>
         </NGi>
         <NGi span="2 m:1">

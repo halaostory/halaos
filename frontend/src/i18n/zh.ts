@@ -756,6 +756,13 @@ export default {
     noLoans: "暂无在途贷款",
     principal: "本金",
     monthly: "月供",
+    quickActions: "快捷操作",
+    goAttendance: "打卡",
+    goLeave: "请假",
+    goOvertime: "加班申请",
+    goExpenses: "报销",
+    goPayslips: "查看工资条",
+    goTraining: "我的培训",
   },
   performance: {
     title: "绩效管理",

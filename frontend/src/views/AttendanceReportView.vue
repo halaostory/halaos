@@ -147,7 +147,7 @@ function handlePrint() {
 
       <!-- Print header -->
       <div class="print-only" style="text-align: center; margin-bottom: 16px;">
-        <h2>Attendance Summary Report</h2>
+        <h2>{{ t('attendanceReport.title') }}</h2>
         <p v-if="dateRange">{{ new Date(dateRange[0]).toLocaleDateString() }} - {{ new Date(dateRange[1]).toLocaleDateString() }}</p>
       </div>
 

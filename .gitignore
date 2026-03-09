@@ -1,5 +1,8 @@
 # Binaries
 bin/
+/api
+/worker
+/migrate
 *.exe
 *.dll
 *.so
