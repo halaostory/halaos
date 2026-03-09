@@ -3,6 +3,7 @@ package payroll
 import (
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -17,8 +18,11 @@ func (h *Handler) ListCycleItems(c *gin.Context) {
 		response.BadRequest(c, "Invalid cycle ID")
 		return
 	}
+	companyID := auth.GetCompanyID(c)
 	var runID int64
-	row := h.pool.QueryRow(c.Request.Context(), "SELECT id FROM payroll_runs WHERE cycle_id = $1 ORDER BY created_at DESC LIMIT 1", cycleID)
+	row := h.pool.QueryRow(c.Request.Context(),
+		"SELECT id FROM payroll_runs WHERE cycle_id = $1 AND company_id = $2 ORDER BY created_at DESC LIMIT 1",
+		cycleID, companyID)
 	if err := row.Scan(&runID); err != nil {
 		response.OK(c, []any{})
 		return
@@ -136,5 +140,5 @@ func (h *Handler) Calculate13thMonth(c *gin.Context) {
 }
 
 func (h *Handler) currentYear() int {
-	return 2026
+	return time.Now().Year()
 }

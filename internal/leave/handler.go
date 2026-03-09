@@ -217,29 +217,35 @@ func (h *Handler) ApproveRequest(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 	userID := auth.GetUserID(c)
 
-	emp, _ := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
+	emp, empErr := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
 		UserID:    &userID,
 		CompanyID: companyID,
 	})
 
-	lr, err := h.queries.ApproveLeaveRequest(c.Request.Context(), store.ApproveLeaveRequestParams{
-		ID:         id,
-		CompanyID:  companyID,
-		ApproverID: &emp.ID,
-	})
+	approveParams := store.ApproveLeaveRequestParams{
+		ID:        id,
+		CompanyID: companyID,
+	}
+	if empErr == nil {
+		approveParams.ApproverID = &emp.ID
+	}
+
+	lr, err := h.queries.ApproveLeaveRequest(c.Request.Context(), approveParams)
 	if err != nil {
 		response.NotFound(c, "Leave request not found or already processed")
 		return
 	}
 
 	// Deduct leave balance
-	_ = h.queries.DeductLeaveBalance(c.Request.Context(), store.DeductLeaveBalanceParams{
+	if err := h.queries.DeductLeaveBalance(c.Request.Context(), store.DeductLeaveBalanceParams{
 		CompanyID:   companyID,
 		EmployeeID:  lr.EmployeeID,
 		LeaveTypeID: lr.LeaveTypeID,
 		Year:        int32(lr.StartDate.Year()),
 		Used:        lr.Days,
-	})
+	}); err != nil {
+		h.logger.Error("failed to deduct leave balance", "leave_request_id", lr.ID, "employee_id", lr.EmployeeID, "error", err)
+	}
 
 	// Notify employee
 	if reqEmp, err := h.queries.GetEmployeeByID(c.Request.Context(), store.GetEmployeeByIDParams{ID: lr.EmployeeID, CompanyID: companyID}); err == nil && reqEmp.UserID != nil {

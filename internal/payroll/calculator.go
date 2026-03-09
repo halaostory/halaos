@@ -158,6 +158,9 @@ func (calc *Calculator) RunPayroll(ctx context.Context, runID int64, companyID i
 
 	// Calculate working days in period (Mon-Fri)
 	workingDaysInPeriod := countWorkingDays(periodStart, periodEnd)
+	if workingDaysInPeriod <= 0 {
+		return calc.failRun(ctx, runID, fmt.Errorf("period %s to %s has 0 working days", periodStart.Format("2006-01-02"), periodEnd.Format("2006-01-02")))
+	}
 
 	var totalGross, totalDeductions, totalNet float64
 	var processedCount int32

@@ -63,9 +63,21 @@ func (h *Handler) CreateCycle(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 	userID := auth.GetUserID(c)
 
-	periodStart, _ := time.Parse("2006-01-02", req.PeriodStart)
-	periodEnd, _ := time.Parse("2006-01-02", req.PeriodEnd)
-	payDate, _ := time.Parse("2006-01-02", req.PayDate)
+	periodStart, err := time.Parse("2006-01-02", req.PeriodStart)
+	if err != nil {
+		response.BadRequest(c, "Invalid period_start date format (expected YYYY-MM-DD)")
+		return
+	}
+	periodEnd, err := time.Parse("2006-01-02", req.PeriodEnd)
+	if err != nil {
+		response.BadRequest(c, "Invalid period_end date format (expected YYYY-MM-DD)")
+		return
+	}
+	payDate, err := time.Parse("2006-01-02", req.PayDate)
+	if err != nil {
+		response.BadRequest(c, "Invalid pay_date date format (expected YYYY-MM-DD)")
+		return
+	}
 	cycleType := req.CycleType
 	if cycleType == "" {
 		cycleType = "regular"
@@ -104,7 +116,11 @@ func (h *Handler) RunPayroll(c *gin.Context) {
 	locked, err := h.queries.IsPayrollCycleLocked(c.Request.Context(), store.IsPayrollCycleLockedParams{
 		ID: req.CycleID, CompanyID: companyID,
 	})
-	if err == nil && locked {
+	if err != nil {
+		response.NotFound(c, "Payroll cycle not found")
+		return
+	}
+	if locked {
 		response.BadRequest(c, "Payroll cycle is locked and cannot be modified")
 		return
 	}
@@ -132,7 +148,10 @@ func (h *Handler) RunPayroll(c *gin.Context) {
 		AggregateID:   run.ID,
 		EventType:     "payroll.run_requested",
 		EventVersion:  1,
-		Payload:       json.RawMessage(fmt.Sprintf(`{"run_id":%d,"company_id":%d,"run_type":"%s"}`, run.ID, companyID, runType)),
+		Payload: func() json.RawMessage {
+			b, _ := json.Marshal(map[string]any{"run_id": run.ID, "company_id": companyID, "run_type": runType})
+			return b
+		}(),
 		ActorUserID:   &userID,
 	})
 	if err != nil {
@@ -143,7 +162,22 @@ func (h *Handler) RunPayroll(c *gin.Context) {
 }
 
 func (h *Handler) ListPayrollItems(c *gin.Context) {
-	runID, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	runID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid run ID")
+		return
+	}
+
+	companyID := auth.GetCompanyID(c)
+
+	// Verify the run belongs to this company
+	run, err := h.queries.GetPayrollRun(c.Request.Context(), store.GetPayrollRunParams{
+		ID: runID, CompanyID: companyID,
+	})
+	if err != nil || run.ID == 0 {
+		response.NotFound(c, "Payroll run not found")
+		return
+	}
 
 	items, err := h.queries.ListPayrollItems(c.Request.Context(), runID)
 	if err != nil {
@@ -162,7 +196,11 @@ func (h *Handler) ApproveCycle(c *gin.Context) {
 	locked, err := h.queries.IsPayrollCycleLocked(c.Request.Context(), store.IsPayrollCycleLockedParams{
 		ID: id, CompanyID: companyID,
 	})
-	if err == nil && locked {
+	if err != nil {
+		response.NotFound(c, "Payroll cycle not found")
+		return
+	}
+	if locked {
 		response.BadRequest(c, "Payroll cycle is locked and cannot be modified")
 		return
 	}

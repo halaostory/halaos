@@ -181,10 +181,30 @@ func TestGetPayslip_EmployeeNotFound(t *testing.T) {
 
 // --- ListPayrollItems ---
 
+func TestListPayrollItems_RunNotFound(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	// GetPayrollRun returns error (not found)
+	mockDB.OnQueryRow(testutil.NewErrorRow(fmt.Errorf("no rows")))
+
+	c, w := testutil.NewGinContextWithParams("GET", "/payroll/runs/1/items",
+		gin.Params{{Key: "id", Value: "1"}}, nil, adminAuth)
+
+	h.ListPayrollItems(c)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
 func TestListPayrollItems_DBError(t *testing.T) {
 	mockDB := testutil.NewMockDBTX()
 	h := newTestHandler(mockDB)
 
+	// GetPayrollRun succeeds
+	mockDB.OnQueryRow(testutil.NewRow(payrollRunScanValues()...))
+	// ListPayrollItems query fails
 	mockDB.OnQuery(nil, fmt.Errorf("db error"))
 
 	c, w := testutil.NewGinContextWithParams("GET", "/payroll/runs/1/items",
@@ -210,6 +230,28 @@ func TestDownloadPayslipPDF_InvalidID(t *testing.T) {
 
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// payrollRunScanValues returns values matching the PayrollRun scan order (14 fields).
+func payrollRunScanValues() []interface{} {
+	now := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	userID := int64(1)
+	return []interface{}{
+		int64(1),                  // ID
+		int64(1),                  // CompanyID
+		int64(1),                  // CycleID
+		"regular",                 // RunType
+		int32(1),                  // RunNumber
+		int32(0),                  // TotalEmployees
+		pgtype.Numeric{},          // TotalGross
+		pgtype.Numeric{},          // TotalDeductions
+		pgtype.Numeric{},          // TotalNet
+		"completed",               // Status
+		(*string)(nil),            // ErrorMessage
+		&userID,                   // InitiatedBy
+		pgtype.Timestamptz{},      // CompletedAt
+		now,                       // CreatedAt
 	}
 }
 
@@ -265,6 +307,9 @@ func TestListPayrollItems_Success(t *testing.T) {
 	mockDB := testutil.NewMockDBTX()
 	h := newTestHandler(mockDB)
 
+	// GetPayrollRun succeeds
+	mockDB.OnQueryRow(testutil.NewRow(payrollRunScanValues()...))
+	// ListPayrollItems returns empty result
 	mockDB.OnQuery(testutil.NewEmptyRows(), nil)
 
 	c, w := testutil.NewGinContextWithParams("GET", "/payroll/runs/1/items",
