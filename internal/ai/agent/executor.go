@@ -53,9 +53,13 @@ var ErrInsufficientBalance = fmt.Errorf("insufficient token balance")
 
 const defaultAgentSlug = "general"
 
+// ProviderResolverFunc resolves the best provider for a given company/user.
+type ProviderResolverFunc func(ctx context.Context, companyID, userID int64) provider.Provider
+
 // Executor runs an agent with billing integration.
 type Executor struct {
 	provider   provider.Provider
+	resolver   ProviderResolverFunc
 	tools      ToolRegistry
 	billing    BillingService
 	registry   *Registry
@@ -90,6 +94,21 @@ func NewExecutor(
 	}
 }
 
+// SetResolver sets the BYOK provider resolver function.
+func (e *Executor) SetResolver(fn ProviderResolverFunc) {
+	e.resolver = fn
+}
+
+// resolveProvider returns the best provider for the request.
+func (e *Executor) resolveProvider(ctx context.Context, companyID, userID int64) provider.Provider {
+	if e.resolver != nil {
+		if p := e.resolver(ctx, companyID, userID); p != nil {
+			return p
+		}
+	}
+	return e.provider
+}
+
 // Chat performs a synchronous chat using the specified agent with billing.
 func (e *Executor) Chat(ctx context.Context, companyID, userID int64, agentSlug string, req ChatRequest) (*ChatResponse, error) {
 	agentCfg, err := e.resolveAgent(ctx, agentSlug)
@@ -110,6 +129,9 @@ func (e *Executor) Chat(ctx context.Context, companyID, userID int64, agentSlug 
 	start := time.Now()
 	redactedInput := redact.RedactText(req.Message)
 
+	// Resolve provider (BYOK or platform default)
+	p := e.resolveProvider(ctx, companyID, userID)
+
 	// Resolve or create session
 	sessionID, isNewSession := e.resolveSession(ctx, companyID, userID, agentCfg.Slug, req)
 
@@ -125,7 +147,7 @@ func (e *Executor) Chat(ctx context.Context, companyID, userID int64, agentSlug 
 	var totalInput, totalOutput int
 
 	for round := 0; round < agentCfg.MaxRounds; round++ {
-		resp, err := e.provider.Generate(ctx, provider.Request{
+		resp, err := p.Generate(ctx, provider.Request{
 			System:    systemPrompt,
 			Messages:  messages,
 			Tools:     toolDefs,
@@ -216,6 +238,9 @@ func (e *Executor) StreamChat(ctx context.Context, companyID, userID int64, agen
 	start := time.Now()
 	redactedInput := redact.RedactText(req.Message)
 
+	// Resolve provider (BYOK or platform default)
+	p := e.resolveProvider(ctx, companyID, userID)
+
 	// Resolve or create session
 	sessionID, isNewSession := e.resolveSession(ctx, companyID, userID, agentCfg.Slug, req)
 
@@ -238,7 +263,7 @@ func (e *Executor) StreamChat(ctx context.Context, companyID, userID int64, agen
 		if round == 0 {
 			// First round: always stream for user-visible output
 			var err error
-			resp, err = e.provider.Stream(ctx, provider.Request{
+			resp, err = p.Stream(ctx, provider.Request{
 				System:    systemPrompt,
 				Messages:  messages,
 				Tools:     toolDefs,
@@ -251,7 +276,7 @@ func (e *Executor) StreamChat(ctx context.Context, companyID, userID int64, agen
 		} else {
 			// Subsequent rounds (after tool use): non-streaming
 			var err error
-			resp, err = e.provider.Generate(ctx, provider.Request{
+			resp, err = p.Generate(ctx, provider.Request{
 				System:    systemPrompt,
 				Messages:  messages,
 				Tools:     toolDefs,

@@ -18,6 +18,7 @@ import (
 
 	"github.com/tonypk/aigonhr/internal/ai"
 	"github.com/tonypk/aigonhr/internal/ai/agent"
+	"github.com/tonypk/aigonhr/internal/ai/byok"
 	aicontext "github.com/tonypk/aigonhr/internal/ai/context"
 	"github.com/tonypk/aigonhr/internal/ai/draft"
 	"github.com/tonypk/aigonhr/internal/ai/provider"
@@ -246,6 +247,20 @@ func (a *App) setupRoutes() {
 			draftSvc = draft.NewService(a.Queries, a.Logger)
 			contextBld := aicontext.NewBuilder(a.Queries)
 			executor = agent.NewExecutor(aiProvider, toolRegistry, billingSvc, agentRegistry, a.Queries, a.Logger, draftSvc, contextBld)
+
+			// BYOK resolver: allows per-company/user API keys
+			if a.Cfg.Integration.EncryptionKey != "" {
+				if byokEncryptor, err := crypto.NewCredentialEncryptor(a.Cfg.Integration.EncryptionKey); err == nil {
+					byokResolver := byok.NewResolver(a.Queries, byokEncryptor, aiProvider,
+						a.Cfg.AI.AnthropicKey, a.Cfg.AI.OpenAIKey, a.Cfg.AI.GeminiKey, a.Logger)
+					executor.SetResolver(func(ctx context.Context, companyID, userID int64) provider.Provider {
+						rp := byokResolver.Resolve(ctx, companyID, userID)
+						return rp.Provider
+					})
+					a.Logger.Info("BYOK key resolver enabled")
+				}
+			}
+
 			draftHandler := draft.NewHandler(draftSvc, toolRegistry)
 			aiHandler = ai.NewHandler(aiService, executor, agentRegistry, toolRegistry, a.Queries, draftHandler)
 			a.Logger.Info("AI assistant enabled", "provider", aiProvider.Name(), "agents", len(agentRegistry.List(context.Background())))
@@ -329,6 +344,11 @@ func (a *App) setupRoutes() {
 			go provWorker.Run(context.Background(), 30*time.Second)
 
 			a.Logger.Info("integration hub enabled", "providers", connRegistry.Providers())
+
+			// BYOK key management (shares same encryptor)
+			byokHandler := byok.NewHandler(a.Queries, encryptor)
+			byokHandler.RegisterRoutes(protected)
+			a.Logger.Info("BYOK key management enabled")
 		}
 	} else {
 		a.Logger.Info("integration hub disabled (INTEGRATION_ENCRYPTION_KEY not set)")

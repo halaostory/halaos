@@ -1061,3 +1061,26 @@ export const botAPI = {
   saveBotConfig: (data: Record<string, unknown>) =>
     post("/v1/admin/bot/configs", data),
 };
+
+export const byokAPI = {
+  listKeys: () => get("/v1/byok/keys"),
+  createKey: (data: {
+    provider: string;
+    api_key: string;
+    model_override?: string;
+    label?: string;
+    user_id?: number | null;
+  }) => post("/v1/byok/keys", data),
+  updateKey: (
+    id: string,
+    data: {
+      api_key?: string;
+      model_override?: string;
+      label?: string;
+      is_active?: boolean;
+    },
+  ) => api(`/v1/byok/keys/${id}`, { method: "PUT", body: data }),
+  deleteKey: (id: string) => api(`/v1/byok/keys/${id}`, { method: "DELETE" }),
+  validateKey: (data: { provider: string; api_key: string }) =>
+    post("/v1/byok/keys/validate", data),
+};

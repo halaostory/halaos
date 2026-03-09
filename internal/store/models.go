@@ -320,6 +320,21 @@ type BotUserLink struct {
 	UpdatedAt       time.Time          `json:"updated_at"`
 }
 
+type ByokKey struct {
+	ID            uuid.UUID `json:"id"`
+	CompanyID     int64     `json:"company_id"`
+	UserID        *int64    `json:"user_id"`
+	Provider      string    `json:"provider"`
+	EncryptedKey  []byte    `json:"encrypted_key"`
+	KeyHint       string    `json:"key_hint"`
+	ModelOverride string    `json:"model_override"`
+	Label         string    `json:"label"`
+	IsActive      bool      `json:"is_active"`
+	CreatedBy     *int64    `json:"created_by"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
 type Certification struct {
 	ID             int64       `json:"id"`
 	CompanyID      int64       `json:"company_id"`

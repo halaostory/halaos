@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { NCard, NForm, NFormItem, NInput, NSelect, NButton, NSpace, NUpload, NAvatar, NSwitch, useMessage } from 'naive-ui'
+import { NCard, NForm, NFormItem, NInput, NSelect, NButton, NSpace, NUpload, NAvatar, NSwitch, NTag, NPopconfirm, NEmpty, useMessage } from 'naive-ui'
 import type { UploadFileInfo } from 'naive-ui'
-import { companyAPI, botAPI } from '../api/client'
+import { companyAPI, botAPI, byokAPI } from '../api/client'
 
 const { t } = useI18n()
 const message = useMessage()
@@ -163,6 +163,108 @@ async function handleRemoveLogo() {
     loading.value = false
   }
 }
+
+// BYOK Key Management
+interface ByokKey {
+  id: string
+  provider: string
+  key_hint: string
+  model_override: string
+  label: string
+  is_active: boolean
+  user_id: number | null
+  created_at: string
+}
+
+const byokKeys = ref<ByokKey[]>([])
+const byokSaving = ref(false)
+const showByokForm = ref(false)
+const byokValidating = ref(false)
+
+const byokForm = ref({
+  provider: 'anthropic',
+  api_key: '',
+  model_override: '',
+  label: '',
+})
+
+const providerOptions = [
+  { label: 'Anthropic (Claude)', value: 'anthropic' },
+  { label: 'OpenAI (GPT)', value: 'openai' },
+  { label: 'Google (Gemini)', value: 'gemini' },
+]
+
+async function loadByokKeys() {
+  try {
+    const res = await byokAPI.listKeys() as { data?: ByokKey[] }
+    byokKeys.value = (res.data || (Array.isArray(res) ? res : [])) as ByokKey[]
+  } catch {
+    // no keys yet
+  }
+}
+
+async function saveByokKey() {
+  if (!byokForm.value.api_key || byokForm.value.api_key.length < 10) {
+    message.warning(t('settings.byokKeyTooShort'))
+    return
+  }
+  byokSaving.value = true
+  try {
+    await byokAPI.createKey({
+      provider: byokForm.value.provider,
+      api_key: byokForm.value.api_key,
+      model_override: byokForm.value.model_override || '',
+      label: byokForm.value.label || '',
+      user_id: null,
+    })
+    message.success(t('settings.byokKeySaved'))
+    byokForm.value = { provider: 'anthropic', api_key: '', model_override: '', label: '' }
+    showByokForm.value = false
+    await loadByokKeys()
+  } catch {
+    message.error(t('settings.byokSaveFailed'))
+  } finally {
+    byokSaving.value = false
+  }
+}
+
+async function validateByokKey() {
+  if (!byokForm.value.api_key || byokForm.value.api_key.length < 10) {
+    message.warning(t('settings.byokKeyTooShort'))
+    return
+  }
+  byokValidating.value = true
+  try {
+    const res = await byokAPI.validateKey({
+      provider: byokForm.value.provider,
+      api_key: byokForm.value.api_key,
+    }) as { data?: { valid: boolean; error?: string } }
+    const result = res.data || (res as unknown as { valid: boolean; error?: string })
+    if (result.valid) {
+      message.success(t('settings.byokKeyValid'))
+    } else {
+      message.error(result.error || t('settings.byokKeyInvalid'))
+    }
+  } catch {
+    message.error(t('settings.byokKeyInvalid'))
+  } finally {
+    byokValidating.value = false
+  }
+}
+
+async function deleteByokKey(id: string) {
+  try {
+    await byokAPI.deleteKey(id)
+    message.success(t('common.deleted'))
+    await loadByokKeys()
+  } catch {
+    message.error(t('settings.byokSaveFailed'))
+  }
+}
+
+onMounted(() => {
+  loadByokKeys()
+})
 </script>
 
 <template>
@@ -305,6 +407,56 @@ async function handleRemoveLogo() {
         </NFormItem>
         <NButton type="primary" :loading="botLoading" attr-type="submit">{{ t('common.save') }}</NButton>
       </NForm>
+    </NCard>
+
+    <!-- BYOK API Key Management -->
+    <NCard :title="t('settings.byokTitle')" style="margin-top: 24px;">
+      <template #header-extra>
+        <NButton size="small" type="primary" @click="showByokForm = !showByokForm">
+          {{ showByokForm ? t('common.cancel') : t('settings.byokAddKey') }}
+        </NButton>
+      </template>
+
+      <!-- Add Key Form -->
+      <div v-if="showByokForm" style="margin-bottom: 20px; padding: 16px; background: #f9f9f9; border-radius: 8px;">
+        <NForm label-placement="left" label-width="120">
+          <NFormItem :label="t('settings.byokProvider')">
+            <NSelect v-model:value="byokForm.provider" :options="providerOptions" />
+          </NFormItem>
+          <NFormItem :label="t('settings.byokApiKey')">
+            <NInput v-model:value="byokForm.api_key" type="password" show-password-on="click" :placeholder="t('settings.byokApiKeyHint')" />
+          </NFormItem>
+          <NFormItem :label="t('settings.byokModel')">
+            <NInput v-model:value="byokForm.model_override" :placeholder="t('settings.byokModelHint')" />
+          </NFormItem>
+          <NFormItem :label="t('settings.byokLabel')">
+            <NInput v-model:value="byokForm.label" :placeholder="t('settings.byokLabelHint')" />
+          </NFormItem>
+          <NSpace>
+            <NButton type="primary" :loading="byokSaving" @click="saveByokKey">{{ t('common.save') }}</NButton>
+            <NButton :loading="byokValidating" @click="validateByokKey">{{ t('settings.byokValidate') }}</NButton>
+          </NSpace>
+        </NForm>
+      </div>
+
+      <!-- Keys List -->
+      <div v-if="byokKeys.length > 0">
+        <div v-for="key in byokKeys" :key="key.id" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <NTag :type="key.is_active ? 'success' : 'default'" size="small">{{ key.provider }}</NTag>
+            <span style="font-family: monospace; font-size: 13px;">{{ key.key_hint }}</span>
+            <span v-if="key.label" style="color: #999; font-size: 12px;">{{ key.label }}</span>
+            <span v-if="key.model_override" style="color: #666; font-size: 11px;">({{ key.model_override }})</span>
+          </div>
+          <NPopconfirm @positive-click="deleteByokKey(key.id)">
+            <template #trigger>
+              <NButton size="tiny" quaternary type="error">{{ t('common.delete') }}</NButton>
+            </template>
+            {{ t('settings.byokDeleteConfirm') }}
+          </NPopconfirm>
+        </div>
+      </div>
+      <NEmpty v-else :description="t('settings.byokNoKeys')" />
     </NCard>
   </div>
 </template>
