@@ -114,7 +114,11 @@ func (h *Handler) GetCycleAnomalies(c *gin.Context) {
 func (h *Handler) List13thMonthPay(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 	yearStr := c.DefaultQuery("year", fmt.Sprintf("%d", 0))
-	year, _ := strconv.ParseInt(yearStr, 10, 32)
+	year, err := strconv.ParseInt(yearStr, 10, 32)
+	if err != nil {
+		response.BadRequest(c, "Invalid year parameter")
+		return
+	}
 	if year == 0 {
 		year = int64(h.currentYear())
 	}

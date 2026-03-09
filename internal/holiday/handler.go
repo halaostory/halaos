@@ -28,7 +28,11 @@ func NewHandler(queries *store.Queries, pool *pgxpool.Pool, logger *slog.Logger)
 func (h *Handler) List(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 	yearStr := c.DefaultQuery("year", fmt.Sprintf("%d", time.Now().Year()))
-	year, _ := strconv.ParseInt(yearStr, 10, 32)
+	year, err := strconv.ParseInt(yearStr, 10, 32)
+	if err != nil {
+		response.BadRequest(c, "Invalid year parameter")
+		return
+	}
 	holidays, err := h.queries.ListHolidays(c.Request.Context(), store.ListHolidaysParams{
 		CompanyID: companyID,
 		Year:      int32(year),
