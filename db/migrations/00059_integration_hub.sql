@@ -1,3 +1,4 @@
+-- +goose Up
 -- Integration Hub tables for Employee OS
 -- Manages SaaS connections, provisioning templates, identity mapping, and job queue
 
@@ -136,3 +137,11 @@ CREATE TABLE IF NOT EXISTS integration_audit_log (
 
 CREATE INDEX idx_integration_audit_company ON integration_audit_log(company_id, created_at DESC);
 CREATE INDEX idx_integration_audit_provider ON integration_audit_log(provider, created_at DESC);
+
+-- +goose Down
+DROP TABLE IF EXISTS integration_audit_log;
+DROP TABLE IF EXISTS provisioning_jobs;
+DROP TABLE IF EXISTS integration_identities;
+DROP TABLE IF EXISTS provisioning_templates;
+DROP TABLE IF EXISTS integration_oauth_states;
+DROP TABLE IF EXISTS integration_connections;

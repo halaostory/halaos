@@ -1,3 +1,4 @@
+-- +goose Up
 -- Chat Workflow tables for Telegram/WhatsApp bot integration
 
 -- Per-company bot configuration
@@ -35,3 +36,7 @@ CREATE TABLE IF NOT EXISTS bot_user_links (
 CREATE UNIQUE INDEX idx_bot_user_links_platform_user ON bot_user_links(platform, platform_user_id) WHERE platform_user_id IS NOT NULL;
 CREATE UNIQUE INDEX idx_bot_user_links_platform_uid ON bot_user_links(platform, user_id);
 CREATE INDEX idx_bot_user_links_code ON bot_user_links(link_code) WHERE link_code IS NOT NULL;
+
+-- +goose Down
+DROP TABLE IF EXISTS bot_user_links;
+DROP TABLE IF EXISTS bot_configs;
