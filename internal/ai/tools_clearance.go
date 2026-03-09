@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/tonypk/aigonhr/internal/ai/provider"
 	"github.com/tonypk/aigonhr/internal/store"
 	"github.com/tonypk/aigonhr/pkg/numericutil"
 )
@@ -287,4 +288,80 @@ func (r *ToolRegistry) toolCompleteClearance(ctx context.Context, companyID, use
 		"status":       cr.Status,
 		"message":      "Clearance completed successfully. Employee is now fully separated.",
 	})
+}
+
+// clearanceDefs returns tool definitions for clearance-related tools.
+func clearanceDefs() []provider.ToolDefinition {
+	return []provider.ToolDefinition{
+		{
+			Name:        "get_clearance_status",
+			Description: "Get clearance/offboarding progress for an employee: items completed, pending departments, and overall status. Admin/Manager only.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"clearance_id": map[string]any{"type": "integer", "description": "Clearance request ID."},
+				},
+				"required": []string{"clearance_id"},
+			}),
+		},
+		{
+			Name:        "update_clearance_item",
+			Description: "Mark a clearance item as cleared or flagged. Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"item_id": map[string]any{"type": "integer", "description": "Clearance item ID."},
+					"status":  map[string]any{"type": "string", "description": "New status: cleared, flagged. Default: cleared."},
+					"remarks": map[string]any{"type": "string", "description": "Optional remarks."},
+				},
+				"required": []string{"item_id"},
+			}),
+		},
+		{
+			Name:        "query_final_pay_components",
+			Description: "Calculate final pay components for a separating employee: unpaid salary, leave encashment, pro-rated 13th month, minus outstanding loans. Admin only.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"employee_id":     map[string]any{"type": "integer", "description": "Employee ID."},
+					"separation_date": map[string]any{"type": "string", "description": "Separation date in YYYY-MM-DD. Default: today."},
+					"unpaid_days":     map[string]any{"type": "number", "description": "Working days since last payroll. Default: 15."},
+				},
+				"required": []string{"employee_id"},
+			}),
+		},
+		{
+			Name:        "create_final_pay",
+			Description: "Create a final pay payroll record for a separated employee. Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"employee_id": map[string]any{"type": "integer", "description": "Employee ID."},
+					"amount":      map[string]any{"type": "number", "description": "Total final pay amount in PHP."},
+					"notes":       map[string]any{"type": "string", "description": "Optional notes about the final pay."},
+				},
+				"required": []string{"employee_id", "amount"},
+			}),
+		},
+		{
+			Name:        "complete_clearance",
+			Description: "Complete the clearance process for an employee. Requires all items to be cleared first. Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"clearance_id": map[string]any{"type": "integer", "description": "Clearance request ID."},
+				},
+				"required": []string{"clearance_id"},
+			}),
+		},
+	}
+}
+
+// registerClearanceTools registers clearance-related tool executors.
+func (r *ToolRegistry) registerClearanceTools() {
+	r.tools["get_clearance_status"] = r.toolGetClearanceStatus
+	r.tools["update_clearance_item"] = r.toolUpdateClearanceItem
+	r.tools["query_final_pay_components"] = r.toolQueryFinalPayComponents
+	r.tools["create_final_pay"] = r.toolCreateFinalPay
+	r.tools["complete_clearance"] = r.toolCompleteClearance
 }

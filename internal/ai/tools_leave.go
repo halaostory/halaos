@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/tonypk/aigonhr/internal/ai/provider"
 	"github.com/tonypk/aigonhr/internal/store"
 )
 
@@ -134,4 +135,68 @@ func (r *ToolRegistry) toolCreateLeaveRequest(ctx context.Context, companyID, us
 		"days":       daysFloat,
 		"message":    "Leave request submitted successfully. It is now pending approval.",
 	})
+}
+
+// leaveDefs returns tool definitions for leave-related tools.
+func leaveDefs() []provider.ToolDefinition {
+	return []provider.ToolDefinition{
+		{
+			Name:        "query_leave_balance",
+			Description: "Query the leave balance for the current user or a specific employee. Returns earned, used, carried, and remaining days per leave type for the current year.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"employee_id": map[string]any{"type": "integer", "description": "Optional employee ID. Omit to query the current user's balance."},
+					"year":        map[string]any{"type": "integer", "description": "Year to query. Defaults to current year."},
+				},
+			}),
+		},
+		{
+			Name:        "list_leave_types",
+			Description: "List all available leave types for the company (e.g., Vacation Leave, Sick Leave, Maternity Leave). Returns leave type IDs needed for create_leave_request.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "create_leave_request",
+			Description: "Submit a leave request for the current user. You MUST call list_leave_types first to get the correct leave_type_id. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"leave_type_id": map[string]any{"type": "integer", "description": "Leave type ID (from list_leave_types)."},
+					"start_date":    map[string]any{"type": "string", "description": "Start date in YYYY-MM-DD format."},
+					"end_date":      map[string]any{"type": "string", "description": "End date in YYYY-MM-DD format."},
+					"days":          map[string]any{"type": "number", "description": "Number of leave days (e.g., 1, 0.5, 2)."},
+					"reason":        map[string]any{"type": "string", "description": "Optional reason for the leave request."},
+				},
+				"required": []string{"leave_type_id", "start_date", "end_date", "days"},
+			}),
+		},
+		{
+			Name:        "create_overtime_request",
+			Description: "Submit an overtime request for the current user. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"ot_date":  map[string]any{"type": "string", "description": "Overtime date in YYYY-MM-DD format."},
+					"start_at": map[string]any{"type": "string", "description": "OT start time in HH:MM format (24h)."},
+					"end_at":   map[string]any{"type": "string", "description": "OT end time in HH:MM format (24h)."},
+					"hours":    map[string]any{"type": "number", "description": "Total OT hours (e.g., 2, 1.5)."},
+					"ot_type":  map[string]any{"type": "string", "description": "OT type: regular, rest_day, holiday, special_holiday. Default: regular."},
+					"reason":   map[string]any{"type": "string", "description": "Optional reason for overtime."},
+				},
+				"required": []string{"ot_date", "start_at", "end_at", "hours"},
+			}),
+		},
+	}
+}
+
+// registerLeaveTools registers leave-related tool executors.
+func (r *ToolRegistry) registerLeaveTools() {
+	r.tools["query_leave_balance"] = r.toolQueryLeaveBalance
+	r.tools["list_leave_types"] = r.toolListLeaveTypes
+	r.tools["create_leave_request"] = r.toolCreateLeaveRequest
+	r.tools["create_overtime_request"] = r.toolCreateOvertimeRequest
 }

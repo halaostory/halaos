@@ -6,6 +6,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/tonypk/aigonhr/internal/ai/provider"
 	"github.com/tonypk/aigonhr/internal/store"
 )
 
@@ -154,4 +155,34 @@ func estimateTax(taxableIncome float64) float64 {
 		return round2(33541.80 + (taxableIncome-166667)*0.30)
 	}
 	return round2(183541.80 + (taxableIncome-666667)*0.35)
+}
+
+// salarySimDefs returns tool definitions for salary simulation tools.
+func salarySimDefs() []provider.ToolDefinition {
+	return []provider.ToolDefinition{
+		{
+			Name:        "simulate_salary",
+			Description: "Simulate salary calculation with what-if scenarios. Input overtime hours, holiday work, night hours, late minutes, etc. to see estimated gross pay, deductions, and net pay. Useful for questions like 'How much would I earn with 10 hours overtime?'",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"employee_id":          map[string]any{"type": "integer", "description": "Optional employee ID. Omit to simulate for current user."},
+					"working_days":         map[string]any{"type": "number", "description": "Working days in period. Default 22."},
+					"overtime_hours":       map[string]any{"type": "number", "description": "Regular overtime hours."},
+					"rest_day_ot_hours":    map[string]any{"type": "number", "description": "Rest day overtime hours (169% rate)."},
+					"holiday_ot_hours":     map[string]any{"type": "number", "description": "Holiday overtime hours (260% rate)."},
+					"night_hours":          map[string]any{"type": "number", "description": "Night differential hours (10PM-6AM)."},
+					"regular_holiday_days": map[string]any{"type": "number", "description": "Days worked on regular holidays."},
+					"special_holiday_days": map[string]any{"type": "number", "description": "Days worked on special non-working holidays."},
+					"late_minutes":         map[string]any{"type": "number", "description": "Total late minutes."},
+					"unpaid_leave_days":    map[string]any{"type": "number", "description": "Unpaid leave days."},
+				},
+			}),
+		},
+	}
+}
+
+// registerSalarySimTools registers salary simulation tool executors.
+func (r *ToolRegistry) registerSalarySimTools() {
+	r.tools["simulate_salary"] = r.toolSimulateSalary
 }

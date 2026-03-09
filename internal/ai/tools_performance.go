@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/tonypk/aigonhr/internal/ai/provider"
 	"github.com/tonypk/aigonhr/internal/store"
 )
 
@@ -250,4 +251,82 @@ func (r *ToolRegistry) toolSubmitManagerReview(ctx context.Context, companyID, u
 		"final_rating": finalRating,
 		"message":      "Manager review submitted and performance review completed.",
 	})
+}
+
+// performanceDefs returns tool definitions for performance-related tools.
+func performanceDefs() []provider.ToolDefinition {
+	return []provider.ToolDefinition{
+		{
+			Name:        "list_review_cycles",
+			Description: "List performance review cycles for the company. Returns cycle name, type, period, deadline, and status.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "get_my_performance_review",
+			Description: "Get the current user's performance reviews. Returns review status, self-rating, final rating, and cycle information.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "create_goal",
+			Description: "Create a performance goal from natural language. AI parses the input to extract title, category, weight, target value, and due date. Always confirm details with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"title":           map[string]any{"type": "string", "description": "Goal title."},
+					"description":     map[string]any{"type": "string", "description": "Detailed goal description."},
+					"category":        map[string]any{"type": "string", "description": "Category: individual, team, company. Default: individual."},
+					"weight":          map[string]any{"type": "number", "description": "Goal weight percentage (0-100)."},
+					"target_value":    map[string]any{"type": "string", "description": "Target value to achieve (e.g., '90%', '100 units')."},
+					"due_date":        map[string]any{"type": "string", "description": "Due date in YYYY-MM-DD format."},
+					"review_cycle_id": map[string]any{"type": "integer", "description": "Optional review cycle to link the goal to."},
+				},
+				"required": []string{"title"},
+			}),
+		},
+		{
+			Name:        "submit_self_review",
+			Description: "Submit a self-assessment for a performance review. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"review_id": map[string]any{"type": "integer", "description": "Performance review ID (from get_my_performance_review)."},
+					"rating":    map[string]any{"type": "integer", "description": "Self-rating 1-5 (1=Unsatisfactory, 3=Meets, 5=Outstanding)."},
+					"comments":  map[string]any{"type": "string", "description": "Self-assessment comments."},
+				},
+				"required": []string{"review_id", "rating"},
+			}),
+		},
+		{
+			Name:        "submit_manager_review",
+			Description: "Submit a manager review for an employee's performance. Manager/Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"review_id":      map[string]any{"type": "integer", "description": "Performance review ID."},
+					"rating":         map[string]any{"type": "integer", "description": "Manager rating 1-5."},
+					"comments":       map[string]any{"type": "string", "description": "Manager comments."},
+					"strengths":      map[string]any{"type": "string", "description": "Employee strengths."},
+					"improvements":   map[string]any{"type": "string", "description": "Areas for improvement."},
+					"final_rating":   map[string]any{"type": "integer", "description": "Final overall rating 1-5. Defaults to manager rating if omitted."},
+					"final_comments": map[string]any{"type": "string", "description": "Final review comments."},
+				},
+				"required": []string{"review_id", "rating"},
+			}),
+		},
+	}
+}
+
+// registerPerformanceTools registers performance-related tool executors.
+func (r *ToolRegistry) registerPerformanceTools() {
+	r.tools["list_review_cycles"] = r.toolListReviewCycles
+	r.tools["get_my_performance_review"] = r.toolGetMyPerformanceReview
+	r.tools["create_goal"] = r.toolCreateGoal
+	r.tools["submit_self_review"] = r.toolSubmitSelfReview
+	r.tools["submit_manager_review"] = r.toolSubmitManagerReview
 }

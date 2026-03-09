@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/tonypk/aigonhr/internal/ai/provider"
 )
 
 func (r *ToolRegistry) toolListJobPostings(ctx context.Context, companyID, _ int64, input map[string]any) (string, error) {
@@ -359,4 +361,70 @@ func (r *ToolRegistry) toolOnboardEmployee(ctx context.Context, companyID, userI
 	}
 
 	return toJSON(result)
+}
+
+// recruitmentDefs returns tool definitions for recruitment-related tools.
+func recruitmentDefs() []provider.ToolDefinition {
+	return []provider.ToolDefinition{
+		{
+			Name:        "list_job_postings",
+			Description: "List job postings for the company. Optionally filter by status (draft, open, closed, on_hold). Returns title, department, applicant count, and status.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"status": map[string]any{"type": "string", "description": "Filter by status: draft, open, closed, on_hold. Omit for all."},
+				},
+			}),
+		},
+		{
+			Name:        "create_job_posting",
+			Description: "Create a new job posting. Admin/manager only. Always confirm details with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"title":           map[string]any{"type": "string", "description": "Job title, e.g. 'Senior PHP Developer'."},
+					"department":      map[string]any{"type": "string", "description": "Department name (will fuzzy-match)."},
+					"description":     map[string]any{"type": "string", "description": "Full job description."},
+					"requirements":    map[string]any{"type": "string", "description": "Job requirements/qualifications."},
+					"salary_min":      map[string]any{"type": "number", "description": "Minimum monthly salary in PHP."},
+					"salary_max":      map[string]any{"type": "number", "description": "Maximum monthly salary in PHP."},
+					"employment_type": map[string]any{"type": "string", "description": "Employment type: regular, contractual, probationary, part_time, intern. Default: regular."},
+					"location":        map[string]any{"type": "string", "description": "Work location, e.g. 'BGC, Taguig'."},
+				},
+				"required": []string{"title"},
+			}),
+		},
+		{
+			Name:        "screen_applicant",
+			Description: "AI-screen an applicant: read their resume text, score them 0-100 against the job requirements, and save the AI score and summary. Admin/manager only.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"applicant_id": map[string]any{"type": "integer", "description": "Applicant ID to screen."},
+					"score":        map[string]any{"type": "integer", "description": "AI assessment score 0-100."},
+					"summary":      map[string]any{"type": "string", "description": "Brief assessment summary (2-3 sentences)."},
+				},
+				"required": []string{"applicant_id", "score", "summary"},
+			}),
+		},
+		{
+			Name:        "rank_candidates",
+			Description: "List and rank applicants for a specific job posting by their AI score. Returns applicants sorted by score descending with their status and summary.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"job_posting_id": map[string]any{"type": "integer", "description": "Job posting ID to rank candidates for."},
+				},
+				"required": []string{"job_posting_id"},
+			}),
+		},
+	}
+}
+
+// registerRecruitmentTools registers recruitment-related tool executors.
+func (r *ToolRegistry) registerRecruitmentTools() {
+	r.tools["list_job_postings"] = r.toolListJobPostings
+	r.tools["create_job_posting"] = r.toolCreateJobPosting
+	r.tools["screen_applicant"] = r.toolScreenApplicant
+	r.tools["rank_candidates"] = r.toolRankCandidates
 }

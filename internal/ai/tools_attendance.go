@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/tonypk/aigonhr/internal/ai/provider"
 	"github.com/tonypk/aigonhr/internal/store"
 )
 
@@ -273,4 +274,64 @@ func accumulateDTR(s *attendanceSummaryEntry, workHours, overtimeHours pgtype.Nu
 		s.LateDays++
 		s.TotalLateMin += int(*lateMinutes)
 	}
+}
+
+// attendanceDefs returns tool definitions for attendance-related tools.
+func attendanceDefs() []provider.ToolDefinition {
+	return []provider.ToolDefinition{
+		{
+			Name:        "query_attendance_summary",
+			Description: "Get attendance summary for today or a date range. Shows present, absent, late counts for the company.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "get_my_attendance",
+			Description: "Get the current user's attendance status for today - whether clocked in, clock-in time, work hours so far.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "clock_in",
+			Description: "Clock in (start work) for the current user. Records attendance with source='ai'. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "clock_out",
+			Description: "Clock out (end work) for the current user. Closes the current open attendance record. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "generate_attendance_report",
+			Description: "Generate an attendance/DTR report for a date range. Returns summary with present days, late counts, overtime hours, etc. If no employee_id is specified, generates a company-wide report.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"start_date":  map[string]any{"type": "string", "description": "Report start date in YYYY-MM-DD format."},
+					"end_date":    map[string]any{"type": "string", "description": "Report end date in YYYY-MM-DD format."},
+					"employee_id": map[string]any{"type": "integer", "description": "Optional employee ID. Omit for company-wide report."},
+				},
+				"required": []string{"start_date", "end_date"},
+			}),
+		},
+	}
+}
+
+// registerAttendanceTools registers attendance-related tool executors.
+func (r *ToolRegistry) registerAttendanceTools() {
+	r.tools["query_attendance_summary"] = r.toolQueryAttendanceSummary
+	r.tools["get_my_attendance"] = r.toolGetMyAttendance
+	r.tools["clock_in"] = r.toolClockIn
+	r.tools["clock_out"] = r.toolClockOut
+	r.tools["generate_attendance_report"] = r.toolGenerateAttendanceReport
 }

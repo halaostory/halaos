@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/tonypk/aigonhr/internal/ai/provider"
 	"github.com/tonypk/aigonhr/internal/store"
 )
 
@@ -335,4 +336,106 @@ func (r *ToolRegistry) toolResolveGrievance(ctx context.Context, companyID, user
 		"status":       gc.Status,
 		"message":      "Grievance resolved successfully.",
 	})
+}
+
+// disciplinaryDefs returns tool definitions for disciplinary-related tools.
+func disciplinaryDefs() []provider.ToolDefinition {
+	return []provider.ToolDefinition{
+		{
+			Name:        "query_employee_disciplinary",
+			Description: "Query an employee's disciplinary history including incident counts and action breakdown (warnings, suspensions). Manager/Admin only. Use this before creating actions to reference progressive discipline history.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"employee_id": map[string]any{"type": "integer", "description": "Employee ID to query."},
+				},
+				"required": []string{"employee_id"},
+			}),
+		},
+		{
+			Name:        "create_disciplinary_incident",
+			Description: "Create a disciplinary incident record from a verbal or written description. Admin/Manager only. AI extracts structured data: category, severity, date, witnesses. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"employee_id":    map[string]any{"type": "integer", "description": "Employee ID involved."},
+					"category":       map[string]any{"type": "string", "description": "Category: tardiness, absence, misconduct, insubordination, policy_violation, performance, safety."},
+					"severity":       map[string]any{"type": "string", "description": "Severity: minor, moderate, major, grave. Default: minor."},
+					"description":    map[string]any{"type": "string", "description": "Description of the incident."},
+					"incident_date":  map[string]any{"type": "string", "description": "Incident date in YYYY-MM-DD format. Default: today."},
+					"witnesses":      map[string]any{"type": "string", "description": "Names of witnesses, if any."},
+					"evidence_notes": map[string]any{"type": "string", "description": "Notes about evidence collected."},
+				},
+				"required": []string{"employee_id", "category", "description"},
+			}),
+		},
+		{
+			Name:        "create_disciplinary_action",
+			Description: "Create a disciplinary action (warning, suspension, etc.). Admin/Manager only. AI should suggest action level based on disciplinary history. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"employee_id":     map[string]any{"type": "integer", "description": "Employee ID."},
+					"action_type":     map[string]any{"type": "string", "description": "Action: verbal_warning, written_warning, final_warning, suspension, termination."},
+					"description":     map[string]any{"type": "string", "description": "Action description."},
+					"incident_id":     map[string]any{"type": "integer", "description": "Optional linked incident ID."},
+					"suspension_days": map[string]any{"type": "integer", "description": "Number of suspension days (if suspension)."},
+					"effective_date":  map[string]any{"type": "string", "description": "Effective date in YYYY-MM-DD format."},
+					"end_date":        map[string]any{"type": "string", "description": "End date in YYYY-MM-DD format (for suspension)."},
+					"notes":           map[string]any{"type": "string", "description": "Additional notes."},
+				},
+				"required": []string{"employee_id", "action_type", "description"},
+			}),
+		},
+		{
+			Name:        "list_recent_incidents",
+			Description: "List recent disciplinary incidents across the company. Admin/Manager only.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "query_grievance_summary",
+			Description: "Get company-wide grievance/complaint statistics: open, under review, in mediation, resolved, and critical cases. Admin/Manager only.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "get_grievance_detail",
+			Description: "Get detailed information about a specific grievance case including comments thread. Admin/Manager only.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"grievance_id": map[string]any{"type": "integer", "description": "Grievance case ID."},
+				},
+				"required": []string{"grievance_id"},
+			}),
+		},
+		{
+			Name:        "resolve_grievance",
+			Description: "Resolve a grievance case with a resolution description. Admin only. AI can help draft the resolution. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"grievance_id": map[string]any{"type": "integer", "description": "Grievance case ID."},
+					"resolution":   map[string]any{"type": "string", "description": "Resolution description."},
+				},
+				"required": []string{"grievance_id", "resolution"},
+			}),
+		},
+	}
+}
+
+// registerDisciplinaryTools registers disciplinary-related tool executors.
+func (r *ToolRegistry) registerDisciplinaryTools() {
+	r.tools["query_employee_disciplinary"] = r.toolQueryEmployeeDisciplinary
+	r.tools["create_disciplinary_incident"] = r.toolCreateDisciplinaryIncident
+	r.tools["create_disciplinary_action"] = r.toolCreateDisciplinaryAction
+	r.tools["list_recent_incidents"] = r.toolListRecentIncidents
+	r.tools["query_grievance_summary"] = r.toolQueryGrievanceSummary
+	r.tools["get_grievance_detail"] = r.toolGetGrievanceDetail
+	r.tools["resolve_grievance"] = r.toolResolveGrievance
 }

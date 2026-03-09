@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/tonypk/aigonhr/internal/ai/provider"
 	"github.com/tonypk/aigonhr/internal/store"
 )
 
@@ -160,4 +161,48 @@ func (r *ToolRegistry) toolCheckCompliance(ctx context.Context, companyID, _ int
 	}
 
 	return toJSON(result)
+}
+
+// knowledgeDefs returns tool definitions for knowledge-related tools.
+func knowledgeDefs() []provider.ToolDefinition {
+	return []provider.ToolDefinition{
+		{
+			Name:        "search_knowledge_base",
+			Description: "Search the knowledge base for Philippine labor law, HR policies, compliance regulations, payroll rules, leave policies, and company-specific articles. Use this for any HR/labor law question. Returns relevant articles with full content.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"query": map[string]any{"type": "string", "description": "Search query in natural language. E.g., 'maternity leave benefits', 'SSS contribution rates', 'overtime pay holiday'."},
+					"limit": map[string]any{"type": "integer", "description": "Max results. Default 5."},
+				},
+				"required": []string{"query"},
+			}),
+		},
+		{
+			Name:        "explain_policy",
+			Description: "Explain a Philippine HR/labor policy or company regulation. Topics: leave_types, overtime_rules, 13th_month_pay, final_pay, de_minimis, sss, philhealth, pagibig, bir_tax, minimum_wage, maternity_leave, paternity_leave, solo_parent_leave.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"topic": map[string]any{"type": "string", "description": "The policy topic to explain."},
+				},
+				"required": []string{"topic"},
+			}),
+		},
+		{
+			Name:        "check_compliance",
+			Description: "Check compliance status for the company. Verifies SSS/PhilHealth/PagIBIG registration, BIR filing status, and government form submissions.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+	}
+}
+
+// registerKnowledgeTools registers knowledge-related tool executors.
+func (r *ToolRegistry) registerKnowledgeTools() {
+	r.tools["search_knowledge_base"] = r.toolSearchKnowledgeBase
+	r.tools["explain_policy"] = r.toolExplainPolicy
+	r.tools["check_compliance"] = r.toolCheckCompliance
 }

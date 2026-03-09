@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/tonypk/aigonhr/internal/ai/provider"
 	"github.com/tonypk/aigonhr/internal/payroll"
 	"github.com/tonypk/aigonhr/internal/store"
 )
@@ -82,4 +83,36 @@ func (r *ToolRegistry) toolAnalyzePayrollAnomalies(ctx context.Context, companyI
 	}
 
 	return toJSON(report)
+}
+
+// payrollDefs returns tool definitions for payroll-related tools.
+func payrollDefs() []provider.ToolDefinition {
+	return []provider.ToolDefinition{
+		{
+			Name:        "query_payslip",
+			Description: "Get payslip details for the current user. Returns the most recent payslip with gross pay, deductions, net pay, and breakdown.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"limit": map[string]any{"type": "integer", "description": "Number of recent payslips to return. Default 1."},
+				},
+			}),
+		},
+		{
+			Name:        "analyze_payroll_anomalies",
+			Description: "Run anomaly detection on a payroll cycle. Detects: pay deviations vs. history, zero contributions, excessive overtime, missing tax, negative net pay, work day anomalies, and salary jumps. Returns categorized anomalies with severity levels.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"cycle_id": map[string]any{"type": "integer", "description": "The payroll cycle ID to analyze. If omitted, analyzes the most recent cycle."},
+				},
+			}),
+		},
+	}
+}
+
+// registerPayrollTools registers payroll-related tool executors.
+func (r *ToolRegistry) registerPayrollTools() {
+	r.tools["query_payslip"] = r.toolQueryPayslip
+	r.tools["analyze_payroll_anomalies"] = r.toolAnalyzePayrollAnomalies
 }

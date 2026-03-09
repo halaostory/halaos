@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/tonypk/aigonhr/internal/ai/provider"
 	"github.com/tonypk/aigonhr/internal/store"
 	"github.com/tonypk/aigonhr/pkg/numericutil"
 )
@@ -246,4 +247,78 @@ func (r *ToolRegistry) toolApproveLeaveEncashment(ctx context.Context, companyID
 		"status":        enc.Status,
 		"message":       "Leave encashment approved successfully.",
 	})
+}
+
+// benefitDefs returns tool definitions for benefit-related tools.
+func benefitDefs() []provider.ToolDefinition {
+	return []provider.ToolDefinition{
+		{
+			Name:        "query_my_benefits",
+			Description: "Query the current user's benefit enrollments and pending claims. Returns plan names, categories, contribution shares, and claim status.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "list_pending_benefit_claims",
+			Description: "List all pending benefit claims awaiting approval. Admin only.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "approve_benefit_claim",
+			Description: "Approve a pending benefit claim. Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"claim_id": map[string]any{"type": "integer", "description": "Benefit claim ID to approve."},
+				},
+				"required": []string{"claim_id"},
+			}),
+		},
+		{
+			Name:        "reject_benefit_claim",
+			Description: "Reject a pending benefit claim. Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"claim_id": map[string]any{"type": "integer", "description": "Benefit claim ID to reject."},
+					"reason":   map[string]any{"type": "string", "description": "Reason for rejection."},
+				},
+				"required": []string{"claim_id"},
+			}),
+		},
+		{
+			Name:        "query_encashment_eligibility",
+			Description: "Query convertible leave balances and estimate encashment value. Returns leave types with remaining days and estimated PHP value based on daily rate.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "approve_leave_encashment",
+			Description: "Approve a pending leave encashment request. Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"encashment_id": map[string]any{"type": "integer", "description": "Leave encashment ID to approve."},
+				},
+				"required": []string{"encashment_id"},
+			}),
+		},
+	}
+}
+
+// registerBenefitTools registers benefit-related tool executors.
+func (r *ToolRegistry) registerBenefitTools() {
+	r.tools["query_my_benefits"] = r.toolQueryMyBenefits
+	r.tools["list_pending_benefit_claims"] = r.toolListPendingBenefitClaims
+	r.tools["approve_benefit_claim"] = r.toolApproveBenefitClaim
+	r.tools["reject_benefit_claim"] = r.toolRejectBenefitClaim
+	r.tools["query_encashment_eligibility"] = r.toolQueryEncashmentEligibility
+	r.tools["approve_leave_encashment"] = r.toolApproveLeaveEncashment
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/tonypk/aigonhr/internal/ai/provider"
 	"github.com/tonypk/aigonhr/internal/store"
 )
 
@@ -196,4 +197,68 @@ func (r *ToolRegistry) toolCreateTaxFilingRecord(ctx context.Context, companyID,
 		"due_date":  dueDateStr,
 		"message":   fmt.Sprintf("Tax filing record '%s' created for %d.", filingType, periodYear),
 	})
+}
+
+// analyticsDefs returns tool definitions for analytics-related tools.
+func analyticsDefs() []provider.ToolDefinition {
+	return []provider.ToolDefinition{
+		{
+			Name:        "query_company_analytics",
+			Description: "Get comprehensive company analytics: headcount, new hires, tenure, department costs. Use this when users ask about overall company status.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "query_headcount_trend",
+			Description: "Get 12-month headcount trend showing active and separated employee counts per month.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "query_leave_utilization",
+			Description: "Get leave utilization analysis for the current year. Shows total requests and days used by leave type.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "query_tax_filing_status",
+			Description: "Get tax filing status for the current year: filed/overdue/upcoming counts, penalties, and detailed overdue items. Admin only.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "create_tax_filing_record",
+			Description: "Create a tax filing record (BIR, SSS, PhilHealth, PagIBIG). Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"filing_type":    map[string]any{"type": "string", "description": "Type: bir_1601c, sss_r3, philhealth_rf1, pagibig_ml1, bir_2316, bir_0619e."},
+					"period_type":    map[string]any{"type": "string", "description": "Period: monthly, quarterly, annual. Default: monthly."},
+					"period_year":    map[string]any{"type": "integer", "description": "Year. Default: current year."},
+					"period_month":   map[string]any{"type": "integer", "description": "Month (1-12) for monthly filings."},
+					"period_quarter": map[string]any{"type": "integer", "description": "Quarter (1-4) for quarterly filings."},
+					"due_date":       map[string]any{"type": "string", "description": "Due date in YYYY-MM-DD format."},
+					"amount":         map[string]any{"type": "number", "description": "Filing amount in PHP."},
+				},
+				"required": []string{"filing_type", "due_date"},
+			}),
+		},
+	}
+}
+
+// registerAnalyticsTools registers analytics-related tool executors.
+func (r *ToolRegistry) registerAnalyticsTools() {
+	r.tools["query_company_analytics"] = r.toolQueryCompanyAnalytics
+	r.tools["query_headcount_trend"] = r.toolQueryHeadcountTrend
+	r.tools["query_leave_utilization"] = r.toolQueryLeaveUtilization
+	r.tools["query_tax_filing_status"] = r.toolQueryTaxFilingStatus
+	r.tools["create_tax_filing_record"] = r.toolCreateTaxFilingRecord
 }

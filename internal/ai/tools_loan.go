@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/tonypk/aigonhr/internal/ai/provider"
 	"github.com/tonypk/aigonhr/internal/store"
 	"github.com/tonypk/aigonhr/pkg/numericutil"
 )
@@ -223,4 +224,67 @@ func (r *ToolRegistry) toolQueryLoanEligibility(ctx context.Context, companyID, 
 		"active_loan_count":  len(activeLoans),
 		"available_types":    types,
 	})
+}
+
+// loanDefs returns tool definitions for loan-related tools.
+func loanDefs() []provider.ToolDefinition {
+	return []provider.ToolDefinition{
+		{
+			Name:        "query_my_loans",
+			Description: "Query the current user's loans with repayment progress. Returns loan type, principal, remaining balance, monthly amortization, and status.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "list_pending_loans",
+			Description: "List all pending loan applications awaiting approval. Manager/Admin only.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "approve_loan",
+			Description: "Approve a pending loan application. Manager/Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"loan_id": map[string]any{"type": "integer", "description": "Loan ID to approve (from list_pending_loans)."},
+				},
+				"required": []string{"loan_id"},
+			}),
+		},
+		{
+			Name:        "reject_loan",
+			Description: "Reject/cancel a pending loan application. Manager/Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"loan_id": map[string]any{"type": "integer", "description": "Loan ID to reject (from list_pending_loans)."},
+				},
+				"required": []string{"loan_id"},
+			}),
+		},
+		{
+			Name:        "query_loan_eligibility",
+			Description: "Check loan eligibility based on salary and existing loans. Returns max loan amount (3x monthly salary minus outstanding balances) and available loan types.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"employee_id": map[string]any{"type": "integer", "description": "Optional employee ID. Omit to check current user."},
+				},
+			}),
+		},
+	}
+}
+
+// registerLoanTools registers loan-related tool executors.
+func (r *ToolRegistry) registerLoanTools() {
+	r.tools["query_my_loans"] = r.toolQueryMyLoans
+	r.tools["list_pending_loans"] = r.toolListPendingLoans
+	r.tools["approve_loan"] = r.toolApproveLoan
+	r.tools["reject_loan"] = r.toolRejectLoan
+	r.tools["query_loan_eligibility"] = r.toolQueryLoanEligibility
 }

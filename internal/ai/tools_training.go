@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/tonypk/aigonhr/internal/ai/provider"
 	"github.com/tonypk/aigonhr/internal/store"
 )
 
@@ -198,4 +199,59 @@ func (r *ToolRegistry) toolMarkTrainingComplete(ctx context.Context, companyID, 
 		"status":         participant.Status,
 		"message":        "Training marked as completed.",
 	})
+}
+
+// trainingDefs returns tool definitions for training-related tools.
+func trainingDefs() []provider.ToolDefinition {
+	return []provider.ToolDefinition{
+		{
+			Name:        "list_trainings",
+			Description: "List available training programs. Returns title, type, trainer, dates, status, and participant count.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "list_my_certifications",
+			Description: "Query the current user's professional certifications and flag expiring ones.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "enroll_in_training",
+			Description: "Enroll the current user in a training program. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"training_id": map[string]any{"type": "integer", "description": "Training ID to enroll in (from list_trainings)."},
+				},
+				"required": []string{"training_id"},
+			}),
+		},
+		{
+			Name:        "mark_training_complete",
+			Description: "Mark a training participant as completed. Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"participant_id": map[string]any{"type": "integer", "description": "Participant ID."},
+					"training_id":    map[string]any{"type": "integer", "description": "Training ID."},
+					"score":          map[string]any{"type": "integer", "description": "Optional score 0-100."},
+					"feedback":       map[string]any{"type": "string", "description": "Optional feedback."},
+				},
+				"required": []string{"participant_id", "training_id"},
+			}),
+		},
+	}
+}
+
+// registerTrainingTools registers training-related tool executors.
+func (r *ToolRegistry) registerTrainingTools() {
+	r.tools["list_trainings"] = r.toolListTrainings
+	r.tools["list_my_certifications"] = r.toolListMyCertifications
+	r.tools["enroll_in_training"] = r.toolEnrollInTraining
+	r.tools["mark_training_complete"] = r.toolMarkTrainingComplete
 }

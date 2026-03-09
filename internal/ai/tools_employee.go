@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/tonypk/aigonhr/internal/ai/provider"
 	"github.com/tonypk/aigonhr/internal/store"
 )
 
@@ -85,4 +86,70 @@ func (r *ToolRegistry) toolUpdateEmployeeProfile(ctx context.Context, companyID,
 		"updated_fields": updated,
 		"message":        "Profile updated successfully.",
 	})
+}
+
+// employeeDefs returns tool definitions for employee-related tools.
+func employeeDefs() []provider.ToolDefinition {
+	return []provider.ToolDefinition{
+		{
+			Name:        "list_employees",
+			Description: "List employees in the company. Admin/Manager only. Returns employee number, name, department, status.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"status": map[string]any{"type": "string", "description": "Filter by status: active, probationary, suspended, separated."},
+					"limit":  map[string]any{"type": "integer", "description": "Max results. Default 20."},
+				},
+			}),
+		},
+		{
+			Name:        "update_employee_profile",
+			Description: "Update the current user's personal profile information. Only provided fields are updated; omitted fields remain unchanged. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"address_line1":      map[string]any{"type": "string", "description": "Address line 1."},
+					"address_line2":      map[string]any{"type": "string", "description": "Address line 2."},
+					"city":               map[string]any{"type": "string", "description": "City."},
+					"province":           map[string]any{"type": "string", "description": "Province."},
+					"zip_code":           map[string]any{"type": "string", "description": "ZIP code."},
+					"emergency_name":     map[string]any{"type": "string", "description": "Emergency contact name."},
+					"emergency_phone":    map[string]any{"type": "string", "description": "Emergency contact phone."},
+					"emergency_relation": map[string]any{"type": "string", "description": "Relationship to emergency contact."},
+					"bank_name":          map[string]any{"type": "string", "description": "Bank name for payroll."},
+					"bank_account_no":    map[string]any{"type": "string", "description": "Bank account number."},
+					"bank_account_name":  map[string]any{"type": "string", "description": "Bank account holder name."},
+					"tin":                map[string]any{"type": "string", "description": "Tax Identification Number."},
+					"sss_no":             map[string]any{"type": "string", "description": "SSS number."},
+					"philhealth_no":      map[string]any{"type": "string", "description": "PhilHealth number."},
+					"pagibig_no":         map[string]any{"type": "string", "description": "Pag-IBIG number."},
+				},
+			}),
+		},
+		{
+			Name:        "onboard_employee",
+			Description: "Create a new employee record from natural language input. Admin only. Extracts: first_name, last_name, department (name or ID), position (name or ID), hire_date (YYYY-MM-DD), basic_salary (monthly PHP). AI should parse the user's natural language and fill these fields. Always confirm all details with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"first_name":      map[string]any{"type": "string", "description": "Employee first name."},
+					"last_name":       map[string]any{"type": "string", "description": "Employee last name."},
+					"department":      map[string]any{"type": "string", "description": "Department name (will fuzzy-match to existing departments)."},
+					"position":        map[string]any{"type": "string", "description": "Job position/title (will fuzzy-match to existing positions)."},
+					"hire_date":       map[string]any{"type": "string", "description": "Hire/start date in YYYY-MM-DD format."},
+					"basic_salary":    map[string]any{"type": "number", "description": "Monthly basic salary in PHP."},
+					"employment_type": map[string]any{"type": "string", "description": "Employment type: regular, probationary, contractual. Default: probationary."},
+					"email":           map[string]any{"type": "string", "description": "Optional work email address."},
+				},
+				"required": []string{"first_name", "last_name", "department", "hire_date"},
+			}),
+		},
+	}
+}
+
+// registerEmployeeTools registers employee-related tool executors.
+func (r *ToolRegistry) registerEmployeeTools() {
+	r.tools["list_employees"] = r.toolListEmployees
+	r.tools["update_employee_profile"] = r.toolUpdateEmployeeProfile
+	r.tools["onboard_employee"] = r.toolOnboardEmployee
 }

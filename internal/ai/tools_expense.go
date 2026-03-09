@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/tonypk/aigonhr/internal/ai/provider"
 	"github.com/tonypk/aigonhr/internal/store"
 )
 
@@ -187,4 +188,39 @@ func (r *ToolRegistry) toolCreateOvertimeRequest(ctx context.Context, companyID,
 		"ot_type":    otType,
 		"message":    "Overtime request submitted successfully. It is now pending approval.",
 	})
+}
+
+// expenseDefs returns tool definitions for expense-related tools.
+func expenseDefs() []provider.ToolDefinition {
+	return []provider.ToolDefinition{
+		{
+			Name:        "list_expense_categories",
+			Description: "List all active expense categories for the company (e.g., Transportation, Meals, Travel). Returns category IDs needed for create_expense_claim.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "create_expense_claim",
+			Description: "Submit an expense reimbursement claim. You MUST call list_expense_categories first to get the correct category_id. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"category_id":  map[string]any{"type": "integer", "description": "Expense category ID (from list_expense_categories)."},
+					"description":  map[string]any{"type": "string", "description": "Brief description of the expense (e.g., 'Taxi to client meeting')."},
+					"amount":       map[string]any{"type": "number", "description": "Expense amount in PHP."},
+					"expense_date": map[string]any{"type": "string", "description": "Date of expense in YYYY-MM-DD format."},
+					"notes":        map[string]any{"type": "string", "description": "Optional additional notes."},
+				},
+				"required": []string{"category_id", "description", "amount", "expense_date"},
+			}),
+		},
+	}
+}
+
+// registerExpenseTools registers expense-related tool executors.
+func (r *ToolRegistry) registerExpenseTools() {
+	r.tools["list_expense_categories"] = r.toolListExpenseCategories
+	r.tools["create_expense_claim"] = r.toolCreateExpenseClaim
 }

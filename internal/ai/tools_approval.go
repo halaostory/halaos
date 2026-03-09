@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/tonypk/aigonhr/internal/ai/provider"
 	"github.com/tonypk/aigonhr/internal/store"
 )
 
@@ -250,4 +251,73 @@ func (r *ToolRegistry) toolRejectOvertimeRequest(ctx context.Context, companyID,
 		"status":     req.Status,
 		"message":    "Overtime request rejected.",
 	})
+}
+
+// approvalDefs returns tool definitions for approval-related tools.
+func approvalDefs() []provider.ToolDefinition {
+	return []provider.ToolDefinition{
+		{
+			Name:        "list_pending_approvals",
+			Description: "List all pending leave and overtime requests awaiting approval. Manager/Admin only. Returns request IDs needed for approve_leave_request and approve_overtime_request.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "approve_leave_request",
+			Description: "Approve a pending leave request. Manager/Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"request_id": map[string]any{"type": "integer", "description": "Leave request ID (from list_pending_approvals)."},
+				},
+				"required": []string{"request_id"},
+			}),
+		},
+		{
+			Name:        "approve_overtime_request",
+			Description: "Approve a pending overtime request. Manager/Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"request_id": map[string]any{"type": "integer", "description": "Overtime request ID (from list_pending_approvals)."},
+				},
+				"required": []string{"request_id"},
+			}),
+		},
+		{
+			Name:        "reject_leave_request",
+			Description: "Reject a pending leave request with a reason. Manager/Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"request_id": map[string]any{"type": "integer", "description": "Leave request ID (from list_pending_approvals)."},
+					"reason":     map[string]any{"type": "string", "description": "Reason for rejecting the leave request."},
+				},
+				"required": []string{"request_id"},
+			}),
+		},
+		{
+			Name:        "reject_overtime_request",
+			Description: "Reject a pending overtime request with a reason. Manager/Admin only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"request_id": map[string]any{"type": "integer", "description": "Overtime request ID (from list_pending_approvals)."},
+					"reason":     map[string]any{"type": "string", "description": "Reason for rejecting the overtime request."},
+				},
+				"required": []string{"request_id"},
+			}),
+		},
+	}
+}
+
+// registerApprovalTools registers approval-related tool executors.
+func (r *ToolRegistry) registerApprovalTools() {
+	r.tools["list_pending_approvals"] = r.toolListPendingApprovals
+	r.tools["approve_leave_request"] = r.toolApproveLeaveRequest
+	r.tools["approve_overtime_request"] = r.toolApproveOvertimeRequest
+	r.tools["reject_leave_request"] = r.toolRejectLeaveRequest
+	r.tools["reject_overtime_request"] = r.toolRejectOvertimeRequest
 }

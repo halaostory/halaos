@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/tonypk/aigonhr/internal/ai/provider"
 	"github.com/tonypk/aigonhr/internal/store"
 )
 
@@ -132,4 +133,48 @@ func (r *ToolRegistry) toolAssignSchedule(ctx context.Context, companyID, userID
 		"assignment_id": assignment.ID,
 		"message":       "Schedule template assigned successfully.",
 	})
+}
+
+// scheduleDefs returns tool definitions for schedule-related tools.
+func scheduleDefs() []provider.ToolDefinition {
+	return []provider.ToolDefinition{
+		{
+			Name:        "list_schedule_templates",
+			Description: "List available schedule templates (shift patterns) for the company.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
+		{
+			Name:        "get_employee_schedule",
+			Description: "Get the current schedule assignment for the user or a specific employee. Returns the weekly schedule with shift times and rest days.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"employee_id": map[string]any{"type": "integer", "description": "Optional employee ID. Omit to check current user."},
+				},
+			}),
+		},
+		{
+			Name:        "assign_schedule",
+			Description: "Assign a schedule template to an employee. Admin/Manager only. Always confirm with the user before calling this tool.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"employee_id":    map[string]any{"type": "integer", "description": "Employee ID."},
+					"template_id":    map[string]any{"type": "integer", "description": "Schedule template ID (from list_schedule_templates)."},
+					"effective_date": map[string]any{"type": "string", "description": "Effective date in YYYY-MM-DD. Default: today."},
+				},
+				"required": []string{"employee_id", "template_id"},
+			}),
+		},
+	}
+}
+
+// registerScheduleTools registers schedule-related tool executors.
+func (r *ToolRegistry) registerScheduleTools() {
+	r.tools["list_schedule_templates"] = r.toolListScheduleTemplates
+	r.tools["get_employee_schedule"] = r.toolGetEmployeeSchedule
+	r.tools["assign_schedule"] = r.toolAssignSchedule
 }
