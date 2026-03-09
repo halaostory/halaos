@@ -51,7 +51,7 @@ func processAgentTasks(ctx context.Context, cfg *config.Config, queries *store.Q
 	billingSvc := billing.NewService(queries, logger)
 	toolRegistry := ai.NewToolRegistry(queries, pool)
 	agentRegistry := agent.NewRegistry(queries, logger)
-	executor := agent.NewExecutor(aiProvider, toolRegistry, billingSvc, agentRegistry, queries, logger)
+	executor := agent.NewExecutor(aiProvider, toolRegistry, billingSvc, agentRegistry, queries, logger, nil, nil)
 
 	for _, task := range tasks {
 		// Claim the task (atomic CAS: pending → running)

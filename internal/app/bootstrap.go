@@ -18,8 +18,18 @@ import (
 
 	"github.com/tonypk/aigonhr/internal/ai"
 	"github.com/tonypk/aigonhr/internal/ai/agent"
+	aicontext "github.com/tonypk/aigonhr/internal/ai/context"
+	"github.com/tonypk/aigonhr/internal/ai/draft"
 	"github.com/tonypk/aigonhr/internal/ai/provider"
 	"github.com/tonypk/aigonhr/internal/billing"
+	"github.com/tonypk/aigonhr/internal/bot"
+	bottelegram "github.com/tonypk/aigonhr/internal/bot/telegram"
+	"github.com/tonypk/aigonhr/internal/integration"
+	"github.com/tonypk/aigonhr/internal/integration/connector"
+	connectorslack "github.com/tonypk/aigonhr/internal/integration/connector/slack"
+	connectorgoogle "github.com/tonypk/aigonhr/internal/integration/connector/google"
+	connectorgithub "github.com/tonypk/aigonhr/internal/integration/connector/github"
+	"github.com/tonypk/aigonhr/internal/integration/crypto"
 	"github.com/tonypk/aigonhr/internal/analytics"
 	"github.com/tonypk/aigonhr/internal/announcement"
 	"github.com/tonypk/aigonhr/internal/approval"
@@ -219,6 +229,8 @@ func (a *App) setupRoutes() {
 
 	// AI service (optional — supports Anthropic or OpenAI)
 	var aiHandler *ai.Handler
+	var executor *agent.Executor
+	var draftSvc *draft.Service
 	if a.Cfg.AI.Enabled {
 		var aiProvider provider.Provider
 		switch {
@@ -233,8 +245,11 @@ func (a *App) setupRoutes() {
 			aiService := ai.NewService(aiProvider, a.Queries, a.Pool, a.Logger)
 			toolRegistry := ai.NewToolRegistry(a.Queries, a.Pool)
 			agentRegistry := agent.NewRegistry(a.Queries, a.Logger)
-			executor := agent.NewExecutor(aiProvider, toolRegistry, billingSvc, agentRegistry, a.Queries, a.Logger)
-			aiHandler = ai.NewHandler(aiService, executor, agentRegistry, toolRegistry, a.Queries)
+			draftSvc = draft.NewService(a.Queries, a.Logger)
+			contextBld := aicontext.NewBuilder(a.Queries)
+			executor = agent.NewExecutor(aiProvider, toolRegistry, billingSvc, agentRegistry, a.Queries, a.Logger, draftSvc, contextBld)
+			draftHandler := draft.NewHandler(draftSvc, toolRegistry)
+			aiHandler = ai.NewHandler(aiService, executor, agentRegistry, toolRegistry, a.Queries, draftHandler)
 			a.Logger.Info("AI assistant enabled", "provider", aiProvider.Name(), "agents", len(agentRegistry.List(context.Background())))
 		} else {
 			a.Logger.Info("AI assistant disabled (no API key configured)")
@@ -288,6 +303,55 @@ func (a *App) setupRoutes() {
 
 	if aiHandler != nil {
 		aiHandler.RegisterRoutes(protected)
+	}
+
+	// Integration Hub
+	if a.Cfg.Integration.EncryptionKey != "" {
+		encryptor, err := crypto.NewCredentialEncryptor(a.Cfg.Integration.EncryptionKey)
+		if err != nil {
+			a.Logger.Error("failed to init integration encryptor", "error", err)
+		} else {
+			connRegistry := connector.NewRegistry()
+			connRegistry.Register("slack", func(creds connector.Credentials) (connector.Connector, error) {
+				return connectorslack.New(creds)
+			})
+			connRegistry.Register("google", func(creds connector.Credentials) (connector.Connector, error) {
+				return connectorgoogle.New(creds)
+			})
+			connRegistry.Register("github", func(creds connector.Credentials) (connector.Connector, error) {
+				return connectorgithub.New(creds)
+			})
+
+			integrationSvc := integration.NewService(a.Queries, connRegistry, encryptor, a.Logger)
+			provisioningSvc := integration.NewProvisioningService(a.Queries, a.Logger)
+			integrationHandler := integration.NewHandler(integrationSvc, provisioningSvc, a.Queries)
+			integrationHandler.RegisterRoutes(protected)
+
+			// Start provisioning worker
+			provWorker := integration.NewProvisioningWorker(a.Queries, integrationSvc, a.Logger)
+			go provWorker.Run(context.Background(), 30*time.Second)
+
+			a.Logger.Info("integration hub enabled", "providers", connRegistry.Providers())
+		}
+	} else {
+		a.Logger.Info("integration hub disabled (INTEGRATION_ENCRYPTION_KEY not set)")
+	}
+
+	// Bot link management (always available for link code generation)
+	botLinker := bot.NewLinker(a.Queries, a.Logger)
+	botLinkHandler := bot.NewLinkHandler(botLinker, a.Queries, a.Logger)
+	botLinkHandler.RegisterRoutes(protected)
+
+	// Telegram bot (optional)
+	if a.Cfg.Bot.Enabled && a.Cfg.Bot.TelegramBotToken != "" && executor != nil {
+		botSessionMgr := bot.NewSessionManager(a.Queries, a.Logger)
+		botRateLimiter := bot.NewRateLimiter(a.Redis, 20, 1*time.Minute)
+		dispatcher := bot.NewDispatcher(botLinker, botSessionMgr, executor, draftSvc, a.Queries, botRateLimiter, a.Logger)
+		tgBot := bottelegram.New(a.Cfg.Bot.TelegramBotToken, dispatcher, a.Logger)
+		go tgBot.Run(context.Background())
+		a.Logger.Info("telegram bot started")
+	} else if a.Cfg.Bot.Enabled {
+		a.Logger.Info("telegram bot disabled (missing token or AI provider)")
 	}
 }
 

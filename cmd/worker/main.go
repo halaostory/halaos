@@ -13,6 +13,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/tonypk/aigonhr/internal/config"
+	"github.com/tonypk/aigonhr/internal/integration"
 	"github.com/tonypk/aigonhr/internal/payroll"
 	"github.com/tonypk/aigonhr/internal/store"
 )
@@ -39,6 +40,7 @@ func main() {
 
 	queries := store.New(pool)
 	calculator := payroll.NewCalculator(queries, pool, logger)
+	provisioningSvc := integration.NewProvisioningService(queries, logger)
 
 	logger.Info("worker started")
 
@@ -51,7 +53,7 @@ func main() {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				processEvents(ctx, queries, calculator, pool, logger)
+				processEvents(ctx, queries, calculator, provisioningSvc, pool, logger)
 				processAgentTasks(ctx, cfg, queries, pool, logger)
 			}
 		}
@@ -81,7 +83,7 @@ func main() {
 	logger.Info("worker stopped")
 }
 
-func processEvents(ctx context.Context, queries *store.Queries, calculator *payroll.Calculator, pool *pgxpool.Pool, logger *slog.Logger) {
+func processEvents(ctx context.Context, queries *store.Queries, calculator *payroll.Calculator, provisioningSvc *integration.ProvisioningService, pool *pgxpool.Pool, logger *slog.Logger) {
 	events, err := queries.GetPendingEvents(ctx, 50)
 	if err != nil {
 		logger.Error("failed to get pending events", "error", err)
@@ -89,7 +91,7 @@ func processEvents(ctx context.Context, queries *store.Queries, calculator *payr
 	}
 
 	for _, ev := range events {
-		if err := dispatchEvent(ctx, queries, calculator, pool, ev, logger); err != nil {
+		if err := dispatchEvent(ctx, queries, calculator, provisioningSvc, pool, ev, logger); err != nil {
 			logger.Error("event dispatch failed",
 				"event_id", ev.ID,
 				"event_type", ev.EventType,
@@ -105,7 +107,7 @@ func processEvents(ctx context.Context, queries *store.Queries, calculator *payr
 	}
 }
 
-func dispatchEvent(ctx context.Context, queries *store.Queries, calculator *payroll.Calculator, pool *pgxpool.Pool, ev store.HrEvent, logger *slog.Logger) error {
+func dispatchEvent(ctx context.Context, queries *store.Queries, calculator *payroll.Calculator, provisioningSvc *integration.ProvisioningService, pool *pgxpool.Pool, ev store.HrEvent, logger *slog.Logger) error {
 	logger.Info("processing event", "type", ev.EventType, "aggregate", ev.AggregateType, "id", ev.AggregateID)
 
 	switch ev.EventType {
@@ -113,7 +115,10 @@ func dispatchEvent(ctx context.Context, queries *store.Queries, calculator *payr
 		return handlePayrollRunRequested(ctx, queries, calculator, pool, ev, logger)
 
 	case "employee.hired", "employee.terminated", "employee.transferred":
-		logger.Info("employee lifecycle event processed", "type", ev.EventType, "employee_id", ev.AggregateID)
+		logger.Info("employee lifecycle event — scheduling provisioning", "type", ev.EventType, "employee_id", ev.AggregateID)
+		if err := provisioningSvc.ScheduleFromEvent(ctx, ev); err != nil {
+			logger.Error("provisioning schedule failed", "event_type", ev.EventType, "error", err)
+		}
 		return nil
 
 	case "leave.approved", "leave.cancelled":

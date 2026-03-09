@@ -3,12 +3,15 @@ package agent
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
 
+	aicontext "github.com/tonypk/aigonhr/internal/ai/context"
+	"github.com/tonypk/aigonhr/internal/ai/draft"
 	"github.com/tonypk/aigonhr/internal/ai/provider"
 	"github.com/tonypk/aigonhr/internal/ai/redact"
 	"github.com/tonypk/aigonhr/internal/store"
@@ -30,8 +33,9 @@ type BillingService interface {
 
 // ChatRequest is the input for an agent chat interaction.
 type ChatRequest struct {
-	Message   string `json:"message"`
-	SessionID string `json:"session_id,omitempty"`
+	Message     string                 `json:"message"`
+	SessionID   string                 `json:"session_id,omitempty"`
+	PageContext *aicontext.PageContext  `json:"page_context,omitempty"`
 }
 
 // ChatResponse is the result of an agent chat interaction.
@@ -51,13 +55,15 @@ const defaultAgentSlug = "general"
 
 // Executor runs an agent with billing integration.
 type Executor struct {
-	provider provider.Provider
-	tools    ToolRegistry
-	billing  BillingService
-	registry *Registry
-	queries  *store.Queries
-	redactor *redact.FieldRedactor
-	logger   *slog.Logger
+	provider   provider.Provider
+	tools      ToolRegistry
+	billing    BillingService
+	registry   *Registry
+	queries    *store.Queries
+	redactor   *redact.FieldRedactor
+	logger     *slog.Logger
+	draftSvc   *draft.Service
+	contextBld *aicontext.Builder
 }
 
 // NewExecutor creates an agent executor.
@@ -68,15 +74,19 @@ func NewExecutor(
 	registry *Registry,
 	queries *store.Queries,
 	logger *slog.Logger,
+	draftSvc *draft.Service,
+	contextBld *aicontext.Builder,
 ) *Executor {
 	return &Executor{
-		provider: p,
-		tools:    tools,
-		billing:  billing,
-		registry: registry,
-		queries:  queries,
-		redactor: redact.NewFieldRedactor(),
-		logger:   logger,
+		provider:   p,
+		tools:      tools,
+		billing:    billing,
+		registry:   registry,
+		queries:    queries,
+		redactor:   redact.NewFieldRedactor(),
+		logger:     logger,
+		draftSvc:   draftSvc,
+		contextBld: contextBld,
 	}
 }
 
@@ -103,6 +113,9 @@ func (e *Executor) Chat(ctx context.Context, companyID, userID int64, agentSlug 
 	// Resolve or create session
 	sessionID, isNewSession := e.resolveSession(ctx, companyID, userID, agentCfg.Slug, req)
 
+	// Build system prompt with context injection
+	systemPrompt := e.buildSystemPrompt(ctx, companyID, userID, agentCfg.SystemPrompt, req.PageContext)
+
 	// Load history + append current user message
 	messages := e.loadSessionMessages(ctx, sessionID, req.Message, companyID, userID)
 
@@ -113,7 +126,7 @@ func (e *Executor) Chat(ctx context.Context, companyID, userID int64, agentSlug 
 
 	for round := 0; round < agentCfg.MaxRounds; round++ {
 		resp, err := e.provider.Generate(ctx, provider.Request{
-			System:    agentCfg.SystemPrompt,
+			System:    systemPrompt,
 			Messages:  messages,
 			Tools:     toolDefs,
 			MaxTokens: agentCfg.MaxTokens,
@@ -136,17 +149,13 @@ func (e *Executor) Chat(ctx context.Context, companyID, userID int64, agentSlug 
 			for _, tc := range resp.ToolCalls {
 				e.logger.Info("executing tool", "agent", agentCfg.Slug, "name", tc.Name, "input", tc.Input)
 
-				result, execErr := e.tools.Execute(ctx, tc.Name, companyID, userID, tc.Input)
-				if execErr != nil {
-					result = fmt.Sprintf("Error: %s", execErr.Error())
-				}
+				result := e.executeOrDraft(ctx, tc.Name, companyID, userID, sessionID, tc.Input)
 
 				messages = append(messages, provider.Message{
 					Role: provider.RoleUser,
 					Tool: &provider.ToolResult{
 						ToolUseID: tc.ID,
 						Content:   result,
-						IsError:   execErr != nil,
 					},
 				})
 			}
@@ -210,6 +219,9 @@ func (e *Executor) StreamChat(ctx context.Context, companyID, userID int64, agen
 	// Resolve or create session
 	sessionID, isNewSession := e.resolveSession(ctx, companyID, userID, agentCfg.Slug, req)
 
+	// Build system prompt with context injection
+	systemPrompt := e.buildSystemPrompt(ctx, companyID, userID, agentCfg.SystemPrompt, req.PageContext)
+
 	// Load history + append current user message
 	messages := e.loadSessionMessages(ctx, sessionID, req.Message, companyID, userID)
 
@@ -227,7 +239,7 @@ func (e *Executor) StreamChat(ctx context.Context, companyID, userID int64, agen
 			// First round: always stream for user-visible output
 			var err error
 			resp, err = e.provider.Stream(ctx, provider.Request{
-				System:    agentCfg.SystemPrompt,
+				System:    systemPrompt,
 				Messages:  messages,
 				Tools:     toolDefs,
 				MaxTokens: agentCfg.MaxTokens,
@@ -240,7 +252,7 @@ func (e *Executor) StreamChat(ctx context.Context, companyID, userID int64, agen
 			// Subsequent rounds (after tool use): non-streaming
 			var err error
 			resp, err = e.provider.Generate(ctx, provider.Request{
-				System:    agentCfg.SystemPrompt,
+				System:    systemPrompt,
 				Messages:  messages,
 				Tools:     toolDefs,
 				MaxTokens: agentCfg.MaxTokens,
@@ -261,13 +273,16 @@ func (e *Executor) StreamChat(ctx context.Context, companyID, userID int64, agen
 				ToolCalls: resp.ToolCalls,
 			})
 			for _, tc := range resp.ToolCalls {
-				result, execErr := e.tools.Execute(ctx, tc.Name, companyID, userID, tc.Input)
-				if execErr != nil {
-					result = fmt.Sprintf("Error: %s", execErr.Error())
+				result := e.executeOrDraft(ctx, tc.Name, companyID, userID, sessionID, tc.Input)
+
+				// Send confirmation chunk for draft actions
+				if draft.IsWriteTool(tc.Name) {
+					onChunk(provider.StreamChunk{Type: "confirmation", Text: result})
 				}
+
 				messages = append(messages, provider.Message{
 					Role: provider.RoleUser,
-					Tool: &provider.ToolResult{ToolUseID: tc.ID, Content: result, IsError: execErr != nil},
+					Tool: &provider.ToolResult{ToolUseID: tc.ID, Content: result},
 				})
 			}
 			continue
@@ -457,6 +472,46 @@ func (e *Executor) resolveAgent(ctx context.Context, slug string) (AgentConfig, 
 		return AgentConfig{}, fmt.Errorf("agent not found: %s", slug)
 	}
 	return cfg, nil
+}
+
+// buildSystemPrompt augments the agent system prompt with user context.
+func (e *Executor) buildSystemPrompt(ctx context.Context, companyID, userID int64, basePrompt string, pageCtx *aicontext.PageContext) string {
+	if e.contextBld == nil || pageCtx == nil {
+		return basePrompt
+	}
+	extra := e.contextBld.Build(ctx, companyID, userID, *pageCtx)
+	if extra == "" {
+		return basePrompt
+	}
+	return basePrompt + extra
+}
+
+// executeOrDraft either creates a draft (for write tools) or executes directly (for read tools).
+func (e *Executor) executeOrDraft(ctx context.Context, toolName string, companyID, userID int64, sessionID string, input map[string]any) string {
+	if e.draftSvc != nil && draft.IsWriteTool(toolName) {
+		d, err := e.draftSvc.CreateDraft(ctx, companyID, userID, sessionID, toolName, input)
+		if err != nil {
+			e.logger.Error("failed to create draft", "tool", toolName, "error", err)
+			// Fall through to direct execution
+		} else {
+			result := draft.DraftResult{
+				DraftID:     d.ID.String(),
+				Status:      "pending_confirmation",
+				ToolName:    toolName,
+				RiskLevel:   d.RiskLevel,
+				Description: d.Description,
+				Message:     "A draft action has been created and sent to the user for confirmation. Tell the user what you're proposing and ask them to confirm or cancel using the confirmation card in the chat.",
+			}
+			b, _ := json.Marshal(result)
+			return string(b)
+		}
+	}
+
+	result, err := e.tools.Execute(ctx, toolName, companyID, userID, input)
+	if err != nil {
+		return fmt.Sprintf("Error: %s", err.Error())
+	}
+	return result
 }
 
 // writeAuditLog records the interaction in the AI audit log.

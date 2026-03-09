@@ -8,16 +8,27 @@ import (
 )
 
 type Config struct {
-	Server    ServerConfig
-	Postgres  PostgresConfig
-	Redis     RedisConfig
-	JWT       JWTConfig
-	Upload    UploadConfig
-	AI        AIConfig
-	SMTP      SMTPConfig
-	CORS      CORSConfig
-	RateLimit RateLimitConfig
-	Billing   BillingConfig
+	Server      ServerConfig
+	Postgres    PostgresConfig
+	Redis       RedisConfig
+	JWT         JWTConfig
+	Upload      UploadConfig
+	AI          AIConfig
+	SMTP        SMTPConfig
+	CORS        CORSConfig
+	RateLimit   RateLimitConfig
+	Billing     BillingConfig
+	Integration IntegrationConfig
+	Bot         BotConfig
+}
+
+type IntegrationConfig struct {
+	EncryptionKey string // Base64-encoded 32-byte AES-256 key
+}
+
+type BotConfig struct {
+	Enabled            bool
+	TelegramBotToken   string // Shared fallback token
 }
 
 type BillingConfig struct {
@@ -150,6 +161,13 @@ func Load() *Config {
 			FreeTierTokens:  getEnvInt64("BILLING_FREE_TIER_TOKENS", 1000),
 			InputTokenRate:  0.1,
 			OutputTokenRate: 0.3,
+		},
+		Integration: IntegrationConfig{
+			EncryptionKey: getEnv("INTEGRATION_ENCRYPTION_KEY", ""),
+		},
+		Bot: BotConfig{
+			Enabled:          getEnvBool("BOT_ENABLED", false),
+			TelegramBotToken: getEnv("TELEGRAM_BOT_TOKEN", ""),
 		},
 	}
 }

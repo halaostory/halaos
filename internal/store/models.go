@@ -13,6 +13,23 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type ActionDraft struct {
+	ID           uuid.UUID       `json:"id"`
+	CompanyID    int64           `json:"company_id"`
+	UserID       int64           `json:"user_id"`
+	SessionID    pgtype.UUID     `json:"session_id"`
+	ToolName     string          `json:"tool_name"`
+	ToolInput    json.RawMessage `json:"tool_input"`
+	Status       string          `json:"status"`
+	RiskLevel    string          `json:"risk_level"`
+	Description  string          `json:"description"`
+	Result       []byte          `json:"result"`
+	ErrorMessage *string         `json:"error_message"`
+	ExpiresAt    time.Time       `json:"expires_at"`
+	CreatedAt    time.Time       `json:"created_at"`
+	UpdatedAt    time.Time       `json:"updated_at"`
+}
+
 type ActivityLog struct {
 	ID          int64     `json:"id"`
 	CompanyID   int64     `json:"company_id"`
@@ -273,6 +290,34 @@ type BirTaxTable struct {
 	FixedTax      pgtype.Numeric `json:"fixed_tax"`
 	Rate          pgtype.Numeric `json:"rate"`
 	ExcessOver    pgtype.Numeric `json:"excess_over"`
+}
+
+type BotConfig struct {
+	ID          int64     `json:"id"`
+	CompanyID   int64     `json:"company_id"`
+	Platform    string    `json:"platform"`
+	BotToken    string    `json:"bot_token"`
+	BotUsername string    `json:"bot_username"`
+	IsActive    bool      `json:"is_active"`
+	WebhookUrl  string    `json:"webhook_url"`
+	Mode        string    `json:"mode"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type BotUserLink struct {
+	ID              int64              `json:"id"`
+	Platform        string             `json:"platform"`
+	PlatformUserID  *string            `json:"platform_user_id"`
+	UserID          int64              `json:"user_id"`
+	CompanyID       int64              `json:"company_id"`
+	LinkCode        *string            `json:"link_code"`
+	LinkCodeExp     pgtype.Timestamptz `json:"link_code_exp"`
+	VerifiedAt      pgtype.Timestamptz `json:"verified_at"`
+	Locale          string             `json:"locale"`
+	ActiveSessionID pgtype.UUID        `json:"active_session_id"`
+	CreatedAt       time.Time          `json:"created_at"`
+	UpdatedAt       time.Time          `json:"updated_at"`
 }
 
 type Certification struct {
@@ -816,6 +861,70 @@ type HrEvent struct {
 	CreatedAt      time.Time          `json:"created_at"`
 }
 
+type IntegrationAuditLog struct {
+	ID              int64       `json:"id"`
+	CompanyID       int64       `json:"company_id"`
+	EmployeeID      *int64      `json:"employee_id"`
+	ConnectionID    pgtype.UUID `json:"connection_id"`
+	JobID           pgtype.UUID `json:"job_id"`
+	Provider        string      `json:"provider"`
+	Action          string      `json:"action"`
+	ExternalID      *string     `json:"external_id"`
+	Success         bool        `json:"success"`
+	RequestSummary  []byte      `json:"request_summary"`
+	ResponseSummary []byte      `json:"response_summary"`
+	ErrorCode       *string     `json:"error_code"`
+	ErrorMessage    *string     `json:"error_message"`
+	ActorUserID     *int64      `json:"actor_user_id"`
+	CreatedAt       time.Time   `json:"created_at"`
+}
+
+type IntegrationConnection struct {
+	ID               uuid.UUID          `json:"id"`
+	CompanyID        int64              `json:"company_id"`
+	Provider         string             `json:"provider"`
+	DisplayName      string             `json:"display_name"`
+	Status           string             `json:"status"`
+	AuthType         string             `json:"auth_type"`
+	EncryptedCreds   []byte             `json:"encrypted_creds"`
+	OauthTokenExpiry pgtype.Timestamptz `json:"oauth_token_expiry"`
+	OauthScope       string             `json:"oauth_scope"`
+	Config           json.RawMessage    `json:"config"`
+	LastUsedAt       pgtype.Timestamptz `json:"last_used_at"`
+	LastError        *string            `json:"last_error"`
+	ErrorCount       int32              `json:"error_count"`
+	CreatedBy        *int64             `json:"created_by"`
+	CreatedAt        time.Time          `json:"created_at"`
+	UpdatedAt        time.Time          `json:"updated_at"`
+}
+
+type IntegrationIdentity struct {
+	ID               uuid.UUID          `json:"id"`
+	CompanyID        int64              `json:"company_id"`
+	EmployeeID       int64              `json:"employee_id"`
+	ConnectionID     uuid.UUID          `json:"connection_id"`
+	Provider         string             `json:"provider"`
+	ExternalID       string             `json:"external_id"`
+	ExternalEmail    *string            `json:"external_email"`
+	ExternalUsername *string            `json:"external_username"`
+	AccountStatus    string             `json:"account_status"`
+	Metadata         json.RawMessage    `json:"metadata"`
+	ProvisionedAt    pgtype.Timestamptz `json:"provisioned_at"`
+	DeprovisionedAt  pgtype.Timestamptz `json:"deprovisioned_at"`
+	CreatedAt        time.Time          `json:"created_at"`
+	UpdatedAt        time.Time          `json:"updated_at"`
+}
+
+type IntegrationOauthState struct {
+	State        string    `json:"state"`
+	CompanyID    int64     `json:"company_id"`
+	UserID       int64     `json:"user_id"`
+	Provider     string    `json:"provider"`
+	CodeVerifier string    `json:"code_verifier"`
+	RedirectUri  string    `json:"redirect_uri"`
+	ExpiresAt    time.Time `json:"expires_at"`
+}
+
 type InterviewSchedule struct {
 	ID              int64     `json:"id"`
 	ApplicantID     int64     `json:"applicant_id"`
@@ -1195,6 +1304,44 @@ type Position struct {
 	IsActive     bool      `json:"is_active"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+type ProvisioningJob struct {
+	ID             uuid.UUID          `json:"id"`
+	CompanyID      int64              `json:"company_id"`
+	EmployeeID     int64              `json:"employee_id"`
+	ConnectionID   uuid.UUID          `json:"connection_id"`
+	TemplateID     pgtype.UUID        `json:"template_id"`
+	Provider       string             `json:"provider"`
+	ActionType     string             `json:"action_type"`
+	TriggerEventID *int64             `json:"trigger_event_id"`
+	ResolvedParams json.RawMessage    `json:"resolved_params"`
+	Status         string             `json:"status"`
+	DraftID        pgtype.UUID        `json:"draft_id"`
+	Result         []byte             `json:"result"`
+	ErrorMessage   *string            `json:"error_message"`
+	Retries        int32              `json:"retries"`
+	ScheduledAt    time.Time          `json:"scheduled_at"`
+	StartedAt      pgtype.Timestamptz `json:"started_at"`
+	CompletedAt    pgtype.Timestamptz `json:"completed_at"`
+	CreatedAt      time.Time          `json:"created_at"`
+}
+
+type ProvisioningTemplate struct {
+	ID                   uuid.UUID       `json:"id"`
+	CompanyID            int64           `json:"company_id"`
+	ConnectionID         uuid.UUID       `json:"connection_id"`
+	Provider             string          `json:"provider"`
+	EventTrigger         string          `json:"event_trigger"`
+	ActionType           string          `json:"action_type"`
+	FilterDepartmentID   *int64          `json:"filter_department_id"`
+	FilterEmploymentType *string         `json:"filter_employment_type"`
+	Params               json.RawMessage `json:"params"`
+	DeprovisionMode      string          `json:"deprovision_mode"`
+	RequiresApproval     bool            `json:"requires_approval"`
+	IsActive             bool            `json:"is_active"`
+	CreatedAt            time.Time       `json:"created_at"`
+	UpdatedAt            time.Time       `json:"updated_at"`
 }
 
 type RemittanceRecord struct {

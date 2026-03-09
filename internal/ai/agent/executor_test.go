@@ -121,7 +121,7 @@ func queueChatDBCalls(mock *testutil.MockDBTX, sessionID uuid.UUID) {
 
 func newTestExecutor(p provider.Provider, tools ToolRegistry, billing BillingService, reg *Registry, mock *testutil.MockDBTX) *Executor {
 	queries := store.New(mock)
-	return NewExecutor(p, tools, billing, reg, queries, slog.Default())
+	return NewExecutor(p, tools, billing, reg, queries, slog.Default(), nil, nil)
 }
 
 // --- Tests ---

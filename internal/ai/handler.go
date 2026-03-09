@@ -10,6 +10,8 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/tonypk/aigonhr/internal/ai/agent"
+	aicontext "github.com/tonypk/aigonhr/internal/ai/context"
+	"github.com/tonypk/aigonhr/internal/ai/draft"
 	"github.com/tonypk/aigonhr/internal/ai/provider"
 	"github.com/tonypk/aigonhr/internal/auth"
 	"github.com/tonypk/aigonhr/internal/store"
@@ -23,16 +25,18 @@ type Handler struct {
 	registry     *agent.Registry
 	toolRegistry *ToolRegistry
 	queries      *store.Queries
+	draftHandler *draft.Handler
 }
 
 // NewHandler creates an AI handler.
-func NewHandler(service *Service, executor *agent.Executor, registry *agent.Registry, toolRegistry *ToolRegistry, queries *store.Queries) *Handler {
+func NewHandler(service *Service, executor *agent.Executor, registry *agent.Registry, toolRegistry *ToolRegistry, queries *store.Queries, draftHandler *draft.Handler) *Handler {
 	return &Handler{
 		service:      service,
 		executor:     executor,
 		registry:     registry,
 		toolRegistry: toolRegistry,
 		queries:      queries,
+		draftHandler: draftHandler,
 	}
 }
 
@@ -56,6 +60,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		ai.GET("/feedback/stats", auth.AdminOnly(), h.GetFeedbackStats)
 		ai.GET("/feedback/recent", auth.AdminOnly(), h.ListRecentFeedback)
 		ai.GET("/audit-log", auth.AdminOnly(), h.ListAIAuditLog)
+	}
+	// Draft confirmation routes
+	if h.draftHandler != nil {
+		h.draftHandler.RegisterRoutes(rg)
 	}
 }
 
@@ -84,6 +92,12 @@ func (h *Handler) Chat(c *gin.Context) {
 		agentReq := agent.ChatRequest{
 			Message:   req.Message,
 			SessionID: req.SessionID,
+		}
+		if req.PageContext != nil {
+			agentReq.PageContext = &aicontext.PageContext{
+				Section: req.PageContext.Section,
+				Action:  req.PageContext.Action,
+			}
 		}
 
 		resp, err := h.executor.Chat(c.Request.Context(), companyID, userID, agentSlug, agentReq)
@@ -152,6 +166,12 @@ func (h *Handler) StreamChat(c *gin.Context) {
 			Message:   req.Message,
 			SessionID: req.SessionID,
 		}
+		if req.PageContext != nil {
+			agentReq.PageContext = &aicontext.PageContext{
+				Section: req.PageContext.Section,
+				Action:  req.PageContext.Action,
+			}
+		}
 
 		resp, err := h.executor.StreamChat(c.Request.Context(), companyID, userID, agentSlug, agentReq,
 			func(chunk provider.StreamChunk) {
@@ -164,6 +184,9 @@ func (h *Handler) StreamChat(c *gin.Context) {
 						fmt.Fprintf(c.Writer, "data: {\"type\":\"tool\",\"name\":%q}\n\n", chunk.ToolCall.Name)
 						flusher.Flush()
 					}
+				case "confirmation":
+					fmt.Fprintf(c.Writer, "data: {\"type\":\"confirmation\",\"data\":%s}\n\n", chunk.Text)
+					flusher.Flush()
 				}
 			},
 		)

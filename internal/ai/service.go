@@ -58,9 +58,16 @@ func NewService(p provider.Provider, queries *store.Queries, pool *pgxpool.Pool,
 
 // ChatRequest is the input for a chat interaction.
 type ChatRequest struct {
-	Message   string `json:"message"`
-	SessionID string `json:"session_id,omitempty"`
-	Agent     string `json:"agent,omitempty"`
+	Message     string         `json:"message"`
+	SessionID   string         `json:"session_id,omitempty"`
+	Agent       string         `json:"agent,omitempty"`
+	PageContext *PageContextDTO `json:"page_context,omitempty"`
+}
+
+// PageContextDTO passes page context from the frontend.
+type PageContextDTO struct {
+	Section string `json:"section,omitempty"`
+	Action  string `json:"action,omitempty"`
 }
 
 // ChatResponse is the result of a chat interaction.

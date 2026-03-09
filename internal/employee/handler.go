@@ -1,6 +1,7 @@
 package employee
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -139,6 +140,16 @@ func (h *Handler) CreateEmployee(c *gin.Context) {
 		response.Conflict(c, "Employee number already exists")
 		return
 	}
+
+	// Emit employee.hired event for Integration Hub provisioning
+	h.emitEmployeeEvent(c, companyID, emp.ID, "employee.hired", map[string]any{
+		"email":           derefStr(req.Email),
+		"first_name":      req.FirstName,
+		"last_name":       req.LastName,
+		"employment_type": empType,
+		"department_id":   req.DepartmentID,
+	})
+
 	response.Created(c, emp)
 }
 
@@ -226,6 +237,19 @@ func (h *Handler) UpdateEmployee(c *gin.Context) {
 		response.NotFound(c, "Employee not found")
 		return
 	}
+
+	// Emit lifecycle events for status changes
+	if empStatus == "separated" || empStatus == "terminated" {
+		h.emitEmployeeEvent(c, companyID, id, "employee.terminated", map[string]any{
+			"status": empStatus,
+		})
+	}
+	if req.DepartmentID != nil {
+		h.emitEmployeeEvent(c, companyID, id, "employee.transferred", map[string]any{
+			"department_id": *req.DepartmentID,
+		})
+	}
+
 	response.OK(c, emp)
 }
 
@@ -445,4 +469,36 @@ func (h *Handler) DeleteDocument(c *gin.Context) {
 		return
 	}
 	response.OK(c, gin.H{"message": "Deleted"})
+}
+
+// emitEmployeeEvent fires an hr_event for integration provisioning.
+func (h *Handler) emitEmployeeEvent(c *gin.Context, companyID, employeeID int64, eventType string, payload map[string]any) {
+	payloadJSON, _ := json.Marshal(payload)
+	userID := auth.GetUserID(c)
+	idempotencyKey := fmt.Sprintf("%s:%d:%d", eventType, employeeID, time.Now().UnixNano())
+
+	_, err := h.queries.InsertHREvent(c.Request.Context(), store.InsertHREventParams{
+		CompanyID:      companyID,
+		AggregateType:  "employee",
+		AggregateID:    employeeID,
+		EventType:      eventType,
+		EventVersion:   1,
+		Payload:        payloadJSON,
+		ActorUserID:    &userID,
+		IdempotencyKey: &idempotencyKey,
+	})
+	if err != nil {
+		h.logger.Error("failed to emit employee event",
+			"event_type", eventType,
+			"employee_id", employeeID,
+			"error", err,
+		)
+	}
+}
+
+func derefStr(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }
