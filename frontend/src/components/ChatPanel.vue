@@ -304,8 +304,7 @@ const currentSection = computed(() => {
   if (path.includes('/payroll') || path.includes('/payslips')) return 'payroll'
   if (path.includes('/approvals')) return 'approvals'
   if (path.includes('/integrations')) return 'integrations'
-  if (path.includes('/recruitment')) return 'recruitment'
-  if (path.includes('/training')) return 'training'
+if (path.includes('/training')) return 'training'
   return 'dashboard'
 })
 
@@ -346,12 +345,7 @@ const suggestionChips = computed(() => {
       t('chat.suggestion.provisionUser'),
       t('chat.suggestion.integrationHelp'),
     ],
-    recruitment: [
-      t('chat.suggestion.openPositions'),
-      t('chat.suggestion.screenCandidate'),
-      t('chat.suggestion.rankCandidates'),
-    ],
-    training: [
+training: [
       t('chat.suggestion.availableTraining'),
       t('chat.suggestion.myCertifications'),
       t('chat.suggestion.enrollTraining'),

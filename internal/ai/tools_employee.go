@@ -129,24 +129,6 @@ func employeeDefs() []provider.ToolDefinition {
 				},
 			}),
 		},
-		{
-			Name:        "onboard_employee",
-			Description: "Create a new employee record from natural language input. Admin only. Extracts: first_name, last_name, department (name or ID), position (name or ID), hire_date (YYYY-MM-DD), basic_salary (monthly PHP). AI should parse the user's natural language and fill these fields. Always confirm all details with the user before calling this tool.",
-			Parameters: jsonSchema(map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"first_name":      map[string]any{"type": "string", "description": "Employee first name."},
-					"last_name":       map[string]any{"type": "string", "description": "Employee last name."},
-					"department":      map[string]any{"type": "string", "description": "Department name (will fuzzy-match to existing departments)."},
-					"position":        map[string]any{"type": "string", "description": "Job position/title (will fuzzy-match to existing positions)."},
-					"hire_date":       map[string]any{"type": "string", "description": "Hire/start date in YYYY-MM-DD format."},
-					"basic_salary":    map[string]any{"type": "number", "description": "Monthly basic salary in PHP."},
-					"employment_type": map[string]any{"type": "string", "description": "Employment type: regular, probationary, contractual. Default: probationary."},
-					"email":           map[string]any{"type": "string", "description": "Optional work email address."},
-				},
-				"required": []string{"first_name", "last_name", "department", "hire_date"},
-			}),
-		},
 	}
 }
 
@@ -154,5 +136,4 @@ func employeeDefs() []provider.ToolDefinition {
 func (r *ToolRegistry) registerEmployeeTools() {
 	r.tools["list_employees"] = r.toolListEmployees
 	r.tools["update_employee_profile"] = r.toolUpdateEmployeeProfile
-	r.tools["onboard_employee"] = r.toolOnboardEmployee
 }

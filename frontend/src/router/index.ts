@@ -312,13 +312,6 @@ const router = createRouter({
           component: () => import("../views/BillingView.vue"),
           meta: { roles: ["super_admin", "admin"] },
         },
-        // Recruitment / ATS
-        {
-          path: "recruitment",
-          name: "recruitment",
-          component: () => import("../views/RecruitmentView.vue"),
-          meta: { roles: ["super_admin", "admin", "manager"] },
-        },
         // Agent Hub
         {
           path: "agent-hub",

@@ -63,7 +63,6 @@ import (
 	"github.com/tonypk/aigonhr/internal/performance"
 	"github.com/tonypk/aigonhr/internal/policy"
 	"github.com/tonypk/aigonhr/internal/ratelimit"
-	"github.com/tonypk/aigonhr/internal/recruitment"
 	"github.com/tonypk/aigonhr/internal/report"
 	"github.com/tonypk/aigonhr/internal/selfservice"
 	"github.com/tonypk/aigonhr/internal/store"
@@ -221,7 +220,6 @@ func (a *App) setupRoutes() {
 	holidayHandler := holiday.NewHandler(a.Queries, a.Pool, a.Logger)
 	announcementHandler := announcement.NewHandler(a.Queries, a.Pool, a.Logger)
 	dashboardHandler := dashboard.NewHandler(a.Queries, a.Pool, a.Logger)
-	recruitmentHandler := recruitment.NewHandler(a.Pool, a.Logger)
 
 	// Billing service
 	billingSvc := billing.NewService(a.Queries, a.Logger)
@@ -297,7 +295,6 @@ func (a *App) setupRoutes() {
 	holidayHandler.RegisterRoutes(protected)
 	announcementHandler.RegisterRoutes(protected)
 	dashboardHandler.RegisterRoutes(protected)
-	recruitmentHandler.RegisterRoutes(protected)
 
 	billingHandler.RegisterRoutes(protected)
 

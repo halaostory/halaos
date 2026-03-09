@@ -201,7 +201,6 @@ func TestDefinitionsCount(t *testing.T) {
 		{"employee", employeeDefs()},
 		{"expense", expenseDefs()},
 		{"approval", approvalDefs()},
-		{"recruitment", recruitmentDefs()},
 		{"salarySim", salarySimDefs()},
 		{"loan", loanDefs()},
 		{"benefit", benefitDefs()},
