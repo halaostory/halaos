@@ -104,9 +104,11 @@ func (h *Handler) ClockIn(c *gin.Context) {
 		if req.Lat == nil || req.Lng == nil {
 			gfStatus = "not_checked"
 		}
-		_, _ = h.pool.Exec(c.Request.Context(),
+		if _, err := h.pool.Exec(c.Request.Context(),
 			"UPDATE attendance_logs SET clock_in_geofence_id = $1, clock_in_geofence_status = $2 WHERE id = $3",
-			nilIfZero(gfResult.matchedID), gfStatus, log.ID)
+			nilIfZero(gfResult.matchedID), gfStatus, log.ID); err != nil {
+			h.logger.Error("failed to update clock-in geofence status", "log_id", log.ID, "error", err)
+		}
 	}
 
 	response.Created(c, log)
@@ -194,9 +196,11 @@ func (h *Handler) ClockOut(c *gin.Context) {
 		if req.Lat == nil || req.Lng == nil {
 			gfStatus = "not_checked"
 		}
-		_, _ = h.pool.Exec(c.Request.Context(),
+		if _, err := h.pool.Exec(c.Request.Context(),
 			"UPDATE attendance_logs SET clock_out_geofence_id = $1, clock_out_geofence_status = $2 WHERE id = $3",
-			nilIfZero(gfResult.matchedID), gfStatus, log.ID)
+			nilIfZero(gfResult.matchedID), gfStatus, log.ID); err != nil {
+			h.logger.Error("failed to update clock-out geofence status", "log_id", log.ID, "error", err)
+		}
 	}
 
 	response.OK(c, log)

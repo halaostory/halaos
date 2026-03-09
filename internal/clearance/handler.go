@@ -80,19 +80,23 @@ func (h *Handler) Create(c *gin.Context) {
 			{"Direct Manager", "Pending tasks handover"},
 		}
 		for _, d := range defaults {
-			_, _ = h.queries.CreateClearanceItem(c.Request.Context(), store.CreateClearanceItemParams{
+			if _, err := h.queries.CreateClearanceItem(c.Request.Context(), store.CreateClearanceItemParams{
 				ClearanceID: cr.ID,
 				Department:  d.dept,
 				ItemName:    d.item,
-			})
+			}); err != nil {
+				h.logger.Error("failed to create default clearance item", "department", d.dept, "error", err)
+			}
 		}
 	} else {
 		for _, t := range templates {
-			_, _ = h.queries.CreateClearanceItem(c.Request.Context(), store.CreateClearanceItemParams{
+			if _, err := h.queries.CreateClearanceItem(c.Request.Context(), store.CreateClearanceItemParams{
 				ClearanceID: cr.ID,
 				Department:  t.Department,
 				ItemName:    t.ItemName,
-			})
+			}); err != nil {
+				h.logger.Error("failed to create clearance item from template", "department", t.Department, "error", err)
+			}
 		}
 	}
 

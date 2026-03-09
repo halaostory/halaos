@@ -68,14 +68,16 @@ func (h *Handler) ChangeStatus(c *gin.Context) {
 		actionType = "suspended"
 	}
 
-	_, _ = h.queries.CreateEmploymentHistory(c.Request.Context(), store.CreateEmploymentHistoryParams{
+	if _, err := h.queries.CreateEmploymentHistory(c.Request.Context(), store.CreateEmploymentHistoryParams{
 		CompanyID:     companyID,
 		EmployeeID:    empID,
 		ActionType:    actionType,
 		EffectiveDate: time.Now(),
 		Remarks:       req.Remarks,
 		CreatedBy:     &userID,
-	})
+	}); err != nil {
+		h.logger.Error("failed to create employment history", "employee_id", empID, "action", actionType, "error", err)
+	}
 
 	response.OK(c, updated)
 }

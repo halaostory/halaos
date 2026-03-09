@@ -518,8 +518,8 @@ func (h *Handler) ScheduleInterview(c *gin.Context) {
 	// Update applicant status to 'interview' if still in screening
 	_, _ = h.pool.Exec(c.Request.Context(), `
 		UPDATE applicants SET status = 'interview', updated_at = now()
-		WHERE id = $1 AND status IN ('new', 'screening')
-	`, applicantID)
+		WHERE id = $1 AND company_id = $2 AND status IN ('new', 'screening')
+	`, applicantID, companyID)
 
 	response.Created(c, gin.H{"id": id, "message": "Interview scheduled"})
 }

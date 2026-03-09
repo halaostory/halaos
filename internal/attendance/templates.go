@@ -53,12 +53,14 @@ func (h *Handler) CreateScheduleTemplate(c *gin.Context) {
 		if !d.IsRestDay && d.ShiftID > 0 {
 			shiftID = &d.ShiftID
 		}
-		_, _ = h.queries.UpsertScheduleTemplateDay(c.Request.Context(), store.UpsertScheduleTemplateDayParams{
+		if _, err := h.queries.UpsertScheduleTemplateDay(c.Request.Context(), store.UpsertScheduleTemplateDayParams{
 			TemplateID: tmpl.ID,
 			DayOfWeek:  int32(d.DayOfWeek),
 			ShiftID:    shiftID,
 			IsRestDay:  d.IsRestDay,
-		})
+		}); err != nil {
+			h.logger.Error("failed to upsert schedule template day", "day", d.DayOfWeek, "error", err)
+		}
 	}
 
 	response.Created(c, tmpl)
@@ -119,12 +121,14 @@ func (h *Handler) UpdateScheduleTemplate(c *gin.Context) {
 		if !d.IsRestDay && d.ShiftID > 0 {
 			shiftID = &d.ShiftID
 		}
-		_, _ = h.queries.UpsertScheduleTemplateDay(c.Request.Context(), store.UpsertScheduleTemplateDayParams{
+		if _, err := h.queries.UpsertScheduleTemplateDay(c.Request.Context(), store.UpsertScheduleTemplateDayParams{
 			TemplateID: tmpl.ID,
 			DayOfWeek:  int32(d.DayOfWeek),
 			ShiftID:    shiftID,
 			IsRestDay:  d.IsRestDay,
-		})
+		}); err != nil {
+			h.logger.Error("failed to upsert schedule template day", "day", d.DayOfWeek, "error", err)
+		}
 	}
 
 	response.OK(c, tmpl)
