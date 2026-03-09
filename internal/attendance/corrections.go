@@ -114,7 +114,7 @@ func (h *Handler) ListMyCorrections(c *gin.Context) {
 		CompanyID: companyID,
 	})
 	if err != nil {
-		response.BadRequest(c, "Employee not found")
+		response.OK(c, []any{})
 		return
 	}
 	corrections, err := h.queries.ListMyCorrections(c.Request.Context(), store.ListMyCorrectionsParams{

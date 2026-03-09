@@ -116,8 +116,8 @@ func TestListMy_EmployeeNotFound(t *testing.T) {
 	mockDB.OnQueryRow(testutil.NewErrorRow(fmt.Errorf("not found")))
 	c, w := testutil.NewGinContextWithQuery("GET", "/expenses/my", nil, adminAuth)
 	h.ListMy(c)
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 (empty list), got %d: %s", w.Code, w.Body.String())
 	}
 }
 

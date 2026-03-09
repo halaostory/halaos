@@ -22,7 +22,7 @@ func (h *Handler) GetConvertibleBalances(c *gin.Context) {
 		CompanyID: companyID,
 	})
 	if err != nil {
-		response.BadRequest(c, "Employee profile not found")
+		response.OK(c, []any{})
 		return
 	}
 	year := int32(time.Now().Year())

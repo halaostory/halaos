@@ -135,7 +135,7 @@ func (h *Handler) ListMy(c *gin.Context) {
 		CompanyID: companyID, UserID: &userID,
 	})
 	if err != nil {
-		response.BadRequest(c, "Employee profile not found")
+		response.OK(c, []any{})
 		return
 	}
 	cases, err := h.queries.ListMyGrievances(c.Request.Context(), store.ListMyGrievancesParams{

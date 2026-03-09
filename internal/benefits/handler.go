@@ -191,7 +191,7 @@ func (h *Handler) ListMyEnrollments(c *gin.Context) {
 		CompanyID: companyID, UserID: &userID,
 	})
 	if err != nil {
-		response.BadRequest(c, "Employee profile not found")
+		response.OK(c, []any{})
 		return
 	}
 	enrollments, err := h.queries.ListMyEnrollments(c.Request.Context(), store.ListMyEnrollmentsParams{

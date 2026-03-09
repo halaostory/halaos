@@ -149,7 +149,7 @@ func (h *Handler) ListMy(c *gin.Context) {
 		UserID:    &userID,
 	})
 	if err != nil {
-		response.BadRequest(c, "Employee profile not found")
+		response.OK(c, []any{})
 		return
 	}
 	claims, err := h.queries.ListMyExpenseClaims(c.Request.Context(), store.ListMyExpenseClaimsParams{
