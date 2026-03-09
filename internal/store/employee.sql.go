@@ -1022,6 +1022,42 @@ func (q *Queries) ListExpiringDocuments(ctx context.Context, companyID int64) ([
 	return items, nil
 }
 
+const regularizeEmployee = `-- name: RegularizeEmployee :one
+UPDATE employees SET
+    employment_type = 'regular',
+    regularization_date = CURRENT_DATE,
+    status = 'active',
+    updated_at = NOW()
+WHERE id = $1 AND company_id = $2
+  AND employment_type = 'probationary'
+  AND status IN ('active', 'probationary')
+RETURNING id, employee_no, first_name, last_name
+`
+
+type RegularizeEmployeeParams struct {
+	ID        int64 `json:"id"`
+	CompanyID int64 `json:"company_id"`
+}
+
+type RegularizeEmployeeRow struct {
+	ID         int64  `json:"id"`
+	EmployeeNo string `json:"employee_no"`
+	FirstName  string `json:"first_name"`
+	LastName   string `json:"last_name"`
+}
+
+func (q *Queries) RegularizeEmployee(ctx context.Context, arg RegularizeEmployeeParams) (RegularizeEmployeeRow, error) {
+	row := q.db.QueryRow(ctx, regularizeEmployee, arg.ID, arg.CompanyID)
+	var i RegularizeEmployeeRow
+	err := row.Scan(
+		&i.ID,
+		&i.EmployeeNo,
+		&i.FirstName,
+		&i.LastName,
+	)
+	return i, err
+}
+
 const updateEmployee = `-- name: UpdateEmployee :one
 UPDATE employees SET
     first_name = COALESCE($3, first_name),

@@ -184,6 +184,17 @@ LEFT JOIN employee_profiles ep ON ep.employee_id = e.id
 WHERE e.company_id = $1 AND e.status IN ('active', 'probationary')
 ORDER BY e.last_name, e.first_name;
 
+-- name: RegularizeEmployee :one
+UPDATE employees SET
+    employment_type = 'regular',
+    regularization_date = CURRENT_DATE,
+    status = 'active',
+    updated_at = NOW()
+WHERE id = $1 AND company_id = $2
+  AND employment_type = 'probationary'
+  AND status IN ('active', 'probationary')
+RETURNING id, employee_no, first_name, last_name;
+
 -- name: GetOrgChartData :many
 SELECT e.id, e.first_name, e.last_name, e.display_name,
        e.manager_id,

@@ -399,6 +399,22 @@ type CompanyPolicy struct {
 	UpdatedAt              time.Time `json:"updated_at"`
 }
 
+type ComplianceAlert struct {
+	ID            int64              `json:"id"`
+	CompanyID     int64              `json:"company_id"`
+	AlertType     string             `json:"alert_type"`
+	Severity      string             `json:"severity"`
+	Title         string             `json:"title"`
+	Description   string             `json:"description"`
+	EntityType    *string            `json:"entity_type"`
+	EntityID      *int64             `json:"entity_id"`
+	DueDate       pgtype.Date        `json:"due_date"`
+	DaysRemaining *int32             `json:"days_remaining"`
+	IsResolved    bool               `json:"is_resolved"`
+	ResolvedAt    pgtype.Timestamptz `json:"resolved_at"`
+	CalculatedAt  time.Time          `json:"calculated_at"`
+}
+
 type ContractMilestone struct {
 	ID             int64              `json:"id"`
 	CompanyID      int64              `json:"company_id"`
@@ -529,6 +545,15 @@ type Employee struct {
 	CreatedAt          time.Time   `json:"created_at"`
 	UpdatedAt          time.Time   `json:"updated_at"`
 	ContractEndDate    pgtype.Date `json:"contract_end_date"`
+}
+
+type EmployeeBurnoutScore struct {
+	ID           int64           `json:"id"`
+	CompanyID    int64           `json:"company_id"`
+	EmployeeID   int64           `json:"employee_id"`
+	BurnoutScore int32           `json:"burnout_score"`
+	Factors      json.RawMessage `json:"factors"`
+	CalculatedAt time.Time       `json:"calculated_at"`
 }
 
 type EmployeeDocument struct {

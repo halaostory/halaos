@@ -172,6 +172,9 @@ func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.
 	// Generate compliance alerts (daily)
 	generateComplianceAlerts(ctx, queries, pool, logger)
 
+	// Auto-regularize probationary employees (daily)
+	autoRegularize(ctx, queries, pool, logger)
+
 	// Send proactive AI reminders (notifications)
 	sendProactiveReminders(ctx, queries, logger)
 }
