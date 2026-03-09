@@ -52,13 +52,25 @@ func (s *Scorer) ScoreAll(ctx context.Context, companyID int64) ([]DepartmentHea
 	turnover := s.loadTurnoverHealth(ctx, companyID)
 	grievances := s.loadGrievanceHealth(ctx, companyID)
 
+	return computeScores(depts, attendance, leaveHealth, overtime, turnover, grievances), nil
+}
+
+// computeScores calculates health scores from pre-loaded data maps.
+func computeScores(
+	depts []deptInfo,
+	attendance map[int64]attendanceInfo,
+	leaveHealth map[int64]float64,
+	overtime map[int64]float64,
+	turnover map[int64]int64,
+	grievances map[int64]int64,
+) []DepartmentHealth {
 	var results []DepartmentHealth
 
 	for _, dept := range depts {
 		var factors []Factor
 		total := 0
 
-		// 1. Attendance rate (0-20): % of on-time attendance in last 30 days
+		// 1. Attendance rate (0-20)
 		if att, ok := attendance[dept.id]; ok {
 			score := int(att.rate * 20)
 			if score > 20 {
@@ -71,12 +83,11 @@ func (s *Scorer) ScoreAll(ctx context.Context, companyID int64) ([]DepartmentHea
 			})
 			total += score
 		} else {
-			// No attendance data = assume neutral (15/20)
 			factors = append(factors, Factor{Name: "attendance", Score: 15, Detail: "No attendance data"})
 			total += 15
 		}
 
-		// 2. Leave balance health (0-20): avg remaining balance ratio
+		// 2. Leave balance health (0-20)
 		if lb, ok := leaveHealth[dept.id]; ok {
 			score := int(lb * 20)
 			if score > 20 {
@@ -93,9 +104,8 @@ func (s *Scorer) ScoreAll(ctx context.Context, companyID int64) ([]DepartmentHea
 			total += 15
 		}
 
-		// 3. Overtime health (0-20): lower OT hours = healthier
+		// 3. Overtime health (0-20)
 		if otHours, ok := overtime[dept.id]; ok {
-			// 0 OT = 20, 10+ avg hours = 0
 			score := 20 - int(otHours*2)
 			if score < 0 {
 				score = 0
@@ -114,7 +124,7 @@ func (s *Scorer) ScoreAll(ctx context.Context, companyID int64) ([]DepartmentHea
 			total += 18
 		}
 
-		// 4. Turnover health (0-20): fewer separations = healthier
+		// 4. Turnover health (0-20)
 		if sepCount, ok := turnover[dept.id]; ok {
 			score := 20
 			if sepCount >= 1 {
@@ -137,7 +147,7 @@ func (s *Scorer) ScoreAll(ctx context.Context, companyID int64) ([]DepartmentHea
 			total += 20
 		}
 
-		// 5. Grievance health (0-20): fewer open grievances = healthier
+		// 5. Grievance health (0-20)
 		if gCount, ok := grievances[dept.id]; ok {
 			score := 20
 			if gCount >= 1 {
@@ -172,7 +182,7 @@ func (s *Scorer) ScoreAll(ctx context.Context, companyID int64) ([]DepartmentHea
 		})
 	}
 
-	return results, nil
+	return results
 }
 
 // UpsertScores persists calculated health scores into team_health_scores table.

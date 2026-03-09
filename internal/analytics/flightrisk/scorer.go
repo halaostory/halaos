@@ -74,8 +74,18 @@ func (s *Scorer) ScoreAll(ctx context.Context, companyID int64) ([]EmployeeRisk,
 		deptTurnover = map[int64]int64{}
 	}
 
-	// Compute risk scores
-	now := time.Now()
+	return computeScores(employees, attendanceRisk, leaveRisk, salaryStagnant, deptTurnover, time.Now()), nil
+}
+
+// computeScores calculates flight risk scores from pre-loaded data maps.
+func computeScores(
+	employees []employeeInfo,
+	attendanceRisk map[int64]attendanceData,
+	leaveRisk map[int64]leaveData,
+	salaryStagnant map[int64]time.Time,
+	deptTurnover map[int64]int64,
+	now time.Time,
+) []EmployeeRisk {
 	var results []EmployeeRisk
 
 	for _, emp := range employees {
@@ -84,10 +94,6 @@ func (s *Scorer) ScoreAll(ctx context.Context, companyID int64) ([]EmployeeRisk,
 
 		// 1. Attendance deterioration (+20)
 		if ad, ok := attendanceRisk[emp.id]; ok {
-			// Compare recent 30-day late rate vs previous 60-day late rate
-			// older covers 60 days (day 31..90), recent covers 30 days (day 1..30)
-			// Normalize: recent rate = recent/30, older rate = older/60
-			// If recent rate > 1.3 * older rate → flag
 			if ad.older > 0 {
 				recentRate := float64(ad.recent) / 30.0
 				olderRate := float64(ad.older) / 60.0
@@ -100,7 +106,6 @@ func (s *Scorer) ScoreAll(ctx context.Context, companyID int64) ([]EmployeeRisk,
 					score += 20
 				}
 			} else if ad.recent >= 3 {
-				// No prior history but frequent recent lates
 				factors = append(factors, RiskFactor{
 					Factor: "attendance_deterioration",
 					Points: 20,
@@ -134,7 +139,7 @@ func (s *Scorer) ScoreAll(ctx context.Context, companyID int64) ([]EmployeeRisk,
 				salaryPoints = 15
 			case monthsSince >= 12:
 				salaryPoints = 10
-			default: // 6-12 months (loader already filters < 6)
+			default:
 				salaryPoints = 5
 			}
 			factors = append(factors, RiskFactor{
@@ -167,7 +172,7 @@ func (s *Scorer) ScoreAll(ctx context.Context, companyID int64) ([]EmployeeRisk,
 					deptPoints = 15
 				case sepCount == 2:
 					deptPoints = 10
-				default: // 1 departure
+				default:
 					deptPoints = 5
 				}
 				factors = append(factors, RiskFactor{
@@ -179,7 +184,6 @@ func (s *Scorer) ScoreAll(ctx context.Context, companyID int64) ([]EmployeeRisk,
 			}
 		}
 
-		// Cap at 100
 		if score > 100 {
 			score = 100
 		}
@@ -196,7 +200,7 @@ func (s *Scorer) ScoreAll(ctx context.Context, companyID int64) ([]EmployeeRisk,
 		}
 	}
 
-	return results, nil
+	return results
 }
 
 // UpsertScores persists calculated risk scores into employee_risk_scores table.

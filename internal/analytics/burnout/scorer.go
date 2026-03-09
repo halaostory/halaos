@@ -78,6 +78,18 @@ func (s *Scorer) ScoreAll(ctx context.Context, companyID int64) ([]EmployeeBurno
 		irregularity = map[int64]float64{}
 	}
 
+	return computeScores(employees, otFrequency, leaveAvoidance, longHours, weekendWork, irregularity), nil
+}
+
+// computeScores calculates burnout scores from pre-loaded data maps.
+func computeScores(
+	employees []employeeInfo,
+	otFrequency map[int64]otData,
+	leaveAvoidance map[int64]leaveAvoidData,
+	longHours map[int64]hoursData,
+	weekendWork map[int64]int64,
+	irregularity map[int64]float64,
+) []EmployeeBurnout {
 	var results []EmployeeBurnout
 
 	for _, emp := range employees {
@@ -201,7 +213,7 @@ func (s *Scorer) ScoreAll(ctx context.Context, companyID int64) ([]EmployeeBurno
 		}
 	}
 
-	return results, nil
+	return results
 }
 
 // UpsertScores persists calculated burnout scores.
