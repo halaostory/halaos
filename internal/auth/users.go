@@ -52,6 +52,7 @@ func (h *Handler) ListUsers(c *gin.Context) {
 
 func (h *Handler) UpdateUserRole(c *gin.Context) {
 	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	companyID := GetCompanyID(c)
 	var req struct {
 		Role string `json:"role" binding:"required"`
 	}
@@ -65,7 +66,7 @@ func (h *Handler) UpdateUserRole(c *gin.Context) {
 		return
 	}
 	if err := h.queries.UpdateUserRole(c.Request.Context(), store.UpdateUserRoleParams{
-		ID: id, Role: req.Role,
+		ID: id, Role: req.Role, CompanyID: companyID,
 	}); err != nil {
 		response.InternalError(c, "Failed to update role")
 		return
@@ -75,6 +76,7 @@ func (h *Handler) UpdateUserRole(c *gin.Context) {
 
 func (h *Handler) UpdateUserStatus(c *gin.Context) {
 	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	companyID := GetCompanyID(c)
 	var req struct {
 		Status string `json:"status" binding:"required"`
 	}
@@ -88,7 +90,7 @@ func (h *Handler) UpdateUserStatus(c *gin.Context) {
 		return
 	}
 	if err := h.queries.UpdateUserStatus(c.Request.Context(), store.UpdateUserStatusParams{
-		ID: id, Status: req.Status,
+		ID: id, Status: req.Status, CompanyID: companyID,
 	}); err != nil {
 		response.InternalError(c, "Failed to update status")
 		return

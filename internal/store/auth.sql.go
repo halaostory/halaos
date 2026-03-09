@@ -212,16 +212,17 @@ func (q *Queries) UpdateLastLogin(ctx context.Context, id int64) error {
 }
 
 const updateUserPassword = `-- name: UpdateUserPassword :exec
-UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2
+UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2 AND company_id = $3
 `
 
 type UpdateUserPasswordParams struct {
 	PasswordHash string `json:"password_hash"`
 	ID           int64  `json:"id"`
+	CompanyID    int64  `json:"company_id"`
 }
 
 func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
-	_, err := q.db.Exec(ctx, updateUserPassword, arg.PasswordHash, arg.ID)
+	_, err := q.db.Exec(ctx, updateUserPassword, arg.PasswordHash, arg.ID, arg.CompanyID)
 	return err
 }
 
@@ -232,7 +233,7 @@ UPDATE users SET
     avatar_url = COALESCE($4, avatar_url),
     locale = COALESCE($5, locale),
     updated_at = NOW()
-WHERE id = $1
+WHERE id = $1 AND company_id = $6
 RETURNING id, company_id, email, password_hash, first_name, last_name, role, status, avatar_url, locale, last_login_at, created_at, updated_at
 `
 
@@ -242,6 +243,7 @@ type UpdateUserProfileParams struct {
 	LastName  string  `json:"last_name"`
 	AvatarUrl *string `json:"avatar_url"`
 	Locale    string  `json:"locale"`
+	CompanyID int64   `json:"company_id"`
 }
 
 func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error) {
@@ -251,6 +253,7 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		arg.LastName,
 		arg.AvatarUrl,
 		arg.Locale,
+		arg.CompanyID,
 	)
 	var i User
 	err := row.Scan(
@@ -272,29 +275,31 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 }
 
 const updateUserRole = `-- name: UpdateUserRole :exec
-UPDATE users SET role = $2, updated_at = NOW() WHERE id = $1
+UPDATE users SET role = $2, updated_at = NOW() WHERE id = $1 AND company_id = $3
 `
 
 type UpdateUserRoleParams struct {
-	ID   int64  `json:"id"`
-	Role string `json:"role"`
+	ID        int64  `json:"id"`
+	Role      string `json:"role"`
+	CompanyID int64  `json:"company_id"`
 }
 
 func (q *Queries) UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) error {
-	_, err := q.db.Exec(ctx, updateUserRole, arg.ID, arg.Role)
+	_, err := q.db.Exec(ctx, updateUserRole, arg.ID, arg.Role, arg.CompanyID)
 	return err
 }
 
 const updateUserStatus = `-- name: UpdateUserStatus :exec
-UPDATE users SET status = $2, updated_at = NOW() WHERE id = $1
+UPDATE users SET status = $2, updated_at = NOW() WHERE id = $1 AND company_id = $3
 `
 
 type UpdateUserStatusParams struct {
-	ID     int64  `json:"id"`
-	Status string `json:"status"`
+	ID        int64  `json:"id"`
+	Status    string `json:"status"`
+	CompanyID int64  `json:"company_id"`
 }
 
 func (q *Queries) UpdateUserStatus(ctx context.Context, arg UpdateUserStatusParams) error {
-	_, err := q.db.Exec(ctx, updateUserStatus, arg.ID, arg.Status)
+	_, err := q.db.Exec(ctx, updateUserStatus, arg.ID, arg.Status, arg.CompanyID)
 	return err
 }

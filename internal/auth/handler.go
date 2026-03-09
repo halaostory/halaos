@@ -326,6 +326,7 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 	if err := h.queries.UpdateUserPassword(c.Request.Context(), store.UpdateUserPasswordParams{
 		PasswordHash: string(hashedPassword),
 		ID:           userID,
+		CompanyID:    GetCompanyID(c),
 	}); err != nil {
 		response.InternalError(c, "Failed to update password")
 		return
@@ -353,6 +354,7 @@ func (h *Handler) UpdateProfile(c *gin.Context) {
 		FirstName: req.FirstName,
 		LastName:  req.LastName,
 		Locale:    req.Locale,
+		CompanyID: GetCompanyID(c),
 	})
 	if err != nil {
 		h.logger.Error("failed to update profile", "error", err)
@@ -438,6 +440,7 @@ func (h *Handler) UploadAvatar(c *gin.Context) {
 	user, err := h.queries.UpdateUserProfile(c.Request.Context(), store.UpdateUserProfileParams{
 		ID:        userID,
 		AvatarUrl: &avatarURL,
+		CompanyID: GetCompanyID(c),
 	})
 	if err != nil {
 		h.logger.Error("failed to update avatar url", "error", err)

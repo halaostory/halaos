@@ -16,7 +16,7 @@ SELECT * FROM users WHERE company_id = $1 AND email = $2 LIMIT 1;
 UPDATE users SET last_login_at = NOW() WHERE id = $1;
 
 -- name: UpdateUserPassword :exec
-UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2;
+UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2 AND company_id = $3;
 
 -- name: UpdateUserProfile :one
 UPDATE users SET
@@ -25,11 +25,11 @@ UPDATE users SET
     avatar_url = COALESCE($4, avatar_url),
     locale = COALESCE($5, locale),
     updated_at = NOW()
-WHERE id = $1
+WHERE id = $1 AND company_id = $6
 RETURNING *;
 
 -- name: UpdateUserRole :exec
-UPDATE users SET role = $2, updated_at = NOW() WHERE id = $1;
+UPDATE users SET role = $2, updated_at = NOW() WHERE id = $1 AND company_id = $3;
 
 -- name: ListUsersByCompany :many
 SELECT * FROM users WHERE company_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3;
@@ -38,7 +38,7 @@ SELECT * FROM users WHERE company_id = $1 ORDER BY created_at DESC LIMIT $2 OFFS
 SELECT COUNT(*) FROM users WHERE company_id = $1;
 
 -- name: UpdateUserStatus :exec
-UPDATE users SET status = $2, updated_at = NOW() WHERE id = $1;
+UPDATE users SET status = $2, updated_at = NOW() WHERE id = $1 AND company_id = $3;
 
 -- name: AdminResetPassword :exec
 UPDATE users SET password_hash = $2, updated_at = NOW() WHERE id = $1 AND company_id = $3;
