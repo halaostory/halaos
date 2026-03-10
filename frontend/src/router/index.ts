@@ -145,6 +145,13 @@ const router = createRouter({
           component: () => import("../views/AnalyticsView.vue"),
           meta: { roles: ["super_admin", "admin"] },
         },
+        // Org Intelligence
+        {
+          path: "org-intelligence",
+          name: "org-intelligence",
+          component: () => import("../views/OrgIntelligenceView.vue"),
+          meta: { roles: ["super_admin", "admin", "manager"] },
+        },
         // Self-Service
         {
           path: "self-service",

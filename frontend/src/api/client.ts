@@ -465,6 +465,22 @@ export const analyticsAPI = {
   },
 };
 
+// Org Intelligence
+export const orgIntelligenceAPI = {
+  getOverview: () => get("/v1/org-intelligence/overview"),
+  getTrends: (params?: Record<string, string>) =>
+    get("/v1/org-intelligence/trends", params),
+  getRiskDistribution: () => get("/v1/org-intelligence/risk-distribution"),
+  getCorrelations: () => get("/v1/org-intelligence/correlations"),
+  getEmployeeTrends: (id: number, params?: Record<string, string>) =>
+    get(`/v1/org-intelligence/employee/${id}/trends`, params),
+  getDepartmentTrends: (id: number, params?: Record<string, string>) =>
+    get(`/v1/org-intelligence/department/${id}/trends`, params),
+  getExecutiveBriefing: () => get("/v1/org-intelligence/executive-briefing"),
+  generateBriefing: () =>
+    post("/v1/org-intelligence/executive-briefing/generate"),
+};
+
 // Self-Service
 export const selfServiceAPI = {
   getMyInfo: () => get("/v1/self-service/info"),

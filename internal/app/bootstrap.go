@@ -32,6 +32,7 @@ import (
 	connectorgithub "github.com/tonypk/aigonhr/internal/integration/connector/github"
 	"github.com/tonypk/aigonhr/internal/integration/crypto"
 	"github.com/tonypk/aigonhr/internal/analytics"
+	"github.com/tonypk/aigonhr/internal/orgintel"
 	"github.com/tonypk/aigonhr/internal/announcement"
 	"github.com/tonypk/aigonhr/internal/approval"
 	"github.com/tonypk/aigonhr/internal/attendance"
@@ -230,8 +231,8 @@ func (a *App) setupRoutes() {
 	var aiHandler *ai.Handler
 	var executor *agent.Executor
 	var draftSvc *draft.Service
+	var aiProvider provider.Provider
 	if a.Cfg.AI.Enabled {
-		var aiProvider provider.Provider
 		switch {
 		case a.Cfg.AI.AnthropicKey != "":
 			aiProvider = provider.NewAnthropic(a.Cfg.AI.AnthropicKey, "")
@@ -312,6 +313,14 @@ func (a *App) setupRoutes() {
 	dashboardHandler.RegisterRoutes(protected)
 
 	billingHandler.RegisterRoutes(protected)
+
+	// Org Intelligence
+	var briefGen *orgintel.BriefingGenerator
+	if aiProvider != nil {
+		briefGen = orgintel.NewBriefingGenerator(a.Queries, aiProvider, a.Logger)
+	}
+	orgIntelHandler := orgintel.NewHandler(a.Queries, a.Pool, a.Logger, briefGen)
+	orgIntelHandler.RegisterRoutes(protected)
 
 	if aiHandler != nil {
 		aiHandler.RegisterRoutes(protected)

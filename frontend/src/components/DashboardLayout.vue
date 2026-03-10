@@ -17,7 +17,7 @@ import {
   BarChartOutline, CardOutline, NotificationsOutline, LibraryOutline,
   GridOutline, FileTrayFullOutline, CloudDownloadOutline, BookOutline, CalendarNumberOutline,
   MegaphoneOutline, DocumentTextOutline, SchoolOutline, AlertCircleOutline, MedkitOutline, FolderOpenOutline, ChatbubblesOutline, LocationOutline,
-  LinkOutline,
+  LinkOutline, PulseOutline,
 } from '@vicons/ionicons5'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
@@ -161,6 +161,7 @@ const features: Record<string, boolean> = {
   policies: true,
   'self-service': true,
   holidays: true,
+  'org-intelligence': true,
 }
 
 function isEnabled(key: string): boolean {
@@ -217,6 +218,10 @@ const menuOptions = computed<MenuOption[]>(() => {
     if (isEnabled('analytics')) {
       items.push({ label: t('nav.analytics'), key: 'analytics', icon: renderIcon(BarChartOutline) })
     }
+  }
+
+  if ((auth.isAdmin || auth.isManager) && isEnabled('org-intelligence')) {
+    items.push({ label: t('nav.orgIntelligence'), key: 'org-intelligence', icon: renderIcon(PulseOutline) })
   }
 
   // AI Agent Hub — visible to all

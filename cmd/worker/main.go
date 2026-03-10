@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
+	"github.com/tonypk/aigonhr/internal/ai/provider"
 	"github.com/tonypk/aigonhr/internal/config"
 	"github.com/tonypk/aigonhr/internal/integration"
 	"github.com/tonypk/aigonhr/internal/payroll"
@@ -42,6 +43,19 @@ func main() {
 	calculator := payroll.NewCalculator(queries, pool, logger)
 	provisioningSvc := integration.NewProvisioningService(queries, logger)
 
+	// AI provider (optional — for executive briefings)
+	var aiProvider provider.Provider
+	if cfg.AI.Enabled {
+		switch {
+		case cfg.AI.AnthropicKey != "":
+			aiProvider = provider.NewAnthropic(cfg.AI.AnthropicKey, "")
+			logger.Info("worker AI provider: Anthropic")
+		case cfg.AI.OpenAIKey != "":
+			aiProvider = provider.NewOpenAI(cfg.AI.OpenAIKey, "")
+			logger.Info("worker AI provider: OpenAI")
+		}
+	}
+
 	logger.Info("worker started")
 
 	// Event outbox processor + agent task executor
@@ -68,7 +82,7 @@ func main() {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				runPeriodicJobs(ctx, queries, pool, rdb, logger)
+				runPeriodicJobs(ctx, queries, pool, rdb, aiProvider, logger)
 			}
 		}
 	}()
@@ -135,7 +149,7 @@ func dispatchEvent(ctx context.Context, queries *store.Queries, calculator *payr
 	}
 }
 
-func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.Pool, _ *redis.Client, logger *slog.Logger) {
+func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.Pool, _ *redis.Client, aiProvider provider.Provider, logger *slog.Logger) {
 	logger.Info("running periodic jobs")
 
 	// Auto-close open attendance records from previous day
@@ -173,6 +187,12 @@ func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.
 
 	// Calculate burnout risk scores (weekly, Monday only)
 	calculateBurnoutScores(ctx, queries, pool, logger)
+
+	// Snapshot score history + org aggregates (weekly, Monday only, after scorers)
+	snapshotScoreHistory(ctx, queries, pool, logger)
+
+	// Generate executive briefings (weekly, Monday only, after snapshots)
+	generateExecutiveBriefings(ctx, queries, aiProvider, logger)
 
 	// Generate compliance alerts (daily)
 	generateComplianceAlerts(ctx, queries, pool, logger)

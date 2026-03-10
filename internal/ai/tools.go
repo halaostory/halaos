@@ -67,6 +67,7 @@ func (r *ToolRegistry) Definitions() []provider.ToolDefinition {
 	defs = append(defs, trainingDefs()...)
 	defs = append(defs, disciplinaryDefs()...)
 	defs = append(defs, analyticsDefs()...)
+	defs = append(defs, orgIntelDefs()...)
 	defs = append(defs, clearanceDefs()...)
 	defs = append(defs, scheduleDefs()...)
 	return defs
@@ -96,6 +97,7 @@ func (r *ToolRegistry) registerTools() {
 	r.registerTrainingTools()
 	r.registerDisciplinaryTools()
 	r.registerAnalyticsTools()
+	r.registerOrgIntelTools()
 	r.registerClearanceTools()
 	r.registerScheduleTools()
 }

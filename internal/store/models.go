@@ -716,6 +716,16 @@ type EmploymentHistory struct {
 	CreatedAt        time.Time `json:"created_at"`
 }
 
+type ExecutiveBriefing struct {
+	ID           int64           `json:"id"`
+	CompanyID    int64           `json:"company_id"`
+	WeekDate     time.Time       `json:"week_date"`
+	Narrative    string          `json:"narrative"`
+	DataSnapshot json.RawMessage `json:"data_snapshot"`
+	GeneratedAt  time.Time       `json:"generated_at"`
+	TokensUsed   int32           `json:"tokens_used"`
+}
+
 type ExpenseCategory struct {
 	ID              int64          `json:"id"`
 	CompanyID       int64          `json:"company_id"`
@@ -1158,6 +1168,21 @@ type OnboardingTemplate struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
+type OrgScoreSnapshot struct {
+	ID                 int64           `json:"id"`
+	CompanyID          int64           `json:"company_id"`
+	WeekDate           time.Time       `json:"week_date"`
+	AvgFlightRisk      pgtype.Numeric  `json:"avg_flight_risk"`
+	AvgBurnout         pgtype.Numeric  `json:"avg_burnout"`
+	AvgTeamHealth      pgtype.Numeric  `json:"avg_team_health"`
+	HighRiskCount      int32           `json:"high_risk_count"`
+	HighBurnoutCount   int32           `json:"high_burnout_count"`
+	LowHealthDeptCount int32           `json:"low_health_dept_count"`
+	TotalEmployees     int32           `json:"total_employees"`
+	TotalDepartments   int32           `json:"total_departments"`
+	Metadata           json.RawMessage `json:"metadata"`
+}
+
 type OvertimeRequest struct {
 	ID              int64              `json:"id"`
 	CompanyID       int64              `json:"company_id"`
@@ -1426,6 +1451,34 @@ type ScheduleTemplateDay struct {
 	DayOfWeek  int32  `json:"day_of_week"`
 	ShiftID    *int64 `json:"shift_id"`
 	IsRestDay  bool   `json:"is_rest_day"`
+}
+
+type ScoreHistoryBurnout struct {
+	ID           int64           `json:"id"`
+	CompanyID    int64           `json:"company_id"`
+	EmployeeID   int64           `json:"employee_id"`
+	BurnoutScore int32           `json:"burnout_score"`
+	Factors      json.RawMessage `json:"factors"`
+	WeekDate     time.Time       `json:"week_date"`
+}
+
+type ScoreHistoryFlightRisk struct {
+	ID         int64           `json:"id"`
+	CompanyID  int64           `json:"company_id"`
+	EmployeeID int64           `json:"employee_id"`
+	RiskScore  int32           `json:"risk_score"`
+	Factors    json.RawMessage `json:"factors"`
+	WeekDate   time.Time       `json:"week_date"`
+}
+
+type ScoreHistoryTeamHealth struct {
+	ID             int64           `json:"id"`
+	CompanyID      int64           `json:"company_id"`
+	DepartmentID   int64           `json:"department_id"`
+	DepartmentName string          `json:"department_name"`
+	HealthScore    int32           `json:"health_score"`
+	Factors        json.RawMessage `json:"factors"`
+	WeekDate       time.Time       `json:"week_date"`
 }
 
 type Shift struct {
