@@ -6,12 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"math/big"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-pdf/fpdf"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/tonypk/aigonhr/internal/auth"
@@ -518,4 +520,83 @@ func formatAmount(v interface{}) string {
 	default:
 		return fmt.Sprintf("%v", v)
 	}
+}
+
+// === Auto-Payroll Config ===
+
+func (h *Handler) GetAutoConfig(c *gin.Context) {
+	companyID := auth.GetCompanyID(c)
+
+	cfg, err := h.queries.GetPayrollAutoConfig(c.Request.Context(), companyID)
+	if err != nil {
+		// Return defaults if no config exists
+		response.OK(c, gin.H{
+			"auto_run_enabled":        false,
+			"days_before_pay":         2,
+			"auto_approve_enabled":    false,
+			"max_auto_approve_amount": 0,
+			"notify_on_auto":          true,
+		})
+		return
+	}
+	response.OK(c, cfg)
+}
+
+func (h *Handler) UpdateAutoConfig(c *gin.Context) {
+	var req struct {
+		AutoRunEnabled       bool    `json:"auto_run_enabled"`
+		DaysBeforePay        int32   `json:"days_before_pay"`
+		AutoApproveEnabled   bool    `json:"auto_approve_enabled"`
+		MaxAutoApproveAmount float64 `json:"max_auto_approve_amount"`
+		NotifyOnAuto         bool    `json:"notify_on_auto"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	companyID := auth.GetCompanyID(c)
+
+	if req.DaysBeforePay < 1 {
+		req.DaysBeforePay = 2
+	}
+	if req.DaysBeforePay > 14 {
+		req.DaysBeforePay = 14
+	}
+
+	// Convert float64 to pgtype.Numeric
+	var maxAmount pgtype.Numeric
+	maxAmount.Valid = true
+	maxAmount.Int = big.NewInt(int64(req.MaxAutoApproveAmount * 100))
+	maxAmount.Exp = -2
+
+	cfg, err := h.queries.UpsertPayrollAutoConfig(c.Request.Context(), store.UpsertPayrollAutoConfigParams{
+		CompanyID:            companyID,
+		AutoRunEnabled:       req.AutoRunEnabled,
+		DaysBeforePay:        req.DaysBeforePay,
+		AutoApproveEnabled:   req.AutoApproveEnabled,
+		MaxAutoApproveAmount: maxAmount,
+		NotifyOnAuto:         req.NotifyOnAuto,
+	})
+	if err != nil {
+		response.InternalError(c, "Failed to update auto-payroll config")
+		return
+	}
+	response.OK(c, cfg)
+}
+
+func (h *Handler) ListAutoLogs(c *gin.Context) {
+	companyID := auth.GetCompanyID(c)
+	pg := pagination.Parse(c)
+
+	logs, err := h.queries.ListPayrollAutoLogs(c.Request.Context(), store.ListPayrollAutoLogsParams{
+		CompanyID: companyID,
+		Limit:     int32(pg.Limit),
+		Offset:    int32(pg.Offset),
+	})
+	if err != nil {
+		response.InternalError(c, "Failed to list auto-payroll logs")
+		return
+	}
+	response.OK(c, logs)
 }

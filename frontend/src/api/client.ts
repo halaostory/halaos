@@ -324,6 +324,11 @@ export const payrollAPI = {
     get(`/v1/payroll/cycles/${cycleId}/anomalies`),
   listPayslips: (params?: Record<string, string>) =>
     get("/v1/payroll/payslips", params),
+  getAutoConfig: () => get("/v1/payroll/auto-config"),
+  updateAutoConfig: (data: Record<string, unknown>) =>
+    put("/v1/payroll/auto-config", data),
+  listAutoLogs: (params?: Record<string, string>) =>
+    get("/v1/payroll/auto-logs", params),
 };
 
 // Approvals

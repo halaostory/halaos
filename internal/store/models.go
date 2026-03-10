@@ -1273,6 +1273,28 @@ type PagibigContributionTable struct {
 	MaxEr         pgtype.Numeric `json:"max_er"`
 }
 
+type PayrollAutoConfig struct {
+	ID                   int64          `json:"id"`
+	CompanyID            int64          `json:"company_id"`
+	AutoRunEnabled       bool           `json:"auto_run_enabled"`
+	DaysBeforePay        int32          `json:"days_before_pay"`
+	AutoApproveEnabled   bool           `json:"auto_approve_enabled"`
+	MaxAutoApproveAmount pgtype.Numeric `json:"max_auto_approve_amount"`
+	NotifyOnAuto         bool           `json:"notify_on_auto"`
+	CreatedAt            time.Time      `json:"created_at"`
+	UpdatedAt            time.Time      `json:"updated_at"`
+}
+
+type PayrollAutoLog struct {
+	ID        int64     `json:"id"`
+	CompanyID int64     `json:"company_id"`
+	CycleID   int64     `json:"cycle_id"`
+	RunID     *int64    `json:"run_id"`
+	Action    string    `json:"action"`
+	Detail    *string   `json:"detail"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 type PayrollCycle struct {
 	ID          int64              `json:"id"`
 	CompanyID   int64              `json:"company_id"`

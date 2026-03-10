@@ -15,6 +15,11 @@ import {
   NTabs,
   NTabPane,
   NInputNumber,
+  NSwitch,
+  NCard,
+  NEmpty,
+  NTimeline,
+  NTimelineItem,
   useMessage,
   useDialog,
   type DataTableColumns,
@@ -580,6 +585,70 @@ function handleTabChange(tabName: string) {
   if (tabName === "thirteenth" && thirteenthMonthData.value.length === 0) {
     fetchThirteenthMonth();
   }
+  if (tabName === "auto" && !autoConfigLoaded.value) {
+    fetchAutoConfig();
+    fetchAutoLogs();
+  }
+}
+
+// === Auto-Payroll Config ===
+const autoConfigLoaded = ref(false);
+const autoConfigSaving = ref(false);
+const autoConfig = ref({
+  auto_run_enabled: false,
+  days_before_pay: 2,
+  auto_approve_enabled: false,
+  max_auto_approve_amount: 0,
+  notify_on_auto: true,
+});
+const autoLogs = ref<any[]>([]);
+const autoLogsLoading = ref(false);
+
+async function fetchAutoConfig() {
+  try {
+    const res = await payrollAPI.getAutoConfig();
+    const d = (res as any)?.data ?? res;
+    autoConfig.value = {
+      auto_run_enabled: d.auto_run_enabled ?? false,
+      days_before_pay: d.days_before_pay ?? 2,
+      auto_approve_enabled: d.auto_approve_enabled ?? false,
+      max_auto_approve_amount: parseFloat(d.max_auto_approve_amount) || 0,
+      notify_on_auto: d.notify_on_auto ?? true,
+    };
+    autoConfigLoaded.value = true;
+  } catch {
+    message.error("Failed to load auto-payroll config");
+  }
+}
+
+async function saveAutoConfig() {
+  autoConfigSaving.value = true;
+  try {
+    await payrollAPI.updateAutoConfig(autoConfig.value);
+    message.success(t("payroll.auto.saved"));
+  } catch {
+    message.error("Failed to save auto-payroll config");
+  } finally {
+    autoConfigSaving.value = false;
+  }
+}
+
+async function fetchAutoLogs() {
+  autoLogsLoading.value = true;
+  try {
+    const res = await payrollAPI.listAutoLogs();
+    const d = (res as any)?.data ?? res;
+    autoLogs.value = Array.isArray(d) ? d : [];
+  } catch { /* ignore */ }
+  finally {
+    autoLogsLoading.value = false;
+  }
+}
+
+const actionColor: Record<string, string> = {
+  auto_run: 'info',
+  auto_approve: 'success',
+  auto_skipped: 'warning',
 }
 </script>
 
@@ -623,6 +692,69 @@ function handleTabChange(tabName: string) {
           :data="thirteenthMonthData"
           :loading="thirteenthMonthLoading"
         />
+      </NTabPane>
+
+      <!-- Tab 3: Auto-Payroll Settings -->
+      <NTabPane name="auto" :tab="t('payroll.auto.title')">
+        <div style="max-width: 700px;">
+          <h2 style="margin-bottom: 16px;">{{ t('payroll.auto.title') }}</h2>
+          <p style="opacity: 0.6; margin-bottom: 24px;">{{ t('payroll.auto.subtitle') }}</p>
+
+          <NCard :title="t('payroll.auto.autoRun')" style="margin-bottom: 16px;">
+            <NForm label-placement="left" label-width="220">
+              <NFormItem :label="t('payroll.auto.enableAutoRun')">
+                <NSwitch v-model:value="autoConfig.auto_run_enabled" />
+              </NFormItem>
+              <NFormItem v-if="autoConfig.auto_run_enabled" :label="t('payroll.auto.daysBefore')">
+                <NInputNumber v-model:value="autoConfig.days_before_pay" :min="1" :max="14" style="width: 120px;" />
+              </NFormItem>
+            </NForm>
+          </NCard>
+
+          <NCard :title="t('payroll.auto.autoApprove')" style="margin-bottom: 16px;">
+            <NForm label-placement="left" label-width="220">
+              <NFormItem :label="t('payroll.auto.enableAutoApprove')">
+                <NSwitch v-model:value="autoConfig.auto_approve_enabled" />
+              </NFormItem>
+              <NFormItem v-if="autoConfig.auto_approve_enabled" :label="t('payroll.auto.maxAmount')">
+                <NInputNumber v-model:value="autoConfig.max_auto_approve_amount" :min="0" :step="10000" style="width: 200px;">
+                  <template #prefix>PHP</template>
+                </NInputNumber>
+              </NFormItem>
+              <NFormItem v-if="autoConfig.auto_approve_enabled">
+                <template #label>
+                  <span style="font-size: 12px; opacity: 0.6;">{{ t('payroll.auto.maxAmountHint') }}</span>
+                </template>
+              </NFormItem>
+            </NForm>
+          </NCard>
+
+          <NCard :title="t('payroll.auto.notifications')" style="margin-bottom: 16px;">
+            <NForm label-placement="left" label-width="220">
+              <NFormItem :label="t('payroll.auto.notifyAdmins')">
+                <NSwitch v-model:value="autoConfig.notify_on_auto" />
+              </NFormItem>
+            </NForm>
+          </NCard>
+
+          <NButton type="primary" :loading="autoConfigSaving" @click="saveAutoConfig" style="margin-bottom: 32px;">
+            {{ t('payroll.auto.save') }}
+          </NButton>
+
+          <!-- Auto-Payroll Activity Log -->
+          <h3 style="margin-bottom: 12px;">{{ t('payroll.auto.activityLog') }}</h3>
+          <NEmpty v-if="autoLogs.length === 0 && !autoLogsLoading" :description="t('payroll.auto.noLogs')" />
+          <NTimeline v-else>
+            <NTimelineItem
+              v-for="log in autoLogs"
+              :key="log.id"
+              :type="(actionColor[log.action] || 'default') as 'default' | 'info' | 'success' | 'warning' | 'error'"
+              :title="t('payroll.auto.action_' + log.action)"
+              :content="log.detail || ''"
+              :time="new Date(log.created_at).toLocaleString()"
+            />
+          </NTimeline>
+        </div>
       </NTabPane>
     </NTabs>
 

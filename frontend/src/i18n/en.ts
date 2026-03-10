@@ -465,6 +465,28 @@ export default {
     locked: "Locked",
     cycleLocked: "Payroll cycle locked",
     cycleUnlocked: "Payroll cycle unlocked",
+    auto: {
+      title: "Auto-Payroll",
+      subtitle:
+        "Configure automatic payroll processing. When enabled, the system will automatically run payroll and approve zero-anomaly cycles.",
+      autoRun: "Automatic Run",
+      enableAutoRun: "Enable Auto-Run",
+      daysBefore: "Days Before Pay Date",
+      autoApprove: "Automatic Approval",
+      enableAutoApprove: "Enable Auto-Approve",
+      maxAmount: "Max Auto-Approve Amount",
+      maxAmountHint:
+        "Set to 0 for no limit. Cycles exceeding this total net pay will require manual approval.",
+      notifications: "Notifications",
+      notifyAdmins: "Notify Admins on Auto-Actions",
+      save: "Save Settings",
+      saved: "Auto-payroll settings saved",
+      activityLog: "Activity Log",
+      noLogs: "No automatic payroll activity yet",
+      action_auto_run: "Auto-Run Triggered",
+      action_auto_approve: "Auto-Approved",
+      action_auto_skipped: "Auto-Approve Skipped",
+    },
   },
   salary: {
     title: "Salary Configuration",

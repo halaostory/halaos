@@ -21,4 +21,9 @@ func (h *Handler) RegisterRoutes(protected *gin.RouterGroup) {
 	protected.GET("/payroll/payslips/:id/pdf", h.DownloadPayslipPDF)
 	protected.GET("/payroll/13th-month", auth.AdminOnly(), h.List13thMonthPay)
 	protected.POST("/payroll/13th-month/calculate", auth.AdminOnly(), h.Calculate13thMonth)
+
+	// Auto-payroll config
+	protected.GET("/payroll/auto-config", auth.AdminOnly(), h.GetAutoConfig)
+	protected.PUT("/payroll/auto-config", auth.AdminOnly(), h.UpdateAutoConfig)
+	protected.GET("/payroll/auto-logs", auth.AdminOnly(), h.ListAutoLogs)
 }
