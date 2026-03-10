@@ -24,6 +24,7 @@ import {
   GridComponent,
 } from "echarts/components";
 import { analyticsAPI } from "../api/client";
+import { useCurrency } from "../composables/useCurrency";
 
 use([
   CanvasRenderer,
@@ -37,6 +38,7 @@ use([
 ]);
 
 const { t } = useI18n();
+const { formatCurrency } = useCurrency();
 const loading = ref(true);
 
 // Date filter
@@ -59,14 +61,6 @@ const deptCosts = ref<Record<string, unknown>[]>([]);
 const attendancePatterns = ref<Record<string, unknown>[]>([]);
 const employmentTypes = ref<Record<string, unknown>[]>([]);
 const leaveUtil = ref<Record<string, unknown>[]>([]);
-
-function php(v: unknown): string {
-  return Number(v || 0).toLocaleString("en-PH", {
-    style: "currency",
-    currency: "PHP",
-    maximumFractionDigits: 0,
-  });
-}
 
 const dayNames = computed(() => [
   t("analytics.sun"),
@@ -208,7 +202,7 @@ const deptCostColumns: DataTableColumns = [
     key: "total_salary_cost",
     width: 160,
     render(row) {
-      return php(row.total_salary_cost);
+      return formatCurrency(row.total_salary_cost);
     },
   },
 ];

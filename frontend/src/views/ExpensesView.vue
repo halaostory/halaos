@@ -9,11 +9,13 @@ import {
 } from 'naive-ui'
 import { expenseAPI, formPrefillAPI } from '../api/client'
 import { useAuthStore } from '../stores/auth'
+import { useCurrency } from '../composables/useCurrency'
 import { format } from 'date-fns'
 
 const { t } = useI18n()
 const message = useMessage()
 const auth = useAuthStore()
+const { currency: companyCurrency, formatCurrency } = useCurrency()
 
 interface ExpenseCategory {
   id: number
@@ -73,7 +75,7 @@ const claimForm = ref({
   category_id: null as number | null,
   description: '',
   amount: null as number | null,
-  currency: 'PHP',
+  currency: companyCurrency.value,
   expense_date: Date.now() as number | null,
   notes: '',
   submit: false,
@@ -149,7 +151,7 @@ async function openCreateClaim() {
     category_id: null,
     description: '',
     amount: null,
-    currency: 'PHP',
+    currency: companyCurrency.value,
     expense_date: Date.now(),
     notes: '',
     submit: false,
@@ -280,7 +282,7 @@ const myColumns = computed<DataTableColumns<ExpenseClaim>>(() => [
   { title: t('expense.claimNumber'), key: 'claim_number', width: 120 },
   { title: t('expense.category'), key: 'category_name' },
   { title: t('expense.description'), key: 'description', ellipsis: { tooltip: true } },
-  { title: t('expense.amount'), key: 'amount', width: 120, render: (row) => `${row.currency} ${Number(row.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}` },
+  { title: t('expense.amount'), key: 'amount', width: 120, render: (row) => formatCurrency(row.amount) },
   { title: t('expense.expenseDate'), key: 'expense_date', width: 110, render: (row) => format(new Date(row.expense_date), 'yyyy-MM-dd') },
   {
     title: t('common.status'), key: 'status', width: 100,
@@ -301,7 +303,7 @@ const allColumns = computed<DataTableColumns<ExpenseClaim>>(() => [
   { title: t('expense.claimNumber'), key: 'claim_number', width: 120 },
   { title: t('expense.employee'), key: 'employee', render: (row) => `${row.first_name} ${row.last_name}` },
   { title: t('expense.category'), key: 'category_name' },
-  { title: t('expense.amount'), key: 'amount', width: 120, render: (row) => `${row.currency} ${Number(row.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}` },
+  { title: t('expense.amount'), key: 'amount', width: 120, render: (row) => formatCurrency(row.amount) },
   { title: t('expense.expenseDate'), key: 'expense_date', width: 110, render: (row) => format(new Date(row.expense_date), 'yyyy-MM-dd') },
   {
     title: t('common.status'), key: 'status', width: 100,
@@ -326,7 +328,7 @@ const allColumns = computed<DataTableColumns<ExpenseClaim>>(() => [
 const catColumns = computed<DataTableColumns<ExpenseCategory>>(() => [
   { title: t('expense.categoryName'), key: 'name' },
   { title: t('expense.description'), key: 'description', render: (row) => row.description || '-' },
-  { title: t('expense.maxAmount'), key: 'max_amount', render: (row) => row.max_amount ? `PHP ${Number(row.max_amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}` : '-' },
+  { title: t('expense.maxAmount'), key: 'max_amount', render: (row) => row.max_amount ? formatCurrency(row.max_amount) : '-' },
   {
     title: t('expense.requiresReceipt'), key: 'requires_receipt', width: 120,
     render: (row) => h(NTag, { size: 'small', type: row.requires_receipt ? 'warning' : 'default' }, () => row.requires_receipt ? t('common.yes') : t('common.no')),
@@ -357,17 +359,17 @@ onMounted(fetchAll)
       </NGi>
       <NGi>
         <NCard size="small">
-          <NStatistic :label="t('expense.pendingAmount')" :value="`PHP ${Number(summary.pending_amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`" />
+          <NStatistic :label="t('expense.pendingAmount')" :value="formatCurrency(summary.pending_amount)" />
         </NCard>
       </NGi>
       <NGi>
         <NCard size="small">
-          <NStatistic :label="t('expense.approvedAmount')" :value="`PHP ${Number(summary.approved_amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`" />
+          <NStatistic :label="t('expense.approvedAmount')" :value="formatCurrency(summary.approved_amount)" />
         </NCard>
       </NGi>
       <NGi>
         <NCard size="small">
-          <NStatistic :label="t('expense.paidAmount')" :value="`PHP ${Number(summary.paid_amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`" />
+          <NStatistic :label="t('expense.paidAmount')" :value="formatCurrency(summary.paid_amount)" />
         </NCard>
       </NGi>
     </NGrid>
@@ -406,7 +408,7 @@ onMounted(fetchAll)
         </NFormItem>
         <NFormItem :label="t('expense.amount')">
           <NInputNumber v-model:value="claimForm.amount" :min="0" :precision="2" style="width: 100%;">
-            <template #prefix>PHP</template>
+            <template #prefix>{{ companyCurrency }}</template>
           </NInputNumber>
         </NFormItem>
         <NFormItem :label="t('expense.expenseDate')">
@@ -435,7 +437,7 @@ onMounted(fetchAll)
         </NFormItem>
         <NFormItem :label="t('expense.maxAmount')">
           <NInputNumber v-model:value="catForm.max_amount" :min="0" :precision="2" style="width: 100%;">
-            <template #prefix>PHP</template>
+            <template #prefix>{{ companyCurrency }}</template>
           </NInputNumber>
         </NFormItem>
         <NFormItem :label="t('expense.requiresReceipt')">

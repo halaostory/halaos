@@ -21,6 +21,7 @@ func (h *Handler) RegisterRoutes(public, protected *gin.RouterGroup, loginLimite
 
 	// User Management (admin)
 	protected.GET("/users", AdminOnly(), h.ListUsers)
+	protected.POST("/users/employee-account", AdminOnly(), h.CreateEmployeeUser)
 	protected.PUT("/users/:id/role", AdminOnly(), h.UpdateUserRole)
 	protected.PUT("/users/:id/status", AdminOnly(), h.UpdateUserStatus)
 	protected.POST("/users/:id/reset-password", AdminOnly(), h.AdminResetPassword)

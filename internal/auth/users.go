@@ -9,6 +9,96 @@ import (
 	"github.com/tonypk/aigonhr/pkg/response"
 )
 
+// CreateEmployeeUser creates a login account for an existing employee.
+func (h *Handler) CreateEmployeeUser(c *gin.Context) {
+	companyID := GetCompanyID(c)
+	var req struct {
+		EmployeeID int64  `json:"employee_id" binding:"required"`
+		Email      string `json:"email" binding:"required,email"`
+		Password   string `json:"password" binding:"required"`
+		Role       string `json:"role"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	if len(req.Password) < 8 {
+		response.BadRequest(c, "Password must be at least 8 characters")
+		return
+	}
+	role := req.Role
+	if role == "" {
+		role = "employee"
+	}
+	allowed := map[string]bool{"admin": true, "manager": true, "employee": true}
+	if !allowed[role] {
+		response.BadRequest(c, "Invalid role. Must be admin, manager, or employee")
+		return
+	}
+
+	// Verify employee exists and belongs to this company
+	emp, err := h.queries.GetEmployeeByID(c.Request.Context(), store.GetEmployeeByIDParams{
+		ID: req.EmployeeID, CompanyID: companyID,
+	})
+	if err != nil {
+		response.NotFound(c, "Employee not found")
+		return
+	}
+	if emp.UserID != nil {
+		response.Conflict(c, "Employee already has an account")
+		return
+	}
+
+	hash, err := HashPassword(req.Password)
+	if err != nil {
+		response.InternalError(c, "Failed to hash password")
+		return
+	}
+
+	tx, err := h.pool.Begin(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, "Failed to start transaction")
+		return
+	}
+	defer tx.Rollback(c.Request.Context())
+
+	qtx := h.queries.WithTx(tx)
+
+	user, err := qtx.CreateUser(c.Request.Context(), store.CreateUserParams{
+		CompanyID:    companyID,
+		Email:        req.Email,
+		PasswordHash: hash,
+		FirstName:    emp.FirstName,
+		LastName:     emp.LastName,
+		Role:         role,
+	})
+	if err != nil {
+		response.Conflict(c, "Email already in use")
+		return
+	}
+
+	if err := qtx.LinkUserToEmployee(c.Request.Context(), store.LinkUserToEmployeeParams{
+		UserID:    &user.ID,
+		ID:        emp.ID,
+		CompanyID: companyID,
+	}); err != nil {
+		response.InternalError(c, "Failed to link user to employee")
+		return
+	}
+
+	if err := tx.Commit(c.Request.Context()); err != nil {
+		response.InternalError(c, "Failed to commit")
+		return
+	}
+
+	response.Created(c, gin.H{
+		"user_id":     user.ID,
+		"employee_id": emp.ID,
+		"email":       user.Email,
+		"role":        user.Role,
+	})
+}
+
 func (h *Handler) ListUsers(c *gin.Context) {
 	companyID := GetCompanyID(c)
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))

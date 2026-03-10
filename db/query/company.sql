@@ -4,6 +4,10 @@ SELECT * FROM companies ORDER BY id;
 -- name: CreateCompany :one
 INSERT INTO companies (name) VALUES ($1) RETURNING *;
 
+-- name: CreateCompanyWithCountry :one
+INSERT INTO companies (name, country, currency, timezone, pay_frequency)
+VALUES ($1, $2, $3, $4, $5) RETURNING *;
+
 -- name: GetCompanyByID :one
 SELECT * FROM companies WHERE id = $1;
 

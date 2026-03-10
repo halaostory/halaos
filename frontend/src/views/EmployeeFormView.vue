@@ -155,14 +155,14 @@ async function handleSubmit() {
         <NFormItem :label="t('employee.employeeNo')" required>
           <NInput v-model:value="form.employee_no" :disabled="isEdit" />
         </NFormItem>
-        <NSpace :size="12" style="width: 100%;">
+        <div style="display: flex; gap: 12px;">
           <NFormItem :label="t('auth.firstName')" required style="flex: 1;">
             <NInput v-model:value="form.first_name" />
           </NFormItem>
           <NFormItem :label="t('auth.lastName')" required style="flex: 1;">
             <NInput v-model:value="form.last_name" />
           </NFormItem>
-        </NSpace>
+        </div>
         <NFormItem :label="t('employee.middleName')">
           <NInput v-model:value="form.middle_name" />
         </NFormItem>
@@ -172,14 +172,14 @@ async function handleSubmit() {
         <NFormItem :label="t('employee.phone')">
           <NInput v-model:value="form.phone" />
         </NFormItem>
-        <NSpace :size="12" style="width: 100%;">
+        <div style="display: flex; gap: 12px;">
           <NFormItem :label="t('employee.gender')" style="flex: 1;">
             <NSelect v-model:value="form.gender" :options="genderOptions" clearable />
           </NFormItem>
           <NFormItem :label="t('employee.civilStatus')" style="flex: 1;">
             <NSelect v-model:value="form.civil_status" :options="civilStatusOptions" clearable />
           </NFormItem>
-        </NSpace>
+        </div>
         <NFormItem :label="t('employee.nationality')">
           <NInput v-model:value="form.nationality" />
         </NFormItem>

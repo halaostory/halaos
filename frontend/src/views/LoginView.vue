@@ -18,11 +18,10 @@ const loading = ref(false)
 
 const rules = computed<FormRules>(() => ({
   email: [
-    { required: true, message: t('auth.email'), trigger: 'blur' },
-    { type: 'email', message: t('auth.invalidEmail'), trigger: 'blur' },
+    { required: true, message: t('auth.fieldRequired'), trigger: ['blur', 'input'] },
   ],
   password: [
-    { required: true, message: t('auth.password'), trigger: 'blur' },
+    { required: true, message: t('auth.fieldRequired'), trigger: ['blur', 'input'] },
   ],
 }))
 
@@ -45,16 +44,27 @@ async function handleLogin() {
 </script>
 
 <template>
-  <div style="display: flex; justify-content: center; align-items: center; min-height: 100vh; background: var(--bg-secondary);">
-    <NCard style="width: 400px;" :title="t('auth.loginTitle')">
+  <div class="login-wrapper">
+    <NCard style="width: 400px; max-width: 90vw;" :title="t('auth.loginTitle')">
       <NForm ref="formRef" :model="form" :rules="rules" @submit.prevent="handleLogin">
-        <NFormItem :label="t('auth.email')" path="email">
-          <NInput v-model:value="form.email" type="text" :placeholder="t('common.placeholder.email')" />
+        <NFormItem path="email" :label="t('auth.email')">
+          <NInput
+            v-model:value="form.email"
+            placeholder="email@company.com"
+            autocomplete="username email"
+            :input-props="{ type: 'email' }"
+          />
         </NFormItem>
-        <NFormItem :label="t('auth.password')" path="password">
-          <NInput v-model:value="form.password" type="password" show-password-on="click" />
+        <NFormItem path="password" :label="t('auth.password')">
+          <NInput
+            v-model:value="form.password"
+            type="password"
+            show-password-on="click"
+            :placeholder="t('auth.password')"
+            autocomplete="current-password"
+          />
         </NFormItem>
-        <NButton type="primary" block :loading="loading" attr-type="submit">
+        <NButton type="primary" block :loading="loading" attr-type="submit" style="margin-top: 8px;">
           {{ t('auth.login') }}
         </NButton>
       </NForm>
@@ -67,3 +77,13 @@ async function handleLogin() {
     </NCard>
   </div>
 </template>
+
+<style scoped>
+.login-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: var(--bg-secondary);
+}
+</style>

@@ -17,6 +17,16 @@ const taxExemptCap = 90000.0 // First 90K of 13th month is tax-exempt per TRAIN 
 func (calc *Calculator) Calculate13thMonthPay(ctx context.Context, companyID int64, year int32) ([]store.ThirteenthMonthPay, error) {
 	calc.logger.Info("computing 13th month pay", "company_id", companyID, "year", year)
 
+	// 13th month pay is mandatory only in the Philippines
+	company, err := calc.queries.GetCompanyByID(ctx, companyID)
+	if err != nil {
+		return nil, fmt.Errorf("get company: %w", err)
+	}
+	if company.Country != "PHL" {
+		calc.logger.Info("13th month pay not applicable for country, skipping", "country", company.Country)
+		return nil, nil
+	}
+
 	employees, err := calc.queries.ListActiveEmployees(ctx, companyID)
 	if err != nil {
 		return nil, fmt.Errorf("list employees: %w", err)

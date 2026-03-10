@@ -8,11 +8,13 @@ import {
 } from 'naive-ui'
 import { leaveEncashmentAPI } from '../api/client'
 import { useAuthStore } from '../stores/auth'
+import { useCurrency } from '../composables/useCurrency'
 import { format } from 'date-fns'
 
 const { t } = useI18n()
 const message = useMessage()
 const auth = useAuthStore()
+const { formatCurrency } = useCurrency()
 
 interface ConvertibleBalance {
   id: number
@@ -69,7 +71,7 @@ const maxDays = computed(() => selectedBalance.value?.remaining ?? 0)
 function fmtMoney(v: unknown): string {
   const n = Number(v)
   if (isNaN(n)) return '-'
-  return n.toLocaleString('en-PH', { style: 'currency', currency: 'PHP' })
+  return formatCurrency(n)
 }
 
 function fmtDate(d: unknown): string {

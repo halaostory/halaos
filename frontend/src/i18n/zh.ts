@@ -123,6 +123,26 @@ export default {
     passwordMinLength: "密码至少8个字符",
     fieldRequired: "此字段为必填",
     companyPlaceholder: "您的公司名称",
+    country: "国家",
+  },
+  country: {
+    PHL: "菲律宾",
+    LKA: "斯里兰卡",
+    SGP: "新加坡",
+    IDN: "印度尼西亚",
+    govId: {
+      PHL: {
+        tin: "TIN",
+        sss: "SSS编号",
+        philhealth: "PhilHealth编号",
+        pagibig: "Pag-IBIG编号",
+      },
+      LKA: { tin: "税务编号", epf: "EPF编号", nic: "NIC编号" },
+    },
+    contributions: {
+      PHL: { col1: "SSS", col2: "PhilHealth", col3: "Pag-IBIG" },
+      LKA: { col1: "EPF (员工)", col2: "EPF (雇主)", col3: "ETF (雇主)" },
+    },
   },
   dashboard: {
     title: "仪表盘",
@@ -202,6 +222,10 @@ export default {
     downloadCOE: "下载在职证明",
     timeline: "任职历史",
     noTimeline: "暂无任职记录",
+    createAccount: "创建账号",
+    accountCreated: "登录账号创建成功",
+    noLoginAccount: "无登录账号",
+    hasLoginAccount: "已有登录账号",
     action_hired: "入职",
     action_promoted: "晋升",
     action_transferred: "调岗",

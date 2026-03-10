@@ -11,6 +11,7 @@ declare module 'vue' {
     AiChatInput: typeof import('./src/components/ai/AiChatInput.vue')['default']
     AiConfirmCard: typeof import('./src/components/ai/AiConfirmCard.vue')['default']
     AiFloatingBubble: typeof import('./src/components/ai/AiFloatingBubble.vue')['default']
+    AiFormAssist: typeof import('./src/components/ai/AiFormAssist.vue')['default']
     AiMessageBubble: typeof import('./src/components/ai/AiMessageBubble.vue')['default']
     AiQuickAsk: typeof import('./src/components/ai/AiQuickAsk.vue')['default']
     AiSuggestionChips: typeof import('./src/components/ai/AiSuggestionChips.vue')['default']

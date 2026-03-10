@@ -7,9 +7,11 @@ import {
   type DataTableColumns,
 } from 'naive-ui'
 import { billingAPI } from '../api/client'
+import { useCurrency } from '../composables/useCurrency'
 
 const { t } = useI18n()
 const message = useMessage()
+const { currency: companyCurrency } = useCurrency()
 const loading = ref(true)
 
 // --- Types ---
@@ -335,9 +337,9 @@ function formatTokens(n: number): string {
   return n.toLocaleString()
 }
 
-function formatPrice(price: number, currency: string): string {
-  if (currency === 'PHP') return `₱${price.toLocaleString()}`
-  return `${currency} ${price.toLocaleString()}`
+function formatPrice(price: number, currency?: string): string {
+  const cur = currency || companyCurrency.value
+  return Number(price || 0).toLocaleString('en-US', { style: 'currency', currency: cur })
 }
 
 // --- Mount ---

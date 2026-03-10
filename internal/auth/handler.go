@@ -46,6 +46,7 @@ type registerRequest struct {
 	Password    string `json:"password" binding:"required,min=8"`
 	FirstName   string `json:"first_name" binding:"required"`
 	LastName    string `json:"last_name" binding:"required"`
+	Country     string `json:"country"` // PHL (default), LKA, SGP, IDN
 }
 
 type loginRequest struct {
@@ -64,13 +65,16 @@ type authResponse struct {
 }
 
 type userResponse struct {
-	ID        int64   `json:"id"`
-	Email     string  `json:"email"`
-	FirstName string  `json:"first_name"`
-	LastName  string  `json:"last_name"`
-	Role      string  `json:"role"`
-	CompanyID int64   `json:"company_id"`
-	AvatarUrl *string `json:"avatar_url,omitempty"`
+	ID              int64   `json:"id"`
+	Email           string  `json:"email"`
+	FirstName       string  `json:"first_name"`
+	LastName        string  `json:"last_name"`
+	Role            string  `json:"role"`
+	CompanyID       int64   `json:"company_id"`
+	AvatarUrl       *string `json:"avatar_url,omitempty"`
+	CompanyCountry  string  `json:"company_country,omitempty"`
+	CompanyCurrency string  `json:"company_currency,omitempty"`
+	CompanyTimezone string  `json:"company_timezone,omitempty"`
 }
 
 func (h *Handler) Register(c *gin.Context) {
@@ -106,8 +110,21 @@ func (h *Handler) Register(c *gin.Context) {
 
 	qtx := h.queries.WithTx(tx)
 
-	// Create company
-	company, err := qtx.CreateCompany(c.Request.Context(), req.CompanyName)
+	// Resolve country defaults
+	country := req.Country
+	if country == "" {
+		country = "PHL"
+	}
+	cc := countryConfig(country)
+
+	// Create company with country-specific settings
+	company, err := qtx.CreateCompanyWithCountry(c.Request.Context(), store.CreateCompanyWithCountryParams{
+		Name:         req.CompanyName,
+		Country:      cc.Country,
+		Currency:     cc.Currency,
+		Timezone:     cc.Timezone,
+		PayFrequency: cc.PayFrequency,
+	})
 	if err != nil {
 		h.logger.Error("failed to create company", "error", err)
 		response.InternalError(c, "Registration failed")
@@ -136,7 +153,11 @@ func (h *Handler) Register(c *gin.Context) {
 	})
 	if tokenErr != nil {
 		h.logger.Warn("failed to create initial token balance", "company_id", company.ID, "error", tokenErr)
-		// Non-fatal: continue registration even if token balance creation fails
+	}
+
+	// Seed country-specific leave types and holidays
+	if seedErr := seedCountryDefaults(c.Request.Context(), qtx, company.ID, country); seedErr != nil {
+		h.logger.Warn("failed to seed country defaults", "company_id", company.ID, "country", country, "error", seedErr)
 	}
 
 	if err := tx.Commit(c.Request.Context()); err != nil {
@@ -164,12 +185,15 @@ func (h *Handler) Register(c *gin.Context) {
 		Token:        token,
 		RefreshToken: refreshToken,
 		User: userResponse{
-			ID:        user.ID,
-			Email:     user.Email,
-			FirstName: user.FirstName,
-			LastName:  user.LastName,
-			Role:      user.Role,
-			CompanyID: user.CompanyID,
+			ID:              user.ID,
+			Email:           user.Email,
+			FirstName:       user.FirstName,
+			LastName:        user.LastName,
+			Role:            user.Role,
+			CompanyID:       user.CompanyID,
+			CompanyCountry:  company.Country,
+			CompanyCurrency: company.Currency,
+			CompanyTimezone: company.Timezone,
 		},
 	})
 }
@@ -214,17 +238,27 @@ func (h *Handler) Login(c *gin.Context) {
 	// Update last login
 	_ = h.queries.UpdateLastLogin(c.Request.Context(), user.ID)
 
+	loginResp := userResponse{
+		ID:        user.ID,
+		Email:     user.Email,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		Role:      user.Role,
+		CompanyID: user.CompanyID,
+	}
+
+	// Enrich with company info
+	comp, compErr := h.queries.GetCompanyByID(c.Request.Context(), user.CompanyID)
+	if compErr == nil {
+		loginResp.CompanyCountry = comp.Country
+		loginResp.CompanyCurrency = comp.Currency
+		loginResp.CompanyTimezone = comp.Timezone
+	}
+
 	response.OK(c, authResponse{
 		Token:        token,
 		RefreshToken: refreshToken,
-		User: userResponse{
-			ID:        user.ID,
-			Email:     user.Email,
-			FirstName: user.FirstName,
-			LastName:  user.LastName,
-			Role:      user.Role,
-			CompanyID: user.CompanyID,
-		},
+		User:         loginResp,
 	})
 }
 
@@ -282,7 +316,7 @@ func (h *Handler) Me(c *gin.Context) {
 		return
 	}
 
-	response.OK(c, userResponse{
+	resp := userResponse{
 		ID:        user.ID,
 		Email:     user.Email,
 		FirstName: user.FirstName,
@@ -290,7 +324,17 @@ func (h *Handler) Me(c *gin.Context) {
 		Role:      user.Role,
 		CompanyID: user.CompanyID,
 		AvatarUrl: user.AvatarUrl,
-	})
+	}
+
+	// Enrich with company info
+	company, err := h.queries.GetCompanyByID(c.Request.Context(), user.CompanyID)
+	if err == nil {
+		resp.CompanyCountry = company.Country
+		resp.CompanyCurrency = company.Currency
+		resp.CompanyTimezone = company.Timezone
+	}
+
+	response.OK(c, resp)
 }
 
 type changePasswordRequest struct {

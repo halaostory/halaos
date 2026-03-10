@@ -12,8 +12,10 @@ import {
 } from "naive-ui";
 import { payrollAPI } from "../api/client";
 import { format } from "date-fns";
+import { useCurrency } from "../composables/useCurrency";
 
 const { t } = useI18n();
+const { formatCurrency } = useCurrency();
 const data = ref<Record<string, unknown>[]>([]);
 const loading = ref(false);
 const showDetail = ref(false);
@@ -26,13 +28,6 @@ function fmtDate(d: unknown): string {
   } catch {
     return String(d);
   }
-}
-
-function php(v: unknown): string {
-  return Number(v || 0).toLocaleString("en-PH", {
-    style: "currency",
-    currency: "PHP",
-  });
 }
 
 const columns: DataTableColumns = [
@@ -155,17 +150,17 @@ onMounted(async () => {
             getPayload(selectedPayslip).employee_no || "-"
           }}</NDescriptionsItem>
           <NDescriptionsItem :label="t('payroll.basicPay')">{{
-            php(getPayload(selectedPayslip).basic_pay)
+            formatCurrency(getPayload(selectedPayslip).basic_pay)
           }}</NDescriptionsItem>
           <NDescriptionsItem :label="t('payroll.grossPay')">{{
-            php(getPayload(selectedPayslip).gross_pay)
+            formatCurrency(getPayload(selectedPayslip).gross_pay)
           }}</NDescriptionsItem>
           <NDescriptionsItem :label="t('payroll.deductions')">{{
-            php(getPayload(selectedPayslip).deductions)
+            formatCurrency(getPayload(selectedPayslip).deductions)
           }}</NDescriptionsItem>
           <NDescriptionsItem :label="t('payroll.netPay')">
             <strong>{{
-              php(getPayload(selectedPayslip).net_pay)
+              formatCurrency(getPayload(selectedPayslip).net_pay)
             }}</strong>
           </NDescriptionsItem>
         </NDescriptions>

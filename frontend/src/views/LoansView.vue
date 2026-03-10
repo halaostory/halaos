@@ -23,11 +23,13 @@ import {
 } from "naive-ui";
 import { loanAPI } from "../api/client";
 import { useAuthStore } from "../stores/auth";
+import { useCurrency } from "../composables/useCurrency";
 
 const { t } = useI18n();
 const message = useMessage();
 const dialog = useDialog();
 const auth = useAuthStore();
+const { formatCurrency } = useCurrency();
 
 const activeTab = ref("my-loans");
 const loading = ref(false);
@@ -45,13 +47,6 @@ const showPaymentModal = ref(false);
 
 const loanDetail = ref<Record<string, unknown> | null>(null);
 const loanPayments = ref<Record<string, unknown>[]>([]);
-
-function php(v: unknown): string {
-  return Number(v || 0).toLocaleString("en-PH", {
-    style: "currency",
-    currency: "PHP",
-  });
-}
 
 function fmtDate(d: unknown): string {
   if (!d) return "-";
@@ -126,19 +121,19 @@ const loanColumns: DataTableColumns = [
     title: t("loan.principalAmount"),
     key: "principal_amount",
     width: 120,
-    render(row) { return php(row.principal_amount); },
+    render(row) { return formatCurrency(row.principal_amount); },
   },
   {
     title: t("loan.monthlyAmort"),
     key: "monthly_amortization",
     width: 120,
-    render(row) { return php(row.monthly_amortization); },
+    render(row) { return formatCurrency(row.monthly_amortization); },
   },
   {
     title: t("loan.remainingBalance"),
     key: "remaining_balance",
     width: 120,
-    render(row) { return php(row.remaining_balance); },
+    render(row) { return formatCurrency(row.remaining_balance); },
   },
   {
     title: t("common.status"),
@@ -178,19 +173,19 @@ const myLoanColumns: DataTableColumns = [
     title: t("loan.principalAmount"),
     key: "principal_amount",
     width: 120,
-    render(row) { return php(row.principal_amount); },
+    render(row) { return formatCurrency(row.principal_amount); },
   },
   {
     title: t("loan.monthlyAmort"),
     key: "monthly_amortization",
     width: 120,
-    render(row) { return php(row.monthly_amortization); },
+    render(row) { return formatCurrency(row.monthly_amortization); },
   },
   {
     title: t("loan.remainingBalance"),
     key: "remaining_balance",
     width: 120,
-    render(row) { return php(row.remaining_balance); },
+    render(row) { return formatCurrency(row.remaining_balance); },
   },
   {
     title: t("loan.startDate"),
@@ -228,7 +223,7 @@ const paymentColumns: DataTableColumns = [
     title: t("loan.paymentAmount"),
     key: "amount",
     width: 120,
-    render(row) { return php(row.amount); },
+    render(row) { return formatCurrency(row.amount); },
   },
   { title: t("loan.paymentType"), key: "payment_type", width: 100 },
   { title: t("employee.remarks"), key: "remarks" },
@@ -480,13 +475,13 @@ onMounted(async () => {
             {{ loanDetail.first_name }} {{ loanDetail.last_name }}
           </NDescriptionsItem>
           <NDescriptionsItem :label="t('loan.typeName')">{{ loanDetail.loan_type_name }}</NDescriptionsItem>
-          <NDescriptionsItem :label="t('loan.principalAmount')">{{ php(loanDetail.principal_amount) }}</NDescriptionsItem>
-          <NDescriptionsItem :label="t('loan.totalAmount')">{{ php(loanDetail.total_amount) }}</NDescriptionsItem>
-          <NDescriptionsItem :label="t('loan.monthlyAmort')">{{ php(loanDetail.monthly_amortization) }}</NDescriptionsItem>
+          <NDescriptionsItem :label="t('loan.principalAmount')">{{ formatCurrency(loanDetail.principal_amount) }}</NDescriptionsItem>
+          <NDescriptionsItem :label="t('loan.totalAmount')">{{ formatCurrency(loanDetail.total_amount) }}</NDescriptionsItem>
+          <NDescriptionsItem :label="t('loan.monthlyAmort')">{{ formatCurrency(loanDetail.monthly_amortization) }}</NDescriptionsItem>
           <NDescriptionsItem :label="t('loan.termMonths')">{{ loanDetail.term_months }}</NDescriptionsItem>
-          <NDescriptionsItem :label="t('loan.totalPaid')">{{ php(loanDetail.total_paid) }}</NDescriptionsItem>
+          <NDescriptionsItem :label="t('loan.totalPaid')">{{ formatCurrency(loanDetail.total_paid) }}</NDescriptionsItem>
           <NDescriptionsItem :label="t('loan.remainingBalance')">
-            <strong>{{ php(loanDetail.remaining_balance) }}</strong>
+            <strong>{{ formatCurrency(loanDetail.remaining_balance) }}</strong>
           </NDescriptionsItem>
           <NDescriptionsItem :label="t('loan.startDate')">{{ fmtDate(loanDetail.start_date) }}</NDescriptionsItem>
           <NDescriptionsItem :label="t('loan.endDate')">{{ fmtDate(loanDetail.end_date) }}</NDescriptionsItem>

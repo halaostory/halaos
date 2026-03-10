@@ -123,6 +123,26 @@ export default {
     passwordMinLength: "Password must be at least 8 characters",
     fieldRequired: "This field is required",
     companyPlaceholder: "Your Company Inc.",
+    country: "Country",
+  },
+  country: {
+    PHL: "Philippines",
+    LKA: "Sri Lanka",
+    SGP: "Singapore",
+    IDN: "Indonesia",
+    govId: {
+      PHL: {
+        tin: "TIN",
+        sss: "SSS No.",
+        philhealth: "PhilHealth No.",
+        pagibig: "Pag-IBIG No.",
+      },
+      LKA: { tin: "Tax File No.", epf: "EPF No.", nic: "NIC No." },
+    },
+    contributions: {
+      PHL: { col1: "SSS", col2: "PhilHealth", col3: "Pag-IBIG" },
+      LKA: { col1: "EPF (EE)", col2: "EPF (ER)", col3: "ETF (ER)" },
+    },
   },
   dashboard: {
     title: "Dashboard",
@@ -202,6 +222,10 @@ export default {
     downloadCOE: "Download COE",
     timeline: "Employment Timeline",
     noTimeline: "No employment history yet",
+    createAccount: "Create Account",
+    accountCreated: "Login account created successfully",
+    noLoginAccount: "No login account",
+    hasLoginAccount: "Has login account",
     action_hired: "Hired",
     action_promoted: "Promoted",
     action_transferred: "Transferred",

@@ -25,6 +25,8 @@ import {
   type DataTableColumns,
 } from "naive-ui";
 import { payrollAPI, exportAPI, thirteenthMonthAPI } from "../api/client";
+import { useCurrency } from "../composables/useCurrency";
+import { useAuthStore } from "../stores/auth";
 
 interface AnomalyItem {
   type: string;
@@ -62,6 +64,10 @@ import { format } from "date-fns";
 const { t } = useI18n();
 const message = useMessage();
 const dialog = useDialog();
+const { formatCurrency } = useCurrency();
+const authStore = useAuthStore();
+const companyCountry = computed(() => authStore.user?.company_country || "PHL");
+const isLKA = computed(() => companyCountry.value === "LKA");
 
 // Active tab
 const activeTab = ref("cycles");
@@ -92,11 +98,16 @@ const cycleForm = ref({
   cycle_type: "regular",
 });
 
-const cycleTypeOptions = computed(() => [
-  { label: t("payroll.typeRegular"), value: "regular" },
-  { label: t("payroll.type13th"), value: "13th_month" },
-  { label: t("payroll.typeFinal"), value: "final_pay" },
-]);
+const cycleTypeOptions = computed(() => {
+  const opts = [
+    { label: t("payroll.typeRegular"), value: "regular" },
+    { label: t("payroll.typeFinal"), value: "final_pay" },
+  ];
+  if (companyCountry.value === "PHL") {
+    opts.splice(1, 0, { label: t("payroll.type13th"), value: "13th_month" });
+  }
+  return opts;
+});
 
 const statusColorMap: Record<string, string> = {
   draft: "default",
@@ -344,13 +355,6 @@ async function handleRunPayroll(row: Record<string, unknown>) {
   });
 }
 
-function php(v: unknown): string {
-  return Number(v || 0).toLocaleString("en-PH", {
-    style: "currency",
-    currency: "PHP",
-  });
-}
-
 async function handleViewItems(row: Record<string, unknown>) {
   itemsTitle.value = String(row.name || "");
   itemsLoading.value = true;
@@ -504,7 +508,7 @@ const thirteenthMonthColumns: DataTableColumns = [
     key: "total_basic_salary",
     width: 150,
     render(row) {
-      return php(row.total_basic_salary);
+      return formatCurrency(row.total_basic_salary);
     },
   },
   {
@@ -512,7 +516,7 @@ const thirteenthMonthColumns: DataTableColumns = [
     key: "thirteenth_month_amount",
     width: 160,
     render(row) {
-      return php(row.thirteenth_month_amount);
+      return formatCurrency(row.thirteenth_month_amount);
     },
   },
   {
@@ -520,7 +524,7 @@ const thirteenthMonthColumns: DataTableColumns = [
     key: "tax_exempt",
     width: 130,
     render(row) {
-      return php(row.tax_exempt);
+      return formatCurrency(row.tax_exempt);
     },
   },
   {
@@ -528,7 +532,7 @@ const thirteenthMonthColumns: DataTableColumns = [
     key: "taxable",
     width: 120,
     render(row) {
-      return php(row.taxable);
+      return formatCurrency(row.taxable);
     },
   },
   {
@@ -666,8 +670,8 @@ const actionColor: Record<string, string> = {
         <NDataTable :columns="columns" :data="data" :loading="loading" />
       </NTabPane>
 
-      <!-- Tab 2: 13th Month Pay -->
-      <NTabPane name="thirteenth" :tab="t('payroll.thirteenth.title')">
+      <!-- Tab 2: 13th Month Pay (PHL only) -->
+      <NTabPane v-if="companyCountry === 'PHL'" name="thirteenth" :tab="t('payroll.thirteenth.title')">
         <NSpace justify="space-between" style="margin-bottom: 16px">
           <h2>{{ t("payroll.thirteenth.title") }}</h2>
           <NSpace align="center">
@@ -908,56 +912,47 @@ const actionColor: Record<string, string> = {
             title: t('payroll.basicPay'),
             key: 'basic_pay',
             width: 110,
-            render: (r: Record<string, unknown>) => php(r.basic_pay),
+            render: (r: Record<string, unknown>) => formatCurrency(r.basic_pay),
           },
           {
             title: t('payroll.grossPay'),
             key: 'gross_pay',
             width: 110,
-            render: (r: Record<string, unknown>) => php(r.gross_pay),
+            render: (r: Record<string, unknown>) => formatCurrency(r.gross_pay),
           },
           {
             title: t('payroll.nightDiff'),
             key: 'night_diff',
             width: 100,
-            render: (r: Record<string, unknown>) => php(r.night_diff),
+            render: (r: Record<string, unknown>) => formatCurrency(r.night_diff),
           },
           {
             title: t('payroll.holidayPay'),
             key: 'holiday_pay',
             width: 100,
-            render: (r: Record<string, unknown>) => php(r.holiday_pay),
+            render: (r: Record<string, unknown>) => formatCurrency(r.holiday_pay),
           },
-          {
-            title: t('compliance.sss'),
-            key: 'sss_ee',
-            width: 90,
-            render: (r: Record<string, unknown>) => php(r.sss_ee),
-          },
-          {
-            title: t('compliance.philhealth'),
-            key: 'philhealth_ee',
-            width: 90,
-            render: (r: Record<string, unknown>) => php(r.philhealth_ee),
-          },
-          {
-            title: t('compliance.pagibig'),
-            key: 'pagibig_ee',
-            width: 90,
-            render: (r: Record<string, unknown>) => php(r.pagibig_ee),
-          },
+          ...(isLKA ? [
+            { title: 'EPF (EE)', key: 'epf_ee', width: 90, render: (r: Record<string, unknown>) => formatCurrency(r.epf_ee) },
+            { title: 'EPF (ER)', key: 'epf_er', width: 90, render: (r: Record<string, unknown>) => formatCurrency(r.epf_er) },
+            { title: 'ETF (ER)', key: 'etf_er', width: 90, render: (r: Record<string, unknown>) => formatCurrency(r.etf_er) },
+          ] : [
+            { title: t('compliance.sss'), key: 'sss_ee', width: 90, render: (r: Record<string, unknown>) => formatCurrency(r.sss_ee) },
+            { title: t('compliance.philhealth'), key: 'philhealth_ee', width: 90, render: (r: Record<string, unknown>) => formatCurrency(r.philhealth_ee) },
+            { title: t('compliance.pagibig'), key: 'pagibig_ee', width: 90, render: (r: Record<string, unknown>) => formatCurrency(r.pagibig_ee) },
+          ]),
           {
             title: t('payroll.deductions'),
             key: 'withholding_tax',
             width: 90,
             render: (r: Record<string, unknown>) =>
-              php(r.withholding_tax),
+              formatCurrency(r.withholding_tax),
           },
           {
             title: t('payroll.netPay'),
             key: 'net_pay',
             width: 110,
-            render: (r: Record<string, unknown>) => php(r.net_pay),
+            render: (r: Record<string, unknown>) => formatCurrency(r.net_pay),
           },
         ]"
         :data="payrollItems"

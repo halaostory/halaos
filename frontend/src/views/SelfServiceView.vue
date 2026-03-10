@@ -19,9 +19,11 @@ import {
   NButton,
 } from "naive-ui";
 import { selfServiceAPI, leaveAPI, loanAPI } from "../api/client";
+import { useCurrency } from "../composables/useCurrency";
 
 const { t } = useI18n();
 const router = useRouter();
+const { formatCurrency } = useCurrency();
 
 const loading = ref(true);
 const employee = ref<Record<string, unknown> | null>(null);
@@ -35,13 +37,6 @@ const onboardingTasks = ref<Record<string, unknown>[]>([]);
 const onboardingProgress = ref<Record<string, unknown> | null>(null);
 const leaveBalances = ref<Record<string, unknown>[]>([]);
 const activeLoans = ref<Record<string, unknown>[]>([]);
-
-function php(v: unknown): string {
-  return Number(v || 0).toLocaleString("en-PH", {
-    style: "currency",
-    currency: "PHP",
-  });
-}
 
 function fmtDate(d: unknown): string {
   if (!d) return "-";
@@ -174,7 +169,7 @@ onMounted(async () => {
             <template v-if="salary">
               <NDescriptions label-placement="left" :column="1" bordered size="small" style="margin-bottom: 12px">
                 <NDescriptionsItem :label="t('selfService.currentSalary')">
-                  {{ php(salary.basic_salary) }}
+                  {{ formatCurrency(salary.basic_salary) }}
                 </NDescriptionsItem>
                 <NDescriptionsItem v-if="salary.structure_name" :label="t('selfService.structure')">
                   {{ salary.structure_name }}
@@ -193,13 +188,13 @@ onMounted(async () => {
                   {{ latestPayslip.cycle_name }} ({{ fmtDate(latestPayslip.period_start) }} ~ {{ fmtDate(latestPayslip.period_end) }})
                 </NDescriptionsItem>
                 <NDescriptionsItem :label="t('selfService.grossPay')">
-                  {{ php(latestPayslip.gross_pay) }}
+                  {{ formatCurrency(latestPayslip.gross_pay) }}
                 </NDescriptionsItem>
                 <NDescriptionsItem :label="t('selfService.deductions')">
-                  {{ php(latestPayslip.total_deductions) }}
+                  {{ formatCurrency(latestPayslip.total_deductions) }}
                 </NDescriptionsItem>
                 <NDescriptionsItem :label="t('selfService.netPay')">
-                  <strong>{{ php(latestPayslip.net_pay) }}</strong>
+                  <strong>{{ formatCurrency(latestPayslip.net_pay) }}</strong>
                 </NDescriptionsItem>
               </NDescriptions>
             </template>
@@ -238,9 +233,9 @@ onMounted(async () => {
                 <NThing :title="(loan.loan_type_name as string) || '-'">
                   <template #description>
                     <NSpace :size="12">
-                      <span>{{ t('selfService.principal') }}: {{ php(loan.principal_amount) }}</span>
-                      <span>{{ t('selfService.remaining') }}: {{ php(loan.remaining_balance) }}</span>
-                      <span>{{ t('selfService.monthly') }}: {{ php(loan.monthly_amortization) }}</span>
+                      <span>{{ t('selfService.principal') }}: {{ formatCurrency(loan.principal_amount) }}</span>
+                      <span>{{ t('selfService.remaining') }}: {{ formatCurrency(loan.remaining_balance) }}</span>
+                      <span>{{ t('selfService.monthly') }}: {{ formatCurrency(loan.monthly_amortization) }}</span>
                       <NTag :type="loan.status === 'active' ? 'success' : 'info'" size="small">
                         {{ loan.status }}
                       </NTag>

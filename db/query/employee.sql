@@ -18,6 +18,9 @@ SELECT * FROM employees WHERE id = $1 AND company_id = $2;
 -- name: GetEmployeeByNo :one
 SELECT * FROM employees WHERE employee_no = $1 AND company_id = $2;
 
+-- name: LinkUserToEmployee :exec
+UPDATE employees SET user_id = $1 WHERE id = $2 AND company_id = $3;
+
 -- name: ListEmployees :many
 SELECT * FROM employees
 WHERE company_id = $1

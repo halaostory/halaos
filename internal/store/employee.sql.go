@@ -557,6 +557,21 @@ func (q *Queries) GetOrgChartData(ctx context.Context, companyID int64) ([]GetOr
 	return items, nil
 }
 
+const linkUserToEmployee = `-- name: LinkUserToEmployee :exec
+UPDATE employees SET user_id = $1 WHERE id = $2 AND company_id = $3
+`
+
+type LinkUserToEmployeeParams struct {
+	UserID    *int64 `json:"user_id"`
+	ID        int64  `json:"id"`
+	CompanyID int64  `json:"company_id"`
+}
+
+func (q *Queries) LinkUserToEmployee(ctx context.Context, arg LinkUserToEmployeeParams) error {
+	_, err := q.db.Exec(ctx, linkUserToEmployee, arg.UserID, arg.ID, arg.CompanyID)
+	return err
+}
+
 const listActiveEmployees = `-- name: ListActiveEmployees :many
 SELECT id, company_id, user_id, employee_no, first_name, last_name, middle_name, suffix, display_name, email, phone, birth_date, gender, civil_status, nationality, department_id, position_id, cost_center_id, manager_id, hire_date, regularization_date, separation_date, employment_type, status, created_at, updated_at, contract_end_date FROM employees
 WHERE company_id = $1 AND status = 'active'

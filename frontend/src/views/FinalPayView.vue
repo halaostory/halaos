@@ -9,9 +9,11 @@ import {
 } from 'naive-ui'
 import { finalPayAPI, employeeAPI } from '../api/client'
 import { format } from 'date-fns'
+import { useCurrency } from '../composables/useCurrency'
 
 const { t } = useI18n()
 const message = useMessage()
+const { formatCurrency } = useCurrency()
 
 const records = ref<Record<string, unknown>[]>([])
 const loading = ref(false)
@@ -46,10 +48,6 @@ function fmtDate(d: unknown): string {
   try { return format(new Date(d as string), 'yyyy-MM-dd') } catch { return String(d) }
 }
 
-function php(v: unknown): string {
-  return Number(v || 0).toLocaleString('en-PH', { style: 'currency', currency: 'PHP' })
-}
-
 const statusMap: Record<string, 'success' | 'warning' | 'error' | 'info' | 'default'> = {
   calculated: 'info', approved: 'warning', released: 'success', cancelled: 'error',
 }
@@ -59,7 +57,7 @@ const columns: DataTableColumns = [
   { title: t('employee.name'), key: 'name', width: 150, render: (r) => `${r.first_name} ${r.last_name}` },
   { title: t('finalPay.separationDate'), key: 'separation_date', width: 110, render: (r) => fmtDate(r.separation_date) },
   { title: t('finalPay.reason'), key: 'separation_reason', width: 120 },
-  { title: t('finalPay.totalFinalPay'), key: 'total_final_pay', width: 130, render: (r) => php(r.total_final_pay) },
+  { title: t('finalPay.totalFinalPay'), key: 'total_final_pay', width: 130, render: (r) => formatCurrency(r.total_final_pay) },
   {
     title: t('common.status'), key: 'status', width: 100,
     render: (r) => h(NTag, { type: statusMap[r.status as string] || 'default', size: 'small' }, () => String(r.status))
@@ -190,7 +188,7 @@ async function updateStatus(row: Record<string, unknown>, status: string) {
 
         <NDescriptions bordered :column="1" style="margin-bottom: 16px;">
           <NDescriptionsItem :label="t('finalPay.totalFinalPay')">
-            <strong style="font-size: 16px; color: #18a058;">{{ php(computedTotal()) }}</strong>
+            <strong style="font-size: 16px; color: #18a058;">{{ formatCurrency(computedTotal()) }}</strong>
           </NDescriptionsItem>
         </NDescriptions>
 

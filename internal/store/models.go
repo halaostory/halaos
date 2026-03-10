@@ -527,6 +527,40 @@ type CostCenter struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type CountryContributionRate struct {
+	ID               int64          `json:"id"`
+	Country          string         `json:"country"`
+	ContributionType string         `json:"contribution_type"`
+	Rate             pgtype.Numeric `json:"rate"`
+	EffectiveFrom    time.Time      `json:"effective_from"`
+	EffectiveTo      pgtype.Date    `json:"effective_to"`
+	Description      *string        `json:"description"`
+	CreatedAt        time.Time      `json:"created_at"`
+}
+
+type CountryPayrollConfig struct {
+	ID          int64           `json:"id"`
+	Country     string          `json:"country"`
+	ConfigKey   string          `json:"config_key"`
+	ConfigValue json.RawMessage `json:"config_value"`
+	Description *string         `json:"description"`
+	CreatedAt   time.Time       `json:"created_at"`
+}
+
+type CountryTaxBracket struct {
+	ID            int64          `json:"id"`
+	Country       string         `json:"country"`
+	EffectiveFrom time.Time      `json:"effective_from"`
+	EffectiveTo   pgtype.Date    `json:"effective_to"`
+	Frequency     string         `json:"frequency"`
+	BracketMin    pgtype.Numeric `json:"bracket_min"`
+	BracketMax    pgtype.Numeric `json:"bracket_max"`
+	TaxRate       pgtype.Numeric `json:"tax_rate"`
+	FixedAmount   pgtype.Numeric `json:"fixed_amount"`
+	Description   *string        `json:"description"`
+	CreatedAt     time.Time      `json:"created_at"`
+}
+
 type Department struct {
 	ID             int64     `json:"id"`
 	CompanyID      int64     `json:"company_id"`

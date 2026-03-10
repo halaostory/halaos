@@ -57,7 +57,7 @@ type EmployeePayData struct {
 	LeaveDeduction     float64
 	GrossPay           float64
 
-	// Government contributions (employee share)
+	// Government contributions — Philippines
 	SSSEE          float64
 	SSSER          float64
 	SSSEC          float64
@@ -66,6 +66,11 @@ type EmployeePayData struct {
 	PagIBIGEE      float64
 	PagIBIGER      float64
 	WithholdingTax float64
+
+	// Government contributions — Sri Lanka
+	EPFEE float64
+	EPFER float64
+	ETFER float64
 
 	// Final
 	TotalDeductions float64
@@ -162,6 +167,12 @@ func (calc *Calculator) RunPayroll(ctx context.Context, runID int64, companyID i
 		return calc.failRun(ctx, runID, fmt.Errorf("period %s to %s has 0 working days", periodStart.Format("2006-01-02"), periodEnd.Format("2006-01-02")))
 	}
 
+	// Fetch company to determine country for payroll routing
+	company, err := calc.queries.GetCompanyByID(ctx, companyID)
+	if err != nil {
+		return calc.failRun(ctx, runID, fmt.Errorf("get company: %w", err))
+	}
+
 	var totalGross, totalDeductions, totalNet float64
 	var processedCount int32
 
@@ -219,18 +230,37 @@ func (calc *Calculator) RunPayroll(ctx context.Context, runID int64, companyID i
 			pd.SpecialHolidayDays = ha.SpecialNonWorkDays
 		}
 
-		// Compute pay
-		calc.computePay(&pd, workingDaysInPeriod)
+		// Country-specific payroll computation
+		switch company.Country {
+		case "LKA":
+			calc.computePayLK(&pd, workingDaysInPeriod)
+			calc.computeContributionsLK(ctx, &pd, effectiveDate)
+			calc.computeWithholdingTaxLK(ctx, &pd, effectiveDate)
 
-		// Government contributions
-		calc.computeContributions(ctx, &pd, effectiveDate)
+			pd.TotalDeductions = pd.EPFEE + pd.WithholdingTax +
+				pd.LateDeduction + pd.UndertimeDeduction + pd.LeaveDeduction
 
-		// Withholding tax
-		calc.computeWithholdingTax(ctx, &pd, effectiveDate)
+			pd.Breakdown["epf_ee"] = pd.EPFEE
+			pd.Breakdown["epf_er"] = pd.EPFER
+			pd.Breakdown["etf_er"] = pd.ETFER
+			pd.Breakdown["apit"] = pd.WithholdingTax
 
-		// Finals
-		pd.TotalDeductions = pd.SSSEE + pd.PhilHealthEE + pd.PagIBIGEE +
-			pd.WithholdingTax + pd.LateDeduction + pd.UndertimeDeduction + pd.LeaveDeduction
+		default: // PHL and others — existing PH logic
+			calc.computePay(&pd, workingDaysInPeriod)
+			calc.computeContributions(ctx, &pd, effectiveDate)
+			calc.computeWithholdingTax(ctx, &pd, effectiveDate)
+
+			pd.TotalDeductions = pd.SSSEE + pd.PhilHealthEE + pd.PagIBIGEE +
+				pd.WithholdingTax + pd.LateDeduction + pd.UndertimeDeduction + pd.LeaveDeduction
+
+			pd.Breakdown["sss_ee"] = pd.SSSEE
+			pd.Breakdown["sss_er"] = pd.SSSER
+			pd.Breakdown["philhealth_ee"] = pd.PhilHealthEE
+			pd.Breakdown["philhealth_er"] = pd.PhilHealthER
+			pd.Breakdown["pagibig_ee"] = pd.PagIBIGEE
+			pd.Breakdown["pagibig_er"] = pd.PagIBIGER
+		}
+
 		pd.NetPay = pd.GrossPay - pd.TotalDeductions
 
 		pd.Breakdown["basic_pay"] = pd.BasicPay
@@ -240,12 +270,6 @@ func (calc *Calculator) RunPayroll(ctx context.Context, runID int64, companyID i
 		pd.Breakdown["late_deduction"] = pd.LateDeduction
 		pd.Breakdown["undertime_deduction"] = pd.UndertimeDeduction
 		pd.Breakdown["leave_deduction"] = pd.LeaveDeduction
-		pd.Breakdown["sss_ee"] = pd.SSSEE
-		pd.Breakdown["sss_er"] = pd.SSSER
-		pd.Breakdown["philhealth_ee"] = pd.PhilHealthEE
-		pd.Breakdown["philhealth_er"] = pd.PhilHealthER
-		pd.Breakdown["pagibig_ee"] = pd.PagIBIGEE
-		pd.Breakdown["pagibig_er"] = pd.PagIBIGER
 		pd.Breakdown["withholding_tax"] = pd.WithholdingTax
 		pd.Breakdown["days_worked"] = pd.DaysWorked
 		pd.Breakdown["working_days_in_period"] = workingDaysInPeriod
@@ -253,6 +277,7 @@ func (calc *Calculator) RunPayroll(ctx context.Context, runID int64, companyID i
 		pd.Breakdown["night_hours"] = pd.NightHours
 		pd.Breakdown["regular_holiday_days"] = pd.RegularHolidayDays
 		pd.Breakdown["special_holiday_days"] = pd.SpecialHolidayDays
+		pd.Breakdown["country"] = company.Country
 
 		breakdownJSON, _ := json.Marshal(pd.Breakdown)
 

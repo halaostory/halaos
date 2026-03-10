@@ -9,6 +9,9 @@ interface User {
   last_name: string;
   role: string;
   company_id: number;
+  company_country?: string;
+  company_currency?: string;
+  company_timezone?: string;
 }
 
 interface AuthResponse {
@@ -63,6 +66,7 @@ export const useAuthStore = defineStore("auth", () => {
     password: string;
     first_name: string;
     last_name: string;
+    country?: string;
   }) {
     const raw = await authAPI.register(data);
     const res = extractAuthData(raw);

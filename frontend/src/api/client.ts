@@ -582,6 +582,12 @@ export const notificationAPI = {
 // User Management
 export const userAPI = {
   list: (params?: Record<string, string>) => get("/v1/users", params),
+  createEmployeeAccount: (data: {
+    employee_id: number;
+    email: string;
+    password: string;
+    role?: string;
+  }) => post("/v1/users/employee-account", data),
   updateRole: (id: number, role: string) =>
     put(`/v1/users/${id}/role`, { role }),
   updateStatus: (id: number, status: string) =>

@@ -49,6 +49,61 @@ func (q *Queries) CreateCompany(ctx context.Context, name string) (Company, erro
 	return i, err
 }
 
+const createCompanyWithCountry = `-- name: CreateCompanyWithCountry :one
+INSERT INTO companies (name, country, currency, timezone, pay_frequency)
+VALUES ($1, $2, $3, $4, $5) RETURNING id, name, legal_name, tin, bir_rdo, address, city, province, zip_code, country, timezone, currency, pay_frequency, status, logo_url, created_at, updated_at, geofence_enabled, sss_er_no, philhealth_er_no, pagibig_er_no, bank_name, bank_branch, bank_account_no, bank_account_name, contact_person, contact_email, contact_phone
+`
+
+type CreateCompanyWithCountryParams struct {
+	Name         string `json:"name"`
+	Country      string `json:"country"`
+	Currency     string `json:"currency"`
+	Timezone     string `json:"timezone"`
+	PayFrequency string `json:"pay_frequency"`
+}
+
+func (q *Queries) CreateCompanyWithCountry(ctx context.Context, arg CreateCompanyWithCountryParams) (Company, error) {
+	row := q.db.QueryRow(ctx, createCompanyWithCountry,
+		arg.Name,
+		arg.Country,
+		arg.Currency,
+		arg.Timezone,
+		arg.PayFrequency,
+	)
+	var i Company
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.LegalName,
+		&i.Tin,
+		&i.BirRdo,
+		&i.Address,
+		&i.City,
+		&i.Province,
+		&i.ZipCode,
+		&i.Country,
+		&i.Timezone,
+		&i.Currency,
+		&i.PayFrequency,
+		&i.Status,
+		&i.LogoUrl,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.GeofenceEnabled,
+		&i.SssErNo,
+		&i.PhilhealthErNo,
+		&i.PagibigErNo,
+		&i.BankName,
+		&i.BankBranch,
+		&i.BankAccountNo,
+		&i.BankAccountName,
+		&i.ContactPerson,
+		&i.ContactEmail,
+		&i.ContactPhone,
+	)
+	return i, err
+}
+
 const createCostCenter = `-- name: CreateCostCenter :one
 INSERT INTO cost_centers (company_id, code, name)
 VALUES ($1, $2, $3)

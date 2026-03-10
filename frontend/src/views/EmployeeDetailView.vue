@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { useAuthStore } from "../stores/auth";
@@ -28,14 +28,18 @@ import {
   type UploadFileInfo,
 } from "naive-ui";
 import { h } from "vue";
-import { employeeAPI, salaryAPI, companyAPI, integrationAPI } from "../api/client";
+import { employeeAPI, salaryAPI, companyAPI, integrationAPI, userAPI } from "../api/client";
 import { format } from "date-fns";
+import { useCurrency } from "../composables/useCurrency";
 
 const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
 const message = useMessage();
 const authStore = useAuthStore();
+const { formatCurrency } = useCurrency();
+const companyCountry = computed(() => authStore.user?.company_country || "PHL");
+const isPHL = computed(() => companyCountry.value === "PHL");
 const employee = ref<Record<string, unknown> | null>(null);
 const profile = ref<Record<string, unknown> | null>(null);
 const salary = ref<Record<string, unknown> | null>(null);
@@ -52,13 +56,6 @@ function fmtDate(d: unknown): string {
   } catch {
     return String(d);
   }
-}
-
-function php(v: unknown): string {
-  return Number(v || 0).toLocaleString("en-PH", {
-    style: "currency",
-    currency: "PHP",
-  });
 }
 
 const statusMap: Record<
@@ -504,6 +501,51 @@ function downloadCOE() {
     .catch(() => message.error(t("common.failed")));
 }
 
+// Create Employee Account modal
+const showAccountModal = ref(false);
+const accountLoading = ref(false);
+const accountForm = ref({
+  email: '',
+  password: '',
+  role: 'employee',
+});
+const roleOptions = [
+  { label: 'Admin', value: 'admin' },
+  { label: 'Manager', value: 'manager' },
+  { label: 'Employee', value: 'employee' },
+];
+
+async function handleCreateAccount() {
+  if (!accountForm.value.email || !accountForm.value.password) {
+    message.warning(t('profile.fillAllFields'));
+    return;
+  }
+  if (accountForm.value.password.length < 8) {
+    message.warning(t('auth.passwordTooShort'));
+    return;
+  }
+  accountLoading.value = true;
+  try {
+    const id = Number(route.params.id);
+    await userAPI.createEmployeeAccount({
+      employee_id: id,
+      email: accountForm.value.email,
+      password: accountForm.value.password,
+      role: accountForm.value.role,
+    });
+    message.success(t('employee.accountCreated'));
+    showAccountModal.value = false;
+    // Refresh employee data to show user_id
+    const res = await employeeAPI.get(id) as { success: boolean; data: Record<string, unknown> };
+    employee.value = res.data || (res as unknown as Record<string, unknown>);
+  } catch (e: unknown) {
+    const err = e as { data?: { error?: { message?: string } } };
+    message.error(err.data?.error?.message || t('common.saveFailed'));
+  } finally {
+    accountLoading.value = false;
+  }
+}
+
 async function handleAssignSalary() {
   if (!salaryForm.value.basic_salary || !salaryForm.value.effective_from) {
     message.warning(t("common.fillAllFields"));
@@ -550,6 +592,8 @@ async function handleAssignSalary() {
       <NSpace justify="space-between">
         <h2>{{ employee.first_name }} {{ employee.last_name }}</h2>
         <NSpace>
+          <NButton v-if="authStore.isAdmin && !employee.user_id" type="info" @click="() => { accountForm.email = String(employee?.email || ''); showAccountModal = true; }">{{ t("employee.createAccount") }}</NButton>
+          <NTag v-if="employee.user_id" type="success" size="small">{{ t("employee.hasLoginAccount") }}</NTag>
           <NButton v-if="authStore.isAdmin" type="warning" @click="openStatusChange">{{ t("employee.changeStatus") }}</NButton>
           <NButton v-if="authStore.isAdmin || authStore.isManager" @click="showLetterModal = true">{{ t("employee.generateLetter") }}</NButton>
           <NButton v-if="authStore.isAdmin || authStore.isManager" @click="downloadCOE">{{ t("employee.downloadCOE") }}</NButton>
@@ -617,18 +661,28 @@ async function handleAssignSalary() {
 
       <NCard :title="t('employee.govIds')" v-if="profile">
         <NDescriptions label-placement="left" :column="2" bordered>
-          <NDescriptionsItem :label="t('employee.tin')">{{
+          <NDescriptionsItem :label="isPHL ? t('employee.tin') : t('country.govId.LKA.tin')">{{
             profile.tin || "-"
           }}</NDescriptionsItem>
-          <NDescriptionsItem :label="t('employee.sssNo')">{{
-            profile.sss_no || "-"
-          }}</NDescriptionsItem>
-          <NDescriptionsItem :label="t('employee.philhealthNo')">{{
-            profile.philhealth_no || "-"
-          }}</NDescriptionsItem>
-          <NDescriptionsItem :label="t('employee.pagibigNo')">{{
-            profile.pagibig_no || "-"
-          }}</NDescriptionsItem>
+          <template v-if="isPHL">
+            <NDescriptionsItem :label="t('employee.sssNo')">{{
+              profile.sss_no || "-"
+            }}</NDescriptionsItem>
+            <NDescriptionsItem :label="t('employee.philhealthNo')">{{
+              profile.philhealth_no || "-"
+            }}</NDescriptionsItem>
+            <NDescriptionsItem :label="t('employee.pagibigNo')">{{
+              profile.pagibig_no || "-"
+            }}</NDescriptionsItem>
+          </template>
+          <template v-else-if="companyCountry === 'LKA'">
+            <NDescriptionsItem :label="t('country.govId.LKA.epf')">{{
+              profile.sss_no || "-"
+            }}</NDescriptionsItem>
+            <NDescriptionsItem :label="t('country.govId.LKA.nic')">{{
+              profile.philhealth_no || "-"
+            }}</NDescriptionsItem>
+          </template>
           <NDescriptionsItem :label="t('employee.bank')">{{
             profile.bank_name || "-"
           }}</NDescriptionsItem>
@@ -660,7 +714,7 @@ async function handleAssignSalary() {
         <template v-if="salary">
           <NDescriptions label-placement="left" :column="2" bordered>
             <NDescriptionsItem :label="t('employee.basicSalary')">{{
-              php(salary.basic_salary)
+              formatCurrency(salary.basic_salary)
             }}</NDescriptionsItem>
             <NDescriptionsItem :label="t('employee.effectiveFrom')">{{
               fmtDate(salary.effective_from)
@@ -766,6 +820,30 @@ async function handleAssignSalary() {
           <NSpace>
             <NButton type="primary" :loading="letterLoading" @click="generateLetter">{{ t("employee.generateLetter") }}</NButton>
             <NButton @click="showLetterModal = false">{{ t("common.cancel") }}</NButton>
+          </NSpace>
+        </NForm>
+      </NModal>
+
+      <!-- Create Account Modal -->
+      <NModal
+        v-model:show="showAccountModal"
+        preset="card"
+        :title="t('employee.createAccount')"
+        style="width: 420px"
+      >
+        <NForm label-placement="left" label-width="100">
+          <NFormItem :label="t('auth.email')" required>
+            <NInput v-model:value="accountForm.email" placeholder="email@company.com" />
+          </NFormItem>
+          <NFormItem :label="t('auth.password')" required>
+            <NInput v-model:value="accountForm.password" type="password" show-password-on="click" placeholder="Min 8 characters" />
+          </NFormItem>
+          <NFormItem :label="t('auth.role')">
+            <NSelect v-model:value="accountForm.role" :options="roleOptions" />
+          </NFormItem>
+          <NSpace>
+            <NButton type="primary" :loading="accountLoading" @click="handleCreateAccount">{{ t("common.save") }}</NButton>
+            <NButton @click="showAccountModal = false">{{ t("common.cancel") }}</NButton>
           </NSpace>
         </NForm>
       </NModal>

@@ -66,6 +66,12 @@ type AnomalyReport struct {
 
 // DetectAnomalies runs rule-based anomaly detection on a payroll run.
 func (calc *Calculator) DetectAnomalies(ctx context.Context, runID, companyID int64) (*AnomalyReport, error) {
+	// Get company for country-aware checks
+	company, err := calc.queries.GetCompanyByID(ctx, companyID)
+	if err != nil {
+		return nil, fmt.Errorf("get company: %w", err)
+	}
+
 	// Get the run
 	run, err := calc.queries.GetPayrollRun(ctx, store.GetPayrollRunParams{
 		ID:        runID,
@@ -128,35 +134,58 @@ func (calc *Calculator) DetectAnomalies(ctx context.Context, runID, companyID in
 				EmployeeID:   item.EmployeeID,
 				EmployeeName: name,
 				EmployeeNo:   item.EmployeeNo,
-				Description:  fmt.Sprintf("Net pay is negative: PHP %.2f", netPay),
+				Description:  fmt.Sprintf("Net pay is negative: %s %.2f", company.Currency, netPay),
 				CurrentValue: netPay,
 			})
 		}
 
-		// Rule 3: Zero government contributions when gross > 0
-		if grossPay > 0 && sssEE == 0 && philhealthEE == 0 && pagibigEE == 0 {
-			report.Anomalies = append(report.Anomalies, Anomaly{
-				Type:         AnomalyZeroContribution,
-				Severity:     SeverityHigh,
-				EmployeeID:   item.EmployeeID,
-				EmployeeName: name,
-				EmployeeNo:   item.EmployeeNo,
-				Description:  "All government contributions are zero despite positive gross pay",
-				CurrentValue: 0,
-				ExpectedValue: grossPay * 0.08, // approx 8% total EE contributions
-			})
+		// Rule 3: Zero government contributions when gross > 0 (country-aware)
+		if grossPay > 0 {
+			var breakdown map[string]interface{}
+			_ = json.Unmarshal(item.Breakdown, &breakdown)
+
+			hasContributions := false
+			switch company.Country {
+			case "LKA":
+				epfEE, _ := breakdown["epf_ee"].(float64)
+				if epfEE > 0 {
+					hasContributions = true
+				}
+			default: // PHL
+				if sssEE > 0 || philhealthEE > 0 || pagibigEE > 0 {
+					hasContributions = true
+				}
+			}
+			if !hasContributions {
+				report.Anomalies = append(report.Anomalies, Anomaly{
+					Type:          AnomalyZeroContribution,
+					Severity:      SeverityHigh,
+					EmployeeID:    item.EmployeeID,
+					EmployeeName:  name,
+					EmployeeNo:    item.EmployeeNo,
+					Description:   "All government contributions are zero despite positive gross pay",
+					CurrentValue:  0,
+					ExpectedValue: grossPay * 0.08,
+				})
+			}
 		}
 
-		// Rule 4: Zero withholding tax when taxable income > 20833 (monthly tax-free threshold)
-		if taxableIncome > 20833 && withholdingTax == 0 {
+		// Rule 4: Zero withholding tax (country-aware thresholds)
+		taxFreeThreshold := 20833.0 // PH monthly tax-free
+		currencyLabel := "PHP"
+		if company.Country == "LKA" {
+			taxFreeThreshold = 150000.0 // LK APIT monthly tax-free
+			currencyLabel = "LKR"
+		}
+		if taxableIncome > taxFreeThreshold && withholdingTax == 0 {
 			report.Anomalies = append(report.Anomalies, Anomaly{
-				Type:         AnomalyZeroTax,
-				Severity:     SeverityHigh,
-				EmployeeID:   item.EmployeeID,
-				EmployeeName: name,
-				EmployeeNo:   item.EmployeeNo,
-				Description:  fmt.Sprintf("Zero withholding tax with taxable income PHP %.2f (above PHP 20,833 threshold)", taxableIncome),
-				CurrentValue: withholdingTax,
+				Type:          AnomalyZeroTax,
+				Severity:      SeverityHigh,
+				EmployeeID:    item.EmployeeID,
+				EmployeeName:  name,
+				EmployeeNo:    item.EmployeeNo,
+				Description:   fmt.Sprintf("Zero withholding tax with taxable income %s %.2f (above %s %.0f threshold)", currencyLabel, taxableIncome, currencyLabel, taxFreeThreshold),
+				CurrentValue:  withholdingTax,
 				ExpectedValue: taxableIncome,
 			})
 		}
@@ -203,7 +232,7 @@ func (calc *Calculator) DetectAnomalies(ctx context.Context, runID, companyID in
 				EmployeeID:   item.EmployeeID,
 				EmployeeName: name,
 				EmployeeNo:   item.EmployeeNo,
-				Description:  fmt.Sprintf("Late deduction (PHP %.2f) exceeds 20%% of basic pay (PHP %.2f)", lateDeduction, basicPay),
+				Description:  fmt.Sprintf("Late deduction (%s %.2f) exceeds 20%% of basic pay (%s %.2f)", company.Currency, lateDeduction, company.Currency, basicPay),
 				CurrentValue: lateDeduction,
 				ExpectedValue: basicPay * 0.2,
 			})
@@ -239,7 +268,7 @@ func (calc *Calculator) DetectAnomalies(ctx context.Context, runID, companyID in
 							EmployeeID:    item.EmployeeID,
 							EmployeeName:  name,
 							EmployeeNo:    item.EmployeeNo,
-							Description:   fmt.Sprintf("Gross pay PHP %.2f deviates %.1f%% from historical average PHP %.2f", grossPay, deviation, avgGross),
+							Description:   fmt.Sprintf("Gross pay %s %.2f deviates %.1f%% from historical average %s %.2f", company.Currency, grossPay, deviation, company.Currency, avgGross),
 							CurrentValue:  grossPay,
 							ExpectedValue: avgGross,
 							Deviation:     deviation,
@@ -256,7 +285,7 @@ func (calc *Calculator) DetectAnomalies(ctx context.Context, runID, companyID in
 							EmployeeID:    item.EmployeeID,
 							EmployeeName:  name,
 							EmployeeNo:    item.EmployeeNo,
-							Description:   fmt.Sprintf("Net pay PHP %.2f deviates %.1f%% from historical average PHP %.2f", netPay, deviation, avgNet),
+							Description:   fmt.Sprintf("Net pay %s %.2f deviates %.1f%% from historical average %s %.2f", company.Currency, netPay, deviation, company.Currency, avgNet),
 							CurrentValue:  netPay,
 							ExpectedValue: avgNet,
 							Deviation:     deviation,
@@ -278,7 +307,7 @@ func (calc *Calculator) DetectAnomalies(ctx context.Context, runID, companyID in
 							EmployeeID:    item.EmployeeID,
 							EmployeeName:  name,
 							EmployeeNo:    item.EmployeeNo,
-							Description:   fmt.Sprintf("Basic pay changed %.1f%% (PHP %.2f → PHP %.2f)", basicDeviation, prevBasic, basicPay),
+							Description:   fmt.Sprintf("Basic pay changed %.1f%% (%s %.2f → %s %.2f)", basicDeviation, company.Currency, prevBasic, company.Currency, basicPay),
 							CurrentValue:  basicPay,
 							ExpectedValue: prevBasic,
 							Deviation:     basicDeviation,

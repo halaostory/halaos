@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { NCard, NForm, NFormItem, NInput, NButton, NSpace, useMessage } from 'naive-ui'
+import { NCard, NForm, NFormItem, NInput, NButton, NSpace, NSelect, useMessage } from 'naive-ui'
 import type { FormRules, FormInst } from 'naive-ui'
 import { useAuthStore } from '../stores/auth'
 
@@ -18,7 +18,15 @@ const form = ref({
   password: '',
   first_name: '',
   last_name: '',
+  country: 'PHL',
 })
+
+const countryOptions = [
+  { label: 'Philippines', value: 'PHL' },
+  { label: 'Sri Lanka', value: 'LKA' },
+  { label: 'Singapore', value: 'SGP' },
+  { label: 'Indonesia', value: 'IDN' },
+]
 const loading = ref(false)
 
 const rules = computed<FormRules>(() => ({
@@ -64,6 +72,9 @@ async function handleRegister() {
       <NForm ref="formRef" :model="form" :rules="rules" @submit.prevent="handleRegister">
         <NFormItem :label="t('auth.companyName')" path="company_name">
           <NInput v-model:value="form.company_name" :placeholder="t('auth.companyPlaceholder')" />
+        </NFormItem>
+        <NFormItem :label="t('auth.country')" path="country">
+          <NSelect v-model:value="form.country" :options="countryOptions" />
         </NFormItem>
         <NSpace :size="12" style="width: 100%;">
           <NFormItem :label="t('auth.firstName')" path="first_name" style="flex: 1;">

@@ -4,9 +4,13 @@ import { useI18n } from 'vue-i18n'
 import { NCard, NForm, NFormItem, NInput, NSelect, NButton, NSpace, NUpload, NAvatar, NSwitch, NTag, NPopconfirm, NEmpty, useMessage } from 'naive-ui'
 import type { UploadFileInfo } from 'naive-ui'
 import { companyAPI, botAPI, byokAPI } from '../api/client'
+import { useAuthStore } from '../stores/auth'
 
 const { t } = useI18n()
 const message = useMessage()
+const authStore = useAuthStore()
+const companyCountry = computed(() => authStore.user?.company_country || 'PHL')
+const isPHL = computed(() => companyCountry.value === 'PHL')
 const loading = ref(false)
 const logoUploading = ref(false)
 const logoUrl = ref<string | null>(null)
@@ -313,7 +317,7 @@ onMounted(() => {
         <NFormItem :label="t('settings.tin')">
           <NInput v-model:value="form.tin" />
         </NFormItem>
-        <NFormItem :label="t('settings.birRdo')">
+        <NFormItem v-if="isPHL" :label="t('settings.birRdo')">
           <NInput v-model:value="form.bir_rdo" />
         </NFormItem>
         <NFormItem :label="t('settings.address')">
@@ -337,8 +341,8 @@ onMounted(() => {
       </NForm>
     </NCard>
 
-    <!-- Government Registration -->
-    <NCard :title="t('settings.govRegistration')" style="margin-bottom: 24px;">
+    <!-- Government Registration (PHL only — SSS/PhilHealth/Pag-IBIG) -->
+    <NCard v-if="isPHL" :title="t('settings.govRegistration')" style="margin-bottom: 24px;">
       <NForm @submit.prevent="handleSave" label-placement="left" label-width="180">
         <NFormItem :label="t('settings.sssErNo')">
           <NInput v-model:value="form.sss_er_no" />
