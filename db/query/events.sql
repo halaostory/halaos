@@ -71,3 +71,6 @@ UPDATE approval_workflows SET
     comments = $3,
     decided_at = NOW()
 WHERE id = $1 AND approver_id = $2 AND status = 'pending';
+
+-- name: GetApprovalWorkflowEntity :one
+SELECT entity_type, entity_id FROM approval_workflows WHERE id = $1;

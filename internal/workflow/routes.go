@@ -21,6 +21,20 @@ func (h *Handler) RegisterRoutes(protected *gin.RouterGroup) {
 		wf.GET("/sla-configs", h.ListSLAConfigs)
 		wf.PUT("/sla-configs", h.UpsertSLAConfig)
 
+		// Triggers (admin only)
+		wf.GET("/triggers", h.ListTriggers)
+		wf.POST("/triggers", h.CreateTrigger)
+		wf.PUT("/triggers/:id", h.UpdateTrigger)
+		wf.DELETE("/triggers/:id", h.DeactivateTrigger)
+	}
+
+	// Decisions — accessible by managers too
+	decisions := protected.Group("/workflow")
+	decisions.Use(auth.ManagerOrAbove())
+	{
+		decisions.GET("/decisions", h.ListDecisions)
+		decisions.GET("/decisions/:id", h.GetDecision)
+		decisions.POST("/decisions/:id/override", h.OverrideDecision)
 	}
 
 	// Analytics — accessible by managers too

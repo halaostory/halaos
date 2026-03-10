@@ -242,3 +242,249 @@ func (h *Handler) UpsertSLAConfig(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, config)
 }
+
+// --- Trigger CRUD ---
+
+// ListTriggers returns all workflow triggers for the company.
+func (h *Handler) ListTriggers(c *gin.Context) {
+	companyID := auth.GetCompanyID(c)
+
+	triggers, err := h.queries.ListWorkflowTriggers(c.Request.Context(), companyID)
+	if err != nil {
+		response.InternalError(c, "Failed to list triggers")
+		return
+	}
+	response.OK(c, triggers)
+}
+
+// CreateTrigger creates a new workflow trigger.
+func (h *Handler) CreateTrigger(c *gin.Context) {
+	companyID := auth.GetCompanyID(c)
+	userID := auth.GetUserID(c)
+
+	var req struct {
+		Name          string          `json:"name" binding:"required"`
+		Description   *string         `json:"description"`
+		TriggerType   string          `json:"trigger_type" binding:"required"`
+		EntityType    string          `json:"entity_type" binding:"required"`
+		TriggerConfig json.RawMessage `json:"trigger_config"`
+		ActionType    string          `json:"action_type" binding:"required"`
+		ActionConfig  json.RawMessage `json:"action_config"`
+		Priority      int32           `json:"priority"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	if req.Priority == 0 {
+		req.Priority = 100
+	}
+	if req.TriggerConfig == nil {
+		req.TriggerConfig = json.RawMessage(`{}`)
+	}
+	if req.ActionConfig == nil {
+		req.ActionConfig = json.RawMessage(`{}`)
+	}
+
+	trigger, err := h.queries.CreateWorkflowTrigger(c.Request.Context(), store.CreateWorkflowTriggerParams{
+		CompanyID:     companyID,
+		Name:          req.Name,
+		Description:   req.Description,
+		TriggerType:   req.TriggerType,
+		EntityType:    req.EntityType,
+		TriggerConfig: req.TriggerConfig,
+		ActionType:    req.ActionType,
+		ActionConfig:  req.ActionConfig,
+		Priority:      req.Priority,
+		CreatedBy:     &userID,
+	})
+	if err != nil {
+		response.InternalError(c, "Failed to create trigger")
+		return
+	}
+	response.Created(c, trigger)
+}
+
+// UpdateTrigger updates an existing workflow trigger.
+func (h *Handler) UpdateTrigger(c *gin.Context) {
+	companyID := auth.GetCompanyID(c)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid trigger ID")
+		return
+	}
+
+	var req struct {
+		Name          string          `json:"name" binding:"required"`
+		Description   *string         `json:"description"`
+		TriggerType   string          `json:"trigger_type" binding:"required"`
+		EntityType    string          `json:"entity_type" binding:"required"`
+		TriggerConfig json.RawMessage `json:"trigger_config"`
+		ActionType    string          `json:"action_type" binding:"required"`
+		ActionConfig  json.RawMessage `json:"action_config"`
+		Priority      int32           `json:"priority"`
+		IsActive      bool            `json:"is_active"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	if req.TriggerConfig == nil {
+		req.TriggerConfig = json.RawMessage(`{}`)
+	}
+	if req.ActionConfig == nil {
+		req.ActionConfig = json.RawMessage(`{}`)
+	}
+
+	trigger, err := h.queries.UpdateWorkflowTrigger(c.Request.Context(), store.UpdateWorkflowTriggerParams{
+		ID:            id,
+		CompanyID:     companyID,
+		Name:          req.Name,
+		Description:   req.Description,
+		TriggerType:   req.TriggerType,
+		EntityType:    req.EntityType,
+		TriggerConfig: req.TriggerConfig,
+		ActionType:    req.ActionType,
+		ActionConfig:  req.ActionConfig,
+		Priority:      req.Priority,
+		IsActive:      req.IsActive,
+	})
+	if err != nil {
+		response.NotFound(c, "Trigger not found")
+		return
+	}
+	response.OK(c, trigger)
+}
+
+// DeactivateTrigger deactivates a workflow trigger.
+func (h *Handler) DeactivateTrigger(c *gin.Context) {
+	companyID := auth.GetCompanyID(c)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid trigger ID")
+		return
+	}
+
+	if err := h.queries.DeactivateWorkflowTrigger(c.Request.Context(), store.DeactivateWorkflowTriggerParams{
+		ID:        id,
+		CompanyID: companyID,
+	}); err != nil {
+		response.NotFound(c, "Trigger not found")
+		return
+	}
+	response.OK(c, gin.H{"message": "Trigger deactivated"})
+}
+
+// --- Decision Endpoints ---
+
+// ListDecisions returns AI decision history with pagination and filters.
+func (h *Handler) ListDecisions(c *gin.Context) {
+	companyID := auth.GetCompanyID(c)
+
+	entityType := c.DefaultQuery("entity_type", "")
+	var entityID int64
+	if eid := c.Query("entity_id"); eid != "" {
+		entityID, _ = strconv.ParseInt(eid, 10, 64)
+	}
+	onlyOverridden := c.Query("only_overridden") == "true"
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "50"))
+	if page < 1 {
+		page = 1
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	decisions, err := h.queries.ListWorkflowDecisions(c.Request.Context(), store.ListWorkflowDecisionsParams{
+		CompanyID: companyID,
+		Column2:   entityType,
+		Column3:   entityID,
+		Column4:   onlyOverridden,
+		Limit:     int32(pageSize),
+		Offset:    int32((page - 1) * pageSize),
+	})
+	if err != nil {
+		response.InternalError(c, "Failed to list decisions")
+		return
+	}
+
+	total, err := h.queries.CountWorkflowDecisions(c.Request.Context(), store.CountWorkflowDecisionsParams{
+		CompanyID: companyID,
+		Column2:   entityType,
+		Column3:   entityID,
+		Column4:   onlyOverridden,
+	})
+	if err != nil {
+		total = 0
+	}
+
+	response.Paginated(c, decisions, total, page, pageSize)
+}
+
+// GetDecision returns a single decision by ID.
+func (h *Handler) GetDecision(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid decision ID")
+		return
+	}
+
+	decision, err := h.queries.GetWorkflowDecision(c.Request.Context(), id)
+	if err != nil {
+		response.NotFound(c, "Decision not found")
+		return
+	}
+
+	// Verify company access
+	companyID := auth.GetCompanyID(c)
+	if decision.CompanyID != companyID {
+		response.NotFound(c, "Decision not found")
+		return
+	}
+
+	response.OK(c, decision)
+}
+
+// OverrideDecision records a manager's override of an AI decision.
+func (h *Handler) OverrideDecision(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid decision ID")
+		return
+	}
+
+	userID := auth.GetUserID(c)
+	companyID := auth.GetCompanyID(c)
+
+	// Verify decision exists and belongs to company
+	decision, err := h.queries.GetWorkflowDecision(c.Request.Context(), id)
+	if err != nil || decision.CompanyID != companyID {
+		response.NotFound(c, "Decision not found")
+		return
+	}
+
+	var req struct {
+		Action string  `json:"action" binding:"required"`
+		Reason *string `json:"reason"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	if err := h.queries.RecordDecisionOverride(c.Request.Context(), store.RecordDecisionOverrideParams{
+		ID:             id,
+		OverriddenBy:   &userID,
+		OverrideAction: &req.Action,
+		OverrideReason: req.Reason,
+	}); err != nil {
+		response.InternalError(c, "Failed to record override")
+		return
+	}
+
+	response.OK(c, gin.H{"message": "Override recorded"})
+}

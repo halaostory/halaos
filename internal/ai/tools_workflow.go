@@ -194,6 +194,48 @@ func toInt64(v interface{}) int64 {
 	}
 }
 
+func (r *ToolRegistry) toolQueryWorkflowDecisions(ctx context.Context, companyID, _ int64, _ map[string]any) (string, error) {
+	stats, err := r.queries.GetAgentDecisionStats(ctx, companyID)
+	if err != nil {
+		return toJSON(map[string]any{"error": "no agent decision data available"})
+	}
+
+	accuracy, _ := r.queries.GetDecisionAccuracyRate(ctx, companyID)
+
+	type accuracyItem struct {
+		Tier       string `json:"tier"`
+		Total      int64  `json:"total"`
+		Overridden int64  `json:"overridden"`
+	}
+	items := make([]accuracyItem, 0, len(accuracy))
+	for _, a := range accuracy {
+		items = append(items, accuracyItem{
+			Tier:       a.ConfidenceTier,
+			Total:      a.Total,
+			Overridden: a.Overridden,
+		})
+	}
+
+	overrideRate := "0%"
+	if stats.Total > 0 {
+		overrideRate = fmt.Sprintf("%.0f%%", float64(stats.Overridden)/float64(stats.Total)*100)
+	}
+
+	return toJSON(map[string]any{
+		"period": "last_30_days",
+		"agent_decisions": map[string]any{
+			"total":          stats.Total,
+			"auto_executed":  stats.AutoExecuted,
+			"recommended":    stats.Recommended,
+			"escalated":      stats.Escalated,
+			"overridden":     stats.Overridden,
+			"override_rate":  overrideRate,
+			"avg_confidence": fmt.Sprintf("%v", stats.AvgConfidence),
+		},
+		"accuracy_by_confidence": items,
+	})
+}
+
 func workflowDefs() []provider.ToolDefinition {
 	return []provider.ToolDefinition{
 		{
@@ -212,10 +254,19 @@ func workflowDefs() []provider.ToolDefinition {
 				"properties": map[string]any{},
 			}),
 		},
+		{
+			Name:        "query_workflow_decisions",
+			Description: "Query AI agent decision statistics. Returns total decisions, auto-executed count, recommended count, escalated count, override rate, and accuracy by confidence tier.",
+			Parameters: jsonSchema(map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			}),
+		},
 	}
 }
 
 func (r *ToolRegistry) registerWorkflowTools() {
 	r.tools["query_workflow_rules"] = r.toolQueryWorkflowRules
 	r.tools["query_workflow_analytics"] = r.toolQueryWorkflowAnalytics
+	r.tools["query_workflow_decisions"] = r.toolQueryWorkflowDecisions
 }

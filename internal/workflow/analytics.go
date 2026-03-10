@@ -82,6 +82,41 @@ func (h *Handler) GetWorkflowAnalytics(c *gin.Context) {
 		}
 	}
 
+	// Agent decision stats
+	agentStats, err := h.queries.GetAgentDecisionStats(c.Request.Context(), companyID)
+	if err != nil {
+		h.logger.Error("analytics: failed to get agent stats", "error", err)
+		agentStats = store.GetAgentDecisionStatsRow{}
+	}
+
+	overrideRate := "0%"
+	if agentStats.Total > 0 {
+		overrideRate = fmt.Sprintf("%.0f%%", float64(agentStats.Overridden)/float64(agentStats.Total)*100)
+	}
+
+	// Agent accuracy by confidence tier
+	accuracy, err := h.queries.GetDecisionAccuracyRate(c.Request.Context(), companyID)
+	if err != nil {
+		accuracy = []store.GetDecisionAccuracyRateRow{}
+	}
+
+	// Agent decision volume by day
+	decisionVolume, err := h.queries.GetDecisionVolumeByDay(c.Request.Context(), companyID)
+	if err != nil {
+		decisionVolume = []store.GetDecisionVolumeByDayRow{}
+	}
+
+	decisionVolumeData := make([]map[string]any, len(decisionVolume))
+	for i, v := range decisionVolume {
+		decisionVolumeData[i] = map[string]any{
+			"day":           v.Day.Format("Jan 2"),
+			"total":         v.Total,
+			"auto_executed": v.AutoExecuted,
+			"recommended":   v.Recommended,
+			"escalated":     v.Escalated,
+		}
+	}
+
 	response.OK(c, gin.H{
 		"summary": gin.H{
 			"total":    summary.TotalApprovals,
@@ -102,6 +137,17 @@ func (h *Handler) GetWorkflowAnalytics(c *gin.Context) {
 			"within_sla": toInt(sla.WithinSla),
 			"overdue":    toInt(sla.Overdue),
 		},
+		"agent_decisions": gin.H{
+			"total":          agentStats.Total,
+			"auto_executed":  agentStats.AutoExecuted,
+			"recommended":    agentStats.Recommended,
+			"escalated":      agentStats.Escalated,
+			"overridden":     agentStats.Overridden,
+			"override_rate":  overrideRate,
+			"avg_confidence": fmt.Sprintf("%v", agentStats.AvgConfidence),
+		},
+		"agent_accuracy":          accuracy,
+		"agent_decision_volume":   decisionVolumeData,
 	})
 }
 

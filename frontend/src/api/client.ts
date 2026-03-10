@@ -1095,6 +1095,20 @@ export const workflowAPI = {
   upsertSLAConfig: (data: Record<string, unknown>) =>
     put("/v1/workflow/sla-configs", data),
   getAnalytics: () => get("/v1/workflow/analytics"),
+  // Triggers
+  listTriggers: () => get("/v1/workflow/triggers"),
+  createTrigger: (data: Record<string, unknown>) =>
+    post("/v1/workflow/triggers", data),
+  updateTrigger: (id: number, data: Record<string, unknown>) =>
+    put(`/v1/workflow/triggers/${id}`, data),
+  deactivateTrigger: (id: number) =>
+    api(`/v1/workflow/triggers/${id}`, { method: "DELETE" }),
+  // Decisions
+  listDecisions: (params?: Record<string, string>) =>
+    get("/v1/workflow/decisions", params),
+  getDecision: (id: number) => get(`/v1/workflow/decisions/${id}`),
+  recordOverride: (id: number, data: Record<string, unknown>) =>
+    post(`/v1/workflow/decisions/${id}/override`, data),
 };
 
 // Bot

@@ -1672,6 +1672,28 @@ type WorkSchedule struct {
 	CreatedAt  time.Time `json:"created_at"`
 }
 
+type WorkflowDecision struct {
+	ID              int64              `json:"id"`
+	CompanyID       int64              `json:"company_id"`
+	TriggerID       *int64             `json:"trigger_id"`
+	EntityType      string             `json:"entity_type"`
+	EntityID        int64              `json:"entity_id"`
+	Decision        string             `json:"decision"`
+	Confidence      pgtype.Numeric     `json:"confidence"`
+	Reasoning       *string            `json:"reasoning"`
+	ContextSnapshot []byte             `json:"context_snapshot"`
+	AiAgentSlug     *string            `json:"ai_agent_slug"`
+	TokensUsed      int32              `json:"tokens_used"`
+	Executed        bool               `json:"executed"`
+	ExecutedAt      pgtype.Timestamptz `json:"executed_at"`
+	ExecutionResult []byte             `json:"execution_result"`
+	OverriddenBy    *int64             `json:"overridden_by"`
+	OverrideAction  *string            `json:"override_action"`
+	OverrideReason  *string            `json:"override_reason"`
+	OverriddenAt    pgtype.Timestamptz `json:"overridden_at"`
+	CreatedAt       time.Time          `json:"created_at"`
+}
+
 type WorkflowRule struct {
 	ID          int64           `json:"id"`
 	CompanyID   int64           `json:"company_id"`
@@ -1697,4 +1719,21 @@ type WorkflowRuleExecution struct {
 	Reason              *string   `json:"reason"`
 	EvaluatedConditions []byte    `json:"evaluated_conditions"`
 	CreatedAt           time.Time `json:"created_at"`
+}
+
+type WorkflowTrigger struct {
+	ID            int64           `json:"id"`
+	CompanyID     int64           `json:"company_id"`
+	Name          string          `json:"name"`
+	Description   *string         `json:"description"`
+	TriggerType   string          `json:"trigger_type"`
+	EntityType    string          `json:"entity_type"`
+	TriggerConfig json.RawMessage `json:"trigger_config"`
+	ActionType    string          `json:"action_type"`
+	ActionConfig  json.RawMessage `json:"action_config"`
+	Priority      int32           `json:"priority"`
+	IsActive      bool            `json:"is_active"`
+	CreatedBy     *int64          `json:"created_by"`
+	CreatedAt     time.Time       `json:"created_at"`
+	UpdatedAt     time.Time       `json:"updated_at"`
 }

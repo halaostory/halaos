@@ -49,6 +49,14 @@ func processAutoApprovalsForCompany(
 		logger.Error("auto-approvals: failed to list pending leaves", "company_id", companyID, "error", err)
 	} else {
 		for _, req := range leaveReqs {
+			// Skip if already evaluated by agentic workflow
+			if hasDec, _ := queries.HasDecisionForEntity(ctx, store.HasDecisionForEntityParams{
+				EntityType: "leave_request",
+				EntityID:   req.ID,
+			}); hasDec {
+				continue
+			}
+
 			result, err := engine.EvaluateLeaveRequest(ctx, companyID, req)
 			if err != nil {
 				logger.Error("auto-approvals: evaluation failed",
@@ -98,6 +106,14 @@ func processAutoApprovalsForCompany(
 		logger.Error("auto-approvals: failed to list pending OT", "company_id", companyID, "error", err)
 	} else {
 		for _, req := range otReqs {
+			// Skip if already evaluated by agentic workflow
+			if hasDec, _ := queries.HasDecisionForEntity(ctx, store.HasDecisionForEntityParams{
+				EntityType: "overtime_request",
+				EntityID:   req.ID,
+			}); hasDec {
+				continue
+			}
+
 			result, err := engine.EvaluateOTRequest(ctx, companyID, req)
 			if err != nil {
 				logger.Error("auto-approvals: OT evaluation failed",

@@ -357,6 +357,18 @@ const router = createRouter({
           component: () => import("../views/WorkflowAnalyticsView.vue"),
           meta: { roles: ["super_admin", "admin", "manager"] },
         },
+        {
+          path: "workflow-triggers",
+          name: "workflow-triggers",
+          component: () => import("../views/WorkflowTriggersView.vue"),
+          meta: { roles: ["super_admin", "admin"] },
+        },
+        {
+          path: "workflow-decisions",
+          name: "workflow-decisions",
+          component: () => import("../views/WorkflowDecisionsView.vue"),
+          meta: { roles: ["super_admin", "admin", "manager"] },
+        },
         // Notifications
         {
           path: "notifications",

@@ -314,6 +314,7 @@ func (h *Handler) executeQuickApprove(ctx context.Context, companyID, userID int
 		return "", fmt.Errorf("insufficient permissions to approve")
 	}
 
+	var result string
 	switch entityType {
 	case "leave_request":
 		lr, err := h.queries.ApproveLeaveRequest(ctx, store.ApproveLeaveRequestParams{
@@ -324,7 +325,7 @@ func (h *Handler) executeQuickApprove(ctx context.Context, companyID, userID int
 		if err != nil {
 			return "", fmt.Errorf("failed to approve leave request: %w", err)
 		}
-		return fmt.Sprintf("Leave request #%d approved", lr.ID), nil
+		result = fmt.Sprintf("Leave request #%d approved", lr.ID)
 
 	case "overtime_request":
 		ot, err := h.queries.ApproveOvertimeRequest(ctx, store.ApproveOvertimeRequestParams{
@@ -335,11 +336,24 @@ func (h *Handler) executeQuickApprove(ctx context.Context, companyID, userID int
 		if err != nil {
 			return "", fmt.Errorf("failed to approve overtime request: %w", err)
 		}
-		return fmt.Sprintf("Overtime request #%d approved", ot.ID), nil
+		result = fmt.Sprintf("Overtime request #%d approved", ot.ID)
 
 	default:
 		return "", fmt.Errorf("unsupported entity type: %s", entityType)
 	}
+
+	// Record AI decision override if decision_id present
+	if decIDFloat, ok := params["decision_id"].(float64); ok && decIDFloat > 0 {
+		decID := int64(decIDFloat)
+		action := "approved"
+		_ = h.queries.RecordDecisionOverride(ctx, store.RecordDecisionOverrideParams{
+			ID:             decID,
+			OverriddenBy:   &userID,
+			OverrideAction: &action,
+		})
+	}
+
+	return result, nil
 }
 
 // NotifyOpts holds optional parameters for sending notifications.

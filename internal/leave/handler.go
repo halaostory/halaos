@@ -1,6 +1,7 @@
 package leave
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -170,6 +171,22 @@ func (h *Handler) CreateRequest(c *gin.Context) {
 		response.InternalError(c, "Failed to create leave request")
 		return
 	}
+
+	// Emit leave.requested event for agentic workflow
+	idempKey := fmt.Sprintf("leave.requested.%d", lr.ID)
+	if _, err := h.queries.InsertHREvent(c.Request.Context(), store.InsertHREventParams{
+		CompanyID:      companyID,
+		AggregateType:  "leave_request",
+		AggregateID:    lr.ID,
+		EventType:      "leave.requested",
+		EventVersion:   1,
+		Payload:        json.RawMessage(`{}`),
+		ActorUserID:    &userID,
+		IdempotencyKey: &idempKey,
+	}); err != nil {
+		h.logger.Error("failed to emit leave.requested event", "leave_id", lr.ID, "error", err)
+	}
+
 	response.Created(c, lr)
 }
 

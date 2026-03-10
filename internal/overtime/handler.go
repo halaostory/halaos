@@ -1,6 +1,7 @@
 package overtime
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -79,6 +80,22 @@ func (h *Handler) CreateRequest(c *gin.Context) {
 		response.InternalError(c, "Failed to create overtime request")
 		return
 	}
+
+	// Emit overtime.requested event for agentic workflow
+	idempKey := fmt.Sprintf("overtime.requested.%d", ot.ID)
+	if _, err := h.queries.InsertHREvent(c.Request.Context(), store.InsertHREventParams{
+		CompanyID:      companyID,
+		AggregateType:  "overtime_request",
+		AggregateID:    ot.ID,
+		EventType:      "overtime.requested",
+		EventVersion:   1,
+		Payload:        json.RawMessage(`{}`),
+		ActorUserID:    &userID,
+		IdempotencyKey: &idempKey,
+	}); err != nil {
+		h.logger.Error("failed to emit overtime.requested event", "ot_id", ot.ID, "error", err)
+	}
+
 	response.Created(c, ot)
 }
 

@@ -30,6 +30,22 @@ func (q *Queries) ApproveWorkflow(ctx context.Context, arg ApproveWorkflowParams
 	return err
 }
 
+const getApprovalWorkflowEntity = `-- name: GetApprovalWorkflowEntity :one
+SELECT entity_type, entity_id FROM approval_workflows WHERE id = $1
+`
+
+type GetApprovalWorkflowEntityRow struct {
+	EntityType string `json:"entity_type"`
+	EntityID   int64  `json:"entity_id"`
+}
+
+func (q *Queries) GetApprovalWorkflowEntity(ctx context.Context, id int64) (GetApprovalWorkflowEntityRow, error) {
+	row := q.db.QueryRow(ctx, getApprovalWorkflowEntity, id)
+	var i GetApprovalWorkflowEntityRow
+	err := row.Scan(&i.EntityType, &i.EntityID)
+	return i, err
+}
+
 const getPendingEvents = `-- name: GetPendingEvents :many
 SELECT id, company_id, aggregate_type, aggregate_id, event_type, event_version, payload, actor_user_id, idempotency_key, occurred_at, processed_at, retries, status, error_message, created_at FROM hr_events
 WHERE status IN ('pending', 'failed')
