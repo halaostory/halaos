@@ -69,6 +69,7 @@ import (
 	"github.com/tonypk/aigonhr/internal/selfservice"
 	"github.com/tonypk/aigonhr/internal/store"
 	"github.com/tonypk/aigonhr/internal/training"
+	"github.com/tonypk/aigonhr/internal/pulse"
 	"github.com/tonypk/aigonhr/internal/workflow"
 )
 
@@ -224,6 +225,7 @@ func (a *App) setupRoutes() {
 	announcementHandler := announcement.NewHandler(a.Queries, a.Pool, a.Logger)
 	dashboardHandler := dashboard.NewHandler(a.Queries, a.Pool, a.Logger)
 	workflowHandler := workflow.NewHandler(a.Queries, a.Pool, a.Logger)
+	pulseHandler := pulse.NewHandler(a.Queries, a.Pool, a.Logger)
 
 	// Billing service
 	billingSvc := billing.NewService(a.Queries, a.Logger)
@@ -319,6 +321,7 @@ func (a *App) setupRoutes() {
 	announcementHandler.RegisterRoutes(protected)
 	dashboardHandler.RegisterRoutes(protected)
 	workflowHandler.RegisterRoutes(protected)
+	pulseHandler.RegisterRoutes(protected)
 
 	billingHandler.RegisterRoutes(protected)
 

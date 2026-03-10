@@ -1112,6 +1112,22 @@ export const workflowAPI = {
     post(`/v1/workflow/decisions/${id}/override`, data),
 };
 
+// Pulse Surveys
+export const pulseAPI = {
+  list: (params?: Record<string, string>) => get("/v1/pulse-surveys", params),
+  create: (data: Record<string, unknown>) => post("/v1/pulse-surveys", data),
+  get: (id: number) => get(`/v1/pulse-surveys/${id}`),
+  update: (id: number, data: Record<string, unknown>) =>
+    put(`/v1/pulse-surveys/${id}`, data),
+  deactivate: (id: number) =>
+    api(`/v1/pulse-surveys/${id}`, { method: "DELETE" }),
+  getResults: (id: number) => get(`/v1/pulse-surveys/${id}/results`),
+  listActive: () => get("/v1/pulse-surveys/active"),
+  getOpenRound: (id: number) => get(`/v1/pulse-surveys/${id}/open-round`),
+  submitResponse: (roundId: number, data: Record<string, unknown>) =>
+    post(`/v1/pulse-surveys/rounds/${roundId}/respond`, data),
+};
+
 // Bot
 export const botAPI = {
   getLinkCode: () => get("/v1/bot/link-code"),

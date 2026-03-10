@@ -233,6 +233,12 @@ func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.
 	// Auto-regularize probationary employees (daily)
 	autoRegularize(ctx, queries, pool, logger)
 
+	// Distribute pulse surveys (9 AM, frequency-gated)
+	distributePulseSurveys(ctx, queries, pool, logger)
+
+	// Close expired pulse rounds (>7 days old)
+	closeExpiredPulseRounds(ctx, queries, pool, logger)
+
 	// Process workflow auto-approvals
 	processAutoApprovals(ctx, queries, pool, workflowEngine, logger)
 

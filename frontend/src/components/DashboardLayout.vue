@@ -18,7 +18,7 @@ import {
   GridOutline, FileTrayFullOutline, CloudDownloadOutline, BookOutline, CalendarNumberOutline,
   MegaphoneOutline, DocumentTextOutline, SchoolOutline, AlertCircleOutline, MedkitOutline, FolderOpenOutline, ChatbubblesOutline, LocationOutline,
   LinkOutline, PulseOutline, GitBranchOutline, TrendingUpOutline,
-  FlashOutline, BulbOutline,
+  FlashOutline, BulbOutline, HappyOutline,
 } from '@vicons/ionicons5'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
@@ -167,6 +167,7 @@ const features: Record<string, boolean> = {
   'workflow-analytics': true,
   'workflow-triggers': true,
   'workflow-decisions': true,
+  'pulse-surveys': true,
 }
 
 function isEnabled(key: string): boolean {
@@ -239,6 +240,9 @@ const menuOptions = computed<MenuOption[]>(() => {
   }
   if ((auth.isAdmin || auth.isManager) && isEnabled('workflow-decisions')) {
     items.push({ label: t('nav.workflowDecisions'), key: 'workflow-decisions', icon: renderIcon(BulbOutline) })
+  }
+  if (isEnabled('pulse-surveys')) {
+    items.push({ label: t('nav.pulseSurveys'), key: 'pulse-surveys', icon: renderIcon(HappyOutline) })
   }
 
   // AI Agent Hub — visible to all

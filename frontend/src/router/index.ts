@@ -369,6 +369,18 @@ const router = createRouter({
           component: () => import("../views/WorkflowDecisionsView.vue"),
           meta: { roles: ["super_admin", "admin", "manager"] },
         },
+        // Pulse Surveys
+        {
+          path: "pulse-surveys",
+          name: "pulse-surveys",
+          component: () => import("../views/PulseSurveysView.vue"),
+          meta: { roles: ["super_admin", "admin", "manager"] },
+        },
+        {
+          path: "pulse-surveys/respond",
+          name: "pulse-respond",
+          component: () => import("../views/PulseRespondView.vue"),
+        },
         // Notifications
         {
           path: "notifications",

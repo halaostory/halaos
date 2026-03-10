@@ -72,6 +72,7 @@ func (r *ToolRegistry) Definitions() []provider.ToolDefinition {
 	defs = append(defs, scheduleDefs()...)
 	defs = append(defs, workflowDefs()...)
 	defs = append(defs, blindspotDefs()...)
+	defs = append(defs, pulseDefs()...)
 	return defs
 }
 
@@ -104,4 +105,5 @@ func (r *ToolRegistry) registerTools() {
 	r.registerScheduleTools()
 	r.registerWorkflowTools()
 	r.registerBlindspotTools()
+	r.registerPulseTools()
 }

@@ -1145,6 +1145,22 @@ type LoanType struct {
 	CreatedAt        time.Time      `json:"created_at"`
 }
 
+type ManagerBlindSpot struct {
+	ID          int64              `json:"id"`
+	CompanyID   int64              `json:"company_id"`
+	ManagerID   int64              `json:"manager_id"`
+	SpotType    string             `json:"spot_type"`
+	Severity    string             `json:"severity"`
+	Title       string             `json:"title"`
+	Description string             `json:"description"`
+	Employees   json.RawMessage    `json:"employees"`
+	IsResolved  bool               `json:"is_resolved"`
+	ResolvedAt  pgtype.Timestamptz `json:"resolved_at"`
+	ResolvedBy  *int64             `json:"resolved_by"`
+	WeekDate    time.Time          `json:"week_date"`
+	CreatedAt   time.Time          `json:"created_at"`
+}
+
 type Notification struct {
 	ID         int64              `json:"id"`
 	CompanyID  int64              `json:"company_id"`
@@ -1410,6 +1426,51 @@ type ProvisioningTemplate struct {
 	IsActive             bool            `json:"is_active"`
 	CreatedAt            time.Time       `json:"created_at"`
 	UpdatedAt            time.Time       `json:"updated_at"`
+}
+
+type PulseQuestion struct {
+	ID           int64  `json:"id"`
+	SurveyID     int64  `json:"survey_id"`
+	Question     string `json:"question"`
+	QuestionType string `json:"question_type"`
+	SortOrder    int32  `json:"sort_order"`
+	IsRequired   bool   `json:"is_required"`
+}
+
+type PulseResponse struct {
+	ID          int64     `json:"id"`
+	RoundID     int64     `json:"round_id"`
+	QuestionID  int64     `json:"question_id"`
+	EmployeeID  int64     `json:"employee_id"`
+	CompanyID   int64     `json:"company_id"`
+	Rating      *int32    `json:"rating"`
+	AnswerText  *string   `json:"answer_text"`
+	SubmittedAt time.Time `json:"submitted_at"`
+}
+
+type PulseRound struct {
+	ID             int64              `json:"id"`
+	SurveyID       int64              `json:"survey_id"`
+	CompanyID      int64              `json:"company_id"`
+	RoundDate      time.Time          `json:"round_date"`
+	Status         string             `json:"status"`
+	TotalSent      int32              `json:"total_sent"`
+	TotalResponded int32              `json:"total_responded"`
+	ClosedAt       pgtype.Timestamptz `json:"closed_at"`
+	CreatedAt      time.Time          `json:"created_at"`
+}
+
+type PulseSurvey struct {
+	ID          int64     `json:"id"`
+	CompanyID   int64     `json:"company_id"`
+	Title       string    `json:"title"`
+	Description *string   `json:"description"`
+	Frequency   string    `json:"frequency"`
+	IsAnonymous bool      `json:"is_anonymous"`
+	IsActive    bool      `json:"is_active"`
+	CreatedBy   int64     `json:"created_by"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 type RemittanceRecord struct {
