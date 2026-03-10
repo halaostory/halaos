@@ -914,6 +914,22 @@ type HrEvent struct {
 	CreatedAt      time.Time          `json:"created_at"`
 }
 
+type HrRequest struct {
+	ID             int64              `json:"id"`
+	CompanyID      int64              `json:"company_id"`
+	EmployeeID     int64              `json:"employee_id"`
+	RequestType    string             `json:"request_type"`
+	Subject        string             `json:"subject"`
+	Description    *string            `json:"description"`
+	Priority       string             `json:"priority"`
+	Status         string             `json:"status"`
+	AssignedTo     *int64             `json:"assigned_to"`
+	ResolutionNote *string            `json:"resolution_note"`
+	CreatedAt      time.Time          `json:"created_at"`
+	UpdatedAt      time.Time          `json:"updated_at"`
+	ResolvedAt     pgtype.Timestamptz `json:"resolved_at"`
+}
+
 type IntegrationAuditLog struct {
 	ID              int64       `json:"id"`
 	CompanyID       int64       `json:"company_id"`

@@ -169,6 +169,7 @@ const features: Record<string, boolean> = {
   'workflow-decisions': true,
   'pulse-surveys': true,
   recognition: true,
+  'hr-requests': true,
 }
 
 function isEnabled(key: string): boolean {
@@ -247,6 +248,9 @@ const menuOptions = computed<MenuOption[]>(() => {
   }
   if (isEnabled('recognition')) {
     items.push({ label: t('nav.recognition'), key: 'recognition', icon: renderIcon(StarOutline) })
+  }
+  if (isEnabled('hr-requests')) {
+    items.push({ label: t('nav.hrRequests'), key: 'hr-requests', icon: renderIcon(FileTrayFullOutline) })
   }
 
   // AI Agent Hub — visible to all

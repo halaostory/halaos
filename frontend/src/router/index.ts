@@ -369,6 +369,12 @@ const router = createRouter({
           component: () => import("../views/WorkflowDecisionsView.vue"),
           meta: { roles: ["super_admin", "admin", "manager"] },
         },
+        // HR Requests
+        {
+          path: "hr-requests",
+          name: "hr-requests",
+          component: () => import("../views/HrRequestsView.vue"),
+        },
         // Recognition
         {
           path: "recognition",

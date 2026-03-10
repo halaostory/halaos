@@ -1112,6 +1112,18 @@ export const workflowAPI = {
     post(`/v1/workflow/decisions/${id}/override`, data),
 };
 
+// HR Service Requests
+export const hrRequestAPI = {
+  create: (data: Record<string, unknown>) => post("/v1/hr-requests", data),
+  listMy: (params?: Record<string, string>) =>
+    get("/v1/hr-requests/my", params),
+  list: (params?: Record<string, string>) => get("/v1/hr-requests", params),
+  get: (id: number) => get(`/v1/hr-requests/${id}`),
+  updateStatus: (id: number, data: Record<string, unknown>) =>
+    put(`/v1/hr-requests/${id}/status`, data),
+  getStats: () => get("/v1/hr-requests/stats"),
+};
+
 // Recognition / Kudos
 export const recognitionAPI = {
   send: (data: Record<string, unknown>) => post("/v1/recognitions", data),
