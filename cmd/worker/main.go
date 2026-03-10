@@ -206,6 +206,9 @@ func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.
 	// Detect no-show employees and send notifications (10 AM only)
 	checkNoShows(ctx, queries, pool, logger)
 
+	// Follow up on unresolved absences (3 PM only)
+	checkAbsenceFollowup(ctx, queries, pool, logger)
+
 	// Calculate flight risk scores (weekly, Monday only)
 	calculateFlightRisk(ctx, queries, pool, logger)
 
