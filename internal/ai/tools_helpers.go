@@ -38,6 +38,17 @@ func jsonSchema(schema map[string]any) map[string]any {
 	return schema
 }
 
+func numericToFloat(n pgtype.Numeric) float64 {
+	if !n.Valid {
+		return 0
+	}
+	f, err := n.Float64Value()
+	if err != nil || !f.Valid {
+		return 0
+	}
+	return f.Float64
+}
+
 func numericToString(n pgtype.Numeric) string {
 	if !n.Valid {
 		return "0"

@@ -9,6 +9,14 @@ import {
   NEmpty,
   NModal,
   NInput,
+  NDrawer,
+  NDrawerContent,
+  NDescriptions,
+  NDescriptionsItem,
+  NSpin,
+  NAlert,
+  NCollapse,
+  NCollapseItem,
   useMessage,
   useDialog,
   type DataTableColumns,
@@ -24,6 +32,12 @@ const loading = ref(false);
 const showRejectModal = ref(false);
 const rejectReason = ref("");
 const rejectingId = ref<number | null>(null);
+
+// Context drawer
+const showContextDrawer = ref(false);
+const contextLoading = ref(false);
+const contextData = ref<Record<string, unknown> | null>(null);
+const contextError = ref("");
 
 function fmtDate(d: unknown): string {
   if (!d) return "-";
@@ -63,9 +77,17 @@ const columns: DataTableColumns = [
   {
     title: t("common.actions"),
     key: "actions",
-    width: 200,
+    width: 280,
     render: (row) => {
       return h(NSpace, { size: "small" }, () => [
+        h(
+          NButton,
+          {
+            size: "small",
+            onClick: () => handleShowContext(row),
+          },
+          () => t("approval.viewContext")
+        ),
         h(
           NButton,
           {
@@ -100,6 +122,25 @@ onMounted(async () => {
     loading.value = false;
   }
 });
+
+async function handleShowContext(row: Record<string, unknown>) {
+  const entityType = row.entity_type as string;
+  const entityId = row.entity_id as number;
+
+  showContextDrawer.value = true;
+  contextLoading.value = true;
+  contextError.value = "";
+  contextData.value = null;
+
+  try {
+    const res = (await approvalAPI.getContext(entityType, entityId)) as any;
+    contextData.value = res?.data ?? res;
+  } catch {
+    contextError.value = t("common.loadFailed");
+  } finally {
+    contextLoading.value = false;
+  }
+}
 
 function handleApprove(row: Record<string, unknown>) {
   dialog.info({
@@ -138,6 +179,15 @@ async function confirmReject() {
     message.error(t("approval.rejectFailed"));
   }
 }
+
+function recommendationTag(rec: string | undefined) {
+  if (!rec) return null;
+  const upper = rec.toUpperCase();
+  if (upper.startsWith("APPROVE")) return { type: "success" as const, label: "Approve" };
+  if (upper.startsWith("CAUTION") || upper.startsWith("REVIEW")) return { type: "warning" as const, label: "Caution" };
+  if (upper.startsWith("REJECT")) return { type: "error" as const, label: "Reject" };
+  return { type: "info" as const, label: "Info" };
+}
 </script>
 
 <template>
@@ -157,5 +207,117 @@ async function confirmReject() {
         <NButton @click="showRejectModal = false">{{ t('common.cancel') }}</NButton>
       </NSpace>
     </NModal>
+
+    <NDrawer v-model:show="showContextDrawer" width="480" placement="right">
+      <NDrawerContent :title="t('approval.approvalContext')">
+        <NSpin v-if="contextLoading" />
+        <NAlert v-else-if="contextError" type="error" :title="contextError" />
+        <template v-else-if="contextData">
+          <!-- AI Recommendation -->
+          <template v-if="contextData.recommendation">
+            <NAlert
+              :type="recommendationTag(contextData.recommendation as string)?.type || 'info'"
+              style="margin-bottom: 16px"
+            >
+              <template #header>
+                <NTag
+                  :type="recommendationTag(contextData.recommendation as string)?.type || 'info'"
+                  size="small"
+                  style="margin-right: 8px"
+                >
+                  {{ recommendationTag(contextData.recommendation as string)?.label }}
+                </NTag>
+                AI Recommendation
+              </template>
+              {{ contextData.recommendation }}
+            </NAlert>
+          </template>
+
+          <!-- Request Info -->
+          <NCollapse :default-expanded-names="['request', 'employee', 'balance']">
+            <NCollapseItem :title="t('approval.requestInfo')" name="request">
+              <NDescriptions :column="1" label-placement="left" bordered size="small">
+                <NDescriptionsItem :label="t('approval.entityType')">
+                  {{ (contextData.request_info as any)?.entity_type }}
+                </NDescriptionsItem>
+                <NDescriptionsItem v-if="(contextData.request_info as any)?.leave_type_name" :label="t('approval.leaveType')">
+                  {{ (contextData.request_info as any)?.leave_type_name }}
+                </NDescriptionsItem>
+                <NDescriptionsItem v-if="(contextData.request_info as any)?.start_date" :label="t('approval.dates')">
+                  {{ (contextData.request_info as any)?.start_date }} ~ {{ (contextData.request_info as any)?.end_date }}
+                </NDescriptionsItem>
+                <NDescriptionsItem v-if="(contextData.request_info as any)?.days" :label="t('approval.days')">
+                  {{ (contextData.request_info as any)?.days }}
+                </NDescriptionsItem>
+                <NDescriptionsItem v-if="(contextData.request_info as any)?.hours" :label="t('approval.hours')">
+                  {{ (contextData.request_info as any)?.hours }}
+                </NDescriptionsItem>
+                <NDescriptionsItem v-if="(contextData.request_info as any)?.reason" :label="t('approval.reason')">
+                  {{ (contextData.request_info as any)?.reason }}
+                </NDescriptionsItem>
+              </NDescriptions>
+            </NCollapseItem>
+
+            <NCollapseItem :title="t('approval.employeeInfo')" name="employee">
+              <NDescriptions :column="1" label-placement="left" bordered size="small">
+                <NDescriptionsItem :label="t('common.name')">
+                  {{ (contextData.employee_info as any)?.name }}
+                </NDescriptionsItem>
+                <NDescriptionsItem v-if="(contextData.employee_info as any)?.department" :label="t('employee.department')">
+                  {{ (contextData.employee_info as any)?.department }}
+                </NDescriptionsItem>
+                <NDescriptionsItem :label="t('approval.tenure')">
+                  {{ (contextData.employee_info as any)?.tenure }}
+                </NDescriptionsItem>
+                <NDescriptionsItem :label="t('employee.hireDate')">
+                  {{ (contextData.employee_info as any)?.hire_date }}
+                </NDescriptionsItem>
+              </NDescriptions>
+            </NCollapseItem>
+
+            <NCollapseItem v-if="(contextData.balance_impact as any[])?.length" :title="t('approval.balanceImpact')" name="balance">
+              <NDataTable
+                :data="contextData.balance_impact as any[]"
+                :columns="[
+                  { title: t('approval.leaveType'), key: 'leave_type' },
+                  { title: t('approval.earned'), key: 'earned', width: 80 },
+                  { title: t('approval.used'), key: 'used', width: 80 },
+                  { title: t('approval.remaining'), key: 'remaining', width: 90 },
+                ]"
+                :bordered="true"
+                size="small"
+              />
+            </NCollapseItem>
+
+            <NCollapseItem v-if="(contextData.team_conflicts as any[])?.length" :title="t('approval.teamConflicts')">
+              <NDataTable
+                :data="contextData.team_conflicts as any[]"
+                :columns="[
+                  { title: t('common.name'), key: 'name' },
+                  { title: t('approval.leaveType'), key: 'leave_type' },
+                  { title: t('approval.dates'), key: 'dates' },
+                ]"
+                :bordered="true"
+                size="small"
+              />
+            </NCollapseItem>
+
+            <NCollapseItem v-if="(contextData.leave_history as any[])?.length" :title="t('approval.leaveHistory')">
+              <NDataTable
+                :data="contextData.leave_history as any[]"
+                :columns="[
+                  { title: t('approval.leaveType'), key: 'leave_type' },
+                  { title: t('approval.dates'), key: 'start_date' },
+                  { title: t('approval.days'), key: 'days', width: 60 },
+                  { title: t('common.status'), key: 'status', width: 90 },
+                ]"
+                :bordered="true"
+                size="small"
+              />
+            </NCollapseItem>
+          </NCollapse>
+        </template>
+      </NDrawerContent>
+    </NDrawer>
   </div>
 </template>

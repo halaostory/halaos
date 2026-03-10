@@ -69,6 +69,7 @@ import (
 	"github.com/tonypk/aigonhr/internal/selfservice"
 	"github.com/tonypk/aigonhr/internal/store"
 	"github.com/tonypk/aigonhr/internal/training"
+	"github.com/tonypk/aigonhr/internal/workflow"
 )
 
 type App struct {
@@ -222,6 +223,7 @@ func (a *App) setupRoutes() {
 	holidayHandler := holiday.NewHandler(a.Queries, a.Pool, a.Logger)
 	announcementHandler := announcement.NewHandler(a.Queries, a.Pool, a.Logger)
 	dashboardHandler := dashboard.NewHandler(a.Queries, a.Pool, a.Logger)
+	workflowHandler := workflow.NewHandler(a.Queries, a.Pool, a.Logger)
 
 	// Billing service
 	billingSvc := billing.NewService(a.Queries, a.Logger)
@@ -272,6 +274,11 @@ func (a *App) setupRoutes() {
 		a.Logger.Info("AI assistant disabled (AI_ENABLED=false)")
 	}
 
+	// Wire AI provider into approval handler for smart context
+	if aiProvider != nil {
+		approvalHandler.SetAIProvider(aiProvider)
+	}
+
 	api := a.Router.Group("/api/v1")
 
 	protected := api.Group("")
@@ -311,6 +318,7 @@ func (a *App) setupRoutes() {
 	holidayHandler.RegisterRoutes(protected)
 	announcementHandler.RegisterRoutes(protected)
 	dashboardHandler.RegisterRoutes(protected)
+	workflowHandler.RegisterRoutes(protected)
 
 	billingHandler.RegisterRoutes(protected)
 

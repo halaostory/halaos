@@ -70,6 +70,7 @@ func (r *ToolRegistry) Definitions() []provider.ToolDefinition {
 	defs = append(defs, orgIntelDefs()...)
 	defs = append(defs, clearanceDefs()...)
 	defs = append(defs, scheduleDefs()...)
+	defs = append(defs, workflowDefs()...)
 	return defs
 }
 
@@ -100,4 +101,5 @@ func (r *ToolRegistry) registerTools() {
 	r.registerOrgIntelTools()
 	r.registerClearanceTools()
 	r.registerScheduleTools()
+	r.registerWorkflowTools()
 }

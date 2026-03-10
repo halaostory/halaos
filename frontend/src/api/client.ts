@@ -333,6 +333,11 @@ export const approvalAPI = {
     post(`/v1/approvals/${id}/approve`, data),
   reject: (id: number, data?: { comments?: string }) =>
     post(`/v1/approvals/${id}/reject`, data),
+  getContext: (entityType: string, entityId: number) =>
+    get("/v1/approvals/context", {
+      entity_type: entityType,
+      entity_id: String(entityId),
+    }),
 };
 
 // Compliance
@@ -561,6 +566,11 @@ export const notificationAPI = {
   markRead: (id: number) => post(`/v1/notifications/${id}/read`),
   markAllRead: () => post("/v1/notifications/read-all"),
   delete: (id: number) => api(`/v1/notifications/${id}`, { method: "DELETE" }),
+  executeAction: (
+    id: number,
+    action: string,
+    params?: Record<string, unknown>,
+  ) => post(`/v1/notifications/${id}/execute-action`, { action, params }),
 };
 
 // User Management
@@ -1064,6 +1074,27 @@ export const integrationAPI = {
   // Employee integrations
   getEmployeeIntegrations: (id: number) =>
     get(`/v1/employees/${id}/integrations`),
+};
+
+// Workflow Rules
+export const workflowAPI = {
+  listRules: () => get("/v1/workflow/rules"),
+  createRule: (data: Record<string, unknown>) =>
+    post("/v1/workflow/rules", data),
+  updateRule: (id: number, data: Record<string, unknown>) =>
+    put(`/v1/workflow/rules/${id}`, data),
+  deactivateRule: (id: number) =>
+    api(`/v1/workflow/rules/${id}`, { method: "DELETE" }),
+  listExecutions: (ruleId?: number, params?: Record<string, string>) => {
+    const base = ruleId
+      ? `/v1/workflow/rules/${ruleId}/executions`
+      : "/v1/workflow/executions";
+    return get(base, params);
+  },
+  listSLAConfigs: () => get("/v1/workflow/sla-configs"),
+  upsertSLAConfig: (data: Record<string, unknown>) =>
+    put("/v1/workflow/sla-configs", data),
+  getAnalytics: () => get("/v1/workflow/analytics"),
 };
 
 // Bot

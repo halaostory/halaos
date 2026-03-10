@@ -3,10 +3,13 @@ package notification
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/tonypk/aigonhr/internal/auth"
@@ -112,10 +115,16 @@ type NotificationAction struct {
 	Params map[string]any `json:"params,omitempty"`
 }
 
+// backendActions lists actions that are executed server-side rather than via frontend navigation.
+var backendActions = map[string]bool{
+	"quick_sick_leave":     true,
+	"quick_vacation_leave": true,
+	"quick_approve":        true,
+}
+
 // ExecuteAction validates the requested action exists in the notification's actions,
-// marks the notification as read, and returns the action details for the frontend.
-// For route-only actions, the frontend handles navigation.
-// For tool-based actions, the frontend can call the AI agent with the action.
+// marks the notification as read, and either executes the action server-side
+// or returns the action details for the frontend to handle.
 func (h *Handler) ExecuteAction(c *gin.Context) {
 	notifID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
@@ -124,6 +133,7 @@ func (h *Handler) ExecuteAction(c *gin.Context) {
 	}
 
 	userID := auth.GetUserID(c)
+	companyID := auth.GetCompanyID(c)
 
 	var req executeActionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -172,8 +182,34 @@ func (h *Handler) ExecuteAction(c *gin.Context) {
 		UserID: userID,
 	})
 
+	// Check if this is a backend-executed action
+	if backendActions[matchedAction.Action] {
+		params := matchedAction.Params
+		if params == nil {
+			params = req.Params
+		}
+		msg, err := h.executeBackendAction(c.Request.Context(), companyID, userID, matchedAction.Action, params)
+		if err != nil {
+			h.logger.Error("backend action failed",
+				"action", matchedAction.Action,
+				"notification_id", notifID,
+				"error", err,
+			)
+			response.InternalError(c, fmt.Sprintf("Action failed: %s", err.Error()))
+			return
+		}
+		response.OK(c, gin.H{
+			"notification_id":  notifID,
+			"action":           matchedAction.Action,
+			"label":            matchedAction.Label,
+			"executed":         true,
+			"backend_executed": true,
+			"message":          msg,
+		})
+		return
+	}
+
 	// Return the action details - the frontend will handle execution
-	// (either navigate to a route or call the AI agent with the tool action)
 	result := gin.H{
 		"notification_id": notifID,
 		"action":          matchedAction.Action,
@@ -186,6 +222,124 @@ func (h *Handler) ExecuteAction(c *gin.Context) {
 	}
 
 	response.OK(c, result)
+}
+
+// executeBackendAction dispatches a backend-executable action and returns a success message.
+func (h *Handler) executeBackendAction(ctx context.Context, companyID, userID int64, action string, params map[string]any) (string, error) {
+	switch action {
+	case "quick_sick_leave":
+		return h.executeQuickLeave(ctx, companyID, userID, "SL", params)
+	case "quick_vacation_leave":
+		return h.executeQuickLeave(ctx, companyID, userID, "VL", params)
+	case "quick_approve":
+		return h.executeQuickApprove(ctx, companyID, userID, params)
+	default:
+		return "", fmt.Errorf("unknown backend action: %s", action)
+	}
+}
+
+// executeQuickLeave creates a 1-day leave request for the employee.
+func (h *Handler) executeQuickLeave(ctx context.Context, companyID, userID int64, leaveCode string, params map[string]any) (string, error) {
+	// Find employee from user
+	emp, err := h.queries.GetEmployeeByUserID(ctx, store.GetEmployeeByUserIDParams{
+		UserID:    &userID,
+		CompanyID: companyID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("employee not found for user")
+	}
+
+	// If employee_id is in params, use that (manager filing for someone else)
+	employeeID := emp.ID
+	if eid, ok := params["employee_id"]; ok {
+		if eidFloat, ok := eid.(float64); ok {
+			employeeID = int64(eidFloat)
+		}
+	}
+
+	// Find leave type by code
+	lt, err := h.queries.GetLeaveTypeByCode(ctx, store.GetLeaveTypeByCodeParams{
+		CompanyID: companyID,
+		Code:      leaveCode,
+	})
+	if err != nil {
+		return "", fmt.Errorf("leave type %s not found", leaveCode)
+	}
+
+	// Determine date
+	today := time.Now().Truncate(24 * time.Hour)
+	if dateStr, ok := params["date"].(string); ok {
+		if parsed, err := time.Parse("2006-01-02", dateStr); err == nil {
+			today = parsed
+		}
+	}
+
+	// Create a 1-day numeric
+	var oneDayNum pgtype.Numeric
+	_ = oneDayNum.Scan("1")
+
+	reason := fmt.Sprintf("Filed via notification (quick %s)", leaveCode)
+	lr, err := h.queries.CreateLeaveRequest(ctx, store.CreateLeaveRequestParams{
+		CompanyID:   companyID,
+		EmployeeID:  employeeID,
+		LeaveTypeID: lt.ID,
+		StartDate:   today,
+		EndDate:     today,
+		Days:        oneDayNum,
+		Reason:      &reason,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to create leave request: %w", err)
+	}
+
+	return fmt.Sprintf("Leave request #%d created (%s for %s)", lr.ID, lt.Name, today.Format("Jan 2")), nil
+}
+
+// executeQuickApprove approves a pending request (leave or overtime).
+func (h *Handler) executeQuickApprove(ctx context.Context, companyID, userID int64, params map[string]any) (string, error) {
+	entityType, _ := params["entity_type"].(string)
+	entityIDFloat, _ := params["entity_id"].(float64)
+	entityID := int64(entityIDFloat)
+
+	if entityType == "" || entityID == 0 {
+		return "", fmt.Errorf("missing entity_type or entity_id")
+	}
+
+	// Verify user has manager/admin role by checking the users table
+	user, err := h.queries.GetUserByID(ctx, userID)
+	if err != nil {
+		return "", fmt.Errorf("user not found")
+	}
+	if user.Role != "admin" && user.Role != "manager" && user.Role != "super_admin" {
+		return "", fmt.Errorf("insufficient permissions to approve")
+	}
+
+	switch entityType {
+	case "leave_request":
+		lr, err := h.queries.ApproveLeaveRequest(ctx, store.ApproveLeaveRequestParams{
+			ID:         entityID,
+			CompanyID:  companyID,
+			ApproverID: &userID,
+		})
+		if err != nil {
+			return "", fmt.Errorf("failed to approve leave request: %w", err)
+		}
+		return fmt.Sprintf("Leave request #%d approved", lr.ID), nil
+
+	case "overtime_request":
+		ot, err := h.queries.ApproveOvertimeRequest(ctx, store.ApproveOvertimeRequestParams{
+			ID:         entityID,
+			CompanyID:  companyID,
+			ApproverID: &userID,
+		})
+		if err != nil {
+			return "", fmt.Errorf("failed to approve overtime request: %w", err)
+		}
+		return fmt.Sprintf("Overtime request #%d approved", ot.ID), nil
+
+	default:
+		return "", fmt.Errorf("unsupported entity type: %s", entityType)
+	}
 }
 
 // NotifyOpts holds optional parameters for sending notifications.

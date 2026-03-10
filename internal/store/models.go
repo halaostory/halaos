@@ -144,17 +144,45 @@ type Applicant struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
+type ApprovalSlaConfig struct {
+	ID                  int64     `json:"id"`
+	CompanyID           int64     `json:"company_id"`
+	EntityType          string    `json:"entity_type"`
+	ReminderAfterHours  int32     `json:"reminder_after_hours"`
+	SecondReminderHours int32     `json:"second_reminder_hours"`
+	EscalateAfterHours  int32     `json:"escalate_after_hours"`
+	AutoActionHours     int32     `json:"auto_action_hours"`
+	AutoAction          string    `json:"auto_action"`
+	EscalationRole      string    `json:"escalation_role"`
+	IsActive            bool      `json:"is_active"`
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
+}
+
+type ApprovalSlaEvent struct {
+	ID           int64     `json:"id"`
+	CompanyID    int64     `json:"company_id"`
+	EntityType   string    `json:"entity_type"`
+	EntityID     int64     `json:"entity_id"`
+	EventType    string    `json:"event_type"`
+	TargetUserID *int64    `json:"target_user_id"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
 type ApprovalWorkflow struct {
-	ID         int64              `json:"id"`
-	CompanyID  int64              `json:"company_id"`
-	EntityType string             `json:"entity_type"`
-	EntityID   int64              `json:"entity_id"`
-	Step       int32              `json:"step"`
-	ApproverID int64              `json:"approver_id"`
-	Status     string             `json:"status"`
-	Comments   *string            `json:"comments"`
-	DecidedAt  pgtype.Timestamptz `json:"decided_at"`
-	CreatedAt  time.Time          `json:"created_at"`
+	ID          int64              `json:"id"`
+	CompanyID   int64              `json:"company_id"`
+	EntityType  string             `json:"entity_type"`
+	EntityID    int64              `json:"entity_id"`
+	Step        int32              `json:"step"`
+	ApproverID  int64              `json:"approver_id"`
+	Status      string             `json:"status"`
+	Comments    *string            `json:"comments"`
+	DecidedAt   pgtype.Timestamptz `json:"decided_at"`
+	CreatedAt   time.Time          `json:"created_at"`
+	SlaDeadline pgtype.Timestamptz `json:"sla_deadline"`
+	EscalatedTo *int64             `json:"escalated_to"`
+	EscalatedAt pgtype.Timestamptz `json:"escalated_at"`
 }
 
 type AttendanceCorrection struct {
@@ -1642,4 +1670,31 @@ type WorkSchedule struct {
 	WorkDate   time.Time `json:"work_date"`
 	IsRestDay  bool      `json:"is_rest_day"`
 	CreatedAt  time.Time `json:"created_at"`
+}
+
+type WorkflowRule struct {
+	ID          int64           `json:"id"`
+	CompanyID   int64           `json:"company_id"`
+	Name        string          `json:"name"`
+	Description *string         `json:"description"`
+	EntityType  string          `json:"entity_type"`
+	RuleType    string          `json:"rule_type"`
+	Conditions  json.RawMessage `json:"conditions"`
+	Priority    int32           `json:"priority"`
+	IsActive    bool            `json:"is_active"`
+	CreatedBy   *int64          `json:"created_by"`
+	CreatedAt   time.Time       `json:"created_at"`
+	UpdatedAt   time.Time       `json:"updated_at"`
+}
+
+type WorkflowRuleExecution struct {
+	ID                  int64     `json:"id"`
+	CompanyID           int64     `json:"company_id"`
+	RuleID              int64     `json:"rule_id"`
+	EntityType          string    `json:"entity_type"`
+	EntityID            int64     `json:"entity_id"`
+	Action              string    `json:"action"`
+	Reason              *string   `json:"reason"`
+	EvaluatedConditions []byte    `json:"evaluated_conditions"`
+	CreatedAt           time.Time `json:"created_at"`
 }

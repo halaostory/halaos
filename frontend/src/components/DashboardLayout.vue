@@ -17,7 +17,7 @@ import {
   BarChartOutline, CardOutline, NotificationsOutline, LibraryOutline,
   GridOutline, FileTrayFullOutline, CloudDownloadOutline, BookOutline, CalendarNumberOutline,
   MegaphoneOutline, DocumentTextOutline, SchoolOutline, AlertCircleOutline, MedkitOutline, FolderOpenOutline, ChatbubblesOutline, LocationOutline,
-  LinkOutline, PulseOutline,
+  LinkOutline, PulseOutline, GitBranchOutline, TrendingUpOutline,
 } from '@vicons/ionicons5'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
@@ -162,6 +162,8 @@ const features: Record<string, boolean> = {
   'self-service': true,
   holidays: true,
   'org-intelligence': true,
+  'workflow-rules': true,
+  'workflow-analytics': true,
 }
 
 function isEnabled(key: string): boolean {
@@ -218,10 +220,16 @@ const menuOptions = computed<MenuOption[]>(() => {
     if (isEnabled('analytics')) {
       items.push({ label: t('nav.analytics'), key: 'analytics', icon: renderIcon(BarChartOutline) })
     }
+    if (isEnabled('workflow-rules')) {
+      items.push({ label: t('nav.workflowRules'), key: 'workflow-rules', icon: renderIcon(GitBranchOutline) })
+    }
   }
 
   if ((auth.isAdmin || auth.isManager) && isEnabled('org-intelligence')) {
     items.push({ label: t('nav.orgIntelligence'), key: 'org-intelligence', icon: renderIcon(PulseOutline) })
+  }
+  if ((auth.isAdmin || auth.isManager) && isEnabled('workflow-analytics')) {
+    items.push({ label: t('nav.workflowAnalytics'), key: 'workflow-analytics', icon: renderIcon(TrendingUpOutline) })
   }
 
   // AI Agent Hub — visible to all

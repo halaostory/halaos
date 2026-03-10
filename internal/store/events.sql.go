@@ -330,7 +330,7 @@ func (q *Queries) ListEventsByAggregate(ctx context.Context, arg ListEventsByAgg
 }
 
 const listPendingApprovals = `-- name: ListPendingApprovals :many
-SELECT id, company_id, entity_type, entity_id, step, approver_id, status, comments, decided_at, created_at FROM approval_workflows
+SELECT id, company_id, entity_type, entity_id, step, approver_id, status, comments, decided_at, created_at, sla_deadline, escalated_to, escalated_at FROM approval_workflows
 WHERE approver_id = $1 AND status = 'pending'
 ORDER BY created_at ASC
 `
@@ -355,6 +355,9 @@ func (q *Queries) ListPendingApprovals(ctx context.Context, approverID int64) ([
 			&i.Comments,
 			&i.DecidedAt,
 			&i.CreatedAt,
+			&i.SlaDeadline,
+			&i.EscalatedTo,
+			&i.EscalatedAt,
 		); err != nil {
 			return nil, err
 		}

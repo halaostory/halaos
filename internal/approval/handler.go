@@ -7,19 +7,26 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/tonypk/aigonhr/internal/ai/provider"
 	"github.com/tonypk/aigonhr/internal/auth"
 	"github.com/tonypk/aigonhr/internal/store"
 	"github.com/tonypk/aigonhr/pkg/response"
 )
 
 type Handler struct {
-	queries *store.Queries
-	pool    *pgxpool.Pool
-	logger  *slog.Logger
+	queries    *store.Queries
+	pool       *pgxpool.Pool
+	logger     *slog.Logger
+	aiProvider provider.Provider
 }
 
 func NewHandler(queries *store.Queries, pool *pgxpool.Pool, logger *slog.Logger) *Handler {
 	return &Handler{queries: queries, pool: pool, logger: logger}
+}
+
+// SetAIProvider sets the optional AI provider for smart context recommendations.
+func (h *Handler) SetAIProvider(p provider.Provider) {
+	h.aiProvider = p
 }
 
 // ListPending returns pending approvals for the current user's employee record.

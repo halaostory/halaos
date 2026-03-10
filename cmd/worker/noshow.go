@@ -142,10 +142,11 @@ func checkNoShowsForCompany(
 			emp.FirstName,
 		)
 
+		todayStr := today.Format("2006-01-02")
 		actions := []notification.NotificationAction{
-			{Label: "Request Sick Leave", Action: "quick_sick_leave", Route: "/leaves"},
-			{Label: "Request Vacation Leave", Action: "quick_vacation_leave", Route: "/leaves"},
-			{Label: "I'm On My Way", Action: "dismiss"},
+			{Label: "Request Sick Leave", Action: "quick_sick_leave", Params: map[string]any{"employee_id": emp.ID, "date": todayStr}},
+			{Label: "Request Vacation Leave", Action: "quick_vacation_leave", Params: map[string]any{"employee_id": emp.ID, "date": todayStr}},
+			{Label: "I'm On My Way", Action: "dismiss", Route: "/attendance"},
 		}
 
 		notification.Notify(ctx, queries, logger, companyID, *emp.UserID, title, msg, "ai_reminder", &entityType, &emp.ID, actions)

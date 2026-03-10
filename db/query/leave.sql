@@ -9,6 +9,9 @@ RETURNING *;
 -- name: ListLeaveTypes :many
 SELECT * FROM leave_types WHERE company_id = $1 AND is_active = true ORDER BY name;
 
+-- name: GetLeaveTypeByCode :one
+SELECT * FROM leave_types WHERE company_id = $1 AND code = $2 AND is_active = true;
+
 -- name: GetLeaveBalance :one
 SELECT * FROM leave_balances
 WHERE company_id = $1 AND employee_id = $2 AND leave_type_id = $3 AND year = $4;

@@ -253,6 +253,118 @@ func (r *ToolRegistry) toolRejectOvertimeRequest(ctx context.Context, companyID,
 	})
 }
 
+func (r *ToolRegistry) toolGetApprovalContext(ctx context.Context, companyID, userID int64, input map[string]any) (string, error) {
+	user, err := r.queries.GetUserByID(ctx, userID)
+	if err != nil {
+		return "", fmt.Errorf("user not found: %w", err)
+	}
+	if user.CompanyID != companyID {
+		return "", fmt.Errorf("access denied")
+	}
+	if user.Role != "admin" && user.Role != "manager" {
+		return "", fmt.Errorf("only managers and admins can view approval context")
+	}
+
+	entityType, _ := input["entity_type"].(string)
+	requestID, _ := input["request_id"].(float64)
+	if entityType == "" || requestID <= 0 {
+		return "", fmt.Errorf("entity_type and request_id are required")
+	}
+
+	switch entityType {
+	case "leave_request", "leave":
+		lr, err := r.queries.GetLeaveRequest(ctx, store.GetLeaveRequestParams{
+			ID:        int64(requestID),
+			CompanyID: companyID,
+		})
+		if err != nil {
+			return "", fmt.Errorf("leave request not found: %w", err)
+		}
+
+		emp, err := r.queries.GetEmployeeByID(ctx, store.GetEmployeeByIDParams{
+			ID:        lr.EmployeeID,
+			CompanyID: companyID,
+		})
+		if err != nil {
+			return "", fmt.Errorf("employee not found: %w", err)
+		}
+
+		balances, err := r.queries.ListLeaveBalances(ctx, store.ListLeaveBalancesParams{
+			CompanyID:  companyID,
+			EmployeeID: lr.EmployeeID,
+			Year:       int32(lr.StartDate.Year()),
+		})
+		balanceSummary := make([]map[string]any, 0)
+		if err == nil {
+			for _, b := range balances {
+				earned := numericToFloat(b.Earned)
+				used := numericToFloat(b.Used)
+				carried := numericToFloat(b.Carried)
+				adjusted := numericToFloat(b.Adjusted)
+				balanceSummary = append(balanceSummary, map[string]any{
+					"leave_type": b.LeaveTypeName,
+					"remaining":  earned + carried + adjusted - used,
+				})
+			}
+		}
+
+		return toJSON(map[string]any{
+			"request": map[string]any{
+				"id":         lr.ID,
+				"start_date": lr.StartDate.Format("2006-01-02"),
+				"end_date":   lr.EndDate.Format("2006-01-02"),
+				"days":       numericToString(lr.Days),
+				"status":     lr.Status,
+				"reason":     lr.Reason,
+			},
+			"employee": map[string]any{
+				"id":        emp.ID,
+				"name":      emp.FirstName + " " + emp.LastName,
+				"hire_date": emp.HireDate.Format("2006-01-02"),
+				"status":    emp.Status,
+			},
+			"leave_balances": balanceSummary,
+		})
+
+	case "overtime_request", "overtime":
+		ot, err := r.queries.GetOvertimeRequest(ctx, store.GetOvertimeRequestParams{
+			ID:        int64(requestID),
+			CompanyID: companyID,
+		})
+		if err != nil {
+			return "", fmt.Errorf("overtime request not found: %w", err)
+		}
+
+		emp, err := r.queries.GetEmployeeByID(ctx, store.GetEmployeeByIDParams{
+			ID:        ot.EmployeeID,
+			CompanyID: companyID,
+		})
+		if err != nil {
+			return "", fmt.Errorf("employee not found: %w", err)
+		}
+
+		return toJSON(map[string]any{
+			"request": map[string]any{
+				"id":      ot.ID,
+				"ot_date": ot.OtDate.Format("2006-01-02"),
+				"hours":   numericToString(ot.Hours),
+				"ot_type": ot.OtType,
+				"status":  ot.Status,
+				"reason":  ot.Reason,
+			},
+			"employee": map[string]any{
+				"id":        emp.ID,
+				"name":      emp.FirstName + " " + emp.LastName,
+				"hire_date": emp.HireDate.Format("2006-01-02"),
+				"status":    emp.Status,
+			},
+		})
+
+	default:
+		return "", fmt.Errorf("unsupported entity type: %s", entityType)
+	}
+}
+
 // approvalDefs returns tool definitions for approval-related tools.
 func approvalDefs() []provider.ToolDefinition {
 	return []provider.ToolDefinition{
@@ -310,6 +422,18 @@ func approvalDefs() []provider.ToolDefinition {
 				"required": []string{"request_id"},
 			}),
 		},
+		{
+			Name:        "get_approval_context",
+			Description: "Get detailed context for a pending approval request, including employee info, leave balance, and team conflicts. Manager/Admin only.",
+			Parameters: jsonSchema(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"entity_type": map[string]any{"type": "string", "description": "Type: leave_request or overtime_request", "enum": []string{"leave_request", "overtime_request"}},
+					"request_id":  map[string]any{"type": "integer", "description": "The request ID to get context for."},
+				},
+				"required": []string{"entity_type", "request_id"},
+			}),
+		},
 	}
 }
 
@@ -320,4 +444,5 @@ func (r *ToolRegistry) registerApprovalTools() {
 	r.tools["approve_overtime_request"] = r.toolApproveOvertimeRequest
 	r.tools["reject_leave_request"] = r.toolRejectLeaveRequest
 	r.tools["reject_overtime_request"] = r.toolRejectOvertimeRequest
+	r.tools["get_approval_context"] = r.toolGetApprovalContext
 }

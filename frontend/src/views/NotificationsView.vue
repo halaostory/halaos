@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
+import { useRouter } from "vue-router";
 import {
   NCard,
   NList,
@@ -18,8 +19,17 @@ import {
 } from "naive-ui";
 import { notificationAPI } from "../api/client";
 
+const router = useRouter();
+
 const { t } = useI18n();
 const message = useMessage();
+
+interface NotificationAction {
+  label: string;
+  action?: string;
+  route?: string;
+  params?: Record<string, unknown>;
+}
 
 interface Notification {
   id: number;
@@ -30,7 +40,10 @@ interface Notification {
   entity_id: number | null;
   is_read: boolean;
   created_at: string;
+  actions?: NotificationAction[] | null;
 }
+
+const executingActions = ref<Set<string>>(new Set());
 
 const notifications = ref<Notification[]>([]);
 const unreadCount = ref(0);
@@ -151,6 +164,51 @@ function handleCategoryChange() {
   currentPage.value = 1;
 }
 
+async function handleAction(n: Notification, action: NotificationAction) {
+  if (!action.action) {
+    // Route-only action
+    if (action.route) {
+      router.push(action.route);
+    }
+    return;
+  }
+
+  if (action.action === "dismiss") {
+    handleMarkRead(n.id);
+    return;
+  }
+
+  const key = `${n.id}-${action.action}`;
+  if (executingActions.value.has(key)) return;
+  executingActions.value = new Set([...executingActions.value, key]);
+
+  try {
+    const res = (await notificationAPI.executeAction(
+      n.id,
+      action.action,
+      action.params as Record<string, unknown>
+    )) as any;
+    const data = res?.data ?? res;
+
+    if (data?.backend_executed) {
+      message.success(data.message || t("common.success"));
+      // Remove notification from list after successful backend action
+      notifications.value = notifications.value.filter((x) => x.id !== n.id);
+      unreadCount.value = Math.max(0, unreadCount.value - (n.is_read ? 0 : 1));
+    } else if (data?.route) {
+      router.push(data.route);
+    } else {
+      message.info(t("notification.actionExecuted"));
+    }
+  } catch {
+    message.error(t("common.failed"));
+  } finally {
+    const next = new Set(executingActions.value);
+    next.delete(key);
+    executingActions.value = next;
+  }
+}
+
 onMounted(() => {
   fetchNotifications();
   fetchUnreadCount();
@@ -236,7 +294,7 @@ onMounted(() => {
             </NSpace>
           </template>
           <template #footer>
-            <NSpace :size="8" align="center">
+            <NSpace :size="8" align="center" wrap>
               <NTag
                 size="small"
                 :type="(categoryColor[n.category] as any) || 'default'"
@@ -244,6 +302,18 @@ onMounted(() => {
                 {{ t(`notification.${n.category}`) || n.category }}
               </NTag>
               <NTime :time="new Date(n.created_at)" type="relative" />
+              <template v-if="n.actions && n.actions.length">
+                <NButton
+                  v-for="act in n.actions"
+                  :key="act.action || act.label"
+                  size="tiny"
+                  :type="act.action === 'quick_approve' ? 'success' : act.action?.startsWith('quick_') ? 'primary' : 'default'"
+                  :loading="executingActions.has(`${n.id}-${act.action}`)"
+                  @click.stop="handleAction(n, act)"
+                >
+                  {{ act.label }}
+                </NButton>
+              </template>
             </NSpace>
           </template>
         </NThing>

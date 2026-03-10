@@ -264,6 +264,18 @@ func sendPendingLeaveReminders(ctx context.Context, queries *store.Queries, logg
 		actions := []notification.NotificationAction{
 			{Label: "Review All", Route: "/approvals", Action: "review_leave_approvals"},
 		}
+		// Add quick-approve for up to 3 individual pending leaves
+		for i, lr := range pendingLeaves {
+			if i >= 3 {
+				break
+			}
+			empName := fmt.Sprintf("%v", lr.EmployeeName)
+			actions = append(actions, notification.NotificationAction{
+				Label:  fmt.Sprintf("Approve %s", empName),
+				Action: "quick_approve",
+				Params: map[string]any{"entity_type": "leave_request", "entity_id": lr.ID},
+			})
+		}
 		notification.Notify(ctx, queries, logger, companyID, mgr.ID, title, msg, "ai_reminder", &entityType, nil, actions)
 
 		if _, err := queries.InsertAIReminder(ctx, store.InsertAIReminderParams{
@@ -309,6 +321,18 @@ func sendPendingOTReminders(ctx context.Context, queries *store.Queries, logger 
 
 		actions := []notification.NotificationAction{
 			{Label: "Review", Route: "/approvals", Action: "review_ot_approvals"},
+		}
+		// Add quick-approve for up to 3 individual pending OT requests
+		for i, ot := range pendingOT {
+			if i >= 3 {
+				break
+			}
+			empName := fmt.Sprintf("%v", ot.EmployeeName)
+			actions = append(actions, notification.NotificationAction{
+				Label:  fmt.Sprintf("Approve %s", empName),
+				Action: "quick_approve",
+				Params: map[string]any{"entity_type": "overtime_request", "entity_id": ot.ID},
+			})
 		}
 		notification.Notify(ctx, queries, logger, companyID, mgr.ID, title, msg, "ai_reminder", &entityType, nil, actions)
 

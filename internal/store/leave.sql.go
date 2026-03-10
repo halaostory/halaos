@@ -464,6 +464,39 @@ func (q *Queries) GetLeaveRequest(ctx context.Context, arg GetLeaveRequestParams
 	return i, err
 }
 
+const getLeaveTypeByCode = `-- name: GetLeaveTypeByCode :one
+SELECT id, company_id, code, name, is_paid, default_days, is_convertible, requires_attachment, min_days_notice, accrual_type, gender_specific, is_statutory, is_active, created_at, max_carryover, carryover_expiry_months FROM leave_types WHERE company_id = $1 AND code = $2 AND is_active = true
+`
+
+type GetLeaveTypeByCodeParams struct {
+	CompanyID int64  `json:"company_id"`
+	Code      string `json:"code"`
+}
+
+func (q *Queries) GetLeaveTypeByCode(ctx context.Context, arg GetLeaveTypeByCodeParams) (LeaveType, error) {
+	row := q.db.QueryRow(ctx, getLeaveTypeByCode, arg.CompanyID, arg.Code)
+	var i LeaveType
+	err := row.Scan(
+		&i.ID,
+		&i.CompanyID,
+		&i.Code,
+		&i.Name,
+		&i.IsPaid,
+		&i.DefaultDays,
+		&i.IsConvertible,
+		&i.RequiresAttachment,
+		&i.MinDaysNotice,
+		&i.AccrualType,
+		&i.GenderSpecific,
+		&i.IsStatutory,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.MaxCarryover,
+		&i.CarryoverExpiryMonths,
+	)
+	return i, err
+}
+
 const listAllLeaveBalances = `-- name: ListAllLeaveBalances :many
 SELECT lb.id, lb.employee_id, lb.leave_type_id, lb.year,
        lb.earned, lb.used, lb.carried, lb.adjusted,
