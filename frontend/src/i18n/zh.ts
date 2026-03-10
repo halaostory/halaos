@@ -1612,6 +1612,17 @@ export default {
     factorWeekend: "周末加班",
     factorIrregularity: "考勤异常",
   },
+  blindSpots: {
+    title: "经理盲点检测",
+    noSpots: "未检测到盲点——您的团队状态良好！",
+    resolved: "已处理",
+    detectedOn: "检测日期",
+    chronicTardiness: "长期迟到",
+    otConcentration: "加班集中",
+    leaveNeverTaken: "休假过少",
+    highFlightRisk: "高离职风险",
+    feedbackGap: "反馈空白",
+  },
   complianceAlerts: {
     title: "合规风险预警",
     noAlerts: "暂无合规风险预警",

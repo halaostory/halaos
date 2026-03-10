@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import {
   NCard, NGrid, NGi, NStatistic, NSkeleton, NEmpty, NTag,
 } from 'naive-ui'
-import { orgIntelligenceAPI, flightRiskAPI, burnoutRiskAPI } from '../api/client'
+import { orgIntelligenceAPI, flightRiskAPI, burnoutRiskAPI, analyticsAPI } from '../api/client'
 import OrgHealthScore from '../components/org-intelligence/OrgHealthScore.vue'
 import ScoreTrendCharts from '../components/org-intelligence/ScoreTrendCharts.vue'
 import RiskDistributionWidget from '../components/org-intelligence/RiskDistributionWidget.vue'
@@ -12,6 +12,7 @@ import DepartmentComparisonWidget from '../components/org-intelligence/Departmen
 import TopConcernsWidget from '../components/org-intelligence/TopConcernsWidget.vue'
 import CrossCorrelationInsights from '../components/org-intelligence/CrossCorrelationInsights.vue'
 import ExecutiveBriefingWidget from '../components/org-intelligence/ExecutiveBriefingWidget.vue'
+import BlindSpotsWidget from '../components/org-intelligence/BlindSpotsWidget.vue'
 
 const { t } = useI18n()
 
@@ -40,6 +41,9 @@ const topBurnout = ref<any[]>([])
 
 // Team health (for department comparison)
 const teamHealth = ref<any[]>([])
+
+// Blind spots
+const blindSpots = ref<any[]>([])
 
 function numVal(v: any): number {
   if (typeof v === 'number') return v
@@ -126,6 +130,13 @@ async function loadData() {
         burnout_score: e.burnout_score,
       })) : []
     }
+
+    // Load blind spots
+    try {
+      const bsRes = await analyticsAPI.getBlindSpots()
+      const bsData = (bsRes as any)?.data ?? bsRes
+      blindSpots.value = Array.isArray(bsData) ? bsData : []
+    } catch { /* ok */ }
 
     // Load team health for department comparison
     try {
@@ -214,6 +225,11 @@ onMounted(loadData)
       <div style="margin-bottom: 24px;">
         <ExecutiveBriefingWidget :briefing="briefing" @refresh="refreshBriefing" />
       </div>
+
+      <!-- Row 2.5: Manager Blind Spots -->
+      <NCard v-if="blindSpots.length > 0" :title="t('blindSpots.title')" style="margin-bottom: 24px;">
+        <BlindSpotsWidget :spots="blindSpots" />
+      </NCard>
 
       <!-- Row 3: Trends + Risk Distribution -->
       <NGrid :cols="2" :x-gap="16" :y-gap="16" responsive="screen" :item-responsive="true" style="margin-bottom: 24px;">

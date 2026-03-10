@@ -1619,6 +1619,17 @@ export default {
     factorWeekend: "Weekend Work",
     factorIrregularity: "Irregular Attendance",
   },
+  blindSpots: {
+    title: "Manager Blind Spots",
+    noSpots: "No blind spots detected — your team is in good shape!",
+    resolved: "Resolved",
+    detectedOn: "Detected on",
+    chronicTardiness: "Chronic Tardiness",
+    otConcentration: "Overtime Concentration",
+    leaveNeverTaken: "Low Leave Usage",
+    highFlightRisk: "High Flight Risk",
+    feedbackGap: "Feedback Gap",
+  },
   complianceAlerts: {
     title: "Compliance Alerts",
     noAlerts: "No compliance alerts",

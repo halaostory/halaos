@@ -17,6 +17,9 @@ func (h *Handler) RegisterRoutes(protected *gin.RouterGroup) {
 
 	protected.GET("/analytics/export/csv", auth.AdminOnly(), h.ExportCSV)
 
+	// Blind spots (manager team insights)
+	protected.GET("/analytics/blind-spots", auth.ManagerOrAbove(), h.GetBlindSpots)
+
 	// Suggestions
 	protected.GET("/analytics/suggestions", auth.ManagerOrAbove(), h.GetSuggestions)
 }

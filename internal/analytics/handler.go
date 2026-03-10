@@ -148,6 +148,58 @@ func (h *Handler) GetLeaveUtilization(c *gin.Context) {
 	response.OK(c, util)
 }
 
+// GetBlindSpots returns recent manager blind spots for the current company.
+func (h *Handler) GetBlindSpots(c *gin.Context) {
+	companyID := auth.GetCompanyID(c)
+	ctx := c.Request.Context()
+
+	rows, err := h.pool.Query(ctx, `
+		SELECT id, manager_id, spot_type, severity, title, description, employees, is_resolved, week_date, created_at
+		FROM manager_blind_spots
+		WHERE company_id = $1
+		ORDER BY
+		  CASE severity WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
+		  created_at DESC
+		LIMIT 50
+	`, companyID)
+	if err != nil {
+		response.InternalError(c, "Failed to get blind spots")
+		return
+	}
+	defer rows.Close()
+
+	type blindSpotRow struct {
+		ID          int64  `json:"id"`
+		ManagerID   int64  `json:"manager_id"`
+		SpotType    string `json:"spot_type"`
+		Severity    string `json:"severity"`
+		Title       string `json:"title"`
+		Description string `json:"description"`
+		Employees   []byte `json:"employees"`
+		IsResolved  bool   `json:"is_resolved"`
+		WeekDate    string `json:"week_date"`
+		CreatedAt   string `json:"created_at"`
+	}
+
+	var spots []blindSpotRow
+	for rows.Next() {
+		var s blindSpotRow
+		var weekDate, createdAt time.Time
+		if err := rows.Scan(&s.ID, &s.ManagerID, &s.SpotType, &s.Severity, &s.Title, &s.Description, &s.Employees, &s.IsResolved, &weekDate, &createdAt); err != nil {
+			h.logger.Error("failed to scan blind spot", "error", err)
+			continue
+		}
+		s.WeekDate = weekDate.Format("2006-01-02")
+		s.CreatedAt = createdAt.Format("2006-01-02T15:04:05Z")
+		spots = append(spots, s)
+	}
+	if spots == nil {
+		spots = []blindSpotRow{}
+	}
+
+	response.OK(c, spots)
+}
+
 // ExportCSV exports analytics data as CSV
 func (h *Handler) ExportCSV(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)

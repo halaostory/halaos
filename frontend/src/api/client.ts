@@ -454,6 +454,7 @@ export const analyticsAPI = {
   getEmploymentTypes: () => get("/v1/analytics/employment-types"),
   getLeaveUtilization: (params?: Record<string, string>) =>
     get("/v1/analytics/leave-utilization", params),
+  getBlindSpots: () => get("/v1/analytics/blind-spots"),
   exportCSV: async () => {
     const baseURL = import.meta.env.VITE_API_URL || "/api";
     const token = localStorage.getItem("token");

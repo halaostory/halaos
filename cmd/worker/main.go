@@ -218,6 +218,9 @@ func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.
 	// Calculate burnout risk scores (weekly, Monday only)
 	calculateBurnoutScores(ctx, queries, pool, logger)
 
+	// Detect manager blind spots (weekly, Monday only, after scorers)
+	detectManagerBlindSpots(ctx, queries, pool, logger)
+
 	// Snapshot score history + org aggregates (weekly, Monday only, after scorers)
 	snapshotScoreHistory(ctx, queries, pool, logger)
 
