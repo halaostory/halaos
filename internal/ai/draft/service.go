@@ -33,6 +33,7 @@ var WriteTools = map[string]bool{
 	"approve_benefit_claim":        true,
 	"reject_benefit_claim":         true,
 	"approve_leave_encashment":     true,
+	"create_employee":              true,
 }
 
 // RiskLevel categorizes the potential impact of an action.
@@ -56,6 +57,7 @@ var toolRisk = map[string]string{
 	"create_tax_filing_record":     "high",
 	"update_clearance_item":        "high",
 	"create_final_pay":             "high",
+	"create_employee":              "high",
 }
 
 // DraftResult is returned to the LLM when a write tool creates a draft.
