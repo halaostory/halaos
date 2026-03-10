@@ -34,10 +34,12 @@ var WriteTools = map[string]bool{
 	"reject_benefit_claim":         true,
 	"approve_leave_encashment":     true,
 	"create_employee":              true,
+	"send_kudos":                   true,
 }
 
 // RiskLevel categorizes the potential impact of an action.
 var toolRisk = map[string]string{
+	"send_kudos":                   "low",
 	"create_leave_request":         "low",
 	"create_overtime_request":      "low",
 	"create_expense_claim":         "low",

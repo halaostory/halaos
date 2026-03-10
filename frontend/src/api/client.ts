@@ -1112,6 +1112,15 @@ export const workflowAPI = {
     post(`/v1/workflow/decisions/${id}/override`, data),
 };
 
+// Recognition / Kudos
+export const recognitionAPI = {
+  send: (data: Record<string, unknown>) => post("/v1/recognitions", data),
+  list: (params?: Record<string, string>) => get("/v1/recognitions", params),
+  listMy: (params?: Record<string, string>) =>
+    get("/v1/recognitions/my", params),
+  getStats: () => get("/v1/recognitions/stats"),
+};
+
 // Pulse Surveys
 export const pulseAPI = {
   list: (params?: Record<string, string>) => get("/v1/pulse-surveys", params),

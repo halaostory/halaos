@@ -1473,6 +1473,18 @@ type PulseSurvey struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
+type Recognition struct {
+	ID             int64     `json:"id"`
+	CompanyID      int64     `json:"company_id"`
+	FromEmployeeID int64     `json:"from_employee_id"`
+	ToEmployeeID   int64     `json:"to_employee_id"`
+	Category       string    `json:"category"`
+	Message        string    `json:"message"`
+	IsPublic       bool      `json:"is_public"`
+	Points         int32     `json:"points"`
+	CreatedAt      time.Time `json:"created_at"`
+}
+
 type RemittanceRecord struct {
 	ID            int64          `json:"id"`
 	CompanyID     int64          `json:"company_id"`

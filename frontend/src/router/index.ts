@@ -369,6 +369,12 @@ const router = createRouter({
           component: () => import("../views/WorkflowDecisionsView.vue"),
           meta: { roles: ["super_admin", "admin", "manager"] },
         },
+        // Recognition
+        {
+          path: "recognition",
+          name: "recognition",
+          component: () => import("../views/RecognitionView.vue"),
+        },
         // Pulse Surveys
         {
           path: "pulse-surveys",
