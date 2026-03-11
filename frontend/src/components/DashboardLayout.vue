@@ -12,7 +12,7 @@ import {
   HomeOutline, PeopleOutline, TimeOutline, CalendarOutline,
   AlarmOutline, CheckmarkCircleOutline, WalletOutline, ReceiptOutline,
   BusinessOutline, BriefcaseOutline, SettingsOutline, PersonOutline,
-  LogOutOutline, SunnyOutline, MoonOutline, CashOutline, ShieldCheckmarkOutline,
+  LogOutOutline, SunnyOutline, MoonOutline, CashOutline, ShieldCheckmarkOutline, HelpCircleOutline,
   TodayOutline, ClipboardOutline, RibbonOutline, PersonCircleOutline,
   BarChartOutline, CardOutline, NotificationsOutline, LibraryOutline,
   GridOutline, FileTrayFullOutline, CloudDownloadOutline, BookOutline, CalendarNumberOutline,
@@ -25,6 +25,7 @@ import { useThemeStore } from '../stores/theme'
 import { notificationAPI } from '../api/client'
 import ChatPanel from './ChatPanel.vue'
 import CommandPalette from './CommandPalette.vue'
+import { useTour } from '../composables/useTour'
 
 const router = useRouter()
 const route = useRoute()
@@ -100,9 +101,12 @@ const categoryColor: Record<string, string> = {
   approval: 'error',
 }
 
+const { startTour, autoStartIfNeeded } = useTour()
+
 onMounted(() => {
   fetchUnreadCount()
   pollTimer = setInterval(fetchUnreadCount, 30000)
+  autoStartIfNeeded()
 })
 
 onUnmounted(() => {
@@ -113,200 +117,177 @@ function renderIcon(icon: Component) {
   return () => h(NIcon, null, { default: () => h(icon) })
 }
 
+function renderMenuLabel(titleKey: string, descKey: string) {
+  return () => h('div', null, [
+    h('div', null, t(titleKey)),
+    h('div', { style: 'font-size: 11px; opacity: 0.45; line-height: 1.2; margin-top: 1px;' }, t(descKey)),
+  ])
+}
+
+function mi(titleKey: string, descKey: string, key: string, icon: Component): MenuOption {
+  return { label: renderMenuLabel(titleKey, descKey), key, icon: renderIcon(icon) }
+}
+
 // Phase 1 feature flags — set to true to show in sidebar
 const features: Record<string, boolean> = {
-  // Phase 1: Core HR + AI differentiator
-  dashboard: true,
-  employees: true,
-  directory: true,
-  attendance: true,
-  'attendance-report': true,
-  dtr: true,
-  leaves: true,
-  'leave-calendar': true,
-  payroll: true,
-  payslips: true,
-  'agent-hub': true,
-  billing: true,
-  users: true,
-  departments: true,
-  positions: true,
-  salary: true,
-  settings: true,
-  announcements: true,
-  approvals: true,
-  integrations: true,
-  // Phase 2: all enabled
-  overtime: true,
-  'leave-encashment': true,
-  schedules: true,
-  analytics: true,
-  onboarding: true,
-  performance: true,
-  training: true,
-  compliance: true,
-  'tax-filings': true,
-  knowledge: true,
-  benefits: true,
-  loans: true,
-  expenses: true,
-  disciplinary: true,
-  grievance: true,
-  clearance: true,
-  'final-pay': true,
-  '201file': true,
-  milestones: true,
-  geofences: true,
-  'import-export': true,
-  audit: true,
-  policies: true,
-  'self-service': true,
-  holidays: true,
-  'org-intelligence': true,
-  'workflow-rules': true,
-  'workflow-analytics': true,
-  'workflow-triggers': true,
-  'workflow-decisions': true,
-  'pulse-surveys': true,
-  recognition: true,
-  'hr-requests': true,
+  dashboard: true, employees: true, directory: true, attendance: true,
+  'attendance-report': true, dtr: true, leaves: true, 'leave-calendar': true,
+  payroll: true, payslips: true, 'agent-hub': true, billing: true,
+  users: true, departments: true, positions: true, salary: true,
+  settings: true, announcements: true, approvals: true, integrations: true,
+  overtime: true, 'leave-encashment': true, schedules: true, analytics: true,
+  onboarding: true, performance: true, training: true, compliance: true,
+  'tax-filings': true, knowledge: true, benefits: true, loans: true,
+  expenses: true, disciplinary: true, grievance: true, clearance: true,
+  'final-pay': true, '201file': true, milestones: true, geofences: true,
+  'import-export': true, audit: true, policies: true, 'self-service': true,
+  holidays: true, 'org-intelligence': true, 'workflow-rules': true,
+  'workflow-analytics': true, 'workflow-triggers': true, 'workflow-decisions': true,
+  'pulse-surveys': true, recognition: true, 'hr-requests': true,
 }
 
 function isEnabled(key: string): boolean {
   return features[key] !== false
 }
 
+/** Push item to array if feature is enabled */
+function pushIf(arr: MenuOption[], key: string, titleKey: string, descKey: string, icon: Component) {
+  if (isEnabled(key)) arr.push(mi(titleKey, descKey, key, icon))
+}
+
 const menuOptions = computed<MenuOption[]>(() => {
-  const items: MenuOption[] = [
-    { label: t('nav.dashboard'), key: 'dashboard', icon: renderIcon(HomeOutline) },
-  ]
+  const groups: MenuOption[] = []
+  const isAdminOrManager = auth.isAdmin || auth.isManager
 
-  if (isEnabled('announcements')) {
-    items.push({ label: t('nav.announcements'), key: 'announcements', icon: renderIcon(MegaphoneOutline) })
-  }
-  if (isEnabled('directory')) {
-    items.push({ label: t('nav.directory'), key: 'directory', icon: renderIcon(BookOutline) })
-  }
-
-  if (auth.isAdmin || auth.isManager) {
-    items.push({ label: t('nav.employees'), key: 'employees', icon: renderIcon(PeopleOutline) })
-  }
-
-  items.push(
-    { label: t('nav.attendance'), key: 'attendance', icon: renderIcon(TimeOutline) },
-    { label: t('nav.leaves'), key: 'leaves', icon: renderIcon(CalendarOutline) },
-  )
-  if (isEnabled('leave-calendar')) {
-    items.push({ label: t('nav.leaveCalendar'), key: 'leave-calendar', icon: renderIcon(CalendarNumberOutline) })
-  }
-  if (isEnabled('leave-encashment')) {
-    items.push({ label: t('nav.leaveEncashment'), key: 'leave-encashment', icon: renderIcon(CashOutline) })
-  }
-  if (isEnabled('overtime')) {
-    items.push({ label: t('nav.overtime'), key: 'overtime', icon: renderIcon(AlarmOutline) })
+  // ── 1. My Workspace (all users) ──
+  const workspace: MenuOption[] = []
+  pushIf(workspace, 'dashboard', 'nav.dashboard', 'navDesc.dashboard', HomeOutline)
+  pushIf(workspace, 'self-service', 'nav.selfService', 'navDesc.selfService', PersonCircleOutline)
+  pushIf(workspace, 'payslips', 'nav.payslips', 'navDesc.payslips', ReceiptOutline)
+  pushIf(workspace, 'announcements', 'nav.announcements', 'navDesc.announcements', MegaphoneOutline)
+  pushIf(workspace, 'hr-requests', 'nav.hrRequests', 'navDesc.hrRequests', FileTrayFullOutline)
+  if (workspace.length) {
+    groups.push({ type: 'group', label: t('nav.groupWorkspace'), key: 'g-workspace', children: workspace })
   }
 
-  if (auth.isManager) {
-    if (isEnabled('attendance-report')) {
-      items.push({ label: t('nav.attendanceReport'), key: 'attendance-report', icon: renderIcon(DocumentTextOutline) })
-    }
-    if (isEnabled('dtr')) {
-      items.push({ label: t('nav.dtr'), key: 'dtr', icon: renderIcon(ClipboardOutline) })
-    }
-    if (isEnabled('schedules')) {
-      items.push({ label: t('nav.schedules'), key: 'schedules', icon: renderIcon(GridOutline) })
-    }
-    if (isEnabled('approvals')) {
-      items.push({ label: t('nav.approvals'), key: 'approvals', icon: renderIcon(CheckmarkCircleOutline) })
-    }
+  // ── 2. People (Manager+, Directory visible to all) ──
+  const people: MenuOption[] = []
+  if (isAdminOrManager) pushIf(people, 'employees', 'nav.employees', 'navDesc.employees', PeopleOutline)
+  pushIf(people, 'directory', 'nav.directory', 'navDesc.directory', BookOutline)
+  if (isAdminOrManager) {
+    pushIf(people, 'onboarding', 'nav.onboarding', 'navDesc.onboarding', ClipboardOutline)
+    pushIf(people, '201file', 'nav.file201', 'navDesc.file201', FolderOpenOutline)
+  }
+  if (people.length) {
+    groups.push({ type: 'group', label: t('nav.groupPeople'), key: 'g-people', children: people })
   }
 
+  // ── 3. Time & Attendance ──
+  const timeAtt: MenuOption[] = []
+  pushIf(timeAtt, 'attendance', 'nav.attendance', 'navDesc.attendance', TimeOutline)
+  pushIf(timeAtt, 'leaves', 'nav.leaves', 'navDesc.leaves', CalendarOutline)
+  pushIf(timeAtt, 'leave-calendar', 'nav.leaveCalendar', 'navDesc.leaveCalendar', CalendarNumberOutline)
+  pushIf(timeAtt, 'leave-encashment', 'nav.leaveEncashment', 'navDesc.leaveEncashment', CashOutline)
+  pushIf(timeAtt, 'overtime', 'nav.overtime', 'navDesc.overtime', AlarmOutline)
+  if (isAdminOrManager) {
+    pushIf(timeAtt, 'schedules', 'nav.schedules', 'navDesc.schedules', GridOutline)
+    pushIf(timeAtt, 'approvals', 'nav.approvals', 'navDesc.approvals', CheckmarkCircleOutline)
+    pushIf(timeAtt, 'attendance-report', 'nav.attendanceReport', 'navDesc.attendanceReport', DocumentTextOutline)
+    pushIf(timeAtt, 'dtr', 'nav.dtr', 'navDesc.dtr', ClipboardOutline)
+  }
+  if (timeAtt.length) {
+    groups.push({ type: 'group', label: t('nav.groupTimeAttendance'), key: 'g-time', children: timeAtt })
+  }
+
+  // ── 4. Payroll & Compensation ──
+  const payComp: MenuOption[] = []
+  if (auth.isAdmin) pushIf(payComp, 'payroll', 'nav.payroll', 'navDesc.payroll', WalletOutline)
+  pushIf(payComp, 'loans', 'nav.loans', 'navDesc.loans', CardOutline)
+  pushIf(payComp, 'expenses', 'nav.expenses', 'navDesc.expenses', ReceiptOutline)
+  pushIf(payComp, 'benefits', 'nav.benefits', 'navDesc.benefits', MedkitOutline)
+  if (auth.isAdmin) pushIf(payComp, 'final-pay', 'nav.finalPay', 'navDesc.finalPay', WalletOutline)
+  if (payComp.length) {
+    groups.push({ type: 'group', label: t('nav.groupPayroll'), key: 'g-payroll', children: payComp })
+  }
+
+  // ── 5. Talent & Development ──
+  const talent: MenuOption[] = []
+  if (isAdminOrManager) pushIf(talent, 'performance', 'nav.performance', 'navDesc.performance', RibbonOutline)
+  pushIf(talent, 'training', 'nav.training', 'navDesc.training', SchoolOutline)
+  if (isAdminOrManager) {
+    pushIf(talent, 'disciplinary', 'nav.disciplinary', 'navDesc.disciplinary', AlertCircleOutline)
+    pushIf(talent, 'clearance', 'nav.clearance', 'navDesc.clearance', DocumentTextOutline)
+    pushIf(talent, 'milestones', 'nav.milestones', 'navDesc.milestones', RibbonOutline)
+  }
+  pushIf(talent, 'grievance', 'nav.grievance', 'navDesc.grievance', ChatbubblesOutline)
+  if (talent.length) {
+    groups.push({ type: 'group', label: t('nav.groupTalent'), key: 'g-talent', children: talent })
+  }
+
+  // ── 6. Engagement ──
+  const engagement: MenuOption[] = []
+  pushIf(engagement, 'recognition', 'nav.recognition', 'navDesc.recognition', StarOutline)
+  pushIf(engagement, 'pulse-surveys', 'nav.pulseSurveys', 'navDesc.pulseSurveys', HappyOutline)
+  pushIf(engagement, 'policies', 'nav.policies', 'navDesc.policies', DocumentTextOutline)
+  if (engagement.length) {
+    groups.push({ type: 'group', label: t('nav.groupEngagement'), key: 'g-engagement', children: engagement })
+  }
+
+  // ── 7. AI & Insights ──
+  const ai: MenuOption[] = []
+  pushIf(ai, 'agent-hub', 'nav.agentHub', 'navDesc.agentHub', ChatbubblesOutline)
+  if (auth.isAdmin) pushIf(ai, 'analytics', 'nav.analytics', 'navDesc.analytics', BarChartOutline)
+  if (isAdminOrManager) pushIf(ai, 'org-intelligence', 'nav.orgIntelligence', 'navDesc.orgIntelligence', PulseOutline)
+  if (ai.length) {
+    groups.push({ type: 'group', label: t('nav.groupAI'), key: 'g-ai', children: ai })
+  }
+
+  // ── 8. Administration (Admin only) ──
   if (auth.isAdmin) {
-    items.push({ label: t('nav.payroll'), key: 'payroll', icon: renderIcon(WalletOutline) })
-    if (isEnabled('analytics')) {
-      items.push({ label: t('nav.analytics'), key: 'analytics', icon: renderIcon(BarChartOutline) })
+    const adminItems: MenuOption[] = []
+
+    // Sub-group: Workflow Automation
+    const wfItems: MenuOption[] = []
+    pushIf(wfItems, 'workflow-rules', 'nav.workflowRules', 'navDesc.workflowRules', GitBranchOutline)
+    pushIf(wfItems, 'workflow-triggers', 'nav.workflowTriggers', 'navDesc.workflowTriggers', FlashOutline)
+    pushIf(wfItems, 'workflow-analytics', 'nav.workflowAnalytics', 'navDesc.workflowAnalytics', TrendingUpOutline)
+    pushIf(wfItems, 'workflow-decisions', 'nav.workflowDecisions', 'navDesc.workflowDecisions', BulbOutline)
+    if (wfItems.length) {
+      adminItems.push({ type: 'group', label: t('nav.groupAdminWorkflow'), key: 'g-admin-wf', children: wfItems })
     }
-    if (isEnabled('workflow-rules')) {
-      items.push({ label: t('nav.workflowRules'), key: 'workflow-rules', icon: renderIcon(GitBranchOutline) })
+
+    // Sub-group: Company Setup
+    const companyItems: MenuOption[] = []
+    pushIf(companyItems, 'departments', 'nav.departments', 'navDesc.departments', BusinessOutline)
+    pushIf(companyItems, 'positions', 'nav.positions', 'navDesc.positions', BriefcaseOutline)
+    pushIf(companyItems, 'salary', 'nav.salary', 'navDesc.salary', CashOutline)
+    pushIf(companyItems, 'holidays', 'nav.holidays', 'navDesc.holidays', TodayOutline)
+    pushIf(companyItems, 'compliance', 'nav.compliance', 'navDesc.compliance', ShieldCheckmarkOutline)
+    pushIf(companyItems, 'tax-filings', 'nav.taxFilings', 'navDesc.taxFilings', DocumentTextOutline)
+    if (companyItems.length) {
+      adminItems.push({ type: 'group', label: t('nav.groupAdminCompany'), key: 'g-admin-company', children: companyItems })
     }
-    if (isEnabled('workflow-triggers')) {
-      items.push({ label: t('nav.workflowTriggers'), key: 'workflow-triggers', icon: renderIcon(FlashOutline) })
+
+    // Sub-group: System Tools
+    const sysItems: MenuOption[] = []
+    pushIf(sysItems, 'users', 'nav.users', 'navDesc.users', PeopleOutline)
+    pushIf(sysItems, 'knowledge', 'nav.knowledge', 'navDesc.knowledge', LibraryOutline)
+    pushIf(sysItems, 'integrations', 'nav.integrations', 'navDesc.integrations', LinkOutline)
+    pushIf(sysItems, 'geofences', 'nav.geofences', 'navDesc.geofences', LocationOutline)
+    pushIf(sysItems, 'import-export', 'nav.importExport', 'navDesc.importExport', CloudDownloadOutline)
+    pushIf(sysItems, 'audit', 'nav.audit', 'navDesc.audit', FileTrayFullOutline)
+    pushIf(sysItems, 'billing', 'nav.billing', 'navDesc.billing', WalletOutline)
+    pushIf(sysItems, 'settings', 'nav.settings', 'navDesc.settings', SettingsOutline)
+    if (sysItems.length) {
+      adminItems.push({ type: 'group', label: t('nav.groupAdminSystem'), key: 'g-admin-sys', children: sysItems })
+    }
+
+    if (adminItems.length) {
+      groups.push({ type: 'group', label: t('nav.groupAdmin'), key: 'g-admin', children: adminItems })
     }
   }
 
-  if ((auth.isAdmin || auth.isManager) && isEnabled('org-intelligence')) {
-    items.push({ label: t('nav.orgIntelligence'), key: 'org-intelligence', icon: renderIcon(PulseOutline) })
-  }
-  if ((auth.isAdmin || auth.isManager) && isEnabled('workflow-analytics')) {
-    items.push({ label: t('nav.workflowAnalytics'), key: 'workflow-analytics', icon: renderIcon(TrendingUpOutline) })
-  }
-  if ((auth.isAdmin || auth.isManager) && isEnabled('workflow-decisions')) {
-    items.push({ label: t('nav.workflowDecisions'), key: 'workflow-decisions', icon: renderIcon(BulbOutline) })
-  }
-  if (isEnabled('pulse-surveys')) {
-    items.push({ label: t('nav.pulseSurveys'), key: 'pulse-surveys', icon: renderIcon(HappyOutline) })
-  }
-  if (isEnabled('recognition')) {
-    items.push({ label: t('nav.recognition'), key: 'recognition', icon: renderIcon(StarOutline) })
-  }
-  if (isEnabled('hr-requests')) {
-    items.push({ label: t('nav.hrRequests'), key: 'hr-requests', icon: renderIcon(FileTrayFullOutline) })
-  }
-
-  // AI Agent Hub — visible to all
-  if (isEnabled('agent-hub')) {
-    items.push({ label: t('nav.agentHub'), key: 'agent-hub', icon: renderIcon(ChatbubblesOutline) })
-  }
-
-  items.push(
-    { label: t('nav.payslips'), key: 'payslips', icon: renderIcon(ReceiptOutline) },
-  )
-
-  // Phase 2 items (conditionally shown)
-  if (isEnabled('loans')) items.push({ label: t('nav.loans'), key: 'loans', icon: renderIcon(CardOutline) })
-  if (isEnabled('expenses')) items.push({ label: t('nav.expenses'), key: 'expenses', icon: renderIcon(ReceiptOutline) })
-  if (isEnabled('benefits')) items.push({ label: t('nav.benefits'), key: 'benefits', icon: renderIcon(MedkitOutline) })
-  if (isEnabled('grievance')) items.push({ label: t('nav.grievance'), key: 'grievance', icon: renderIcon(ChatbubblesOutline) })
-  if (isEnabled('policies')) items.push({ label: t('nav.policies'), key: 'policies', icon: renderIcon(DocumentTextOutline) })
-  if (isEnabled('self-service')) items.push({ label: t('nav.selfService'), key: 'self-service', icon: renderIcon(PersonCircleOutline) })
-
-  if (auth.isAdmin || auth.isManager) {
-    if (isEnabled('onboarding')) items.push({ label: t('nav.onboarding'), key: 'onboarding', icon: renderIcon(ClipboardOutline) })
-    if (isEnabled('performance')) items.push({ label: t('nav.performance'), key: 'performance', icon: renderIcon(RibbonOutline) })
-    if (isEnabled('clearance')) items.push({ label: t('nav.clearance'), key: 'clearance', icon: renderIcon(DocumentTextOutline) })
-    if (isEnabled('training')) items.push({ label: t('nav.training'), key: 'training', icon: renderIcon(SchoolOutline) })
-    if (isEnabled('disciplinary')) items.push({ label: t('nav.disciplinary'), key: 'disciplinary', icon: renderIcon(AlertCircleOutline) })
-    if (isEnabled('milestones')) items.push({ label: t('nav.milestones'), key: 'milestones', icon: renderIcon(RibbonOutline) })
-if (isEnabled('201file')) items.push({ label: t('nav.file201'), key: '201file', icon: renderIcon(FolderOpenOutline) })
-  }
-
-  // Integrations (admin only)
-  if (auth.isAdmin && isEnabled('integrations')) {
-    items.push({ label: t('nav.integrations'), key: 'integrations', icon: renderIcon(LinkOutline) })
-  }
-
-  items.push({ type: 'divider', key: 'd1' })
-
-  if (auth.isAdmin) {
-    items.push(
-      { label: t('nav.departments'), key: 'departments', icon: renderIcon(BusinessOutline) },
-      { label: t('nav.positions'), key: 'positions', icon: renderIcon(BriefcaseOutline) },
-      { label: t('nav.salary'), key: 'salary', icon: renderIcon(CashOutline) },
-    )
-    if (isEnabled('final-pay')) items.push({ label: t('nav.finalPay'), key: 'final-pay', icon: renderIcon(WalletOutline) })
-    if (isEnabled('compliance')) items.push({ label: t('nav.compliance'), key: 'compliance', icon: renderIcon(ShieldCheckmarkOutline) })
-    if (isEnabled('tax-filings')) items.push({ label: t('nav.taxFilings'), key: 'tax-filings', icon: renderIcon(DocumentTextOutline) })
-    if (isEnabled('holidays')) items.push({ label: t('holiday.title'), key: 'holidays', icon: renderIcon(TodayOutline) })
-    items.push({ label: t('nav.users'), key: 'users', icon: renderIcon(PeopleOutline) })
-    if (isEnabled('knowledge')) items.push({ label: t('nav.knowledge'), key: 'knowledge', icon: renderIcon(LibraryOutline) })
-    if (isEnabled('audit')) items.push({ label: t('nav.audit'), key: 'audit', icon: renderIcon(FileTrayFullOutline) })
-    if (isEnabled('geofences')) items.push({ label: t('nav.geofences'), key: 'geofences', icon: renderIcon(LocationOutline) })
-    if (isEnabled('billing')) items.push({ label: t('nav.billing'), key: 'billing', icon: renderIcon(WalletOutline) })
-    if (isEnabled('import-export')) items.push({ label: t('nav.importExport'), key: 'import-export', icon: renderIcon(CloudDownloadOutline) })
-    items.push({ label: t('nav.settings'), key: 'settings', icon: renderIcon(SettingsOutline) })
-  }
-
-  return items
+  return groups
 })
 
 const activeKey = computed(() => route.name as string)
@@ -317,6 +298,7 @@ function handleMenuClick(key: string) {
 
 const userMenuOptions = [
   { label: t('nav.profile'), key: 'profile', icon: renderIcon(PersonOutline) },
+  { label: t('tour.viewTour'), key: 'tour', icon: renderIcon(HelpCircleOutline) },
   { type: 'divider', key: 'd' },
   { label: t('nav.logout'), key: 'logout', icon: renderIcon(LogOutOutline) },
 ]
@@ -333,6 +315,8 @@ function handleUserAction(key: string) {
     router.push({ name: 'login' })
   } else if (key === 'profile') {
     router.push({ name: 'profile' })
+  } else if (key === 'tour') {
+    startTour()
   }
 }
 </script>
@@ -341,15 +325,16 @@ function handleUserAction(key: string) {
   <NLayout has-sider style="min-height: 100vh">
     <NLayoutSider
       bordered
-      :width="240"
+      :width="260"
       :collapsed-width="64"
       show-trigger
       collapse-mode="width"
     >
-      <div style="padding: 16px 20px; font-size: 18px; font-weight: 700;">
+      <div id="app-logo" style="padding: 16px 20px; font-size: 18px; font-weight: 700;">
         AigoNHR
       </div>
       <NMenu
+        id="sidebar-menu"
         :options="menuOptions"
         :value="activeKey"
         @update:value="handleMenuClick"
@@ -360,7 +345,7 @@ function handleUserAction(key: string) {
         <NSpace align="center" :size="16">
           <NPopover trigger="click" placement="bottom-end" :show="showNotifications" @update:show="onNotifPopoverUpdate" style="width: 380px; padding: 0;">
             <template #trigger>
-              <NBadge :value="unreadCount" :max="99" :show="unreadCount > 0">
+              <NBadge id="header-notifications" :value="unreadCount" :max="99" :show="unreadCount > 0">
                 <NButton quaternary circle>
                   <template #icon><NIcon :component="NotificationsOutline" /></template>
                 </NButton>
@@ -397,7 +382,7 @@ function handleUserAction(key: string) {
               </NButton>
             </div>
           </NPopover>
-          <NButton quaternary size="small" @click="toggleLocale" style="font-weight: 600; min-width: 36px;">
+          <NButton id="header-locale" quaternary size="small" @click="toggleLocale" style="font-weight: 600; min-width: 36px;">
             {{ locale === 'en' ? '中' : 'EN' }}
           </NButton>
           <NSwitch :value="themeStore.isDark" @update:value="themeStore.toggle()">
@@ -408,7 +393,7 @@ function handleUserAction(key: string) {
               <NIcon :component="SunnyOutline" />
             </template>
           </NSwitch>
-          <NDropdown :options="userMenuOptions" @select="handleUserAction">
+          <NDropdown id="header-user" :options="userMenuOptions" @select="handleUserAction">
             <NButton quaternary>
               <NSpace align="center" :size="8">
                 <NAvatar :size="28" round>{{ auth.fullName?.charAt(0) || 'U' }}</NAvatar>
