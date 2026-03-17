@@ -329,6 +329,22 @@ export const payrollAPI = {
     put("/v1/payroll/auto-config", data),
   listAutoLogs: (params?: Record<string, string>) =>
     get("/v1/payroll/auto-logs", params),
+  // KPI Bonus
+  listBonusStructures: (params?: Record<string, string>) =>
+    get("/v1/payroll/bonus/structures", params),
+  createBonusStructure: (data: Record<string, unknown>) =>
+    post("/v1/payroll/bonus/structures", data),
+  getBonusStructure: (id: number) => get(`/v1/payroll/bonus/structures/${id}`),
+  updateBonusStructureStatus: (id: number, status: string) =>
+    put(`/v1/payroll/bonus/structures/${id}/status`, { status }),
+  listBonusAllocations: (structureId: number) =>
+    get(`/v1/payroll/bonus/structures/${structureId}/allocations`),
+  calculateBonusAllocations: (structureId: number) =>
+    post(`/v1/payroll/bonus/structures/${structureId}/calculate`),
+  createBonusAllocation: (structureId: number, data: Record<string, unknown>) =>
+    post(`/v1/payroll/bonus/structures/${structureId}/allocations`, data),
+  approveBonusAllocations: (ids: number[]) =>
+    post("/v1/payroll/bonus/allocations/approve", { ids }),
 };
 
 // Approvals

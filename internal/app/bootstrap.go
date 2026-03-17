@@ -201,6 +201,12 @@ func (a *App) setupRoutes() {
 	leaveHandler := leave.NewHandler(a.Queries, a.Pool, a.Logger, a.Email)
 	overtimeHandler := overtime.NewHandler(a.Queries, a.Pool, a.Logger)
 	payrollHandler := payroll.NewHandler(a.Queries, a.Pool, a.Logger)
+
+	// Wire accounting integration (outbox + dispatcher)
+	acctEmitter := integration.NewAccountingEmitter(a.Queries, a.Logger)
+	payrollHandler.SetAccountingEmitter(acctEmitter)
+	acctDispatcher := integration.NewAccountingDispatcher(a.Queries, a.Logger)
+	go acctDispatcher.Run(context.Background())
 	complianceHandler := compliance.NewHandler(a.Queries, a.Pool, a.Logger)
 	onboardingHandler := onboarding.NewHandler(a.Queries, a.Pool, a.Logger)
 	performanceHandler := performance.NewHandler(a.Queries, a.Pool, a.Logger)
@@ -385,16 +391,38 @@ func (a *App) setupRoutes() {
 	botLinkHandler := bot.NewLinkHandler(botLinker, a.Queries, a.Logger)
 	botLinkHandler.RegisterRoutes(protected)
 
-	// Telegram bot (optional)
-	if a.Cfg.Bot.Enabled && a.Cfg.Bot.TelegramBotToken != "" && executor != nil {
+	// Telegram bot (optional) — load tokens from database bot_configs
+	if executor != nil {
 		botSessionMgr := bot.NewSessionManager(a.Queries, a.Logger)
 		botRateLimiter := bot.NewRateLimiter(a.Redis, 20, 1*time.Minute)
 		dispatcher := bot.NewDispatcher(botLinker, botSessionMgr, executor, draftSvc, a.Queries, botRateLimiter, a.Logger)
-		tgBot := bottelegram.New(a.Cfg.Bot.TelegramBotToken, dispatcher, a.Logger)
-		go tgBot.Run(context.Background())
-		a.Logger.Info("telegram bot started")
-	} else if a.Cfg.Bot.Enabled {
-		a.Logger.Info("telegram bot disabled (missing token or AI provider)")
+
+		// Load active telegram bot configs from database
+		activeConfigs, err := a.Queries.ListActiveBotConfigs(context.Background(), "telegram")
+		if err != nil {
+			a.Logger.Warn("failed to load bot configs from database", "error", err)
+		}
+		for _, cfg := range activeConfigs {
+			if cfg.BotToken == "" {
+				continue
+			}
+			tgBot := bottelegram.New(cfg.BotToken, dispatcher, a.Logger)
+			go tgBot.Run(context.Background())
+			a.Logger.Info("telegram bot started from db config", "company_id", cfg.CompanyID, "username", cfg.BotUsername)
+		}
+
+		// Fallback: env var token (backward compat)
+		if len(activeConfigs) == 0 && a.Cfg.Bot.Enabled && a.Cfg.Bot.TelegramBotToken != "" {
+			tgBot := bottelegram.New(a.Cfg.Bot.TelegramBotToken, dispatcher, a.Logger)
+			go tgBot.Run(context.Background())
+			a.Logger.Info("telegram bot started from env var")
+		}
+
+		if len(activeConfigs) == 0 && (a.Cfg.Bot.TelegramBotToken == "" || !a.Cfg.Bot.Enabled) {
+			a.Logger.Info("telegram bot: no active configs in database and no env var token")
+		}
+	} else {
+		a.Logger.Info("telegram bot disabled (AI provider not available)")
 	}
 }
 

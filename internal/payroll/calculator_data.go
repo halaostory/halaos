@@ -229,3 +229,20 @@ func (calc *Calculator) buildHolidayAttendanceMap(ctx context.Context, companyID
 	}
 	return m, nil
 }
+
+// buildBonusMap returns employee_id → total approved bonus amount for a payroll cycle.
+func (calc *Calculator) buildBonusMap(ctx context.Context, companyID int64, cycleID int64) (map[int64]float64, error) {
+	rows, err := calc.queries.GetApprovedBonusesForPayroll(ctx, store.GetApprovedBonusesForPayrollParams{
+		CompanyID:      companyID,
+		PayrollCycleID: &cycleID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	m := make(map[int64]float64, len(rows))
+	for _, r := range rows {
+		m[r.EmployeeID] = numericToFloat(r.TotalBonus)
+	}
+	return m, nil
+}

@@ -20,11 +20,12 @@ import {
   NEmpty,
   NTimeline,
   NTimelineItem,
+  NCheckbox,
   useMessage,
   useDialog,
   type DataTableColumns,
 } from "naive-ui";
-import { payrollAPI, exportAPI, thirteenthMonthAPI } from "../api/client";
+import { payrollAPI, exportAPI, thirteenthMonthAPI, performanceAPI } from "../api/client";
 import { useCurrency } from "../composables/useCurrency";
 import { useAuthStore } from "../stores/auth";
 
@@ -593,6 +594,10 @@ function handleTabChange(tabName: string) {
     fetchAutoConfig();
     fetchAutoLogs();
   }
+  if (tabName === "bonus" && bonusStructures.value.length === 0) {
+    fetchBonusStructures();
+    fetchReviewCycles();
+  }
 }
 
 // === Auto-Payroll Config ===
@@ -653,6 +658,211 @@ const actionColor: Record<string, string> = {
   auto_run: 'info',
   auto_approve: 'success',
   auto_skipped: 'warning',
+}
+
+// === KPI Bonus ===
+interface BonusStructure {
+  id: number;
+  name: string;
+  description?: string;
+  bonus_type: string;
+  base_amount: string;
+  base_type: string;
+  rating_map: Record<string, number>;
+  review_cycle_id?: number;
+  review_cycle_name?: string;
+  is_taxable: boolean;
+  status: string;
+  created_at: string;
+}
+interface BonusAllocation {
+  id: number;
+  employee_id: number;
+  first_name: string;
+  last_name: string;
+  employee_no: string;
+  rating?: number;
+  multiplier: string;
+  base_amount: string;
+  final_amount: string;
+  manual_override?: string;
+  status: string;
+}
+
+const bonusStructures = ref<BonusStructure[]>([]);
+const bonusStructuresLoading = ref(false);
+const showCreateBonusModal = ref(false);
+const createBonusLoading = ref(false);
+const bonusForm = ref({
+  name: "",
+  description: "",
+  bonus_type: "kpi",
+  base_amount: 0,
+  base_type: "fixed",
+  rating_map: { "5": 1.5, "4": 1.2, "3": 1.0, "2": 0.5, "1": 0 } as Record<string, number>,
+  review_cycle_id: null as number | null,
+  is_taxable: true,
+});
+
+const reviewCycleOptions = ref<{ label: string; value: number }[]>([]);
+
+const bonusTypeOptions = computed(() => [
+  { label: t("payroll.bonus.kpi"), value: "kpi" },
+  { label: t("payroll.bonus.fixed"), value: "fixed" },
+  { label: t("payroll.bonus.percentage"), value: "percentage" },
+]);
+const baseTypeOptions = computed(() => [
+  { label: t("payroll.bonus.fixed"), value: "fixed" },
+  { label: t("payroll.bonus.basicSalaryPct"), value: "basic_salary_pct" },
+]);
+
+const bonusStatusColorMap: Record<string, string> = {
+  draft: "default",
+  active: "success",
+  closed: "error",
+  pending: "warning",
+  approved: "success",
+  paid: "info",
+  cancelled: "error",
+};
+
+// Allocations modal
+const showAllocationsModal = ref(false);
+const allocationsLoading = ref(false);
+const allocations = ref<BonusAllocation[]>([]);
+const allocationsTitle = ref("");
+const currentStructureId = ref(0);
+const selectedAllocationIds = ref<number[]>([]);
+
+async function fetchBonusStructures() {
+  bonusStructuresLoading.value = true;
+  try {
+    const res = (await payrollAPI.listBonusStructures()) as { data?: BonusStructure[] };
+    bonusStructures.value = res.data || (res as unknown as BonusStructure[]) || [];
+  } catch {
+    bonusStructures.value = [];
+  } finally {
+    bonusStructuresLoading.value = false;
+  }
+}
+
+async function fetchReviewCycles() {
+  try {
+    const res = (await performanceAPI.listCycles()) as { data?: Array<{ id: number; name: string }> };
+    const cycles = res.data || (res as unknown as Array<{ id: number; name: string }>) || [];
+    reviewCycleOptions.value = cycles.map((c) => ({ label: c.name, value: c.id }));
+  } catch {
+    reviewCycleOptions.value = [];
+  }
+}
+
+async function handleCreateBonusStructure() {
+  if (!bonusForm.value.name) {
+    message.warning(t("common.fillAllFields"));
+    return;
+  }
+  createBonusLoading.value = true;
+  try {
+    await payrollAPI.createBonusStructure({
+      name: bonusForm.value.name,
+      description: bonusForm.value.description || undefined,
+      bonus_type: bonusForm.value.bonus_type,
+      base_amount: bonusForm.value.base_amount,
+      base_type: bonusForm.value.base_type,
+      rating_map: bonusForm.value.rating_map,
+      review_cycle_id: bonusForm.value.review_cycle_id || undefined,
+      is_taxable: bonusForm.value.is_taxable,
+    });
+    showCreateBonusModal.value = false;
+    bonusForm.value = {
+      name: "", description: "", bonus_type: "kpi", base_amount: 0, base_type: "fixed",
+      rating_map: { "5": 1.5, "4": 1.2, "3": 1.0, "2": 0.5, "1": 0 } as Record<string, number>,
+      review_cycle_id: null, is_taxable: true,
+    };
+    message.success(t("payroll.bonus.calculated"));
+    await fetchBonusStructures();
+  } catch (e: unknown) {
+    const err = e as { data?: { error?: { message?: string } } };
+    message.error(err.data?.error?.message || t("common.failed"));
+  } finally {
+    createBonusLoading.value = false;
+  }
+}
+
+async function handleUpdateBonusStatus(row: BonusStructure, status: string) {
+  try {
+    await payrollAPI.updateBonusStructureStatus(row.id, status);
+    message.success(t("common.save"));
+    await fetchBonusStructures();
+  } catch {
+    message.error(t("common.failed"));
+  }
+}
+
+async function handleViewAllocations(row: BonusStructure) {
+  currentStructureId.value = row.id;
+  allocationsTitle.value = row.name;
+  allocationsLoading.value = true;
+  showAllocationsModal.value = true;
+  selectedAllocationIds.value = [];
+  try {
+    const res = (await payrollAPI.listBonusAllocations(row.id)) as { data?: BonusAllocation[] };
+    allocations.value = res.data || (res as unknown as BonusAllocation[]) || [];
+  } catch {
+    allocations.value = [];
+  } finally {
+    allocationsLoading.value = false;
+  }
+}
+
+async function handleCalculateBonus(row: BonusStructure) {
+  dialog.info({
+    title: t("payroll.bonus.calculate"),
+    content: t("payroll.bonus.calculateConfirm"),
+    positiveText: t("common.confirm"),
+    negativeText: t("common.cancel"),
+    onPositiveClick: async () => {
+      try {
+        await payrollAPI.calculateBonusAllocations(row.id);
+        message.success(t("payroll.bonus.calculated"));
+        await handleViewAllocations(row);
+      } catch {
+        message.error(t("common.failed"));
+      }
+    },
+  });
+}
+
+function toggleAllocationSelection(id: number, checked: boolean) {
+  if (checked) {
+    if (!selectedAllocationIds.value.includes(id)) {
+      selectedAllocationIds.value = [...selectedAllocationIds.value, id];
+    }
+  } else {
+    selectedAllocationIds.value = selectedAllocationIds.value.filter((i) => i !== id);
+  }
+}
+
+async function handleApproveSelected() {
+  if (selectedAllocationIds.value.length === 0) return;
+  try {
+    await payrollAPI.approveBonusAllocations(selectedAllocationIds.value);
+    message.success(t("payroll.bonus.approved"));
+    selectedAllocationIds.value = [];
+    // Refresh allocations
+    const res = (await payrollAPI.listBonusAllocations(currentStructureId.value)) as { data?: BonusAllocation[] };
+    allocations.value = res.data || (res as unknown as BonusAllocation[]) || [];
+  } catch {
+    message.error(t("common.failed"));
+  }
+}
+
+function formatRatingMap(rm: Record<string, number>): string {
+  if (!rm) return "-";
+  return Object.entries(rm)
+    .sort(([a], [b]) => Number(b) - Number(a))
+    .map(([k, v]) => `${k}=${v}x`)
+    .join(", ");
 }
 </script>
 
@@ -760,7 +970,199 @@ const actionColor: Record<string, string> = {
           </NTimeline>
         </div>
       </NTabPane>
+      <!-- Tab 4: KPI Bonus -->
+      <NTabPane name="bonus" :tab="t('payroll.bonus.title')">
+        <NSpace justify="space-between" style="margin-bottom: 16px">
+          <h2>{{ t("payroll.bonus.structures") }}</h2>
+          <NButton type="primary" @click="showCreateBonusModal = true; fetchReviewCycles()">
+            {{ t("payroll.bonus.createStructure") }}
+          </NButton>
+        </NSpace>
+        <NDataTable
+          :columns="[
+            { title: t('payroll.bonus.name'), key: 'name' },
+            { title: t('payroll.bonus.type'), key: 'bonus_type', width: 100 },
+            {
+              title: t('payroll.bonus.baseAmount'),
+              key: 'base_amount',
+              width: 130,
+              render: (r: Record<string, unknown>) => formatCurrency(r.base_amount) + (r.base_type === 'basic_salary_pct' ? '%' : ''),
+            },
+            { title: t('payroll.bonus.reviewCycle'), key: 'review_cycle_name', width: 180,
+              render: (r: Record<string, unknown>) => (r.review_cycle_name as string) || t('payroll.bonus.noReviewCycle'),
+            },
+            {
+              title: t('payroll.bonus.ratingMap'),
+              key: 'rating_map',
+              width: 220,
+              render: (r: Record<string, unknown>) => formatRatingMap(r.rating_map as Record<string, number>),
+            },
+            {
+              title: t('payroll.bonus.status'),
+              key: 'status',
+              width: 100,
+              render: (r: Record<string, unknown>) =>
+                h(NTag, { type: (bonusStatusColorMap[r.status as string] || 'default') as 'default'|'info'|'success'|'warning'|'error', size: 'small' }, () => r.status as string),
+            },
+            {
+              title: t('common.actions'),
+              key: 'actions',
+              width: 300,
+              render: (r: Record<string, unknown>) => {
+                const btns: ReturnType<typeof h>[] = [];
+                btns.push(h(NButton, { size: 'small', onClick: () => handleViewAllocations(r as unknown as BonusStructure) }, () => t('payroll.bonus.viewAllocations')));
+                if ((r as unknown as BonusStructure).review_cycle_id) {
+                  btns.push(h(NButton, { size: 'small', type: 'primary', onClick: () => handleCalculateBonus(r as unknown as BonusStructure) }, () => t('payroll.bonus.calculate')));
+                }
+                if (r.status === 'draft') {
+                  btns.push(h(NButton, { size: 'small', type: 'success', onClick: () => handleUpdateBonusStatus(r as unknown as BonusStructure, 'active') }, () => t('payroll.bonus.activate')));
+                }
+                if (r.status === 'active') {
+                  btns.push(h(NButton, { size: 'small', type: 'error', onClick: () => handleUpdateBonusStatus(r as unknown as BonusStructure, 'closed') }, () => t('payroll.bonus.close')));
+                }
+                return h(NSpace, { size: 'small' }, () => btns);
+              },
+            },
+          ]"
+          :data="bonusStructures"
+          :loading="bonusStructuresLoading"
+        />
+      </NTabPane>
     </NTabs>
+
+    <!-- Create Bonus Structure Modal -->
+    <NModal
+      v-model:show="showCreateBonusModal"
+      preset="card"
+      :title="t('payroll.bonus.createStructure')"
+      style="width: 600px"
+    >
+      <NForm label-placement="left" label-width="140">
+        <NFormItem :label="t('payroll.bonus.name')" required>
+          <NInput v-model:value="bonusForm.name" />
+        </NFormItem>
+        <NFormItem :label="t('payroll.bonus.description')">
+          <NInput v-model:value="bonusForm.description" type="textarea" :rows="2" />
+        </NFormItem>
+        <NFormItem :label="t('payroll.bonus.type')">
+          <NSelect v-model:value="bonusForm.bonus_type" :options="bonusTypeOptions" />
+        </NFormItem>
+        <NFormItem :label="t('payroll.bonus.baseAmount')">
+          <NInputNumber v-model:value="bonusForm.base_amount" :min="0" style="width: 100%" />
+        </NFormItem>
+        <NFormItem :label="t('payroll.bonus.baseType')">
+          <NSelect v-model:value="bonusForm.base_type" :options="baseTypeOptions" />
+        </NFormItem>
+        <NFormItem :label="t('payroll.bonus.reviewCycle')">
+          <NSelect
+            v-model:value="bonusForm.review_cycle_id"
+            :options="reviewCycleOptions"
+            clearable
+            :placeholder="t('payroll.bonus.selectReviewCycle')"
+          />
+        </NFormItem>
+        <NFormItem :label="t('payroll.bonus.ratingMap')">
+          <div style="width: 100%">
+            <div style="font-size: 12px; opacity: 0.6; margin-bottom: 8px">{{ t('payroll.bonus.ratingMapHint') }}</div>
+            <NSpace vertical>
+              <NSpace v-for="r in [5, 4, 3, 2, 1]" :key="r" align="center">
+                <NTag size="small">{{ t('payroll.bonus.rating') }} {{ r }}</NTag>
+                <NInputNumber
+                  :value="bonusForm.rating_map[String(r)]"
+                  @update:value="(v: number | null) => bonusForm.rating_map[String(r)] = v ?? 0"
+                  :min="0" :max="10" :step="0.1"
+                  style="width: 100px"
+                />
+                <span style="font-size: 12px; opacity: 0.6">x</span>
+              </NSpace>
+            </NSpace>
+          </div>
+        </NFormItem>
+        <NFormItem :label="t('payroll.bonus.isTaxable')">
+          <NSwitch v-model:value="bonusForm.is_taxable" />
+        </NFormItem>
+        <NFormItem>
+          <NSpace>
+            <NButton type="primary" :loading="createBonusLoading" @click="handleCreateBonusStructure">
+              {{ t("common.create") }}
+            </NButton>
+            <NButton @click="showCreateBonusModal = false">{{ t("common.cancel") }}</NButton>
+          </NSpace>
+        </NFormItem>
+      </NForm>
+    </NModal>
+
+    <!-- Bonus Allocations Modal -->
+    <NModal
+      v-model:show="showAllocationsModal"
+      preset="card"
+      :title="t('payroll.bonus.allocations') + ' - ' + allocationsTitle"
+      style="width: 950px"
+    >
+      <NSpace justify="end" style="margin-bottom: 12px">
+        <NButton
+          type="success"
+          size="small"
+          :disabled="selectedAllocationIds.length === 0"
+          @click="handleApproveSelected"
+        >
+          {{ t("payroll.bonus.approveSelected") }} ({{ selectedAllocationIds.length }})
+        </NButton>
+      </NSpace>
+      <NEmpty v-if="allocations.length === 0 && !allocationsLoading" :description="t('payroll.bonus.noAllocations')" />
+      <NDataTable
+        v-else
+        :columns="[
+          {
+            title: '',
+            key: 'select',
+            width: 40,
+            render: (r: Record<string, unknown>) =>
+              (r as unknown as BonusAllocation).status === 'pending'
+                ? h(NCheckbox, {
+                    checked: selectedAllocationIds.includes((r as unknown as BonusAllocation).id),
+                    'onUpdate:checked': (v: boolean) => toggleAllocationSelection((r as unknown as BonusAllocation).id, v),
+                  })
+                : null,
+          },
+          {
+            title: t('payroll.bonus.employeeName'),
+            key: 'employee_name',
+            render: (r: Record<string, unknown>) => `${(r as unknown as BonusAllocation).first_name} ${(r as unknown as BonusAllocation).last_name}`,
+          },
+          { title: t('payroll.bonus.employeeNo'), key: 'employee_no', width: 100 },
+          { title: t('payroll.bonus.rating'), key: 'rating', width: 80 },
+          {
+            title: t('payroll.bonus.multiplier'),
+            key: 'multiplier',
+            width: 90,
+            render: (r: Record<string, unknown>) => `${r.multiplier}x`,
+          },
+          {
+            title: t('payroll.bonus.baseAmountLabel'),
+            key: 'base_amount',
+            width: 120,
+            render: (r: Record<string, unknown>) => formatCurrency(r.base_amount),
+          },
+          {
+            title: t('payroll.bonus.finalAmount'),
+            key: 'final_amount',
+            width: 130,
+            render: (r: Record<string, unknown>) => formatCurrency(r.manual_override || r.final_amount),
+          },
+          {
+            title: t('payroll.bonus.status'),
+            key: 'status',
+            width: 100,
+            render: (r: Record<string, unknown>) =>
+              h(NTag, { type: (bonusStatusColorMap[r.status as string] || 'default') as 'default'|'info'|'success'|'warning'|'error', size: 'small' }, () => r.status as string),
+          },
+        ]"
+        :data="allocations"
+        :loading="allocationsLoading"
+        size="small"
+      />
+    </NModal>
 
     <NModal
       v-model:show="showCreateModal"

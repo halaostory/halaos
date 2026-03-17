@@ -17,6 +17,7 @@ import {
   NSelect,
   NSpin,
   NIcon,
+  NSwitch,
   useMessage,
   type DataTableColumns,
 } from "naive-ui";
@@ -28,7 +29,7 @@ import {
   WalletOutline,
   DocumentTextOutline,
 } from "@vicons/ionicons5";
-import { integrationAPI } from "../api/client";
+import { integrationAPI, botAPI } from "../api/client";
 
 const { t } = useI18n();
 const message = useMessage();
@@ -85,7 +86,76 @@ const form = ref({
   credentials: "",
 });
 
+// Telegram bot config (separate from generic integrations)
+const showTelegramModal = ref(false);
+const telegramLoading = ref(false);
+const telegramForm = ref({
+  bot_token: "",
+  bot_username: "",
+  is_active: false,
+});
+const telegramConnected = ref(false);
+
+async function loadTelegramConfig() {
+  try {
+    const res = (await botAPI.listBotConfigs()) as { data?: Array<Record<string, unknown>> };
+    const configs = res.data || (Array.isArray(res) ? res : []);
+    const tg = (configs as Array<Record<string, unknown>>).find((c) => c.platform === "telegram");
+    if (tg && tg.bot_token) {
+      telegramForm.value.bot_token = (tg.bot_token as string) || "";
+      telegramForm.value.bot_username = (tg.bot_username as string) || "";
+      telegramForm.value.is_active = !!tg.is_active;
+      telegramConnected.value = true;
+    }
+  } catch {
+    // no config yet
+  }
+}
+
+async function saveTelegramConfig() {
+  if (!telegramForm.value.bot_token) {
+    message.warning(t("common.fillAllFields"));
+    return;
+  }
+  telegramLoading.value = true;
+  try {
+    await botAPI.saveBotConfig({
+      platform: "telegram",
+      bot_token: telegramForm.value.bot_token,
+      bot_username: telegramForm.value.bot_username,
+      is_active: telegramForm.value.is_active,
+    });
+    message.success(t("integration.connectionCreated"));
+    showTelegramModal.value = false;
+    telegramConnected.value = true;
+  } catch {
+    message.error(t("common.failed"));
+  } finally {
+    telegramLoading.value = false;
+  }
+}
+
+async function disconnectTelegram() {
+  try {
+    await botAPI.saveBotConfig({
+      platform: "telegram",
+      bot_token: "",
+      bot_username: "",
+      is_active: false,
+    });
+    telegramConnected.value = false;
+    telegramForm.value = { bot_token: "", bot_username: "", is_active: false };
+    message.success(t("integration.disconnected"));
+  } catch {
+    message.error(t("common.failed"));
+  }
+}
+
 function openConnect(providerKey: string) {
+  if (providerKey === "telegram") {
+    showTelegramModal.value = true;
+    return;
+  }
   form.value = {
     provider: providerKey,
     display_name: providers.find((p) => p.key === providerKey)?.name || providerKey,
@@ -208,7 +278,10 @@ async function loadConnections() {
   }
 }
 
-onMounted(loadConnections);
+onMounted(() => {
+  loadConnections();
+  loadTelegramConfig();
+});
 </script>
 
 <template>
@@ -232,7 +305,14 @@ onMounted(loadConnections);
               <NIcon :size="32" :color="p.color" :component="p.icon" />
               <strong>{{ p.name }}</strong>
               <NTag
-                v-if="providerStatus.has(p.key)"
+                v-if="p.key === 'telegram' && telegramConnected"
+                :type="telegramForm.is_active ? 'success' : 'default'"
+                size="small"
+              >
+                {{ telegramForm.is_active ? 'active' : 'inactive' }}
+              </NTag>
+              <NTag
+                v-else-if="p.key !== 'telegram' && providerStatus.has(p.key)"
                 :type="statusMap[providerStatus.get(p.key)!.status] || 'default'"
                 size="small"
               >
@@ -242,7 +322,22 @@ onMounted(loadConnections);
             </NSpace>
             <template #action>
               <NSpace justify="center" :size="8">
-                <template v-if="providerStatus.has(p.key)">
+                <!-- Telegram: special handling via bot_configs -->
+                <template v-if="p.key === 'telegram'">
+                  <template v-if="telegramConnected">
+                    <NButton size="small" @click="showTelegramModal = true">
+                      {{ t("nav.settings") }}
+                    </NButton>
+                    <NButton size="small" type="error" quaternary @click="disconnectTelegram">
+                      {{ t("integration.disconnect") }}
+                    </NButton>
+                  </template>
+                  <NButton v-else size="small" type="primary" @click="openConnect('telegram')">
+                    {{ t("integration.connect") }}
+                  </NButton>
+                </template>
+                <!-- Other providers: generic integration_connections -->
+                <template v-else-if="providerStatus.has(p.key)">
                   <NButton
                     size="small"
                     @click="router.push({ name: 'integration-detail', params: { id: providerStatus.get(p.key)!.id } })"
@@ -272,6 +367,32 @@ onMounted(loadConnections);
         <NDataTable :columns="columns" :data="connections" :row-key="(row: Connection) => row.id" size="small" />
       </NCard>
     </NSpace>
+
+    <!-- Telegram Bot Config Modal -->
+    <NModal v-model:show="showTelegramModal" preset="card" title="Telegram Bot" style="width: 480px; max-width: 95vw;">
+      <NForm label-placement="left" label-width="120">
+        <NFormItem label="Bot Token" required>
+          <NInput v-model:value="telegramForm.bot_token" type="password" show-password-on="click" placeholder="123456:ABC-DEF..." />
+        </NFormItem>
+        <NFormItem label="Bot Username">
+          <NInput v-model:value="telegramForm.bot_username" placeholder="@your_bot" />
+        </NFormItem>
+        <NFormItem label="Active">
+          <NSpace align="center" :size="8">
+            <NSwitch v-model:value="telegramForm.is_active" />
+            <span v-if="telegramForm.is_active" style="color: #18a058; font-size: 12px;">Bot will start on next server restart</span>
+          </NSpace>
+        </NFormItem>
+        <p style="color: #999; font-size: 12px; margin-bottom: 12px;">
+          Get your bot token from <a href="https://t.me/BotFather" target="_blank" style="color: #0088cc;">@BotFather</a> on Telegram.
+          After saving, the bot needs a server restart to take effect.
+        </p>
+        <NSpace>
+          <NButton type="primary" :loading="telegramLoading" @click="saveTelegramConfig">{{ t("common.save") }}</NButton>
+          <NButton @click="showTelegramModal = false">{{ t("common.cancel") }}</NButton>
+        </NSpace>
+      </NForm>
+    </NModal>
 
     <!-- Connect Modal -->
     <NModal v-model:show="showModal" preset="card" :title="t('integration.connect')" style="width: 480px; max-width: 95vw;">

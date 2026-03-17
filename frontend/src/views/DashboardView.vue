@@ -316,9 +316,11 @@ async function handleClockOut() {
   <div>
     <h2 style="margin-bottom: 24px;">{{ t('dashboard.title') }}</h2>
 
-    <DashboardBriefing />
+    <div id="dashboard-briefing">
+      <DashboardBriefing />
+    </div>
 
-    <NGrid :cols="4" :x-gap="16" :y-gap="16" responsive="screen" style="margin-bottom: 24px;">
+    <NGrid id="dashboard-stats" :cols="4" :x-gap="16" :y-gap="16" responsive="screen" style="margin-bottom: 24px;">
       <NGi>
         <NCard>
           <NStatistic :label="t('dashboard.totalEmployees')" :value="totalEmployees" />
@@ -341,7 +343,7 @@ async function handleClockOut() {
       </NGi>
     </NGrid>
 
-    <NCard :title="t('dashboard.quickActions')" style="margin-bottom: 24px;">
+    <NCard id="dashboard-clock" :title="t('dashboard.quickActions')" style="margin-bottom: 24px;">
       <NSpace>
         <NButton v-if="!clockedIn" type="primary" :loading="clockLoading" @click="handleClockIn">
           {{ t('dashboard.clockIn') }}

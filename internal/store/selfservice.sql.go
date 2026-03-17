@@ -138,7 +138,7 @@ func (q *Queries) GetMyCompensation(ctx context.Context, arg GetMyCompensationPa
 }
 
 const getMyLatestPayslip = `-- name: GetMyLatestPayslip :one
-SELECT pi.id, pi.run_id, pi.employee_id, pi.basic_pay, pi.gross_pay, pi.taxable_income, pi.total_deductions, pi.net_pay, pi.sss_ee, pi.sss_er, pi.sss_ec, pi.philhealth_ee, pi.philhealth_er, pi.pagibig_ee, pi.pagibig_er, pi.withholding_tax, pi.breakdown, pi.work_days, pi.hours_worked, pi.ot_hours, pi.late_deduction, pi.undertime_deduction, pi.holiday_pay, pi.night_diff, pi.created_at, pc.name as cycle_name, pc.period_start, pc.period_end
+SELECT pi.id, pi.run_id, pi.employee_id, pi.basic_pay, pi.gross_pay, pi.taxable_income, pi.total_deductions, pi.net_pay, pi.sss_ee, pi.sss_er, pi.sss_ec, pi.philhealth_ee, pi.philhealth_er, pi.pagibig_ee, pi.pagibig_er, pi.withholding_tax, pi.breakdown, pi.work_days, pi.hours_worked, pi.ot_hours, pi.late_deduction, pi.undertime_deduction, pi.holiday_pay, pi.night_diff, pi.created_at, pi.bonus_pay, pc.name as cycle_name, pc.period_start, pc.period_end
 FROM payroll_items pi
 JOIN payroll_runs pr ON pr.id = pi.run_id
 JOIN payroll_cycles pc ON pc.id = pr.cycle_id
@@ -178,6 +178,7 @@ type GetMyLatestPayslipRow struct {
 	HolidayPay         pgtype.Numeric  `json:"holiday_pay"`
 	NightDiff          pgtype.Numeric  `json:"night_diff"`
 	CreatedAt          time.Time       `json:"created_at"`
+	BonusPay           pgtype.Numeric  `json:"bonus_pay"`
 	CycleName          string          `json:"cycle_name"`
 	PeriodStart        time.Time       `json:"period_start"`
 	PeriodEnd          time.Time       `json:"period_end"`
@@ -212,6 +213,7 @@ func (q *Queries) GetMyLatestPayslip(ctx context.Context, arg GetMyLatestPayslip
 		&i.HolidayPay,
 		&i.NightDiff,
 		&i.CreatedAt,
+		&i.BonusPay,
 		&i.CycleName,
 		&i.PeriodStart,
 		&i.PeriodEnd,

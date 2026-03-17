@@ -13,6 +13,38 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AccountingLink struct {
+	ID              int64              `json:"id"`
+	CompanyID       int64              `json:"company_id"`
+	Provider        string             `json:"provider"`
+	RemoteCompanyID string             `json:"remote_company_id"`
+	ApiEndpoint     string             `json:"api_endpoint"`
+	ApiKeyEnc       string             `json:"api_key_enc"`
+	WebhookSecret   string             `json:"webhook_secret"`
+	Jurisdiction    string             `json:"jurisdiction"`
+	Status          string             `json:"status"`
+	LastSyncedAt    pgtype.Timestamptz `json:"last_synced_at"`
+	CreatedAt       time.Time          `json:"created_at"`
+	UpdatedAt       time.Time          `json:"updated_at"`
+}
+
+type AccountingOutbox struct {
+	ID             int64              `json:"id"`
+	CompanyID      int64              `json:"company_id"`
+	EventType      string             `json:"event_type"`
+	AggregateType  string             `json:"aggregate_type"`
+	AggregateID    int64              `json:"aggregate_id"`
+	Payload        json.RawMessage    `json:"payload"`
+	IdempotencyKey string             `json:"idempotency_key"`
+	Status         string             `json:"status"`
+	RetryCount     int32              `json:"retry_count"`
+	MaxRetries     int32              `json:"max_retries"`
+	NextRetryAt    pgtype.Timestamptz `json:"next_retry_at"`
+	SentAt         pgtype.Timestamptz `json:"sent_at"`
+	ErrorMessage   *string            `json:"error_message"`
+	CreatedAt      time.Time          `json:"created_at"`
+}
+
 type ActionDraft struct {
 	ID           uuid.UUID       `json:"id"`
 	CompanyID    int64           `json:"company_id"`
@@ -318,6 +350,43 @@ type BirTaxTable struct {
 	FixedTax      pgtype.Numeric `json:"fixed_tax"`
 	Rate          pgtype.Numeric `json:"rate"`
 	ExcessOver    pgtype.Numeric `json:"excess_over"`
+}
+
+type BonusAllocation struct {
+	ID                  int64              `json:"id"`
+	CompanyID           int64              `json:"company_id"`
+	StructureID         int64              `json:"structure_id"`
+	EmployeeID          int64              `json:"employee_id"`
+	PerformanceReviewID *int64             `json:"performance_review_id"`
+	Rating              *int32             `json:"rating"`
+	Multiplier          pgtype.Numeric     `json:"multiplier"`
+	BaseAmount          pgtype.Numeric     `json:"base_amount"`
+	FinalAmount         pgtype.Numeric     `json:"final_amount"`
+	ManualOverride      pgtype.Numeric     `json:"manual_override"`
+	Status              string             `json:"status"`
+	PayrollCycleID      *int64             `json:"payroll_cycle_id"`
+	ApprovedBy          *int64             `json:"approved_by"`
+	ApprovedAt          pgtype.Timestamptz `json:"approved_at"`
+	Notes               *string            `json:"notes"`
+	CreatedAt           time.Time          `json:"created_at"`
+	UpdatedAt           time.Time          `json:"updated_at"`
+}
+
+type BonusStructure struct {
+	ID            int64           `json:"id"`
+	CompanyID     int64           `json:"company_id"`
+	Name          string          `json:"name"`
+	Description   *string         `json:"description"`
+	BonusType     string          `json:"bonus_type"`
+	BaseAmount    pgtype.Numeric  `json:"base_amount"`
+	BaseType      string          `json:"base_type"`
+	RatingMap     json.RawMessage `json:"rating_map"`
+	ReviewCycleID *int64          `json:"review_cycle_id"`
+	IsTaxable     bool            `json:"is_taxable"`
+	Status        string          `json:"status"`
+	CreatedBy     *int64          `json:"created_by"`
+	CreatedAt     time.Time       `json:"created_at"`
+	UpdatedAt     time.Time       `json:"updated_at"`
 }
 
 type BotConfig struct {
@@ -1374,6 +1443,7 @@ type PayrollItem struct {
 	HolidayPay         pgtype.Numeric  `json:"holiday_pay"`
 	NightDiff          pgtype.Numeric  `json:"night_diff"`
 	CreatedAt          time.Time       `json:"created_at"`
+	BonusPay           pgtype.Numeric  `json:"bonus_pay"`
 }
 
 type PayrollRun struct {

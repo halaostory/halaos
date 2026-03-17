@@ -26,4 +26,14 @@ func (h *Handler) RegisterRoutes(protected *gin.RouterGroup) {
 	protected.GET("/payroll/auto-config", auth.AdminOnly(), h.GetAutoConfig)
 	protected.PUT("/payroll/auto-config", auth.AdminOnly(), h.UpdateAutoConfig)
 	protected.GET("/payroll/auto-logs", auth.AdminOnly(), h.ListAutoLogs)
+
+	// KPI Bonus
+	protected.GET("/payroll/bonus/structures", auth.AdminOnly(), h.ListBonusStructures)
+	protected.POST("/payroll/bonus/structures", auth.AdminOnly(), h.CreateBonusStructure)
+	protected.GET("/payroll/bonus/structures/:id", auth.AdminOnly(), h.GetBonusStructure)
+	protected.PUT("/payroll/bonus/structures/:id/status", auth.AdminOnly(), h.UpdateBonusStructureStatus)
+	protected.GET("/payroll/bonus/structures/:id/allocations", auth.AdminOnly(), h.ListBonusAllocations)
+	protected.POST("/payroll/bonus/structures/:id/calculate", auth.AdminOnly(), h.CalculateBonusAllocations)
+	protected.POST("/payroll/bonus/structures/:id/allocations", auth.AdminOnly(), h.CreateBonusAllocation)
+	protected.POST("/payroll/bonus/allocations/approve", auth.AdminOnly(), h.ApproveBonusAllocations)
 }

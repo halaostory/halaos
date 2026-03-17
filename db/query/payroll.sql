@@ -77,10 +77,10 @@ INSERT INTO payroll_items (
     sss_ee, sss_er, sss_ec, philhealth_ee, philhealth_er,
     pagibig_ee, pagibig_er, withholding_tax,
     breakdown, work_days, hours_worked, ot_hours,
-    late_deduction, undertime_deduction, holiday_pay, night_diff
+    late_deduction, undertime_deduction, holiday_pay, night_diff, bonus_pay
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-    $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23
+    $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
 ) RETURNING *;
 
 -- name: ListPayrollItems :many
@@ -163,3 +163,18 @@ JOIN employees e ON e.id = pi.employee_id
 LEFT JOIN employee_profiles ep ON ep.employee_id = e.id
 WHERE pi.run_id = $1
 ORDER BY e.last_name, e.first_name;
+
+-- name: GetPayrollItemsForAccounting :many
+SELECT pi.id, pi.employee_id, pi.basic_pay, pi.gross_pay, pi.total_deductions, pi.net_pay,
+       pi.sss_ee, pi.sss_er, pi.sss_ec, pi.philhealth_ee, pi.philhealth_er,
+       pi.pagibig_ee, pi.pagibig_er, pi.withholding_tax,
+       pi.holiday_pay, pi.night_diff, pi.ot_hours, pi.bonus_pay, pi.breakdown,
+       e.employee_no, e.first_name, e.last_name, e.department_id,
+       ep.tin, ep.sss_no, ep.philhealth_no, ep.pagibig_no,
+       COALESCE(d.name, '') as department_name
+FROM payroll_items pi
+JOIN employees e ON e.id = pi.employee_id
+LEFT JOIN employee_profiles ep ON ep.employee_id = e.id
+LEFT JOIN departments d ON d.id = e.department_id
+WHERE pi.run_id = $1
+ORDER BY e.department_id, e.last_name;

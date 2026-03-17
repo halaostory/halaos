@@ -363,6 +363,7 @@ function sendSuggestion(text: string) {
 <template>
   <!-- Floating toggle button -->
   <div
+    id="chat-panel-trigger"
     class="chat-fab"
     @click="togglePanel"
     :title="isOpen ? 'Close AI Assistant' : 'AI Assistant'"

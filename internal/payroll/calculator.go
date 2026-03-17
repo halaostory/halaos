@@ -47,6 +47,9 @@ type EmployeePayData struct {
 	OTHoliday          float64
 	OTSpecialHoliday   float64
 
+	// Bonus
+	BonusPay float64 // KPI bonus amount
+
 	// Computed
 	BasicPay           float64
 	OvertimePay        float64
@@ -161,6 +164,13 @@ func (calc *Calculator) RunPayroll(ctx context.Context, runID int64, companyID i
 		return calc.failRun(ctx, runID, fmt.Errorf("build holiday attendance map: %w", err))
 	}
 
+	// Build bonus map (approved KPI bonus amounts per employee)
+	bonusMap, err := calc.buildBonusMap(ctx, companyID, run.CycleID)
+	if err != nil {
+		calc.logger.Warn("failed to build bonus map, continuing without bonuses", "error", err)
+		bonusMap = make(map[int64]float64)
+	}
+
 	// Calculate working days in period (Mon-Fri)
 	workingDaysInPeriod := countWorkingDays(periodStart, periodEnd)
 	if workingDaysInPeriod <= 0 {
@@ -261,6 +271,12 @@ func (calc *Calculator) RunPayroll(ctx context.Context, runID int64, companyID i
 			pd.Breakdown["pagibig_er"] = pd.PagIBIGER
 		}
 
+		// Inject KPI bonus into GrossPay (taxable income)
+		if bonus, ok := bonusMap[emp.ID]; ok {
+			pd.BonusPay = round2(bonus)
+			pd.GrossPay = round2(pd.GrossPay + pd.BonusPay)
+		}
+
 		pd.NetPay = pd.GrossPay - pd.TotalDeductions
 
 		pd.Breakdown["basic_pay"] = pd.BasicPay
@@ -277,6 +293,7 @@ func (calc *Calculator) RunPayroll(ctx context.Context, runID int64, companyID i
 		pd.Breakdown["night_hours"] = pd.NightHours
 		pd.Breakdown["regular_holiday_days"] = pd.RegularHolidayDays
 		pd.Breakdown["special_holiday_days"] = pd.SpecialHolidayDays
+		pd.Breakdown["bonus_pay"] = pd.BonusPay
 		pd.Breakdown["country"] = company.Country
 
 		breakdownJSON, _ := json.Marshal(pd.Breakdown)
@@ -306,6 +323,7 @@ func (calc *Calculator) RunPayroll(ctx context.Context, runID int64, companyID i
 			UndertimeDeduction: numericFromFloat(pd.UndertimeDeduction),
 			HolidayPay:         numericFromFloat(pd.HolidayPay),
 			NightDiff:          numericFromFloat(pd.NightDiff),
+			BonusPay:           numericFromFloat(pd.BonusPay),
 		})
 		if err != nil {
 			calc.logger.Error("failed to create payroll item", "employee_id", emp.ID, "error", err)
@@ -326,6 +344,7 @@ func (calc *Calculator) RunPayroll(ctx context.Context, runID int64, companyID i
 			"period_end":    periodEnd.Format("2006-01-02"),
 			"pay_date":      cycle.PayDate.Format("2006-01-02"),
 			"basic_pay":     pd.BasicPay,
+			"bonus_pay":     pd.BonusPay,
 			"gross_pay":     pd.GrossPay,
 			"net_pay":       pd.NetPay,
 			"deductions":    pd.TotalDeductions,

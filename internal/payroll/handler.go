@@ -23,14 +23,25 @@ import (
 	"github.com/tonypk/aigonhr/pkg/response"
 )
 
+// AccountingEventEmitter is called after payroll approval to enqueue accounting events.
+type AccountingEventEmitter interface {
+	EmitPayrollApproved(ctx context.Context, companyID, cycleID int64) error
+}
+
 type Handler struct {
-	queries *store.Queries
-	pool    *pgxpool.Pool
-	logger  *slog.Logger
+	queries    *store.Queries
+	pool       *pgxpool.Pool
+	logger     *slog.Logger
+	accounting AccountingEventEmitter // nil if not configured
 }
 
 func NewHandler(queries *store.Queries, pool *pgxpool.Pool, logger *slog.Logger) *Handler {
 	return &Handler{queries: queries, pool: pool, logger: logger}
+}
+
+// SetAccountingEmitter configures the accounting event emitter (optional).
+func (h *Handler) SetAccountingEmitter(emitter AccountingEventEmitter) {
+	h.accounting = emitter
 }
 
 func (h *Handler) ListCycles(c *gin.Context) {
@@ -239,6 +250,15 @@ func (h *Handler) ApproveCycle(c *gin.Context) {
 			}
 		}
 	}()
+
+	// Emit accounting event (async, non-blocking)
+	if h.accounting != nil {
+		go func() {
+			if err := h.accounting.EmitPayrollApproved(context.Background(), companyID, id); err != nil {
+				h.logger.Error("failed to emit accounting event", "cycle_id", id, "error", err)
+			}
+		}()
+	}
 
 	response.OK(c, gin.H{"message": "Payroll cycle approved"})
 }

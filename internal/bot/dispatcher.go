@@ -152,8 +152,34 @@ func (d *Dispatcher) handleStart(ctx context.Context, msg IncomingMessage, sende
 		name = strings.Split(user.Email, "@")[0]
 	}
 
-	sender.SendText(ctx, msg.ChatID,
-		fmt.Sprintf("Linked successfully! Welcome, %s. Type /help to see available commands.", name))
+	tutorial := fmt.Sprintf(`🎉 Linked successfully! Welcome, %s!
+
+Your Telegram is now connected to AIGoNHR. Here's what you can do:
+
+📋 *Quick Commands*
+/balance — Check your leave balances
+/payslip — View your latest payslip
+/clock — Clock in or out (share your location for GPS tracking)
+/leave <reason> — Request leave via AI (e.g. /leave sick leave tomorrow)
+/new — Start a fresh conversation
+/help — Show command list
+
+💬 *AI Chat*
+Just type any message and the AI assistant will help you with:
+• HR questions (policies, benefits, etc.)
+• Leave requests and approvals
+• Payroll inquiries
+• Attendance records
+• Any work-related questions
+
+📍 *Tips*
+• Share your location with /clock for automatic GPS check-in
+• You can ask questions in natural language — no special format needed
+• Type /new to reset the conversation if the AI gets confused
+
+Get started by typing a question or using a command above!`, name)
+
+	sender.SendText(ctx, msg.ChatID, tutorial)
 }
 
 func (d *Dispatcher) dispatchCommand(ctx context.Context, msg IncomingMessage, identity *UserIdentity, sender MessageSender) {
