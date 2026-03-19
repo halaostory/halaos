@@ -16,7 +16,7 @@ SELECT c.id AS company_id,
 FROM companies c
 JOIN users u ON u.company_id = c.id AND u.role IN ('super_admin', 'admin')
 WHERE c.created_at >= now() - INTERVAL '30 days'
-  AND c.email_verified = true
+  AND u.email_verified = true
   AND NOT EXISTS (
       SELECT 1 FROM drip_emails d WHERE d.company_id = c.id AND d.step = $1
   )

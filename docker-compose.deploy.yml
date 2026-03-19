@@ -128,6 +128,9 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       INTEGRATION_ENCRYPTION_KEY: ${INTEGRATION_ENCRYPTION_KEY:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM: ${RESEND_FROM:-HalaOS <noreply@halaos.com>}
+      APP_BASE_URL: ${APP_BASE_URL:-https://halaos.com}
     depends_on:
       postgres:
         condition: service_healthy

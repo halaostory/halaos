@@ -17,6 +17,7 @@ import (
 	"github.com/tonypk/aigonhr/internal/ai/provider"
 	"github.com/tonypk/aigonhr/internal/billing"
 	"github.com/tonypk/aigonhr/internal/config"
+	"github.com/tonypk/aigonhr/internal/email"
 	"github.com/tonypk/aigonhr/internal/integration"
 	"github.com/tonypk/aigonhr/internal/payroll"
 	"github.com/tonypk/aigonhr/internal/store"
@@ -61,6 +62,12 @@ func main() {
 		}
 	}
 
+	// Email service (for drip campaigns)
+	emailSvc := email.NewService(cfg.Resend.APIKey, cfg.Resend.From, cfg.Resend.BaseURL, logger)
+	if emailSvc.IsEnabled() {
+		logger.Info("worker email service enabled")
+	}
+
 	// Build workflow trigger dispatcher with optional AI evaluator
 	var triggerDispatcher *workflow.TriggerDispatcher
 	{
@@ -103,7 +110,7 @@ func main() {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				runPeriodicJobs(ctx, queries, pool, rdb, aiProvider, workflowEngine, calculator, logger)
+				runPeriodicJobs(ctx, queries, pool, rdb, aiProvider, workflowEngine, calculator, emailSvc, logger)
 			}
 		}
 	}()
@@ -176,7 +183,7 @@ func dispatchEvent(ctx context.Context, queries *store.Queries, calculator *payr
 	}
 }
 
-func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.Pool, _ *redis.Client, aiProvider provider.Provider, workflowEngine *workflow.Engine, calculator *payroll.Calculator, logger *slog.Logger) {
+func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.Pool, _ *redis.Client, aiProvider provider.Provider, workflowEngine *workflow.Engine, calculator *payroll.Calculator, emailSvc *email.Service, logger *slog.Logger) {
 	logger.Info("running periodic jobs")
 
 	// Auto-close open attendance records from previous day
@@ -253,6 +260,9 @@ func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.
 
 	// Auto-approve zero-anomaly payroll runs (hourly)
 	autoApprovePayroll(ctx, queries, pool, logger)
+
+	// Send onboarding drip emails (hourly)
+	sendDripEmails(ctx, queries, emailSvc, logger)
 }
 
 func autoCloseAttendance(ctx context.Context, queries *store.Queries, logger *slog.Logger) {
