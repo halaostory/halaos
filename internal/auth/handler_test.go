@@ -26,7 +26,7 @@ func newTestHandler(mockDB *testutil.MockDBTX) *Handler {
 	queries := store.New(mockDB)
 	jwt := NewJWTService("test-secret-key-for-unit-tests", time.Hour, 24*time.Hour)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	return NewHandler(queries, nil, jwt, logger)
+	return NewHandler(queries, nil, jwt, nil, logger)
 }
 
 func hashedPassword(plain string) string {
@@ -36,18 +36,21 @@ func hashedPassword(plain string) string {
 
 func activeUser(email, password string) store.User {
 	return store.User{
-		ID:           1,
-		CompanyID:    1,
-		Email:        email,
-		PasswordHash: hashedPassword(password),
-		FirstName:    "Test",
-		LastName:     "User",
-		Role:         "admin",
-		Status:       "active",
-		Locale:       "en",
-		LastLoginAt:  pgtype.Timestamptz{},
-		CreatedAt:    time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
-		UpdatedAt:    time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+		ID:                         1,
+		CompanyID:                  1,
+		Email:                      email,
+		PasswordHash:               hashedPassword(password),
+		FirstName:                  "Test",
+		LastName:                   "User",
+		Role:                       "admin",
+		Status:                     "active",
+		Locale:                     "en",
+		LastLoginAt:                pgtype.Timestamptz{},
+		CreatedAt:                  time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+		UpdatedAt:                  time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+		EmailVerified:              true,
+		VerificationToken:          nil,
+		VerificationTokenExpiresAt: pgtype.Timestamptz{},
 	}
 }
 

@@ -12,25 +12,27 @@ import (
 // Override fields after creation as needed.
 func FixtureUser() store.User {
 	return store.User{
-		ID:           1,
-		CompanyID:    1,
-		Email:        "admin@test.com",
-		PasswordHash: "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012", // dummy hash
-		FirstName:    "Admin",
-		LastName:     "User",
-		Role:         "admin",
-		Status:       "active",
-		AvatarUrl:    nil,
-		Locale:       "en",
-		LastLoginAt:  pgtype.Timestamptz{},
-		CreatedAt:    time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
-		UpdatedAt:    time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+		ID:                         1,
+		CompanyID:                  1,
+		Email:                      "admin@test.com",
+		PasswordHash:               "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012", // dummy hash
+		FirstName:                  "Admin",
+		LastName:                   "User",
+		Role:                       "admin",
+		Status:                     "active",
+		AvatarUrl:                  nil,
+		Locale:                     "en",
+		LastLoginAt:                pgtype.Timestamptz{},
+		CreatedAt:                  time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+		UpdatedAt:                  time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+		EmailVerified:              true,
+		VerificationToken:          nil,
+		VerificationTokenExpiresAt: pgtype.Timestamptz{},
 	}
 }
 
 // UserScanValues returns the values in the exact scan order used by sqlc-generated
-// User queries (13 fields: ID, CompanyID, Email, PasswordHash, FirstName, LastName,
-// Role, Status, AvatarUrl, Locale, LastLoginAt, CreatedAt, UpdatedAt).
+// User queries (16 fields).
 func UserScanValues(u store.User) []interface{} {
 	return []interface{}{
 		u.ID,
@@ -46,6 +48,9 @@ func UserScanValues(u store.User) []interface{} {
 		u.LastLoginAt,
 		u.CreatedAt,
 		u.UpdatedAt,
+		u.EmailVerified,
+		u.VerificationToken,
+		u.VerificationTokenExpiresAt,
 	}
 }
 
