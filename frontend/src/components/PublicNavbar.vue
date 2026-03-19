@@ -23,7 +23,8 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll))
       <nav class="pub-links" :class="{ open: mobileOpen }">
         <router-link to="/features" @click="mobileOpen = false">Features</router-link>
         <router-link to="/pricing" @click="mobileOpen = false">Pricing</router-link>
-        <router-link to="/about" @click="mobileOpen = false">About</router-link>
+        <router-link to="/tools" @click="mobileOpen = false">Free Tools</router-link>
+        <router-link to="/blog" @click="mobileOpen = false">Blog</router-link>
         <router-link to="/contact" @click="mobileOpen = false">Contact</router-link>
       </nav>
 

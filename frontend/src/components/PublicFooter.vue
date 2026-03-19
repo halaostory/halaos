@@ -5,16 +5,18 @@ const links = {
   product: [
     { label: 'Features', to: '/features' },
     { label: 'Pricing', to: '/pricing' },
-    { label: 'Integrations', to: '/features#integrations' },
-    { label: 'Security', to: '/features#security' },
+    { label: 'Free Tools', to: '/tools' },
+    { label: 'Blog', to: '/blog' },
+  ],
+  resources: [
+    { label: 'Tax Calculator', to: '/tools/tax-calculator' },
+    { label: 'SSS Calculator', to: '/tools/sss-calculator' },
+    { label: '13th Month Pay', to: '/tools/13th-month-calculator' },
+    { label: 'BIR 2550M Guide', to: '/blog/bir-2550m-guide-2026' },
   ],
   company: [
     { label: 'About', to: '/about' },
     { label: 'Contact', to: '/contact' },
-    { label: 'Careers', to: '/about#careers' },
-    { label: 'Blog', to: '/about#blog' },
-  ],
-  legal: [
     { label: 'Privacy Policy', to: '/privacy' },
     { label: 'Terms of Service', to: '/terms' },
   ],
@@ -56,18 +58,18 @@ const links = {
         </div>
 
         <div class="footer-links-group">
-          <h4>Company</h4>
+          <h4>Free Resources</h4>
           <ul>
-            <li v-for="link in links.company" :key="link.to">
+            <li v-for="link in links.resources" :key="link.to">
               <router-link :to="link.to">{{ link.label }}</router-link>
             </li>
           </ul>
         </div>
 
         <div class="footer-links-group">
-          <h4>Legal</h4>
+          <h4>Company</h4>
           <ul>
-            <li v-for="link in links.legal" :key="link.to">
+            <li v-for="link in links.company" :key="link.to">
               <router-link :to="link.to">{{ link.label }}</router-link>
             </li>
           </ul>
@@ -96,7 +98,7 @@ const links = {
 .footer-grid {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr 1fr;
-  gap: 48px;
+  gap: 40px;
 }
 .footer-logo {
   display: inline-flex;

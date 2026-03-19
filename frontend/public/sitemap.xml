@@ -3,6 +3,21 @@
   <url><loc>https://halaos.com/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
   <url><loc>https://halaos.com/features</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://halaos.com/pricing</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://halaos.com/tools</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://halaos.com/tools/tax-calculator</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://halaos.com/tools/sss-calculator</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://halaos.com/tools/13th-month-calculator</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://halaos.com/blog</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://halaos.com/blog/bir-2550m-guide-2026</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://halaos.com/blog/sss-contribution-table-2026</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://halaos.com/blog/13th-month-pay-computation-philippines</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://halaos.com/blog/philhealth-contribution-2026</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://halaos.com/blog/cpf-contribution-rates-singapore-2026</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://halaos.com/blog/best-free-payroll-software-philippines-2026</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://halaos.com/blog/overtime-pay-computation-philippines</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://halaos.com/blog/pag-ibig-contribution-table-2026</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://halaos.com/blog/iras-filing-guide-singapore-sme</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://halaos.com/blog/employee-onboarding-checklist-southeast-asia</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://halaos.com/about</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://halaos.com/contact</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://halaos.com/login</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>

@@ -37,6 +37,37 @@ const router = createRouter({
           name: "contact",
           component: () => import("../views/public/ContactPage.vue"),
         },
+        {
+          path: "blog",
+          name: "blog",
+          component: () => import("../views/public/BlogPage.vue"),
+        },
+        {
+          path: "blog/:slug",
+          name: "blog-article",
+          component: () => import("../views/public/BlogArticle.vue"),
+        },
+        {
+          path: "tools",
+          name: "tools",
+          component: () => import("../views/public/ToolsPage.vue"),
+        },
+        {
+          path: "tools/tax-calculator",
+          name: "tax-calculator",
+          component: () => import("../views/public/TaxCalculator.vue"),
+        },
+        {
+          path: "tools/sss-calculator",
+          name: "sss-calculator",
+          component: () => import("../views/public/SSSCalculator.vue"),
+        },
+        {
+          path: "tools/13th-month-calculator",
+          name: "13th-month-calculator",
+          component: () =>
+            import("../views/public/ThirteenthMonthCalculator.vue"),
+        },
       ],
     },
     // Auth
