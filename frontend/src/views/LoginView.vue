@@ -71,7 +71,7 @@ async function handleLogin() {
             autocomplete="current-password"
           />
         </NFormItem>
-        <NButton type="primary" block :loading="loading" attr-type="submit" style="margin-top: 8px;">
+        <NButton type="primary" block :loading="loading" attr-type="submit" style="margin-top: 8px;" @click="handleLogin">
           {{ t('auth.login') }}
         </NButton>
       </NForm>

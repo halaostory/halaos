@@ -143,7 +143,7 @@ async function handleResend() {
         <NFormItem :label="t('auth.password')" path="password">
           <NInput v-model:value="form.password" type="password" show-password-on="click" :placeholder="t('common.placeholder.minChars')" />
         </NFormItem>
-        <NButton type="primary" block :loading="loading" attr-type="submit">
+        <NButton type="primary" block :loading="loading" attr-type="submit" @click="handleRegister">
           {{ t('auth.register') }}
         </NButton>
       </NForm>
