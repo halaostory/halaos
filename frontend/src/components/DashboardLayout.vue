@@ -278,6 +278,7 @@ const menuOptions = computed<MenuOption[]>(() => {
     pushIf(sysItems, 'import-export', 'nav.importExport', 'navDesc.importExport', CloudDownloadOutline)
     pushIf(sysItems, 'audit', 'nav.audit', 'navDesc.audit', FileTrayFullOutline)
     pushIf(sysItems, 'billing', 'nav.billing', 'navDesc.billing', WalletOutline)
+    pushIf(sysItems, 'referrals', 'nav.referrals', 'navDesc.referrals', GitBranchOutline)
     pushIf(sysItems, 'settings', 'nav.settings', 'navDesc.settings', SettingsOutline)
     if (sysItems.length) {
       adminItems.push({ type: 'group', label: t('nav.groupAdminSystem'), key: 'g-admin-sys', children: sysItems })

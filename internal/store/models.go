@@ -511,34 +511,37 @@ type ClearanceTemplate struct {
 }
 
 type Company struct {
-	ID              int64     `json:"id"`
-	Name            string    `json:"name"`
-	LegalName       *string   `json:"legal_name"`
-	Tin             *string   `json:"tin"`
-	BirRdo          *string   `json:"bir_rdo"`
-	Address         *string   `json:"address"`
-	City            *string   `json:"city"`
-	Province        *string   `json:"province"`
-	ZipCode         *string   `json:"zip_code"`
-	Country         string    `json:"country"`
-	Timezone        string    `json:"timezone"`
-	Currency        string    `json:"currency"`
-	PayFrequency    string    `json:"pay_frequency"`
-	Status          string    `json:"status"`
-	LogoUrl         *string   `json:"logo_url"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
-	GeofenceEnabled bool      `json:"geofence_enabled"`
-	SssErNo         *string   `json:"sss_er_no"`
-	PhilhealthErNo  *string   `json:"philhealth_er_no"`
-	PagibigErNo     *string   `json:"pagibig_er_no"`
-	BankName        *string   `json:"bank_name"`
-	BankBranch      *string   `json:"bank_branch"`
-	BankAccountNo   *string   `json:"bank_account_no"`
-	BankAccountName *string   `json:"bank_account_name"`
-	ContactPerson   *string   `json:"contact_person"`
-	ContactEmail    *string   `json:"contact_email"`
-	ContactPhone    *string   `json:"contact_phone"`
+	ID                    int64     `json:"id"`
+	Name                  string    `json:"name"`
+	LegalName             *string   `json:"legal_name"`
+	Tin                   *string   `json:"tin"`
+	BirRdo                *string   `json:"bir_rdo"`
+	Address               *string   `json:"address"`
+	City                  *string   `json:"city"`
+	Province              *string   `json:"province"`
+	ZipCode               *string   `json:"zip_code"`
+	Country               string    `json:"country"`
+	Timezone              string    `json:"timezone"`
+	Currency              string    `json:"currency"`
+	PayFrequency          string    `json:"pay_frequency"`
+	Status                string    `json:"status"`
+	LogoUrl               *string   `json:"logo_url"`
+	CreatedAt             time.Time `json:"created_at"`
+	UpdatedAt             time.Time `json:"updated_at"`
+	GeofenceEnabled       bool      `json:"geofence_enabled"`
+	SssErNo               *string   `json:"sss_er_no"`
+	PhilhealthErNo        *string   `json:"philhealth_er_no"`
+	PagibigErNo           *string   `json:"pagibig_er_no"`
+	BankName              *string   `json:"bank_name"`
+	BankBranch            *string   `json:"bank_branch"`
+	BankAccountNo         *string   `json:"bank_account_no"`
+	BankAccountName       *string   `json:"bank_account_name"`
+	ContactPerson         *string   `json:"contact_person"`
+	ContactEmail          *string   `json:"contact_email"`
+	ContactPhone          *string   `json:"contact_phone"`
+	ReferralCode          *string   `json:"referral_code"`
+	ReferredByCode        *string   `json:"referred_by_code"`
+	ReferralRewardClaimed bool      `json:"referral_reward_claimed"`
 }
 
 type CompanyPolicy struct {
@@ -1625,6 +1628,17 @@ type Recognition struct {
 	IsPublic       bool      `json:"is_public"`
 	Points         int32     `json:"points"`
 	CreatedAt      time.Time `json:"created_at"`
+}
+
+type ReferralEvent struct {
+	ID                int64              `json:"id"`
+	ReferrerCompanyID int64              `json:"referrer_company_id"`
+	ReferredCompanyID int64              `json:"referred_company_id"`
+	ReferralCode      string             `json:"referral_code"`
+	Status            string             `json:"status"`
+	RewardType        *string            `json:"reward_type"`
+	CreatedAt         time.Time          `json:"created_at"`
+	ActivatedAt       pgtype.Timestamptz `json:"activated_at"`
 }
 
 type RemittanceRecord struct {

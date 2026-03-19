@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { NForm, NFormItem, NInput, NButton, NSpace, NSelect, NResult, useMessage } from 'naive-ui'
 import type { FormRules, FormInst } from 'naive-ui'
@@ -8,9 +8,12 @@ import { useAuthStore } from '../stores/auth'
 import { authAPI } from '../api/client'
 
 const router = useRouter()
+const route = useRoute()
 const { t } = useI18n()
 const message = useMessage()
 const auth = useAuthStore()
+
+const referralCode = (route.query.ref as string) || ''
 
 const formRef = ref<FormInst | null>(null)
 const form = ref({
@@ -58,7 +61,7 @@ async function handleRegister() {
   } catch { return }
   loading.value = true
   try {
-    const result = await auth.register(form.value)
+    const result = await auth.register({ ...form.value, referral_code: referralCode })
     if (result.emailSent) {
       emailSent.value = true
     } else {

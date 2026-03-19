@@ -399,6 +399,13 @@ const router = createRouter({
           component: () => import("../views/BillingView.vue"),
           meta: { roles: ["super_admin", "admin"] },
         },
+        // Referrals
+        {
+          path: "referrals",
+          name: "referrals",
+          component: () => import("../views/ReferralsView.vue"),
+          meta: { roles: ["super_admin", "admin"] },
+        },
         // Agent Hub
         {
           path: "agent-hub",

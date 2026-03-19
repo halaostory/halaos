@@ -56,12 +56,13 @@ func generateVerificationToken() (string, error) {
 }
 
 type registerRequest struct {
-	CompanyName string `json:"company_name" binding:"required,min=2"`
-	Email       string `json:"email" binding:"required,email"`
-	Password    string `json:"password" binding:"required,min=8"`
-	FirstName   string `json:"first_name" binding:"required"`
-	LastName    string `json:"last_name" binding:"required"`
-	Country     string `json:"country"` // PHL (default), LKA, SGP, IDN
+	CompanyName  string `json:"company_name" binding:"required,min=2"`
+	Email        string `json:"email" binding:"required,email"`
+	Password     string `json:"password" binding:"required,min=8"`
+	FirstName    string `json:"first_name" binding:"required"`
+	LastName     string `json:"last_name" binding:"required"`
+	Country      string `json:"country"`      // PHL (default), LKA, SGP, IDN
+	ReferralCode string `json:"referral_code"` // optional referral code from ?ref= link
 }
 
 type loginRequest struct {
@@ -173,6 +174,23 @@ func (h *Handler) Register(c *gin.Context) {
 	// Seed country-specific leave types and holidays
 	if seedErr := seedCountryDefaults(c.Request.Context(), qtx, company.ID, country); seedErr != nil {
 		h.logger.Warn("failed to seed country defaults", "company_id", company.ID, "country", country, "error", seedErr)
+	}
+
+	// Track referral if a referral code was provided
+	if req.ReferralCode != "" {
+		referrer, refErr := qtx.GetCompanyByReferralCode(c.Request.Context(), &req.ReferralCode)
+		if refErr == nil && referrer.ID != company.ID {
+			_ = qtx.SetReferredByCode(c.Request.Context(), store.SetReferredByCodeParams{
+				ID:             company.ID,
+				ReferredByCode: &req.ReferralCode,
+			})
+			_, _ = qtx.CreateReferralEvent(c.Request.Context(), store.CreateReferralEventParams{
+				ReferrerCompanyID: referrer.ID,
+				ReferredCompanyID: company.ID,
+				ReferralCode:      req.ReferralCode,
+			})
+			h.logger.Info("referral tracked", "referrer", referrer.ID, "referred", company.ID, "code", req.ReferralCode)
+		}
 	}
 
 	if err := tx.Commit(c.Request.Context()); err != nil {

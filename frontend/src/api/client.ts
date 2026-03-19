@@ -1184,6 +1184,13 @@ export const recognitionAPI = {
   getStats: () => get("/v1/recognitions/stats"),
 };
 
+// Referrals
+export const referralAPI = {
+  getCode: () => get("/v1/referrals/code"),
+  getStats: () => get("/v1/referrals/stats"),
+  listReferrals: () => get("/v1/referrals/list"),
+};
+
 // Pulse Surveys
 export const pulseAPI = {
   list: (params?: Record<string, string>) => get("/v1/pulse-surveys", params),
