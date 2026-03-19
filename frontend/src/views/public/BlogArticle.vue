@@ -43,7 +43,9 @@ const article = computed(() => getArticleBySlug(route.params.slug as string))
 
 const renderedContent = computed(() => {
   if (!article.value) return ''
-  return md.render(article.value.content)
+  // Strip the leading H1 (title) from content since it's already shown in the header
+  const content = article.value.content.replace(/^#\s+.+\n+/, '')
+  return md.render(content)
 })
 
 useHead(computed(() => {
