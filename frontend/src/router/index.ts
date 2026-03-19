@@ -7,6 +7,13 @@ const router = createRouter({
     return savedPosition || { top: 0 };
   },
   routes: [
+    // Setup Wizard (authenticated but outside DashboardLayout)
+    {
+      path: "/setup",
+      name: "setup-wizard",
+      component: () => import("../views/SetupWizardView.vue"),
+      meta: { requiresAuth: true, roles: ["super_admin", "admin"] },
+    },
     // Public marketing pages
     {
       path: "/",
@@ -501,6 +508,14 @@ router.beforeEach(async (to) => {
   }
 
   if ((to.name === "login" || to.name === "register") && auth.isAuthenticated) {
+    // Redirect new admins to setup wizard if not completed
+    const setupDone = localStorage.getItem("halaos_setup_done");
+    if (
+      !setupDone &&
+      (auth.user?.role === "super_admin" || auth.user?.role === "admin")
+    ) {
+      return { name: "setup-wizard" };
+    }
     return { name: "dashboard" };
   }
 });

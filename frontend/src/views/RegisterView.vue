@@ -62,7 +62,7 @@ async function handleRegister() {
     if (result.emailSent) {
       emailSent.value = true
     } else {
-      router.push('/dashboard')
+      router.push('/setup')
     }
   } catch (e: unknown) {
     const err = e as { data?: { error?: { message?: string } } }

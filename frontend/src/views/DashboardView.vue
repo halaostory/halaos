@@ -320,6 +320,27 @@ async function handleClockOut() {
       <DashboardBriefing />
     </div>
 
+    <!-- Getting Started CTA for new companies -->
+    <NCard v-if="totalEmployees === 0 && auth.isAdmin" style="margin-bottom: 24px; border: 2px dashed #4f46e5; background: #f5f3ff;">
+      <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+        <div style="font-size: 40px;">&#128075;</div>
+        <div style="flex: 1; min-width: 200px;">
+          <h3 style="margin: 0 0 4px;">{{ t('dashboard.getStarted', 'Get Started with HalaOS') }}</h3>
+          <p style="margin: 0; color: #666; font-size: 14px;">
+            {{ t('dashboard.getStartedDesc', 'Set up your company, add departments, and onboard your first employee.') }}
+          </p>
+        </div>
+        <NSpace>
+          <NButton type="primary" @click="router.push('/setup')">
+            {{ t('dashboard.runSetupWizard', 'Run Setup Wizard') }}
+          </NButton>
+          <NButton @click="router.push('/dashboard/employees/new')">
+            {{ t('dashboard.addEmployee', 'Add Employee') }}
+          </NButton>
+        </NSpace>
+      </div>
+    </NCard>
+
     <NGrid id="dashboard-stats" :cols="4" :x-gap="16" :y-gap="16" responsive="screen" style="margin-bottom: 24px;">
       <NGi>
         <NCard>
