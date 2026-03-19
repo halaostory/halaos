@@ -3,7 +3,43 @@ import { useAuthStore } from "../stores/auth";
 
 const router = createRouter({
   history: createWebHistory(),
+  scrollBehavior(_to, _from, savedPosition) {
+    return savedPosition || { top: 0 };
+  },
   routes: [
+    // Public marketing pages
+    {
+      path: "/",
+      component: () => import("../components/PublicLayout.vue"),
+      children: [
+        {
+          path: "",
+          name: "home",
+          component: () => import("../views/public/HomePage.vue"),
+        },
+        {
+          path: "features",
+          name: "features",
+          component: () => import("../views/public/FeaturesPage.vue"),
+        },
+        {
+          path: "pricing",
+          name: "pricing",
+          component: () => import("../views/public/PricingPage.vue"),
+        },
+        {
+          path: "about",
+          name: "about",
+          component: () => import("../views/public/AboutPage.vue"),
+        },
+        {
+          path: "contact",
+          name: "contact",
+          component: () => import("../views/public/ContactPage.vue"),
+        },
+      ],
+    },
+    // Auth
     {
       path: "/login",
       name: "login",
@@ -15,7 +51,13 @@ const router = createRouter({
       component: () => import("../views/RegisterView.vue"),
     },
     {
-      path: "/",
+      path: "/verify-email",
+      name: "verify-email",
+      component: () => import("../views/VerifyEmailView.vue"),
+    },
+    // Dashboard (authenticated)
+    {
+      path: "/dashboard",
       component: () => import("../components/DashboardLayout.vue"),
       meta: { requiresAuth: true },
       children: [

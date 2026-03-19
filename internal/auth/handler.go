@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"log/slog"
@@ -11,9 +13,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/tonypk/aigonhr/internal/email"
 	"github.com/tonypk/aigonhr/internal/store"
 	"github.com/tonypk/aigonhr/pkg/response"
 )
@@ -28,16 +32,27 @@ type Handler struct {
 	queries *store.Queries
 	pool    *pgxpool.Pool
 	jwt     *JWTService
+	email   *email.Service
 	logger  *slog.Logger
 }
 
-func NewHandler(queries *store.Queries, pool *pgxpool.Pool, jwt *JWTService, logger *slog.Logger) *Handler {
+func NewHandler(queries *store.Queries, pool *pgxpool.Pool, jwt *JWTService, emailSvc *email.Service, logger *slog.Logger) *Handler {
 	return &Handler{
 		queries: queries,
 		pool:    pool,
 		jwt:     jwt,
+		email:   emailSvc,
 		logger:  logger,
 	}
+}
+
+// generateVerificationToken creates a secure random hex token.
+func generateVerificationToken() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
 }
 
 type registerRequest struct {
@@ -166,7 +181,41 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 
-	// Generate tokens
+	// Generate verification token and send email
+	if h.email != nil && h.email.IsEnabled() {
+		verToken, err := generateVerificationToken()
+		if err != nil {
+			h.logger.Error("failed to generate verification token", "error", err)
+			response.InternalError(c, "Registration failed")
+			return
+		}
+
+		expiresAt := pgtype.Timestamptz{Time: time.Now().Add(24 * time.Hour), Valid: true}
+		if err := h.queries.SetVerificationToken(c.Request.Context(), store.SetVerificationTokenParams{
+			ID:                         user.ID,
+			VerificationToken:          &verToken,
+			VerificationTokenExpiresAt: expiresAt,
+		}); err != nil {
+			h.logger.Error("failed to save verification token", "error", err)
+		}
+
+		go func() {
+			if sendErr := h.email.SendVerificationEmail(req.Email, req.FirstName, verToken); sendErr != nil {
+				h.logger.Error("failed to send verification email", "email", req.Email, "error", sendErr)
+			}
+		}()
+
+		response.Created(c, gin.H{
+			"message":        "Registration successful. Please check your email to verify your account.",
+			"email_sent":     true,
+			"email_verified": false,
+		})
+		return
+	}
+
+	// No email service — auto-verify and return tokens (dev mode)
+	_ = h.queries.MarkEmailVerified(c.Request.Context(), user.ID)
+
 	token, err := h.jwt.GenerateToken(user.ID, user.Email, Role(user.Role), user.CompanyID)
 	if err != nil {
 		h.logger.Error("failed to generate token", "error", err)
@@ -218,6 +267,11 @@ func (h *Handler) Login(c *gin.Context) {
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
 		response.Unauthorized(c, "Invalid email or password")
+		return
+	}
+
+	if !user.EmailVerified {
+		response.Forbidden(c, "Please verify your email address before logging in")
 		return
 	}
 
@@ -501,4 +555,95 @@ func (h *Handler) UploadAvatar(c *gin.Context) {
 		CompanyID: user.CompanyID,
 		AvatarUrl: user.AvatarUrl,
 	})
+}
+
+// VerifyEmail handles GET /auth/verify-email?token=xxx
+func (h *Handler) VerifyEmail(c *gin.Context) {
+	token := c.Query("token")
+	if token == "" {
+		response.BadRequest(c, "Verification token is required")
+		return
+	}
+
+	user, err := h.queries.GetUserByVerificationToken(c.Request.Context(), &token)
+	if err != nil {
+		response.BadRequest(c, "Invalid or expired verification token")
+		return
+	}
+
+	if user.EmailVerified {
+		response.OK(c, gin.H{"message": "Email already verified"})
+		return
+	}
+
+	if err := h.queries.MarkEmailVerified(c.Request.Context(), user.ID); err != nil {
+		h.logger.Error("failed to mark email verified", "error", err)
+		response.InternalError(c, "Verification failed")
+		return
+	}
+
+	// Send welcome email in background
+	if h.email != nil && h.email.IsEnabled() {
+		go func() {
+			_ = h.email.SendWelcomeEmail(user.Email, user.FirstName)
+		}()
+	}
+
+	response.OK(c, gin.H{
+		"message":        "Email verified successfully. You can now log in.",
+		"email_verified": true,
+	})
+}
+
+type resendVerificationRequest struct {
+	Email string `json:"email" binding:"required,email"`
+}
+
+// ResendVerification handles POST /auth/resend-verification
+func (h *Handler) ResendVerification(c *gin.Context) {
+	var req resendVerificationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	user, err := h.queries.GetUserByEmail(c.Request.Context(), req.Email)
+	if err != nil {
+		// Don't reveal whether email exists
+		response.OK(c, gin.H{"message": "If the email exists, a verification link has been sent."})
+		return
+	}
+
+	if user.EmailVerified {
+		response.OK(c, gin.H{"message": "Email is already verified. You can log in."})
+		return
+	}
+
+	if h.email == nil || !h.email.IsEnabled() {
+		response.BadRequest(c, "Email service is not configured")
+		return
+	}
+
+	verToken, err := generateVerificationToken()
+	if err != nil {
+		response.InternalError(c, "Failed to generate token")
+		return
+	}
+
+	expiresAt := pgtype.Timestamptz{Time: time.Now().Add(24 * time.Hour), Valid: true}
+	if err := h.queries.SetVerificationToken(c.Request.Context(), store.SetVerificationTokenParams{
+		ID:                         user.ID,
+		VerificationToken:          &verToken,
+		VerificationTokenExpiresAt: expiresAt,
+	}); err != nil {
+		h.logger.Error("failed to save verification token", "error", err)
+		response.InternalError(c, "Failed to send verification email")
+		return
+	}
+
+	go func() {
+		_ = h.email.SendVerificationEmail(user.Email, user.FirstName, verToken)
+	}()
+
+	response.OK(c, gin.H{"message": "If the email exists, a verification link has been sent."})
 }

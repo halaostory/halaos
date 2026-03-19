@@ -18,12 +18,20 @@ type Config struct {
 	CORS        CORSConfig
 	RateLimit   RateLimitConfig
 	Billing     BillingConfig
+	Resend      ResendConfig
 	Integration IntegrationConfig
 	Bot         BotConfig
 }
 
 type IntegrationConfig struct {
 	EncryptionKey string // Base64-encoded 32-byte AES-256 key
+	JWTSecret     string // Shared secret for cross-app SSO tokens
+}
+
+type ResendConfig struct {
+	APIKey  string // Resend.com API key
+	From    string // Sender email address (must be verified in Resend)
+	BaseURL string // Public URL for building links (e.g. https://halaos.com)
 }
 
 type BotConfig struct {
@@ -162,8 +170,14 @@ func Load() *Config {
 			InputTokenRate:  0.1,
 			OutputTokenRate: 0.3,
 		},
+		Resend: ResendConfig{
+			APIKey:  getEnv("RESEND_API_KEY", ""),
+			From:    getEnv("RESEND_FROM", "HalaOS <noreply@halaos.com>"),
+			BaseURL: getEnv("APP_BASE_URL", "http://localhost:3001"),
+		},
 		Integration: IntegrationConfig{
 			EncryptionKey: getEnv("INTEGRATION_ENCRYPTION_KEY", ""),
+			JWTSecret:     getEnv("INTEGRATION_JWT_SECRET", ""),
 		},
 		Bot: BotConfig{
 			Enabled:          getEnvBool("BOT_ENABLED", false),

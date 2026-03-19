@@ -1,6 +1,7 @@
 package employee
 
 import (
+	"context"
 	"strconv"
 	"time"
 
@@ -77,6 +78,25 @@ func (h *Handler) ChangeStatus(c *gin.Context) {
 		CreatedBy:     &userID,
 	}); err != nil {
 		h.logger.Error("failed to create employment history", "employee_id", empID, "action", actionType, "error", err)
+	}
+
+	// Emit accounting event (async, non-blocking)
+	if h.accounting != nil {
+		go func() {
+			if req.Status == "separated" || req.Status == "terminated" {
+				reason := req.Status
+				if req.Remarks != nil {
+					reason = *req.Remarks
+				}
+				if err := h.accounting.EmitEmployeeTerminated(context.Background(), companyID, empID, reason); err != nil {
+					h.logger.Error("failed to emit employee.terminated accounting event", "employee_id", empID, "error", err)
+				}
+			} else {
+				if err := h.accounting.EmitEmployeeUpserted(context.Background(), companyID, empID); err != nil {
+					h.logger.Error("failed to emit employee.upserted accounting event", "employee_id", empID, "error", err)
+				}
+			}
+		}()
 	}
 
 	response.OK(c, updated)

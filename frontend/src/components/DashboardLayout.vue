@@ -18,11 +18,11 @@ import {
   GridOutline, FileTrayFullOutline, CloudDownloadOutline, BookOutline, CalendarNumberOutline,
   MegaphoneOutline, DocumentTextOutline, SchoolOutline, AlertCircleOutline, MedkitOutline, FolderOpenOutline, ChatbubblesOutline, LocationOutline,
   LinkOutline, PulseOutline, GitBranchOutline, TrendingUpOutline,
-  FlashOutline, BulbOutline, HappyOutline, StarOutline,
+  FlashOutline, BulbOutline, HappyOutline, StarOutline, OpenOutline,
 } from '@vicons/ionicons5'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
-import { notificationAPI } from '../api/client'
+import { notificationAPI, integrationAPI } from '../api/client'
 import ChatPanel from './ChatPanel.vue'
 import CommandPalette from './CommandPalette.vue'
 import { useTour } from '../composables/useTour'
@@ -132,7 +132,7 @@ function mi(titleKey: string, descKey: string, key: string, icon: Component): Me
 const features: Record<string, boolean> = {
   dashboard: true, employees: true, directory: true, attendance: true,
   'attendance-report': true, dtr: true, leaves: true, 'leave-calendar': true,
-  payroll: true, payslips: true, 'agent-hub': true, billing: true,
+  payroll: true, payslips: true, 'agent-hub': true, billing: false,
   users: true, departments: true, positions: true, salary: true,
   settings: true, announcements: true, approvals: true, integrations: true,
   overtime: true, 'leave-encashment': true, schedules: true, analytics: true,
@@ -141,7 +141,7 @@ const features: Record<string, boolean> = {
   expenses: true, disciplinary: true, grievance: true, clearance: true,
   'final-pay': true, '201file': true, milestones: true, geofences: true,
   'import-export': true, audit: true, policies: true, 'self-service': true,
-  holidays: true, 'org-intelligence': true, 'workflow-rules': true,
+  holidays: true, 'org-intelligence': true, 'workflow-rules': true, accounting: true,
   'workflow-analytics': true, 'workflow-triggers': true, 'workflow-decisions': true,
   'pulse-surveys': true, recognition: true, 'hr-requests': true,
 }
@@ -206,6 +206,7 @@ const menuOptions = computed<MenuOption[]>(() => {
   pushIf(payComp, 'expenses', 'nav.expenses', 'navDesc.expenses', ReceiptOutline)
   pushIf(payComp, 'benefits', 'nav.benefits', 'navDesc.benefits', MedkitOutline)
   if (auth.isAdmin) pushIf(payComp, 'final-pay', 'nav.finalPay', 'navDesc.finalPay', WalletOutline)
+  if (auth.isAdmin) pushIf(payComp, 'accounting', 'nav.accounting', 'navDesc.accounting', OpenOutline)
   if (payComp.length) {
     groups.push({ type: 'group', label: t('nav.groupPayroll'), key: 'g-payroll', children: payComp })
   }
@@ -292,7 +293,32 @@ const menuOptions = computed<MenuOption[]>(() => {
 
 const activeKey = computed(() => route.name as string)
 
+const accountingLoading = ref(false)
+
+async function openAccounting() {
+  if (accountingLoading.value) return
+  accountingLoading.value = true
+  try {
+    const res = await integrationAPI.getAccountingSSOToken()
+    const data = (res as any)?.data ?? res
+    const ssoToken = data?.sso_token
+    const targetUrl = data?.target_url || 'https://tax.clawpapa.win'
+    if (ssoToken) {
+      window.open(`${targetUrl}/sso?token=${encodeURIComponent(ssoToken)}`, '_blank')
+    }
+  } catch {
+    // If no accounting link configured, open AIStarlight login directly
+    window.open('https://tax.clawpapa.win', '_blank')
+  } finally {
+    accountingLoading.value = false
+  }
+}
+
 function handleMenuClick(key: string) {
+  if (key === 'accounting') {
+    openAccounting()
+    return
+  }
   router.push({ name: key })
 }
 
@@ -331,7 +357,7 @@ function handleUserAction(key: string) {
       collapse-mode="width"
     >
       <div id="app-logo" style="padding: 16px 20px; font-size: 18px; font-weight: 700;">
-        AigoNHR
+        HalaOS
       </div>
       <NMenu
         id="sidebar-menu"

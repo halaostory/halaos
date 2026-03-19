@@ -67,11 +67,23 @@ export const useAuthStore = defineStore("auth", () => {
     first_name: string;
     last_name: string;
     country?: string;
-  }) {
+  }): Promise<{ emailSent: boolean }> {
     const raw = await authAPI.register(data);
+    const d = (raw as Record<string, unknown>).data as
+      | Record<string, unknown>
+      | undefined;
+    const payload = (d ?? raw) as Record<string, unknown>;
+
+    // If email verification is required, the response has email_sent: true but no tokens
+    if (payload.email_sent) {
+      return { emailSent: true };
+    }
+
+    // Dev mode / no Resend: auto-login with tokens
     const res = extractAuthData(raw);
     setTokens(res.token, res.refresh_token);
     setUser(res.user);
+    return { emailSent: false };
   }
 
   async function fetchMe() {

@@ -3,7 +3,7 @@ import { ref, h, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   NTabs, NTabPane, NDataTable, NButton, NModal, NForm, NFormItem,
-  NInput, NSelect, NSwitch, NSpace, NTag, useMessage,
+  NInput, NSelect, NSwitch, NSpace, NTag, NPopconfirm, useMessage,
   type DataTableColumns,
 } from 'naive-ui'
 import { salaryAPI } from '../api/client'
@@ -17,10 +17,12 @@ const loading = ref(false)
 
 // Structure modal
 const showStructureModal = ref(false)
+const editingStructureId = ref<number | null>(null)
 const structureForm = ref({ name: '', description: '' })
 
 // Component modal
 const showComponentModal = ref(false)
+const editingComponentId = ref<number | null>(null)
 const componentForm = ref({
   code: '',
   name: '',
@@ -41,6 +43,16 @@ const componentTypes = [
 const structureColumns: DataTableColumns = [
   { title: t('employee.name'), key: 'name' },
   { title: t('salary.description'), key: 'description' },
+  {
+    title: t('common.actions'), key: 'actions', width: 150,
+    render: (row) => h(NSpace, { size: 'small' }, () => [
+      h(NButton, { size: 'tiny', secondary: true, onClick: () => editStructure(row) }, () => t('common.edit')),
+      h(NPopconfirm, { onPositiveClick: () => deleteStructure(row.id as number) }, {
+        trigger: () => h(NButton, { size: 'tiny', type: 'error', secondary: true }, () => t('common.delete')),
+        default: () => t('common.confirmDelete'),
+      }),
+    ]),
+  },
 ]
 
 const componentColumns: DataTableColumns = [
@@ -58,6 +70,16 @@ const componentColumns: DataTableColumns = [
   {
     title: t('salary.fixed'), key: 'is_fixed', width: 70,
     render: (r) => r.is_fixed ? t('salary.fixed') : t('salary.computed')
+  },
+  {
+    title: t('common.actions'), key: 'actions', width: 150,
+    render: (row) => h(NSpace, { size: 'small' }, () => [
+      h(NButton, { size: 'tiny', secondary: true, onClick: () => editComponent(row) }, () => t('common.edit')),
+      h(NPopconfirm, { onPositiveClick: () => deleteComponent(row.id as number) }, {
+        trigger: () => h(NButton, { size: 'tiny', type: 'error', secondary: true }, () => t('common.delete')),
+        default: () => t('common.confirmDelete'),
+      }),
+    ]),
   },
 ]
 
@@ -82,19 +104,39 @@ async function loadData() {
 
 onMounted(loadData)
 
-async function createStructure() {
+function openCreateStructure() {
+  editingStructureId.value = null
+  structureForm.value = { name: '', description: '' }
+  showStructureModal.value = true
+}
+
+function editStructure(row: Record<string, unknown>) {
+  editingStructureId.value = row.id as number
+  structureForm.value = {
+    name: (row.name as string) || '',
+    description: (row.description as string) || '',
+  }
+  showStructureModal.value = true
+}
+
+async function saveStructure() {
   if (!structureForm.value.name) {
     message.warning(t('profile.fillAllFields'))
     return
   }
   try {
-    await salaryAPI.createStructure({
+    const data = {
       name: structureForm.value.name,
       description: structureForm.value.description || undefined,
-    })
-    message.success(t('salary.structureCreated'))
+    }
+    if (editingStructureId.value) {
+      await salaryAPI.updateStructure(editingStructureId.value, data)
+      message.success(t('common.saved'))
+    } else {
+      await salaryAPI.createStructure(data)
+      message.success(t('salary.structureCreated'))
+    }
     showStructureModal.value = false
-    structureForm.value = { name: '', description: '' }
     loadData()
   } catch (e: unknown) {
     const err = e as { data?: { error?: { message?: string } } }
@@ -102,27 +144,71 @@ async function createStructure() {
   }
 }
 
-async function createComponent() {
+async function deleteStructure(id: number) {
+  try {
+    await salaryAPI.deleteStructure(id)
+    message.success(t('common.deleted'))
+    loadData()
+  } catch {
+    message.error(t('common.saveFailed'))
+  }
+}
+
+function openCreateComponent() {
+  editingComponentId.value = null
+  componentForm.value = { code: '', name: '', component_type: 'allowance', is_taxable: true, is_statutory: false, is_fixed: true }
+  showComponentModal.value = true
+}
+
+function editComponent(row: Record<string, unknown>) {
+  editingComponentId.value = row.id as number
+  componentForm.value = {
+    code: (row.code as string) || '',
+    name: (row.name as string) || '',
+    component_type: (row.component_type as string) || 'allowance',
+    is_taxable: row.is_taxable as boolean ?? true,
+    is_statutory: row.is_statutory as boolean ?? false,
+    is_fixed: row.is_fixed as boolean ?? true,
+  }
+  showComponentModal.value = true
+}
+
+async function saveComponent() {
   if (!componentForm.value.code || !componentForm.value.name) {
     message.warning(t('profile.fillAllFields'))
     return
   }
   try {
-    await salaryAPI.createComponent({
+    const data = {
       code: componentForm.value.code,
       name: componentForm.value.name,
       component_type: componentForm.value.component_type,
       is_taxable: componentForm.value.is_taxable,
       is_statutory: componentForm.value.is_statutory,
       is_fixed: componentForm.value.is_fixed,
-    })
-    message.success(t('salary.componentCreated'))
+    }
+    if (editingComponentId.value) {
+      await salaryAPI.updateComponent(editingComponentId.value, data)
+      message.success(t('common.saved'))
+    } else {
+      await salaryAPI.createComponent(data)
+      message.success(t('salary.componentCreated'))
+    }
     showComponentModal.value = false
-    componentForm.value = { code: '', name: '', component_type: 'allowance', is_taxable: true, is_statutory: false, is_fixed: true }
     loadData()
   } catch (e: unknown) {
     const err = e as { data?: { error?: { message?: string } } }
     message.error(err.data?.error?.message || t('common.saveFailed'))
+  }
+}
+
+async function deleteComponent(id: number) {
+  try {
+    await salaryAPI.deleteComponent(id)
+    message.success(t('common.deleted'))
+    loadData()
+  } catch {
+    message.error(t('common.saveFailed'))
   }
 }
 </script>
@@ -133,21 +219,21 @@ async function createComponent() {
     <NTabs type="line">
       <NTabPane :name="t('salary.structures')" :tab="t('salary.structures')">
         <NSpace justify="end" style="margin-bottom: 12px;">
-          <NButton type="primary" size="small" @click="showStructureModal = true">{{ t('common.create') }}</NButton>
+          <NButton type="primary" size="small" @click="openCreateStructure">{{ t('common.create') }}</NButton>
         </NSpace>
         <NDataTable :columns="structureColumns" :data="structures" :loading="loading" />
       </NTabPane>
       <NTabPane :name="t('salary.components')" :tab="t('salary.components')">
         <NSpace justify="end" style="margin-bottom: 12px;">
-          <NButton type="primary" size="small" @click="showComponentModal = true">{{ t('common.create') }}</NButton>
+          <NButton type="primary" size="small" @click="openCreateComponent">{{ t('common.create') }}</NButton>
         </NSpace>
         <NDataTable :columns="componentColumns" :data="components" :loading="loading" />
       </NTabPane>
     </NTabs>
 
     <!-- Structure Modal -->
-    <NModal v-model:show="showStructureModal" :title="t('salary.createStructure')" preset="card" style="max-width: 420px; width: 95vw;">
-      <NForm @submit.prevent="createStructure">
+    <NModal v-model:show="showStructureModal" :title="editingStructureId ? t('common.edit') : t('salary.createStructure')" preset="card" style="max-width: 420px; width: 95vw;">
+      <NForm @submit.prevent="saveStructure">
         <NFormItem :label="t('employee.name')" required>
           <NInput v-model:value="structureForm.name" :placeholder="t('salary.structurePlaceholder')" />
         </NFormItem>
@@ -162,8 +248,8 @@ async function createComponent() {
     </NModal>
 
     <!-- Component Modal -->
-    <NModal v-model:show="showComponentModal" :title="t('salary.createComponent')" preset="card" style="max-width: 480px; width: 95vw;">
-      <NForm @submit.prevent="createComponent">
+    <NModal v-model:show="showComponentModal" :title="editingComponentId ? t('common.edit') : t('salary.createComponent')" preset="card" style="max-width: 480px; width: 95vw;">
+      <NForm @submit.prevent="saveComponent">
         <NFormItem :label="t('common.code')" required>
           <NInput v-model:value="componentForm.code" :placeholder="t('salary.codePlaceholder')" />
         </NFormItem>

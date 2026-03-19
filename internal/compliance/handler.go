@@ -3,6 +3,7 @@ package compliance
 import (
 	"encoding/json"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -151,6 +152,54 @@ func (h *Handler) CreateSalaryStructure(c *gin.Context) {
 	response.Created(c, structure)
 }
 
+func (h *Handler) UpdateSalaryStructure(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid structure ID")
+		return
+	}
+
+	var req struct {
+		Name        string  `json:"name" binding:"required"`
+		Description *string `json:"description"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	companyID := auth.GetCompanyID(c)
+	structure, err := h.queries.UpdateSalaryStructure(c.Request.Context(), store.UpdateSalaryStructureParams{
+		ID:          id,
+		CompanyID:   companyID,
+		Name:        req.Name,
+		Description: req.Description,
+	})
+	if err != nil {
+		response.NotFound(c, "Salary structure not found")
+		return
+	}
+	response.OK(c, structure)
+}
+
+func (h *Handler) DeleteSalaryStructure(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid structure ID")
+		return
+	}
+
+	companyID := auth.GetCompanyID(c)
+	if err := h.queries.DeleteSalaryStructure(c.Request.Context(), store.DeleteSalaryStructureParams{
+		ID:        id,
+		CompanyID: companyID,
+	}); err != nil {
+		response.NotFound(c, "Salary structure not found")
+		return
+	}
+	response.OK(c, gin.H{"message": "Deleted"})
+}
+
 // Salary Components
 
 func (h *Handler) ListSalaryComponents(c *gin.Context) {
@@ -194,6 +243,62 @@ func (h *Handler) CreateSalaryComponent(c *gin.Context) {
 		return
 	}
 	response.Created(c, component)
+}
+
+func (h *Handler) UpdateSalaryComponent(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid component ID")
+		return
+	}
+
+	var req struct {
+		Code          string `json:"code" binding:"required"`
+		Name          string `json:"name" binding:"required"`
+		ComponentType string `json:"component_type" binding:"required"`
+		IsTaxable     bool   `json:"is_taxable"`
+		IsStatutory   bool   `json:"is_statutory"`
+		IsFixed       bool   `json:"is_fixed"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	companyID := auth.GetCompanyID(c)
+	component, err := h.queries.UpdateSalaryComponent(c.Request.Context(), store.UpdateSalaryComponentParams{
+		ID:            id,
+		CompanyID:     companyID,
+		Code:          req.Code,
+		Name:          req.Name,
+		ComponentType: req.ComponentType,
+		IsTaxable:     req.IsTaxable,
+		IsStatutory:   req.IsStatutory,
+		IsFixed:       req.IsFixed,
+	})
+	if err != nil {
+		response.NotFound(c, "Salary component not found")
+		return
+	}
+	response.OK(c, component)
+}
+
+func (h *Handler) DeleteSalaryComponent(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid component ID")
+		return
+	}
+
+	companyID := auth.GetCompanyID(c)
+	if err := h.queries.DeleteSalaryComponent(c.Request.Context(), store.DeleteSalaryComponentParams{
+		ID:        id,
+		CompanyID: companyID,
+	}); err != nil {
+		response.NotFound(c, "Salary component not found")
+		return
+	}
+	response.OK(c, gin.H{"message": "Deleted"})
 }
 
 func parseAsOfDate(c *gin.Context) time.Time {

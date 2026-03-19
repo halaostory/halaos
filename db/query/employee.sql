@@ -5,11 +5,11 @@ SELECT * FROM employees WHERE user_id = $1 AND company_id = $2 LIMIT 1;
 INSERT INTO employees (
     company_id, employee_no, first_name, last_name, middle_name, suffix,
     display_name, email, phone, birth_date, gender, civil_status,
-    department_id, position_id, cost_center_id, manager_id,
+    nationality, department_id, position_id, cost_center_id, manager_id,
     hire_date, employment_type, status
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-    $13, $14, $15, $16, $17, $18, 'active'
+    $13, $14, $15, $16, $17, $18, $19, 'active'
 ) RETURNING *;
 
 -- name: GetEmployeeByID :one
@@ -49,6 +49,7 @@ UPDATE employees SET
     manager_id = $12,
     employment_type = COALESCE($13, employment_type),
     status = COALESCE($14, status),
+    nationality = COALESCE($15, nationality),
     updated_at = NOW()
 WHERE id = $1 AND company_id = $2
 RETURNING *;

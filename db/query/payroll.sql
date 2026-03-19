@@ -6,6 +6,36 @@ RETURNING *;
 -- name: ListSalaryStructures :many
 SELECT * FROM salary_structures WHERE company_id = $1 AND is_active = true ORDER BY name;
 
+-- name: GetSalaryStructure :one
+SELECT * FROM salary_structures WHERE id = $1 AND company_id = $2;
+
+-- name: UpdateSalaryStructure :one
+UPDATE salary_structures SET
+    name = $3,
+    description = $4
+WHERE id = $1 AND company_id = $2
+RETURNING *;
+
+-- name: DeleteSalaryStructure :exec
+UPDATE salary_structures SET is_active = false WHERE id = $1 AND company_id = $2;
+
+-- name: GetSalaryComponent :one
+SELECT * FROM salary_components WHERE id = $1 AND company_id = $2;
+
+-- name: UpdateSalaryComponent :one
+UPDATE salary_components SET
+    code = $3,
+    name = $4,
+    component_type = $5,
+    is_taxable = $6,
+    is_statutory = $7,
+    is_fixed = $8
+WHERE id = $1 AND company_id = $2
+RETURNING *;
+
+-- name: DeleteSalaryComponent :exec
+UPDATE salary_components SET is_active = false WHERE id = $1 AND company_id = $2;
+
 -- name: CreateSalaryComponent :one
 INSERT INTO salary_components (company_id, code, name, component_type, is_taxable, is_statutory, is_fixed, formula)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -178,3 +208,11 @@ LEFT JOIN employee_profiles ep ON ep.employee_id = e.id
 LEFT JOIN departments d ON d.id = e.department_id
 WHERE pi.run_id = $1
 ORDER BY e.department_id, e.last_name;
+
+-- name: ListCompletedPayrollRuns :many
+SELECT pr.*, pc.name as cycle_name, pc.period_start, pc.period_end, pc.pay_date
+FROM payroll_runs pr
+JOIN payroll_cycles pc ON pc.id = pr.cycle_id
+WHERE pr.company_id = $1 AND pr.status = 'completed'
+ORDER BY pc.period_start DESC
+LIMIT $2 OFFSET $3;

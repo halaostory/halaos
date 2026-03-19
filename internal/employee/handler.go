@@ -1,6 +1,7 @@
 package employee
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -23,14 +24,26 @@ import (
 	"github.com/tonypk/aigonhr/pkg/response"
 )
 
+// AccountingEmitter emits employee lifecycle events to the accounting outbox.
+type AccountingEmitter interface {
+	EmitEmployeeUpserted(ctx context.Context, companyID, employeeID int64) error
+	EmitEmployeeTerminated(ctx context.Context, companyID, employeeID int64, reason string) error
+}
+
 type Handler struct {
-	queries *store.Queries
-	pool    *pgxpool.Pool
-	logger  *slog.Logger
+	queries    *store.Queries
+	pool       *pgxpool.Pool
+	logger     *slog.Logger
+	accounting AccountingEmitter
 }
 
 func NewHandler(queries *store.Queries, pool *pgxpool.Pool, logger *slog.Logger) *Handler {
 	return &Handler{queries: queries, pool: pool, logger: logger}
+}
+
+// SetAccountingEmitter configures the accounting event emitter (optional).
+func (h *Handler) SetAccountingEmitter(emitter AccountingEmitter) {
+	h.accounting = emitter
 }
 
 type createEmployeeRequest struct {
@@ -45,6 +58,7 @@ type createEmployeeRequest struct {
 	BirthDate      *string `json:"birth_date"`
 	Gender         *string `json:"gender"`
 	CivilStatus    *string `json:"civil_status"`
+	Nationality    *string `json:"nationality"`
 	DepartmentID   *int64  `json:"department_id"`
 	PositionID     *int64  `json:"position_id"`
 	CostCenterID   *int64  `json:"cost_center_id"`
@@ -128,6 +142,7 @@ func (h *Handler) CreateEmployee(c *gin.Context) {
 		BirthDate:      birthDate,
 		Gender:         req.Gender,
 		CivilStatus:    req.CivilStatus,
+		Nationality:    req.Nationality,
 		DepartmentID:   req.DepartmentID,
 		PositionID:     req.PositionID,
 		CostCenterID:   req.CostCenterID,
@@ -149,6 +164,15 @@ func (h *Handler) CreateEmployee(c *gin.Context) {
 		"employment_type": empType,
 		"department_id":   req.DepartmentID,
 	})
+
+	// Emit accounting event (async, non-blocking)
+	if h.accounting != nil {
+		go func() {
+			if err := h.accounting.EmitEmployeeUpserted(context.Background(), companyID, emp.ID); err != nil {
+				h.logger.Error("failed to emit employee.upserted accounting event", "employee_id", emp.ID, "error", err)
+			}
+		}()
+	}
 
 	response.Created(c, emp)
 }
@@ -192,6 +216,7 @@ func (h *Handler) UpdateEmployee(c *gin.Context) {
 		ManagerID      *int64  `json:"manager_id"`
 		EmploymentType *string `json:"employment_type"`
 		Status         *string `json:"status"`
+		Nationality    *string `json:"nationality"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, err.Error())
@@ -232,6 +257,7 @@ func (h *Handler) UpdateEmployee(c *gin.Context) {
 		ManagerID:      req.ManagerID,
 		EmploymentType: employmentType,
 		Status:         empStatus,
+		Nationality:    req.Nationality,
 	})
 	if err != nil {
 		response.NotFound(c, "Employee not found")
@@ -248,6 +274,22 @@ func (h *Handler) UpdateEmployee(c *gin.Context) {
 		h.emitEmployeeEvent(c, companyID, id, "employee.transferred", map[string]any{
 			"department_id": *req.DepartmentID,
 		})
+	}
+
+	// Emit accounting events (async, non-blocking)
+	if h.accounting != nil {
+		go func() {
+			if empStatus == "separated" || empStatus == "terminated" {
+				reason := empStatus
+				if err := h.accounting.EmitEmployeeTerminated(context.Background(), companyID, id, reason); err != nil {
+					h.logger.Error("failed to emit employee.terminated accounting event", "employee_id", id, "error", err)
+				}
+			} else {
+				if err := h.accounting.EmitEmployeeUpserted(context.Background(), companyID, id); err != nil {
+					h.logger.Error("failed to emit employee.upserted accounting event", "employee_id", id, "error", err)
+				}
+			}
+		}()
 	}
 
 	response.OK(c, emp)

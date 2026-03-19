@@ -37,11 +37,11 @@ const createEmployee = `-- name: CreateEmployee :one
 INSERT INTO employees (
     company_id, employee_no, first_name, last_name, middle_name, suffix,
     display_name, email, phone, birth_date, gender, civil_status,
-    department_id, position_id, cost_center_id, manager_id,
+    nationality, department_id, position_id, cost_center_id, manager_id,
     hire_date, employment_type, status
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-    $13, $14, $15, $16, $17, $18, 'active'
+    $13, $14, $15, $16, $17, $18, $19, 'active'
 ) RETURNING id, company_id, user_id, employee_no, first_name, last_name, middle_name, suffix, display_name, email, phone, birth_date, gender, civil_status, nationality, department_id, position_id, cost_center_id, manager_id, hire_date, regularization_date, separation_date, employment_type, status, created_at, updated_at, contract_end_date
 `
 
@@ -58,6 +58,7 @@ type CreateEmployeeParams struct {
 	BirthDate      pgtype.Date `json:"birth_date"`
 	Gender         *string     `json:"gender"`
 	CivilStatus    *string     `json:"civil_status"`
+	Nationality    *string     `json:"nationality"`
 	DepartmentID   *int64      `json:"department_id"`
 	PositionID     *int64      `json:"position_id"`
 	CostCenterID   *int64      `json:"cost_center_id"`
@@ -80,6 +81,7 @@ func (q *Queries) CreateEmployee(ctx context.Context, arg CreateEmployeeParams) 
 		arg.BirthDate,
 		arg.Gender,
 		arg.CivilStatus,
+		arg.Nationality,
 		arg.DepartmentID,
 		arg.PositionID,
 		arg.CostCenterID,
@@ -1114,6 +1116,7 @@ UPDATE employees SET
     manager_id = $12,
     employment_type = COALESCE($13, employment_type),
     status = COALESCE($14, status),
+    nationality = COALESCE($15, nationality),
     updated_at = NOW()
 WHERE id = $1 AND company_id = $2
 RETURNING id, company_id, user_id, employee_no, first_name, last_name, middle_name, suffix, display_name, email, phone, birth_date, gender, civil_status, nationality, department_id, position_id, cost_center_id, manager_id, hire_date, regularization_date, separation_date, employment_type, status, created_at, updated_at, contract_end_date
@@ -1134,6 +1137,7 @@ type UpdateEmployeeParams struct {
 	ManagerID      *int64  `json:"manager_id"`
 	EmploymentType string  `json:"employment_type"`
 	Status         string  `json:"status"`
+	Nationality    *string `json:"nationality"`
 }
 
 func (q *Queries) UpdateEmployee(ctx context.Context, arg UpdateEmployeeParams) (Employee, error) {
@@ -1152,6 +1156,7 @@ func (q *Queries) UpdateEmployee(ctx context.Context, arg UpdateEmployeeParams) 
 		arg.ManagerID,
 		arg.EmploymentType,
 		arg.Status,
+		arg.Nationality,
 	)
 	var i Employee
 	err := row.Scan(

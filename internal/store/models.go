@@ -1862,19 +1862,22 @@ type TrainingParticipant struct {
 }
 
 type User struct {
-	ID           int64              `json:"id"`
-	CompanyID    int64              `json:"company_id"`
-	Email        string             `json:"email"`
-	PasswordHash string             `json:"password_hash"`
-	FirstName    string             `json:"first_name"`
-	LastName     string             `json:"last_name"`
-	Role         string             `json:"role"`
-	Status       string             `json:"status"`
-	AvatarUrl    *string            `json:"avatar_url"`
-	Locale       string             `json:"locale"`
-	LastLoginAt  pgtype.Timestamptz `json:"last_login_at"`
-	CreatedAt    time.Time          `json:"created_at"`
-	UpdatedAt    time.Time          `json:"updated_at"`
+	ID                         int64              `json:"id"`
+	CompanyID                  int64              `json:"company_id"`
+	Email                      string             `json:"email"`
+	PasswordHash               string             `json:"password_hash"`
+	FirstName                  string             `json:"first_name"`
+	LastName                   string             `json:"last_name"`
+	Role                       string             `json:"role"`
+	Status                     string             `json:"status"`
+	AvatarUrl                  *string            `json:"avatar_url"`
+	Locale                     string             `json:"locale"`
+	LastLoginAt                pgtype.Timestamptz `json:"last_login_at"`
+	CreatedAt                  time.Time          `json:"created_at"`
+	UpdatedAt                  time.Time          `json:"updated_at"`
+	EmailVerified              bool               `json:"email_verified"`
+	VerificationToken          *string            `json:"verification_token"`
+	VerificationTokenExpiresAt pgtype.Timestamptz `json:"verification_token_expires_at"`
 }
 
 type WorkSchedule struct {

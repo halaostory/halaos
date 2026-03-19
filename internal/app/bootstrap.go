@@ -83,6 +83,7 @@ type App struct {
 	Router  *gin.Engine
 	Logger  *slog.Logger
 	Email   *email.Sender
+	Resend  *email.Service
 	Limiter *ratelimit.Limiter
 }
 
@@ -158,12 +159,20 @@ func New(cfg *config.Config) (*App, error) {
 	// Serve uploaded files (logos, etc.)
 	router.Static("/uploads", "./uploads")
 
-	// Email sender (optional)
+	// Email sender (optional, SMTP for HR notifications)
 	emailSender := email.NewSender(cfg.SMTP, logger)
 	if emailSender != nil {
-		logger.Info("email notifications enabled")
+		logger.Info("email notifications enabled (SMTP)")
 	} else {
 		logger.Info("email notifications disabled (SMTP not configured)")
+	}
+
+	// Resend email service (for registration verification)
+	resendSvc := email.NewService(cfg.Resend.APIKey, cfg.Resend.From, cfg.Resend.BaseURL, logger)
+	if resendSvc.IsEnabled() {
+		logger.Info("resend email service enabled")
+	} else {
+		logger.Info("resend email service disabled (RESEND_API_KEY not set)")
 	}
 
 	app := &App{
@@ -174,6 +183,7 @@ func New(cfg *config.Config) (*App, error) {
 		Router:  router,
 		Logger:  logger,
 		Email:   emailSender,
+		Resend:  resendSvc,
 		Limiter: limiter,
 	}
 
@@ -194,7 +204,7 @@ func (a *App) setupRoutes() {
 	jwtSvc := auth.NewJWTService(a.Cfg.JWT.Secret, a.Cfg.JWT.Expiry, a.Cfg.JWT.RefreshExpiry)
 
 	// Handlers
-	authHandler := auth.NewHandler(a.Queries, a.Pool, jwtSvc, a.Logger)
+	authHandler := auth.NewHandler(a.Queries, a.Pool, jwtSvc, a.Resend, a.Logger)
 	companyHandler := company.NewHandler(a.Queries, a.Pool, a.Logger)
 	employeeHandler := employee.NewHandler(a.Queries, a.Pool, a.Logger)
 	attendanceHandler := attendance.NewHandler(a.Queries, a.Pool, a.Logger)
@@ -202,11 +212,14 @@ func (a *App) setupRoutes() {
 	overtimeHandler := overtime.NewHandler(a.Queries, a.Pool, a.Logger)
 	payrollHandler := payroll.NewHandler(a.Queries, a.Pool, a.Logger)
 
-	// Wire accounting integration (outbox + dispatcher)
+	// Wire accounting integration (outbox + dispatcher + SSO)
 	acctEmitter := integration.NewAccountingEmitter(a.Queries, a.Logger)
 	payrollHandler.SetAccountingEmitter(acctEmitter)
+	employeeHandler.SetAccountingEmitter(acctEmitter)
 	acctDispatcher := integration.NewAccountingDispatcher(a.Queries, a.Logger)
 	go acctDispatcher.Run(context.Background())
+	acctSSO := integration.NewSSOService(a.Cfg.Integration.JWTSecret)
+	acctHandler := integration.NewAccountingHandler(a.Queries, acctSSO, a.Logger)
 	complianceHandler := compliance.NewHandler(a.Queries, a.Pool, a.Logger)
 	onboardingHandler := onboarding.NewHandler(a.Queries, a.Pool, a.Logger)
 	performanceHandler := performance.NewHandler(a.Queries, a.Pool, a.Logger)
@@ -293,6 +306,9 @@ func (a *App) setupRoutes() {
 
 	api := a.Router.Group("/api/v1")
 
+	// Public endpoints (no auth required)
+	api.POST("/contact", a.Limiter.LoginMiddleware(), a.handleContactForm)
+
 	protected := api.Group("")
 	protected.Use(auth.JWTMiddleware(jwtSvc))
 	protected.Use(a.Limiter.APIMiddleware())
@@ -330,6 +346,7 @@ func (a *App) setupRoutes() {
 	holidayHandler.RegisterRoutes(protected)
 	announcementHandler.RegisterRoutes(protected)
 	dashboardHandler.RegisterRoutes(protected)
+	acctHandler.RegisterRoutes(protected)
 	workflowHandler.RegisterRoutes(protected)
 	pulseHandler.RegisterRoutes(protected)
 	recognitionHandler.RegisterRoutes(protected)
@@ -464,4 +481,36 @@ func (a *App) Run() error {
 	a.Redis.Close()
 	a.Logger.Info("server stopped")
 	return nil
+}
+
+func (a *App) handleContactForm(c *gin.Context) {
+	var req struct {
+		FirstName string `json:"first_name" binding:"required"`
+		LastName  string `json:"last_name" binding:"required"`
+		Email     string `json:"email" binding:"required,email"`
+		Company   string `json:"company"`
+		Subject   string `json:"subject" binding:"required"`
+		Message   string `json:"message" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		return
+	}
+
+	if a.Resend != nil && a.Resend.IsEnabled() {
+		if err := a.Resend.SendContactForm(
+			"hello@halaos.com",
+			req.FirstName, req.LastName, req.Email,
+			req.Company, req.Subject, req.Message,
+		); err != nil {
+			a.Logger.Error("contact form email failed", "error", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": "Failed to send message"}})
+			return
+		}
+	} else {
+		a.Logger.Info("contact form received (email not configured)",
+			"from", req.Email, "subject", req.Subject)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Message sent successfully"}})
 }

@@ -23,6 +23,9 @@ export default {
     inactive: "Inactive",
     type: "Type",
     saveFailed: "Save failed",
+    saved: "Saved",
+    deleted: "Deleted",
+    confirmDelete: "Are you sure you want to delete?",
     view: "View",
     yes: "Yes",
     no: "No",
@@ -101,6 +104,7 @@ export default {
     pulseSurveys: "Pulse Surveys",
     recognition: "Recognition",
     hrRequests: "HR Requests",
+    accounting: "Accounting & Tax",
     settings: "Settings",
     profile: "My Profile",
     logout: "Logout",
@@ -171,6 +175,7 @@ export default {
     importExport: "Bulk data operations",
     audit: "System activity log",
     billing: "Subscription & invoices",
+    accounting: "Open AIStarlight for accounting & tax",
     settings: "System configuration",
   },
   auth: {
@@ -181,7 +186,7 @@ export default {
     companyName: "Company Name",
     firstName: "First Name",
     lastName: "Last Name",
-    loginTitle: "Sign in to AigoNHR",
+    loginTitle: "Sign in to HalaOS",
     registerTitle: "Create your account",
     noAccount: "Don't have an account?",
     hasAccount: "Already have an account?",
@@ -192,6 +197,20 @@ export default {
     fieldRequired: "This field is required",
     companyPlaceholder: "Your Company Inc.",
     country: "Country",
+    checkEmail: "Check your email",
+    verificationSent:
+      "We've sent a verification link to your email address. Please click the link to activate your account.",
+    verificationResent: "Verification email resent",
+    resendFailed: "Failed to resend verification email",
+    goToLogin: "Go to Login",
+    resendEmail: "Resend verification email",
+    verifying: "Verifying your email...",
+    emailVerified: "Email Verified",
+    emailVerifiedDesc:
+      "Your email has been verified successfully. You can now log in to your account.",
+    verificationFailed: "Verification Failed",
+    noVerificationToken: "No verification token provided",
+    emailNotVerified: "Please verify your email address before logging in",
   },
   country: {
     PHL: "Philippines",
@@ -557,6 +576,10 @@ export default {
     locked: "Locked",
     cycleLocked: "Payroll cycle locked",
     cycleUnlocked: "Payroll cycle unlocked",
+    syncStatus: "Accounting Sync",
+    syncPending: "Pending",
+    syncFailed: "Failed",
+    lastSynced: "Last synced",
     auto: {
       title: "Auto-Payroll",
       subtitle:
@@ -711,7 +734,7 @@ export default {
     telegramGenerate: "Generate Link Code",
     telegramUnlinked: "Telegram disconnected",
     telegramCodeInstructions:
-      "Send this code to the AigoNHR bot on Telegram to link your account:",
+      "Send this code to the HalaOS bot on Telegram to link your account:",
     telegramCodeHint: "Code expires in 10 minutes",
   },
   settings: {
@@ -1882,7 +1905,7 @@ export default {
     typeMessage: "Type a message...",
     send: "Send",
     welcomeMessage:
-      "Hello! I'm the AigoNHR AI Assistant. I can help you check leave balances, payroll info, attendance, and Philippine labor regulations. How can I help you?",
+      "Hello! I'm the HalaOS AI Assistant. I can help you check leave balances, payroll info, attendance, and local labor regulations. How can I help you?",
     insufficientMessage:
       "Insufficient token balance. Please top up to continue using AI features.",
     justNow: "just now",

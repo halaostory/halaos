@@ -28,6 +28,7 @@ import {
   CloudOutline,
   WalletOutline,
   DocumentTextOutline,
+  CalculatorOutline,
 } from "@vicons/ionicons5";
 import { integrationAPI, botAPI } from "../api/client";
 
@@ -50,6 +51,7 @@ interface Connection {
 const connections = ref<Connection[]>([]);
 
 const providers = [
+  { key: "aistarlight", name: "AIStarlight Accounting", icon: CalculatorOutline, color: "#4f46e5" },
   { key: "slack", name: "Slack", icon: LogoSlack, color: "#4A154B" },
   { key: "google", name: "Google Workspace", icon: CloudOutline, color: "#4285F4" },
   { key: "github", name: "GitHub", icon: LogoGithub, color: "#24292e" },
@@ -151,9 +153,102 @@ async function disconnectTelegram() {
   }
 }
 
+// AIStarlight accounting link
+const showAccountingModal = ref(false);
+const accountingLoading = ref(false);
+const accountingConnected = ref(false);
+const accountingLink = ref<{
+  id?: number;
+  remote_company_id?: string;
+  api_endpoint?: string;
+  jurisdiction?: string;
+  status?: string;
+  webhook_secret?: string;
+  last_synced_at?: string;
+}>({});
+const accountingForm = ref({
+  remote_company_id: "",
+  api_endpoint: "",
+  jurisdiction: "PH",
+});
+const accountingSyncStatus = ref<{
+  outbox?: { pending: number; sent: number; failed: number; dead: number };
+}>({});
+
+const jurisdictionOptions = [
+  { label: "Philippines (PH)", value: "PH" },
+  { label: "Sri Lanka (LK)", value: "LK" },
+  { label: "Singapore (SG)", value: "SG" },
+];
+
+async function loadAccountingLink() {
+  try {
+    const res = (await integrationAPI.getAccountingLink()) as { data?: Record<string, unknown> };
+    const data = res.data || res;
+    if (data && (data as Record<string, unknown>).connected) {
+      accountingConnected.value = true;
+      accountingLink.value = data as typeof accountingLink.value;
+    }
+  } catch {
+    // not connected
+  }
+  try {
+    const res = (await integrationAPI.getAccountingSyncStatus()) as { data?: Record<string, unknown> };
+    const data = res.data || res;
+    accountingSyncStatus.value = data as typeof accountingSyncStatus.value;
+  } catch {
+    // ignore
+  }
+}
+
+async function saveAccountingLink() {
+  if (!accountingForm.value.remote_company_id || !accountingForm.value.api_endpoint) {
+    message.warning(t("common.fillAllFields"));
+    return;
+  }
+  accountingLoading.value = true;
+  try {
+    const res = (await integrationAPI.createAccountingLink({
+      remote_company_id: accountingForm.value.remote_company_id,
+      api_endpoint: accountingForm.value.api_endpoint,
+      jurisdiction: accountingForm.value.jurisdiction,
+    })) as { data?: Record<string, unknown> };
+    const data = res.data || res;
+    message.success(t("integration.connectionCreated"));
+    showAccountingModal.value = false;
+    accountingConnected.value = true;
+    accountingLink.value = data as typeof accountingLink.value;
+    // Show webhook secret for user to copy
+    if ((data as Record<string, unknown>).webhook_secret) {
+      message.info(`Webhook Secret: ${(data as Record<string, unknown>).webhook_secret}`, { duration: 15000 });
+    }
+  } catch (e: unknown) {
+    const err = e as { data?: { error?: { message?: string } } };
+    message.error(err.data?.error?.message || t("common.failed"));
+  } finally {
+    accountingLoading.value = false;
+  }
+}
+
+async function disconnectAccounting() {
+  if (!accountingLink.value.id) return;
+  try {
+    await integrationAPI.deleteAccountingLink(accountingLink.value.id);
+    accountingConnected.value = false;
+    accountingLink.value = {};
+    message.success(t("integration.disconnected"));
+  } catch {
+    message.error(t("common.failed"));
+  }
+}
+
 function openConnect(providerKey: string) {
   if (providerKey === "telegram") {
     showTelegramModal.value = true;
+    return;
+  }
+  if (providerKey === "aistarlight") {
+    showAccountingModal.value = true;
     return;
   }
   form.value = {
@@ -281,6 +376,7 @@ async function loadConnections() {
 onMounted(() => {
   loadConnections();
   loadTelegramConfig();
+  loadAccountingLink();
 });
 </script>
 
@@ -305,14 +401,21 @@ onMounted(() => {
               <NIcon :size="32" :color="p.color" :component="p.icon" />
               <strong>{{ p.name }}</strong>
               <NTag
-                v-if="p.key === 'telegram' && telegramConnected"
+                v-if="p.key === 'aistarlight' && accountingConnected"
+                type="success"
+                size="small"
+              >
+                active
+              </NTag>
+              <NTag
+                v-else-if="p.key === 'telegram' && telegramConnected"
                 :type="telegramForm.is_active ? 'success' : 'default'"
                 size="small"
               >
                 {{ telegramForm.is_active ? 'active' : 'inactive' }}
               </NTag>
               <NTag
-                v-else-if="p.key !== 'telegram' && providerStatus.has(p.key)"
+                v-else-if="!['telegram', 'aistarlight'].includes(p.key) && providerStatus.has(p.key)"
                 :type="statusMap[providerStatus.get(p.key)!.status] || 'default'"
                 size="small"
               >
@@ -322,8 +425,22 @@ onMounted(() => {
             </NSpace>
             <template #action>
               <NSpace justify="center" :size="8">
+                <!-- AIStarlight: accounting integration -->
+                <template v-if="p.key === 'aistarlight'">
+                  <template v-if="accountingConnected">
+                    <NButton size="small" @click="showAccountingModal = true">
+                      {{ t("nav.settings") }}
+                    </NButton>
+                    <NButton size="small" type="error" quaternary @click="disconnectAccounting">
+                      {{ t("integration.disconnect") }}
+                    </NButton>
+                  </template>
+                  <NButton v-else size="small" type="primary" @click="openConnect('aistarlight')">
+                    {{ t("integration.connect") }}
+                  </NButton>
+                </template>
                 <!-- Telegram: special handling via bot_configs -->
-                <template v-if="p.key === 'telegram'">
+                <template v-else-if="p.key === 'telegram'">
                   <template v-if="telegramConnected">
                     <NButton size="small" @click="showTelegramModal = true">
                       {{ t("nav.settings") }}
@@ -392,6 +509,55 @@ onMounted(() => {
           <NButton @click="showTelegramModal = false">{{ t("common.cancel") }}</NButton>
         </NSpace>
       </NForm>
+    </NModal>
+
+    <!-- AIStarlight Accounting Modal -->
+    <NModal v-model:show="showAccountingModal" preset="card" title="AIStarlight Accounting" style="width: 520px; max-width: 95vw;">
+      <template v-if="accountingConnected">
+        <NSpace vertical :size="12">
+          <div>
+            <strong>Status:</strong> <NTag type="success" size="small">Connected</NTag>
+          </div>
+          <div><strong>Jurisdiction:</strong> {{ accountingLink.jurisdiction }}</div>
+          <div><strong>API Endpoint:</strong> {{ accountingLink.api_endpoint }}</div>
+          <div><strong>Remote Company ID:</strong> {{ accountingLink.remote_company_id }}</div>
+          <div v-if="accountingLink.last_synced_at">
+            <strong>Last Synced:</strong> {{ new Date(accountingLink.last_synced_at).toLocaleString() }}
+          </div>
+          <div v-if="accountingSyncStatus.outbox">
+            <strong>Outbox:</strong>
+            <NSpace :size="8" style="margin-top: 4px;">
+              <NTag size="small">Pending: {{ accountingSyncStatus.outbox.pending }}</NTag>
+              <NTag size="small" type="success">Sent: {{ accountingSyncStatus.outbox.sent }}</NTag>
+              <NTag v-if="accountingSyncStatus.outbox.failed" size="small" type="warning">Failed: {{ accountingSyncStatus.outbox.failed }}</NTag>
+              <NTag v-if="accountingSyncStatus.outbox.dead" size="small" type="error">Dead: {{ accountingSyncStatus.outbox.dead }}</NTag>
+            </NSpace>
+          </div>
+        </NSpace>
+      </template>
+      <template v-else>
+        <p style="color: #666; margin-bottom: 16px;">
+          Connect to AIStarlight to automatically sync payroll data to accounting journal entries and tax forms.
+        </p>
+        <NForm label-placement="left" label-width="140">
+          <NFormItem label="Remote Company ID" required>
+            <NInput v-model:value="accountingForm.remote_company_id" placeholder="UUID of company in AIStarlight" />
+          </NFormItem>
+          <NFormItem label="API Endpoint" required>
+            <NInput v-model:value="accountingForm.api_endpoint" placeholder="https://tax.clawpapa.win" />
+          </NFormItem>
+          <NFormItem label="Jurisdiction" required>
+            <NSelect v-model:value="accountingForm.jurisdiction" :options="jurisdictionOptions" />
+          </NFormItem>
+          <NSpace>
+            <NButton type="primary" :loading="accountingLoading" @click="saveAccountingLink">{{ t("integration.connect") }}</NButton>
+            <NButton @click="showAccountingModal = false">{{ t("common.cancel") }}</NButton>
+          </NSpace>
+        </NForm>
+        <p style="color: #999; font-size: 12px; margin-top: 12px;">
+          After connecting, a webhook secret will be generated. Copy it to configure the integration source in AIStarlight.
+        </p>
+      </template>
     </NModal>
 
     <!-- Connect Modal -->

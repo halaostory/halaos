@@ -379,6 +379,34 @@ func (q *Queries) CreateSalaryStructure(ctx context.Context, arg CreateSalaryStr
 	return i, err
 }
 
+const deleteSalaryComponent = `-- name: DeleteSalaryComponent :exec
+UPDATE salary_components SET is_active = false WHERE id = $1 AND company_id = $2
+`
+
+type DeleteSalaryComponentParams struct {
+	ID        int64 `json:"id"`
+	CompanyID int64 `json:"company_id"`
+}
+
+func (q *Queries) DeleteSalaryComponent(ctx context.Context, arg DeleteSalaryComponentParams) error {
+	_, err := q.db.Exec(ctx, deleteSalaryComponent, arg.ID, arg.CompanyID)
+	return err
+}
+
+const deleteSalaryStructure = `-- name: DeleteSalaryStructure :exec
+UPDATE salary_structures SET is_active = false WHERE id = $1 AND company_id = $2
+`
+
+type DeleteSalaryStructureParams struct {
+	ID        int64 `json:"id"`
+	CompanyID int64 `json:"company_id"`
+}
+
+func (q *Queries) DeleteSalaryStructure(ctx context.Context, arg DeleteSalaryStructureParams) error {
+	_, err := q.db.Exec(ctx, deleteSalaryStructure, arg.ID, arg.CompanyID)
+	return err
+}
+
 const getCurrentSalary = `-- name: GetCurrentSalary :one
 SELECT id, company_id, employee_id, structure_id, basic_salary, effective_from, effective_to, remarks, created_by, created_at FROM employee_salaries
 WHERE company_id = $1 AND employee_id = $2
@@ -809,6 +837,57 @@ func (q *Queries) GetPayslip(ctx context.Context, arg GetPayslipParams) (Payslip
 	return i, err
 }
 
+const getSalaryComponent = `-- name: GetSalaryComponent :one
+SELECT id, company_id, code, name, component_type, is_taxable, is_statutory, is_fixed, formula, is_active, created_at FROM salary_components WHERE id = $1 AND company_id = $2
+`
+
+type GetSalaryComponentParams struct {
+	ID        int64 `json:"id"`
+	CompanyID int64 `json:"company_id"`
+}
+
+func (q *Queries) GetSalaryComponent(ctx context.Context, arg GetSalaryComponentParams) (SalaryComponent, error) {
+	row := q.db.QueryRow(ctx, getSalaryComponent, arg.ID, arg.CompanyID)
+	var i SalaryComponent
+	err := row.Scan(
+		&i.ID,
+		&i.CompanyID,
+		&i.Code,
+		&i.Name,
+		&i.ComponentType,
+		&i.IsTaxable,
+		&i.IsStatutory,
+		&i.IsFixed,
+		&i.Formula,
+		&i.IsActive,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getSalaryStructure = `-- name: GetSalaryStructure :one
+SELECT id, company_id, name, description, is_active, created_at FROM salary_structures WHERE id = $1 AND company_id = $2
+`
+
+type GetSalaryStructureParams struct {
+	ID        int64 `json:"id"`
+	CompanyID int64 `json:"company_id"`
+}
+
+func (q *Queries) GetSalaryStructure(ctx context.Context, arg GetSalaryStructureParams) (SalaryStructure, error) {
+	row := q.db.QueryRow(ctx, getSalaryStructure, arg.ID, arg.CompanyID)
+	var i SalaryStructure
+	err := row.Scan(
+		&i.ID,
+		&i.CompanyID,
+		&i.Name,
+		&i.Description,
+		&i.IsActive,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const isPayrollCycleLocked = `-- name: IsPayrollCycleLocked :one
 SELECT is_locked FROM payroll_cycles WHERE id = $1 AND company_id = $2
 `
@@ -823,6 +902,81 @@ func (q *Queries) IsPayrollCycleLocked(ctx context.Context, arg IsPayrollCycleLo
 	var is_locked bool
 	err := row.Scan(&is_locked)
 	return is_locked, err
+}
+
+const listCompletedPayrollRuns = `-- name: ListCompletedPayrollRuns :many
+SELECT pr.id, pr.company_id, pr.cycle_id, pr.run_type, pr.run_number, pr.total_employees, pr.total_gross, pr.total_deductions, pr.total_net, pr.status, pr.error_message, pr.initiated_by, pr.completed_at, pr.created_at, pc.name as cycle_name, pc.period_start, pc.period_end, pc.pay_date
+FROM payroll_runs pr
+JOIN payroll_cycles pc ON pc.id = pr.cycle_id
+WHERE pr.company_id = $1 AND pr.status = 'completed'
+ORDER BY pc.period_start DESC
+LIMIT $2 OFFSET $3
+`
+
+type ListCompletedPayrollRunsParams struct {
+	CompanyID int64 `json:"company_id"`
+	Limit     int32 `json:"limit"`
+	Offset    int32 `json:"offset"`
+}
+
+type ListCompletedPayrollRunsRow struct {
+	ID              int64              `json:"id"`
+	CompanyID       int64              `json:"company_id"`
+	CycleID         int64              `json:"cycle_id"`
+	RunType         string             `json:"run_type"`
+	RunNumber       int32              `json:"run_number"`
+	TotalEmployees  int32              `json:"total_employees"`
+	TotalGross      pgtype.Numeric     `json:"total_gross"`
+	TotalDeductions pgtype.Numeric     `json:"total_deductions"`
+	TotalNet        pgtype.Numeric     `json:"total_net"`
+	Status          string             `json:"status"`
+	ErrorMessage    *string            `json:"error_message"`
+	InitiatedBy     *int64             `json:"initiated_by"`
+	CompletedAt     pgtype.Timestamptz `json:"completed_at"`
+	CreatedAt       time.Time          `json:"created_at"`
+	CycleName       string             `json:"cycle_name"`
+	PeriodStart     time.Time          `json:"period_start"`
+	PeriodEnd       time.Time          `json:"period_end"`
+	PayDate         time.Time          `json:"pay_date"`
+}
+
+func (q *Queries) ListCompletedPayrollRuns(ctx context.Context, arg ListCompletedPayrollRunsParams) ([]ListCompletedPayrollRunsRow, error) {
+	rows, err := q.db.Query(ctx, listCompletedPayrollRuns, arg.CompanyID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCompletedPayrollRunsRow{}
+	for rows.Next() {
+		var i ListCompletedPayrollRunsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CompanyID,
+			&i.CycleID,
+			&i.RunType,
+			&i.RunNumber,
+			&i.TotalEmployees,
+			&i.TotalGross,
+			&i.TotalDeductions,
+			&i.TotalNet,
+			&i.Status,
+			&i.ErrorMessage,
+			&i.InitiatedBy,
+			&i.CompletedAt,
+			&i.CreatedAt,
+			&i.CycleName,
+			&i.PeriodStart,
+			&i.PeriodEnd,
+			&i.PayDate,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listCurrentSalaries = `-- name: ListCurrentSalaries :many
@@ -1356,4 +1510,89 @@ func (q *Queries) UpdatePayrollRun(ctx context.Context, arg UpdatePayrollRunPara
 		arg.ErrorMessage,
 	)
 	return err
+}
+
+const updateSalaryComponent = `-- name: UpdateSalaryComponent :one
+UPDATE salary_components SET
+    code = $3,
+    name = $4,
+    component_type = $5,
+    is_taxable = $6,
+    is_statutory = $7,
+    is_fixed = $8
+WHERE id = $1 AND company_id = $2
+RETURNING id, company_id, code, name, component_type, is_taxable, is_statutory, is_fixed, formula, is_active, created_at
+`
+
+type UpdateSalaryComponentParams struct {
+	ID            int64  `json:"id"`
+	CompanyID     int64  `json:"company_id"`
+	Code          string `json:"code"`
+	Name          string `json:"name"`
+	ComponentType string `json:"component_type"`
+	IsTaxable     bool   `json:"is_taxable"`
+	IsStatutory   bool   `json:"is_statutory"`
+	IsFixed       bool   `json:"is_fixed"`
+}
+
+func (q *Queries) UpdateSalaryComponent(ctx context.Context, arg UpdateSalaryComponentParams) (SalaryComponent, error) {
+	row := q.db.QueryRow(ctx, updateSalaryComponent,
+		arg.ID,
+		arg.CompanyID,
+		arg.Code,
+		arg.Name,
+		arg.ComponentType,
+		arg.IsTaxable,
+		arg.IsStatutory,
+		arg.IsFixed,
+	)
+	var i SalaryComponent
+	err := row.Scan(
+		&i.ID,
+		&i.CompanyID,
+		&i.Code,
+		&i.Name,
+		&i.ComponentType,
+		&i.IsTaxable,
+		&i.IsStatutory,
+		&i.IsFixed,
+		&i.Formula,
+		&i.IsActive,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const updateSalaryStructure = `-- name: UpdateSalaryStructure :one
+UPDATE salary_structures SET
+    name = $3,
+    description = $4
+WHERE id = $1 AND company_id = $2
+RETURNING id, company_id, name, description, is_active, created_at
+`
+
+type UpdateSalaryStructureParams struct {
+	ID          int64   `json:"id"`
+	CompanyID   int64   `json:"company_id"`
+	Name        string  `json:"name"`
+	Description *string `json:"description"`
+}
+
+func (q *Queries) UpdateSalaryStructure(ctx context.Context, arg UpdateSalaryStructureParams) (SalaryStructure, error) {
+	row := q.db.QueryRow(ctx, updateSalaryStructure,
+		arg.ID,
+		arg.CompanyID,
+		arg.Name,
+		arg.Description,
+	)
+	var i SalaryStructure
+	err := row.Scan(
+		&i.ID,
+		&i.CompanyID,
+		&i.Name,
+		&i.Description,
+		&i.IsActive,
+		&i.CreatedAt,
+	)
+	return i, err
 }

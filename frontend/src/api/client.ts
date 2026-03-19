@@ -91,6 +91,9 @@ function post<T>(url: string, body?: Record<string, unknown>) {
 function put<T>(url: string, body?: Record<string, unknown>) {
   return api<T>(url, { method: "PUT", body });
 }
+function del<T>(url: string) {
+  return api<T>(url, { method: "DELETE" });
+}
 // Auth
 export const authAPI = {
   register: (data: {
@@ -104,6 +107,10 @@ export const authAPI = {
     post("/v1/auth/login", data),
   refresh: (refresh_token: string) =>
     post("/v1/auth/refresh", { refresh_token }),
+  verifyEmail: (token: string) =>
+    get(`/v1/auth/verify-email?token=${encodeURIComponent(token)}`),
+  resendVerification: (email: string) =>
+    post("/v1/auth/resend-verification", { email }),
   me: () => get("/v1/auth/me"),
   changePassword: (data: { current_password: string; new_password: string }) =>
     put("/v1/auth/password", data),
@@ -379,9 +386,15 @@ export const salaryAPI = {
   listStructures: () => get("/v1/salary/structures"),
   createStructure: (data: { name: string; description?: string }) =>
     post("/v1/salary/structures", data),
+  updateStructure: (id: number, data: { name: string; description?: string }) =>
+    put(`/v1/salary/structures/${id}`, data),
+  deleteStructure: (id: number) => del(`/v1/salary/structures/${id}`),
   listComponents: () => get("/v1/salary/components"),
   createComponent: (data: Record<string, unknown>) =>
     post("/v1/salary/components", data),
+  updateComponent: (id: number, data: Record<string, unknown>) =>
+    put(`/v1/salary/components/${id}`, data),
+  deleteComponent: (id: number) => del(`/v1/salary/components/${id}`),
 };
 
 // Dashboard
@@ -1102,6 +1115,17 @@ export const integrationAPI = {
   // Employee integrations
   getEmployeeIntegrations: (id: number) =>
     get(`/v1/employees/${id}/integrations`),
+  // Accounting link
+  getAccountingLink: () => get("/v1/integrations/accounting/link"),
+  createAccountingLink: (data: {
+    remote_company_id: string;
+    api_endpoint: string;
+    jurisdiction: string;
+  }) => post("/v1/integrations/accounting/link", data),
+  deleteAccountingLink: (id: number) =>
+    api(`/v1/integrations/accounting/link/${id}`, { method: "DELETE" }),
+  getAccountingSyncStatus: () => get("/v1/integrations/accounting/sync-status"),
+  getAccountingSSOToken: () => get("/v1/integrations/accounting/sso-token"),
 };
 
 // Workflow Rules

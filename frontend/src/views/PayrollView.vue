@@ -25,7 +25,7 @@ import {
   useDialog,
   type DataTableColumns,
 } from "naive-ui";
-import { payrollAPI, exportAPI, thirteenthMonthAPI, performanceAPI } from "../api/client";
+import { payrollAPI, exportAPI, thirteenthMonthAPI, performanceAPI, integrationAPI } from "../api/client";
 import { useCurrency } from "../composables/useCurrency";
 import { useAuthStore } from "../stores/auth";
 
@@ -282,7 +282,29 @@ async function fetchCycles() {
   }
 }
 
-onMounted(fetchCycles);
+// Accounting sync status
+interface SyncStatus {
+  connected: boolean;
+  status: string;
+  last_synced_at: string | null;
+  provider: string;
+  outbox: { pending: number; sent: number; failed: number; dead: number };
+}
+const syncStatus = ref<SyncStatus | null>(null);
+
+async function fetchSyncStatus() {
+  try {
+    const res = (await integrationAPI.getAccountingSyncStatus()) as { data?: SyncStatus };
+    syncStatus.value = res.data || (res as unknown as SyncStatus);
+  } catch {
+    syncStatus.value = null;
+  }
+}
+
+onMounted(() => {
+  fetchCycles();
+  fetchSyncStatus();
+});
 
 async function handleCreateCycle() {
   if (
@@ -868,6 +890,21 @@ function formatRatingMap(rm: Record<string, number>): string {
 
 <template>
   <div>
+    <!-- Accounting Sync Status -->
+    <div v-if="syncStatus?.connected" style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+      <NTag :type="syncStatus.outbox.failed > 0 ? 'warning' : 'success'" size="small">
+        {{ t('payroll.syncStatus') }}: {{ syncStatus.status }}
+      </NTag>
+      <NTag v-if="syncStatus.outbox.pending > 0" type="info" size="small">
+        {{ t('payroll.syncPending') }}: {{ syncStatus.outbox.pending }}
+      </NTag>
+      <NTag v-if="syncStatus.outbox.failed > 0" type="error" size="small">
+        {{ t('payroll.syncFailed') }}: {{ syncStatus.outbox.failed }}
+      </NTag>
+      <span v-if="syncStatus.last_synced_at" style="font-size: 12px; opacity: 0.6;">
+        {{ t('payroll.lastSynced') }}: {{ new Date(syncStatus.last_synced_at).toLocaleString() }}
+      </span>
+    </div>
     <NTabs type="line" :value="activeTab" @update:value="(v: string) => { activeTab = v; handleTabChange(v); }">
       <!-- Tab 1: Payroll Cycles (existing content) -->
       <NTabPane name="cycles" :tab="t('payroll.title')">

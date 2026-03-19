@@ -386,7 +386,7 @@ function sendSuggestion(text: string) {
           >
             <span style="font-size: 16px;">&#9776;</span>
           </NButton>
-          <span class="chat-title">AigoNHR AI</span>
+          <span class="chat-title">HalaOS AI</span>
           <NTag v-if="tokenBalance !== null" size="small" round class="balance-badge">
             {{ tokenBalance.toLocaleString() }} tokens
           </NTag>

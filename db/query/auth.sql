@@ -42,3 +42,14 @@ UPDATE users SET status = $2, updated_at = NOW() WHERE id = $1 AND company_id = 
 
 -- name: AdminResetPassword :exec
 UPDATE users SET password_hash = $2, updated_at = NOW() WHERE id = $1 AND company_id = $3;
+
+-- name: SetVerificationToken :exec
+UPDATE users SET verification_token = $2, verification_token_expires_at = $3, updated_at = NOW()
+WHERE id = $1;
+
+-- name: GetUserByVerificationToken :one
+SELECT * FROM users WHERE verification_token = $1 AND verification_token_expires_at > NOW();
+
+-- name: MarkEmailVerified :exec
+UPDATE users SET email_verified = true, verification_token = NULL, verification_token_expires_at = NULL, updated_at = NOW()
+WHERE id = $1;

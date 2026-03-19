@@ -23,6 +23,9 @@ export default {
     inactive: "停用",
     type: "类型",
     saveFailed: "保存失败",
+    saved: "已保存",
+    deleted: "已删除",
+    confirmDelete: "确定要删除吗？",
     view: "查看",
     yes: "是",
     no: "否",
@@ -101,6 +104,7 @@ export default {
     pulseSurveys: "脉搏调查",
     recognition: "认可墙",
     hrRequests: "HR服务请求",
+    accounting: "会计与税务",
     settings: "设置",
     profile: "个人信息",
     logout: "退出登录",
@@ -171,6 +175,7 @@ export default {
     importExport: "批量数据操作",
     audit: "系统活动日志",
     billing: "订阅和发票",
+    accounting: "打开AIStarlight会计与税务系统",
     settings: "系统配置",
   },
   auth: {
@@ -181,7 +186,7 @@ export default {
     companyName: "公司名称",
     firstName: "名",
     lastName: "姓",
-    loginTitle: "登录 AigoNHR",
+    loginTitle: "登录 HalaOS",
     registerTitle: "创建账户",
     noAccount: "还没有账户？",
     hasAccount: "已有账户？",
@@ -192,6 +197,19 @@ export default {
     fieldRequired: "此字段为必填",
     companyPlaceholder: "您的公司名称",
     country: "国家",
+    checkEmail: "请查看邮箱",
+    verificationSent:
+      "我们已向您的邮箱发送了验证链接，请点击链接激活您的账户。",
+    verificationResent: "验证邮件已重新发送",
+    resendFailed: "重新发送验证邮件失败",
+    goToLogin: "前往登录",
+    resendEmail: "重新发送验证邮件",
+    verifying: "正在验证您的邮箱...",
+    emailVerified: "邮箱已验证",
+    emailVerifiedDesc: "您的邮箱已成功验证，现在可以登录您的账户了。",
+    verificationFailed: "验证失败",
+    noVerificationToken: "未提供验证令牌",
+    emailNotVerified: "请先验证您的邮箱地址",
   },
   country: {
     PHL: "菲律宾",
@@ -555,6 +573,10 @@ export default {
     locked: "已锁定",
     cycleLocked: "薪资周期已锁定",
     cycleUnlocked: "薪资周期已解锁",
+    syncStatus: "会计同步",
+    syncPending: "待处理",
+    syncFailed: "失败",
+    lastSynced: "上次同步",
     auto: {
       title: "自动发薪",
       subtitle:
@@ -706,7 +728,7 @@ export default {
     telegramGenerate: "生成链接码",
     telegramUnlinked: "Telegram 已断开",
     telegramCodeInstructions:
-      "将此代码发送给 AigoNHR Telegram 机器人以绑定账号：",
+      "将此代码发送给 HalaOS Telegram 机器人以绑定账号：",
     telegramCodeHint: "代码 10 分钟后过期",
   },
   settings: {
@@ -1872,7 +1894,7 @@ export default {
     typeMessage: "输入消息...",
     send: "发送",
     welcomeMessage:
-      "你好！我是 AigoNHR AI 助手。我可以帮你查询假期余额、薪资信息、考勤状况、菲律宾劳工法规等。请问有什么可以帮你的？",
+      "你好！我是 HalaOS AI 助手。我可以帮你查询假期余额、薪资信息、考勤状况、当地劳工法规等。请问有什么可以帮你的？",
     insufficientMessage: "Token 余额不足，请充值后继续使用 AI 功能。",
     justNow: "刚刚",
     minutesAgo: "{n}分钟前",
