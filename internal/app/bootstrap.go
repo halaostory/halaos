@@ -72,6 +72,7 @@ import (
 	"github.com/tonypk/aigonhr/internal/pulse"
 	"github.com/tonypk/aigonhr/internal/hrrequest"
 	"github.com/tonypk/aigonhr/internal/recognition"
+	"github.com/tonypk/aigonhr/internal/nps"
 	"github.com/tonypk/aigonhr/internal/referral"
 	"github.com/tonypk/aigonhr/internal/workflow"
 )
@@ -357,6 +358,9 @@ func (a *App) setupRoutes() {
 
 	referralHandler := referral.NewHandler(a.Queries, a.Logger)
 	referralHandler.RegisterRoutes(protected)
+
+	npsHandler := nps.NewHandler(a.Queries, a.Logger)
+	npsHandler.RegisterRoutes(protected)
 
 	// Org Intelligence
 	var briefGen *orgintel.BriefingGenerator

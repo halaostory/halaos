@@ -1305,6 +1305,15 @@ type Notification struct {
 	Actions    []byte             `json:"actions"`
 }
 
+type NpsFeedback struct {
+	ID        int64     `json:"id"`
+	CompanyID int64     `json:"company_id"`
+	UserID    int64     `json:"user_id"`
+	Score     int16     `json:"score"`
+	Comment   string    `json:"comment"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 type OnboardingTask struct {
 	ID           int64              `json:"id"`
 	CompanyID    int64              `json:"company_id"`

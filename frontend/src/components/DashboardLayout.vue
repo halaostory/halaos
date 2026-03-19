@@ -25,6 +25,7 @@ import { useThemeStore } from '../stores/theme'
 import { notificationAPI, integrationAPI } from '../api/client'
 import ChatPanel from './ChatPanel.vue'
 import CommandPalette from './CommandPalette.vue'
+import NPSModal from './NPSModal.vue'
 import { useTour } from '../composables/useTour'
 
 const router = useRouter()
@@ -436,5 +437,6 @@ function handleUserAction(key: string) {
     </NLayout>
     <ChatPanel />
     <CommandPalette />
+    <NPSModal />
   </NLayout>
 </template>

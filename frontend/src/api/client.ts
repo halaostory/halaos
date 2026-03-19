@@ -1242,3 +1242,10 @@ export const byokAPI = {
   validateKey: (data: { provider: string; api_key: string }) =>
     post("/v1/byok/keys/validate", data),
 };
+
+// NPS Feedback
+export const npsAPI = {
+  submit: (data: { score: number; comment?: string }) => post("/v1/nps", data),
+  status: () => get("/v1/nps/status"),
+  summary: () => get("/v1/nps/summary"),
+};
