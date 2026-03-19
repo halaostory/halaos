@@ -86,6 +86,8 @@ func GenerateCOE(comp store.Company, emp store.GetEmployeeForCOERow) ([]byte, er
 	pdf.SetFont("Arial", "I", 8)
 	pdf.CellFormat(160, 5, "This is a system-generated document.", "", 1, "C", false, 0, "")
 
+	addBrandingFooter(pdf)
+
 	var buf bytes.Buffer
 	if err := pdf.Output(&buf); err != nil {
 		return nil, err
@@ -125,6 +127,8 @@ func GenerateLetter(comp store.Company, emp store.GetEmployeeForCOERow, letterTy
 	pdf.Ln(15)
 	pdf.SetFont("Arial", "I", 8)
 	pdf.CellFormat(160, 5, "This is a system-generated document.", "", 1, "C", false, 0, "")
+
+	addBrandingFooter(pdf)
 
 	var buf bytes.Buffer
 	if err := pdf.Output(&buf); err != nil {
@@ -224,6 +228,8 @@ func GenerateDOLERegister(comp store.Company, emps []store.ListEmployeesForDOLER
 	pdf.CellFormat(100, 6, "Prepared by: ________________________________", "", 0, "L", false, 0, "")
 	pdf.CellFormat(100, 6, "Noted by: ________________________________", "", 1, "L", false, 0, "")
 
+	addBrandingFooter(pdf)
+
 	var buf bytes.Buffer
 	if err := pdf.Output(&buf); err != nil {
 		return nil, err
@@ -232,6 +238,20 @@ func GenerateDOLERegister(comp store.Company, emps []store.ListEmployeesForDOLER
 }
 
 // --- internal helpers ---
+
+// addBrandingFooter adds a "Powered by HalaOS" footer to every page.
+func addBrandingFooter(pdf *fpdf.Fpdf) {
+	totalPages := pdf.PageCount()
+	for i := 1; i <= totalPages; i++ {
+		pdf.SetPage(i)
+		_, pageH := pdf.GetPageSize()
+		pdf.SetY(pageH - 10)
+		pdf.SetFont("Arial", "", 7)
+		pdf.SetTextColor(160, 160, 160)
+		pdf.CellFormat(0, 4, "Powered by HalaOS | halaos.com", "", 0, "C", false, 0, "https://halaos.com")
+		pdf.SetTextColor(0, 0, 0)
+	}
+}
 
 func writeCompanyHeader(pdf *fpdf.Fpdf, comp store.Company, companyName string) {
 	pdf.SetFont("Arial", "B", 16)
@@ -417,6 +437,8 @@ func generateClearanceLetter(pdf *fpdf.Fpdf, companyName, fullName string, emp s
 	pdf.CellFormat(80, 6, "________________________________", "", 1, "C", false, 0, "")
 	pdf.CellFormat(80, 6, "Finance / Accounting", "", 0, "C", false, 0, "")
 	pdf.CellFormat(80, 6, "IT Department", "", 1, "C", false, 0, "")
+
+	addBrandingFooter(pdf)
 }
 
 func generateMemo(pdf *fpdf.Fpdf, companyName, fullName string, emp store.GetEmployeeForCOERow, subject, body string) {

@@ -518,6 +518,14 @@ func generatePayslipPDF(company store.Company, emp store.Employee, payslip store
 	pdf.CellFormat(180, 5, "This is a system-generated payslip. No signature is required.", "", 1, "C", false, 0, "")
 	pdf.CellFormat(180, 5, "Generated on: "+time.Now().Format("January 02, 2006 3:04 PM"), "", 1, "C", false, 0, "")
 
+	// Branding footer
+	_, pageH := pdf.GetPageSize()
+	pdf.SetY(pageH - 10)
+	pdf.SetFont("Arial", "", 7)
+	pdf.SetTextColor(160, 160, 160)
+	pdf.CellFormat(0, 4, "Powered by HalaOS | halaos.com", "", 0, "C", false, 0, "https://halaos.com")
+	pdf.SetTextColor(0, 0, 0)
+
 	var buf bytes.Buffer
 	if err := pdf.Output(&buf); err != nil {
 		return nil, err
