@@ -26,6 +26,10 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll))
         <router-link to="/tools" @click="mobileOpen = false">Free Tools</router-link>
         <router-link to="/blog" @click="mobileOpen = false">Blog</router-link>
         <router-link to="/contact" @click="mobileOpen = false">Contact</router-link>
+        <div class="mobile-auth-links">
+          <router-link to="/login" class="pub-btn-text" @click="mobileOpen = false">Log In</router-link>
+          <router-link to="/register" class="pub-btn-primary" @click="mobileOpen = false">Get Started</router-link>
+        </div>
       </nav>
 
       <div class="pub-actions">
@@ -142,6 +146,10 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll))
   border-radius: 1px;
 }
 
+.mobile-auth-links {
+  display: none;
+}
+
 @media (max-width: 768px) {
   .pub-links {
     display: none;
@@ -159,5 +167,11 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll))
   .pub-links.open { display: flex; }
   .pub-actions { display: none; }
   .hamburger { display: flex; }
+  .mobile-auth-links {
+    display: flex;
+    gap: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #e2e8f0;
+  }
 }
 </style>
