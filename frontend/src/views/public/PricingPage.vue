@@ -61,6 +61,18 @@
 </template>
 
 <script setup lang="ts">
+import { useHead } from '@unhead/vue'
+
+useHead({
+  title: 'Pricing - HalaOS',
+  meta: [
+    { name: 'description', content: 'HalaOS is completely free. All features, unlimited employees, no credit card required. Start managing your HR, payroll, and tax compliance today.' },
+    { property: 'og:title', content: 'Pricing - HalaOS' },
+    { property: 'og:description', content: 'Free for everyone. All features, unlimited employees, no credit card required.' },
+    { property: 'og:url', content: 'https://halaos.com/pricing' },
+  ],
+})
+
 const categories = [
   {
     icon: '👥',

@@ -117,6 +117,17 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
+import { useHead } from '@unhead/vue'
+
+useHead({
+  title: 'Contact - HalaOS',
+  meta: [
+    { name: 'description', content: 'Get in touch with HalaOS. Contact us for sales, support, partnerships, or general inquiries. We respond within 24 hours.' },
+    { property: 'og:title', content: 'Contact - HalaOS' },
+    { property: 'og:description', content: 'Have a question? Send us a message and we\'ll respond as soon as possible.' },
+    { property: 'og:url', content: 'https://halaos.com/contact' },
+  ],
+})
 
 const sending = ref(false)
 const submitted = ref(false)

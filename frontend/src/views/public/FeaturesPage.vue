@@ -78,6 +78,18 @@
 </template>
 
 <script setup lang="ts">
+import { useHead } from '@unhead/vue'
+
+useHead({
+  title: 'Features - HalaOS',
+  meta: [
+    { name: 'description', content: 'Explore HalaOS features: HR management, automated payroll, tax compliance, AI-powered insights, and more. Built for businesses in Southeast Asia.' },
+    { property: 'og:title', content: 'Features - HalaOS' },
+    { property: 'og:description', content: 'Every tool you need to manage employees, run payroll, and stay compliant — all in one place.' },
+    { property: 'og:url', content: 'https://halaos.com/features' },
+  ],
+})
+
 const categories = [
   {
     id: 'hr',

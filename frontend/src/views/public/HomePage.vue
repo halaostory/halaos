@@ -120,6 +120,18 @@
 </template>
 
 <script setup lang="ts">
+import { useHead } from '@unhead/vue'
+
+useHead({
+  title: 'HalaOS - Unified HR, Payroll & Tax Platform',
+  meta: [
+    { name: 'description', content: 'HalaOS unifies employee management, payroll processing, and tax compliance into a single intelligent platform for businesses across Asia.' },
+    { property: 'og:title', content: 'HalaOS - Unified HR, Payroll & Tax Platform' },
+    { property: 'og:description', content: 'One platform for HR management, payroll processing, and tax compliance across Southeast Asia.' },
+    { property: 'og:url', content: 'https://halaos.com/' },
+  ],
+})
+
 const countries = [
   { code: 'PH', flag: '🇵🇭', name: 'Philippines' },
   { code: 'LK', flag: '🇱🇰', name: 'Sri Lanka' },

@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@unhead/vue": "^2.1.12",
     "@vicons/ionicons5": "^0.13.0",
     "date-fns": "^4.1.0",
     "driver.js": "^1.4.0",

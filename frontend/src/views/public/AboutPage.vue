@@ -124,6 +124,18 @@
 </template>
 
 <script setup lang="ts">
+import { useHead } from '@unhead/vue'
+
+useHead({
+  title: 'About - HalaOS',
+  meta: [
+    { name: 'description', content: 'HalaOS was born from a simple belief: every company in Southeast Asia deserves world-class HR technology that understands local regulations and culture.' },
+    { property: 'og:title', content: 'About HalaOS' },
+    { property: 'og:description', content: 'Building the future of HR in Asia. Learn about our mission, values, and team.' },
+    { property: 'og:url', content: 'https://halaos.com/about' },
+  ],
+})
+
 const values = [
   { icon: '🌏', title: 'Local First', desc: 'Built for Asia, by Asia. We understand local regulations, culture, and business practices.' },
   { icon: '🧠', title: 'AI-Native', desc: 'AI is not an afterthought — it\'s woven into every feature to make HR smarter.' },
