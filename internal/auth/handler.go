@@ -56,11 +56,11 @@ func generateVerificationToken() (string, error) {
 }
 
 type registerRequest struct {
-	CompanyName  string `json:"company_name" binding:"required,min=2"`
+	CompanyName  string `json:"company_name"` // optional for magic link; derived from email domain if empty
 	Email        string `json:"email" binding:"required,email"`
-	Password     string `json:"password" binding:"required,min=8"`
-	FirstName    string `json:"first_name" binding:"required"`
-	LastName     string `json:"last_name" binding:"required"`
+	Password     string `json:"password"`     // optional for magic link; random if empty
+	FirstName    string `json:"first_name"`   // optional for magic link; "User" if empty
+	LastName     string `json:"last_name"`    // optional for magic link; "" if empty
 	Country      string `json:"country"`      // PHL (default), LKA, SGP, IDN
 	ReferralCode string `json:"referral_code"` // optional referral code from ?ref= link
 }
@@ -105,6 +105,25 @@ func (h *Handler) Register(c *gin.Context) {
 	if err == nil {
 		response.Conflict(c, "Email already registered")
 		return
+	}
+
+	// Fill defaults for magic-link registration (email-only)
+	if req.CompanyName == "" {
+		parts := strings.SplitN(req.Email, "@", 2)
+		if len(parts) == 2 {
+			req.CompanyName = parts[1] // use domain as company name
+		} else {
+			req.CompanyName = "My Company"
+		}
+	}
+	if req.FirstName == "" {
+		req.FirstName = "User"
+	}
+	if req.Password == "" {
+		// Generate random password for magic-link signups
+		b := make([]byte, 16)
+		_, _ = rand.Read(b)
+		req.Password = hex.EncodeToString(b)
 	}
 
 	// Hash password
@@ -607,9 +626,26 @@ func (h *Handler) VerifyEmail(c *gin.Context) {
 		}()
 	}
 
+	// Auto-login: generate JWT tokens so the magic link logs the user in
+	token, tokenErr := h.jwt.GenerateToken(user.ID, user.Email, Role(user.Role), user.CompanyID)
+	refreshToken := ""
+	if tokenErr == nil {
+		refreshToken, _ = h.jwt.GenerateRefreshToken(user.ID, user.Email, Role(user.Role), user.CompanyID)
+	}
+
 	response.OK(c, gin.H{
-		"message":        "Email verified successfully. You can now log in.",
+		"message":        "Email verified successfully.",
 		"email_verified": true,
+		"token":          token,
+		"refresh_token":  refreshToken,
+		"user": userResponse{
+			ID:        user.ID,
+			Email:     user.Email,
+			FirstName: user.FirstName,
+			LastName:  user.LastName,
+			Role:      user.Role,
+			CompanyID: user.CompanyID,
+		},
 	})
 }
 

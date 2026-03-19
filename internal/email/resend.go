@@ -191,3 +191,169 @@ func (s *Service) SendContactForm(toAddr, firstName, lastName, fromEmail, compan
 	s.logger.Info("contact form email sent", "from", fromEmail, "subject", subject)
 	return nil
 }
+
+// DripStep defines which onboarding email to send.
+type DripStep int
+
+const (
+	DripGettingStarted   DripStep = 1 // Day 1: set up company, add departments
+	DripFirstEmployee    DripStep = 2 // Day 3: add employees
+	DripFirstPayroll     DripStep = 3 // Day 7: run payroll
+	DripExploreFeatures  DripStep = 4 // Day 14: compliance, leave, AI features
+)
+
+// DripStepDelay returns the minimum age (in days) a company must be before receiving each step.
+func DripStepDelay(step DripStep) int {
+	switch step {
+	case DripGettingStarted:
+		return 1
+	case DripFirstEmployee:
+		return 3
+	case DripFirstPayroll:
+		return 7
+	case DripExploreFeatures:
+		return 14
+	default:
+		return 0
+	}
+}
+
+// SendDripEmail sends an onboarding drip email for the given step.
+func (s *Service) SendDripEmail(toEmail, firstName, companyName string, step DripStep) error {
+	subject, html := buildDripEmail(s.baseURL, firstName, companyName, step)
+	if subject == "" {
+		return fmt.Errorf("unknown drip step: %d", step)
+	}
+
+	if s.client == nil {
+		s.logger.Info("email service not configured, logging drip email",
+			"to", toEmail, "step", step, "subject", subject)
+		return nil
+	}
+
+	params := &resend.SendEmailRequest{
+		From:    s.from,
+		To:      []string{toEmail},
+		Subject: subject,
+		Html:    html,
+	}
+
+	_, err := s.client.Emails.Send(params)
+	if err != nil {
+		s.logger.Error("failed to send drip email", "to", toEmail, "step", step, "error", err)
+		return fmt.Errorf("failed to send drip email: %w", err)
+	}
+
+	s.logger.Info("drip email sent", "to", toEmail, "step", step)
+	return nil
+}
+
+func buildDripEmail(baseURL, firstName, companyName string, step DripStep) (string, string) {
+	loginURL := baseURL + "/login"
+
+	wrapper := func(subject, preheader, content string) (string, string) {
+		html := fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #1a1a2e;">
+  <span style="display:none;font-size:1px;color:#fff;">%s</span>
+  <div style="text-align: center; margin-bottom: 32px;">
+    <h1 style="color: #4f46e5; font-size: 28px; margin: 0;">HalaOS</h1>
+  </div>
+  %s
+  <div style="text-align: center; margin: 32px 0;">
+    <a href="%s" style="display: inline-block; padding: 14px 32px; background: #4f46e5; color: #fff; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 600;">Log In to HalaOS</a>
+  </div>
+  <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+  <p style="font-size: 12px; color: #94a3b8; text-align: center;">
+    HalaOS &mdash; Free HR, Payroll &amp; Tax Compliance<br>
+    <a href="%s" style="color: #94a3b8;">Unsubscribe</a>
+  </p>
+</body>
+</html>`, preheader, content, loginURL, baseURL+"/settings")
+		return subject, html
+	}
+
+	switch step {
+	case DripGettingStarted:
+		return wrapper(
+			"Get started with HalaOS — Set up your company",
+			"Complete your company profile in 2 minutes",
+			fmt.Sprintf(`<h2 style="font-size: 20px; margin-bottom: 16px;">Hi %s, let's get you started!</h2>
+  <p style="font-size: 16px; line-height: 1.6; color: #334155;">
+    Welcome to HalaOS! Your company <strong>%s</strong> is ready. Here are 3 quick steps to get the most out of your free account:
+  </p>
+  <ol style="font-size: 15px; line-height: 2; color: #334155;">
+    <li><strong>Complete your company profile</strong> — Add your logo, address, and tax IDs</li>
+    <li><strong>Set up departments</strong> — Organize your team structure</li>
+    <li><strong>Configure leave types</strong> — Customize vacation, sick leave, and more</li>
+  </ol>
+  <p style="font-size: 15px; color: #64748b;">This takes about 2 minutes and unlocks the full power of HalaOS.</p>`, firstName, companyName))
+
+	case DripFirstEmployee:
+		return wrapper(
+			"Add your first employee to HalaOS",
+			"Start managing your team in one place",
+			fmt.Sprintf(`<h2 style="font-size: 20px; margin-bottom: 16px;">Ready to add your team, %s?</h2>
+  <p style="font-size: 16px; line-height: 1.6; color: #334155;">
+    Now that <strong>%s</strong> is set up, it's time to add your employees. HalaOS makes it easy:
+  </p>
+  <ul style="font-size: 15px; line-height: 2; color: #334155;">
+    <li><strong>Add employees one by one</strong> — Fill in basic info and employment details</li>
+    <li><strong>Bulk import via CSV</strong> — Upload your entire roster at once</li>
+    <li><strong>Assign salary structures</strong> — Set up compensation with automatic government deductions</li>
+  </ul>
+  <p style="font-size: 15px; color: #64748b;">
+    HalaOS automatically calculates SSS, PhilHealth, Pag-IBIG, and tax withholding for Philippine employees.
+  </p>`, firstName, companyName))
+
+	case DripFirstPayroll:
+		return wrapper(
+			"Run your first payroll — it's free!",
+			"Automated payroll with government compliance",
+			fmt.Sprintf(`<h2 style="font-size: 20px; margin-bottom: 16px;">Time to run payroll, %s!</h2>
+  <p style="font-size: 16px; line-height: 1.6; color: #334155;">
+    Everything is set up for <strong>%s</strong>. Running payroll with HalaOS is simple:
+  </p>
+  <ol style="font-size: 15px; line-height: 2; color: #334155;">
+    <li><strong>Create a payroll cycle</strong> — Choose your pay period (monthly, semi-monthly, weekly)</li>
+    <li><strong>Review calculations</strong> — HalaOS auto-computes gross pay, deductions, and net pay</li>
+    <li><strong>Approve and distribute</strong> — Generate payslips and export bank files</li>
+  </ol>
+  <p style="font-size: 15px; color: #334155;">
+    <strong>Included for free:</strong> Government contributions (SSS, PhilHealth, Pag-IBIG), tax withholding, 13th month pay, overtime, and holiday pay.
+  </p>`, firstName, companyName))
+
+	case DripExploreFeatures:
+		return wrapper(
+			"Discover more HalaOS features",
+			"AI assistant, compliance, analytics and more",
+			fmt.Sprintf(`<h2 style="font-size: 20px; margin-bottom: 16px;">There's so much more, %s!</h2>
+  <p style="font-size: 16px; line-height: 1.6; color: #334155;">
+    You've been using HalaOS for 2 weeks. Here are powerful features you might not have explored yet:
+  </p>
+  <table style="width: 100%%; border-collapse: collapse; margin: 16px 0;">
+    <tr>
+      <td style="padding: 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; width: 40px; font-size: 20px;">📊</td>
+      <td style="padding: 12px; border-bottom: 1px solid #f1f5f9;"><strong>Analytics Dashboard</strong><br><span style="color: #64748b; font-size: 14px;">Headcount trends, turnover rates, department costs</span></td>
+    </tr>
+    <tr>
+      <td style="padding: 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; font-size: 20px;">🤖</td>
+      <td style="padding: 12px; border-bottom: 1px solid #f1f5f9;"><strong>AI HR Assistant</strong><br><span style="color: #64748b; font-size: 14px;">Ask questions about labor law, compute deductions, draft policies</span></td>
+    </tr>
+    <tr>
+      <td style="padding: 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; font-size: 20px;">📋</td>
+      <td style="padding: 12px; border-bottom: 1px solid #f1f5f9;"><strong>BIR Compliance</strong><br><span style="color: #64748b; font-size: 14px;">Auto-generate 2316, 1601C, 2550M/Q and more</span></td>
+    </tr>
+    <tr>
+      <td style="padding: 12px; vertical-align: top; font-size: 20px;">👥</td>
+      <td style="padding: 12px;"><strong>Employee Self-Service</strong><br><span style="color: #64748b; font-size: 14px;">Let employees view payslips, request leave, clock in/out</span></td>
+    </tr>
+  </table>
+  <p style="font-size: 15px; color: #64748b;">
+    All of this is <strong>100%% free</strong> for %s. No limits, no hidden fees.
+  </p>`, firstName, companyName))
+	}
+
+	return "", ""
+}

@@ -26,17 +26,24 @@ const rules = computed<FormRules>(() => ({
 }))
 
 async function handleLogin() {
+  if (!formRef.value) return
   try {
-    await formRef.value?.validate()
-  } catch { return }
+    await formRef.value.validate()
+  } catch (errors: unknown) {
+    const errArr = errors as Array<Array<{ message?: string }>> | undefined
+    const firstMsg = errArr?.[0]?.[0]?.message
+    message.warning(firstMsg || t('auth.fieldRequired'))
+    return
+  }
   loading.value = true
   try {
     await auth.login(form.value.email, form.value.password)
     const redirect = (route.query.redirect as string) || '/dashboard'
     router.push(redirect)
   } catch (e: unknown) {
-    const err = e as { data?: { error?: { message?: string } } }
-    message.error(err.data?.error?.message || t('auth.loginFailed'))
+    const err = e as { response?: { data?: { error?: { message?: string } } }; data?: { error?: { message?: string } } }
+    const msg = err.response?.data?.error?.message || err.data?.error?.message || t('auth.loginFailed')
+    message.error(msg)
   } finally {
     loading.value = false
   }
@@ -53,7 +60,7 @@ async function handleLogin() {
         </router-link>
         <h2>{{ t('auth.loginTitle') }}</h2>
       </div>
-      <NForm ref="formRef" :model="form" :rules="rules" @submit.prevent="handleLogin">
+      <NForm ref="formRef" :model="form" :rules="rules">
         <NFormItem path="email" :label="t('auth.email')">
           <NInput
             v-model:value="form.email"
@@ -71,7 +78,7 @@ async function handleLogin() {
             autocomplete="current-password"
           />
         </NFormItem>
-        <NButton type="primary" block :loading="loading" attr-type="submit" style="margin-top: 8px;" @click="handleLogin">
+        <NButton type="primary" block :loading="loading" style="margin-top: 8px;" @click.prevent="handleLogin">
           {{ t('auth.login') }}
         </NButton>
       </NForm>

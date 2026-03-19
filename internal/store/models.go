@@ -711,6 +711,13 @@ type DocumentRequirement struct {
 	CreatedAt    time.Time `json:"created_at"`
 }
 
+type DripEmail struct {
+	ID        int64     `json:"id"`
+	CompanyID int64     `json:"company_id"`
+	Step      int32     `json:"step"`
+	SentAt    time.Time `json:"sent_at"`
+}
+
 type Employee struct {
 	ID                 int64       `json:"id"`
 	CompanyID          int64       `json:"company_id"`

@@ -97,11 +97,12 @@ function del<T>(url: string) {
 // Auth
 export const authAPI = {
   register: (data: {
-    company_name: string;
+    company_name?: string;
     email: string;
-    password: string;
-    first_name: string;
-    last_name: string;
+    password?: string;
+    first_name?: string;
+    last_name?: string;
+    referral_code?: string;
   }) => post("/v1/auth/register", data),
   login: (data: { email: string; password: string }) =>
     post("/v1/auth/login", data),
