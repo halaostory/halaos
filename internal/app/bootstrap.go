@@ -57,6 +57,7 @@ import (
 	"github.com/tonypk/aigonhr/internal/leave"
 	"github.com/tonypk/aigonhr/internal/loan"
 	"github.com/tonypk/aigonhr/internal/middleware"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/tonypk/aigonhr/internal/milestone"
 	"github.com/tonypk/aigonhr/internal/notification"
 	"github.com/tonypk/aigonhr/internal/onboarding"
@@ -133,6 +134,7 @@ func New(cfg *config.Config) (*App, error) {
 	router.Use(gin.Recovery())
 	router.Use(middleware.RequestLogger(logger))
 	router.Use(middleware.SecurityHeaders())
+	router.Use(middleware.PrometheusMetrics())
 
 	// CORS — origins from environment variable
 	origins := strings.Split(cfg.CORS.AllowOrigins, ",")
@@ -194,14 +196,39 @@ func New(cfg *config.Config) (*App, error) {
 }
 
 func (a *App) setupRoutes() {
-	// Health check
+	// Health check with detailed status
 	a.Router.GET("/health", func(c *gin.Context) {
-		if err := a.Pool.Ping(c.Request.Context()); err != nil {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "unhealthy", "db": err.Error()})
+		ctx := c.Request.Context()
+		health := gin.H{"status": "healthy"}
+
+		// Database
+		if err := a.Pool.Ping(ctx); err != nil {
+			health["status"] = "unhealthy"
+			health["db"] = gin.H{"status": "down", "error": err.Error()}
+			c.JSON(http.StatusServiceUnavailable, health)
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"status": "healthy"})
+		stat := a.Pool.Stat()
+		health["db"] = gin.H{
+			"status":       "up",
+			"total_conns":  stat.TotalConns(),
+			"idle_conns":   stat.IdleConns(),
+			"active_conns": stat.AcquiredConns(),
+			"max_conns":    stat.MaxConns(),
+		}
+
+		// Redis
+		if err := a.Redis.Ping(ctx).Err(); err != nil {
+			health["redis"] = gin.H{"status": "down", "error": err.Error()}
+		} else {
+			health["redis"] = gin.H{"status": "up"}
+		}
+
+		c.JSON(http.StatusOK, health)
 	})
+
+	// Prometheus metrics endpoint
+	a.Router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	jwtSvc := auth.NewJWTService(a.Cfg.JWT.Secret, a.Cfg.JWT.Expiry, a.Cfg.JWT.RefreshExpiry)
 

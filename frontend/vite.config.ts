@@ -13,10 +13,15 @@ export default defineConfig({
     },
   },
   build: {
+    target: "es2020",
+    cssCodeSplit: true,
     rollupOptions: {
       output: {
         manualChunks: {
           "naive-ui": ["naive-ui"],
+          vendor: ["vue", "vue-router", "pinia", "vue-i18n"],
+          charts: ["echarts", "vue-echarts"],
+          utils: ["date-fns", "ofetch", "markdown-it"],
         },
       },
     },
