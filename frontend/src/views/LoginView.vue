@@ -60,6 +60,14 @@ async function handleLogin() {
         </router-link>
         <h2>{{ t('auth.loginTitle') }}</h2>
       </div>
+      <div class="product-switcher">
+        <span class="product-btn active">
+          <span class="product-icon">&#x1F465;</span> HR
+        </span>
+        <a href="https://finance.halaos.com/login" class="product-btn">
+          <span class="product-icon">&#x1F4B0;</span> Finance
+        </a>
+      </div>
       <NForm ref="formRef" :model="form" :rules="rules">
         <NFormItem path="email" :label="t('auth.email')">
           <NInput
@@ -139,6 +147,41 @@ async function handleLogin() {
   font-weight: 500;
   color: #64748b;
   margin: 0;
+}
+.product-switcher {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 28px;
+}
+.product-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 24px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+  border: 2px solid #e2e8f0;
+  color: #64748b;
+  background: #f8fafc;
+  cursor: pointer;
+}
+.product-btn:hover {
+  border-color: #a5b4fc;
+  color: #4f46e5;
+  background: #f5f3ff;
+}
+.product-btn.active {
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: #fff;
+  border-color: transparent;
+  cursor: default;
+}
+.product-icon {
+  font-size: 16px;
 }
 .auth-footer {
   text-align: center;
