@@ -4,11 +4,11 @@
     <section class="hero">
       <div class="container">
         <div class="hero-content">
-          <div class="hero-badge">Free HR & Payroll for Southeast Asia</div>
-          <h1>Stop paying for <span class="gradient-text">HR software</span></h1>
+          <div class="hero-badge">Free HR, Payroll, Accounting & Tax for Southeast Asia</div>
+          <h1>One platform for <span class="gradient-text">HR &amp; Finance</span></h1>
           <p class="hero-sub">
-            HalaOS gives you full HR management, automated payroll, and BIR/IRAS tax compliance
-            in one platform — completely free. Built for businesses in the Philippines and Singapore.
+            HalaOS gives you complete HR management, automated payroll, full accounting,
+            and BIR/IRAS tax compliance — all in one platform, completely free. Built for businesses in the Philippines and Singapore.
           </p>
           <div class="hero-actions">
             <router-link to="/register" class="btn-primary">Get Started Free</router-link>
@@ -28,6 +28,49 @@
             <span class="proof-label">{{ stat.label }}</span>
           </div>
         </div>
+      </div>
+    </section>
+
+    <!-- Two Products -->
+    <section class="products-section">
+      <div class="container">
+        <h2 class="section-title">Two powerful products, one platform</h2>
+        <p class="section-sub">HalaOS combines HR and Finance into a unified experience. Use them together or independently.</p>
+        <div class="products-grid">
+          <div class="product-card product-hr">
+            <div class="product-icon-wrap">
+              <span class="product-icon-lg">&#x1F465;</span>
+            </div>
+            <h3>HalaOS <span class="product-label">HR</span></h3>
+            <p class="product-desc">Complete employee lifecycle management — from hiring to retirement.</p>
+            <ul class="product-features">
+              <li>Employee management &amp; 201 files</li>
+              <li>Automated payroll with tax calculations</li>
+              <li>Leave, attendance &amp; scheduling</li>
+              <li>Performance reviews &amp; training</li>
+              <li>SSS/PhilHealth/Pag-IBIG auto-computation</li>
+              <li>AI-powered HR assistant</li>
+            </ul>
+            <a href="https://hr.halaos.com/register" class="btn-primary btn-product">Start with HR</a>
+          </div>
+          <div class="product-card product-finance">
+            <div class="product-icon-wrap">
+              <span class="product-icon-lg">&#x1F4B0;</span>
+            </div>
+            <h3>HalaOS <span class="product-label">Finance</span></h3>
+            <p class="product-desc">Smart tax filing and accounting powered by AI — from bookkeeping to BIR compliance.</p>
+            <ul class="product-features">
+              <li>Transaction upload &amp; classification</li>
+              <li>Chart of accounts &amp; general ledger</li>
+              <li>Auto-generate BIR forms (2550M, 1701, etc.)</li>
+              <li>Financial statements &amp; reports</li>
+              <li>Bank reconciliation</li>
+              <li>AI tax assistant &amp; filing agents</li>
+            </ul>
+            <a href="https://finance.halaos.com/login" class="btn-primary btn-product">Start with Finance</a>
+          </div>
+        </div>
+        <p class="products-note">Both products share the same account. Data flows seamlessly between HR payroll and Finance accounting.</p>
       </div>
     </section>
 
@@ -66,8 +109,8 @@
     <!-- Features -->
     <section class="features" id="features-preview">
       <div class="container">
-        <h2 class="section-title">Everything you need to run HR</h2>
-        <p class="section-sub">From hiring to retirement, HalaOS covers the complete employee lifecycle.</p>
+        <h2 class="section-title">Everything you need to run your business</h2>
+        <p class="section-sub">From hiring to tax filing, HalaOS covers the complete HR and finance lifecycle.</p>
         <div class="features-grid">
           <div v-for="f in features" :key="f.title" class="feature-card">
             <div class="feature-icon">{{ f.icon }}</div>
@@ -99,8 +142,8 @@
           <div class="ai-text">
             <h2>Powered by <span class="gradient-text">AI Intelligence</span></h2>
             <p>
-              HalaOS uses AI to automate repetitive HR tasks,
-              provide predictive workforce analytics, and ensure compliance
+              HalaOS uses AI across both HR and Finance to automate repetitive tasks,
+              provide predictive analytics, and ensure compliance
               with local regulations across multiple jurisdictions.
             </p>
             <ul class="ai-features">
@@ -109,7 +152,14 @@
           </div>
           <div class="ai-visual">
             <div class="ai-card">
-              <div class="ai-card-header">AI Assistant</div>
+              <div class="ai-card-header">AI Assistant &middot; Finance</div>
+              <div class="ai-card-body">
+                <div class="ai-msg ai-msg-user">Prepare my 2550M for January</div>
+                <div class="ai-msg ai-msg-bot">Generated BIR Form 2550M for January 2026. Total sales: P2,450,000. VAT payable: P294,000. 3 input tax credits applied. Ready for filing.</div>
+              </div>
+            </div>
+            <div class="ai-card" style="margin-top: 16px;">
+              <div class="ai-card-header">AI Assistant &middot; HR</div>
               <div class="ai-card-body">
                 <div class="ai-msg ai-msg-user">Compute 13th month pay for all employees</div>
                 <div class="ai-msg ai-msg-bot">Computed 13th month pay for 45 employees. Total: P1,234,567. 3 employees have pro-rated amounts due to mid-year hire dates.</div>
@@ -124,7 +174,7 @@
     <section class="comparison-section">
       <div class="container">
         <h2 class="section-title">Why choose HalaOS?</h2>
-        <p class="section-sub">The only platform that combines HR, payroll, and tax compliance — for free.</p>
+        <p class="section-sub">The only platform that combines HR, payroll, accounting, and tax compliance — for free.</p>
         <div class="compare-table-wrap">
           <table class="compare-table">
             <thead>
@@ -175,12 +225,13 @@
         <div class="free-card">
           <div class="free-price">$0</div>
           <h2>Free forever</h2>
-          <p>Full HR, payroll, and tax compliance — no limits, no catch. Upgrade to Pro only when you need advanced features.</p>
+          <p>Full HR, payroll, accounting, and tax compliance — no limits, no catch. Upgrade to Pro only when you need advanced features.</p>
           <ul class="free-perks">
             <li>Unlimited employees</li>
             <li>Full payroll with tax calculations</li>
-            <li>BIR &amp; IRAS form generation</li>
-            <li>AI-powered insights</li>
+            <li>Complete accounting &amp; general ledger</li>
+            <li>BIR &amp; IRAS form auto-generation</li>
+            <li>AI-powered insights for HR &amp; Finance</li>
             <li>Leave &amp; attendance tracking</li>
           </ul>
           <div class="free-actions">
@@ -195,7 +246,7 @@
     <section class="cta-section">
       <div class="container">
         <h2>Join businesses across Southeast Asia</h2>
-        <p>Stop overpaying for HR software. Start with HalaOS for free today.</p>
+        <p>Stop overpaying for HR and accounting software. Start with HalaOS for free today.</p>
         <router-link to="/register" class="btn-primary btn-lg">Create Free Account</router-link>
       </div>
     </section>
@@ -206,21 +257,21 @@
 import { useHead } from '@unhead/vue'
 
 useHead({
-  title: 'HalaOS - Free HR, Payroll & Tax Software for Philippines & Singapore',
+  title: 'HalaOS - Free HR, Payroll, Accounting & Tax Software for Philippines & Singapore',
   meta: [
-    { name: 'description', content: 'Free HR management, payroll processing, and BIR/IRAS tax compliance for businesses in the Philippines and Singapore. No credit card, no limits. Get started in 2 minutes.' },
-    { property: 'og:title', content: 'HalaOS - Free HR, Payroll & Tax Software for Philippines & Singapore' },
-    { property: 'og:description', content: 'Free HR, payroll & tax compliance for Southeast Asian businesses. BIR forms, CPF, SSS auto-calculations. Start in 2 minutes.' },
+    { name: 'description', content: 'Free HR management, payroll, accounting, and BIR/IRAS tax compliance for businesses in the Philippines and Singapore. Two products — HR & Finance — one platform. No credit card, no limits.' },
+    { property: 'og:title', content: 'HalaOS - Free HR, Payroll, Accounting & Tax Software' },
+    { property: 'og:description', content: 'Free HR, payroll, accounting & tax compliance for Southeast Asian businesses. BIR forms, CPF, SSS auto-calculations. Two products, one platform.' },
     { property: 'og:url', content: 'https://halaos.com/' },
-    { name: 'keywords', content: 'free HR software philippines, free payroll software philippines, BIR compliance software, IRAS filing software, CPF calculator, SSS contribution calculator, HR software singapore, payroll philippines free' },
+    { name: 'keywords', content: 'free HR software philippines, free payroll software philippines, free accounting software philippines, BIR compliance software, IRAS filing software, CPF calculator, SSS contribution calculator, HR software singapore, payroll philippines free, tax filing software, bookkeeping software free' },
   ],
 })
 
 const stats = [
   { num: '4', label: 'Countries Supported' },
-  { num: '100%', label: 'Free Core Features' },
+  { num: '2', label: 'Products (HR + Finance)' },
   { num: '50+', label: 'BIR/Tax Forms Automated' },
-  { num: '2 min', label: 'Setup Time' },
+  { num: '100%', label: 'Free Core Features' },
 ]
 
 const pains = [
@@ -228,25 +279,25 @@ const pains = [
     icon: '😩',
     title: 'Spending hours on manual payroll?',
     desc: 'Computing SSS, PhilHealth, Pag-IBIG, and withholding tax for each employee in Excel is error-prone and time-consuming.',
-    solution: 'HalaOS auto-calculates everything in one click.',
+    solution: 'HalaOS HR auto-calculates everything in one click.',
   },
   {
     icon: '😰',
     title: 'Stressed about BIR deadlines?',
     desc: 'Filing 2550M monthly, 1601C, 2316 year-end — miss a deadline and face penalties.',
-    solution: 'HalaOS auto-generates all BIR forms from your payroll data.',
+    solution: 'HalaOS Finance auto-generates all BIR forms from your data.',
   },
   {
     icon: '💸',
-    title: 'Paying too much for HR software?',
-    desc: 'Sprout Solutions, GreatDay, Swingvy — they all charge per employee. It adds up fast.',
-    solution: 'HalaOS gives you everything for free. Really.',
+    title: 'Paying too much for separate tools?',
+    desc: 'One system for HR, another for payroll, another for accounting, another for tax filing. Costs add up fast.',
+    solution: 'HalaOS gives you HR + Finance in one platform, for free.',
   },
   {
     icon: '🔀',
-    title: 'Juggling multiple tools?',
-    desc: 'One system for HR, another for payroll, another for tax filing, another for accounting.',
-    solution: 'HalaOS unifies HR + Payroll + Tax + Accounting in one platform.',
+    title: 'Disconnected HR and accounting?',
+    desc: 'Payroll data in HR doesn\'t flow to accounting. Manual journal entries, reconciliation nightmares.',
+    solution: 'HalaOS connects HR payroll directly to Finance accounting.',
   },
 ]
 
@@ -292,34 +343,38 @@ const countryDetails = [
 const features = [
   { icon: '👥', title: 'HR Management', desc: 'Complete employee lifecycle — from onboarding and 201 files to offboarding and final pay.' },
   { icon: '💰', title: 'Payroll Processing', desc: 'One-click payroll with auto tax calculations, statutory deductions, and digital payslips.' },
+  { icon: '📒', title: 'Accounting & GL', desc: 'Chart of accounts, journal entries, general ledger, and financial statements — all automated.' },
   { icon: '📊', title: 'Tax & Compliance', desc: 'Auto-generate BIR forms, IRAS filings, EPF/ETF, and stay compliant with local regulations.' },
-  { icon: '🤖', title: 'AI-Powered Insights', desc: 'Natural language HR queries, automated compliance monitoring, and predictive analytics.' },
+  { icon: '🤖', title: 'AI-Powered Insights', desc: 'Natural language queries for HR and Finance, automated compliance monitoring, and predictive analytics.' },
   { icon: '📅', title: 'Time & Attendance', desc: 'GPS clock-in, geofencing, shift scheduling, overtime tracking, and DTR reports.' },
+  { icon: '🧾', title: 'Invoices & Receipts', desc: 'Upload receipts, manage invoices, classify transactions, and track vendor spending.' },
   { icon: '🎯', title: 'Performance & Goals', desc: 'KPI tracking, performance reviews, OKRs, training management, and career development.' },
 ]
 
 const steps = [
-  { title: 'Sign Up Free', desc: 'Create your account in 30 seconds. No credit card, no commitment.' },
-  { title: 'Setup Your Company', desc: 'Add departments, import employees via CSV, and configure leave policies.' },
-  { title: 'Run Payroll', desc: 'Process payroll in one click. Tax forms are auto-generated for filing.' },
+  { title: 'Sign Up Free', desc: 'Create your account in 30 seconds. No credit card, no commitment. Access both HR and Finance.' },
+  { title: 'Choose Your Product', desc: 'Start with HR for people management, Finance for accounting, or both. Switch anytime.' },
+  { title: 'Run Your Business', desc: 'Process payroll, generate tax forms, manage employees, and track finances — all from one place.' },
 ]
 
 const aiFeatures = [
-  'Natural language HR queries — "Show me employees with expiring contracts"',
-  'Auto-compute 13th month pay, final pay, separation pay',
-  'BIR compliance monitoring & deadline reminders',
-  'Workforce analytics & flight risk detection',
-  'AI-assisted onboarding workflows',
+  'HR: Natural language queries — "Show me employees with expiring contracts"',
+  'Finance: Auto-classify transactions and map to chart of accounts',
+  'HR: Auto-compute 13th month pay, final pay, separation pay',
+  'Finance: Generate BIR forms from GL data with one click',
+  'Both: Compliance monitoring & deadline reminders across HR and tax',
+  'Both: AI agents for filing, reconciliation, and journal entries',
 ]
 
 const compareRows = [
   { feature: 'Starting price', halaos: 'Free', sprout: '~P50/emp/mo', swingvy: '~S$5/emp/mo', juantax: 'Free (tax only)' },
   { feature: 'HR Management', halaos: 'Full', sprout: 'Full', swingvy: 'Full', juantax: 'None' },
   { feature: 'Payroll', halaos: 'Full', sprout: 'Full', swingvy: 'Basic', juantax: 'None' },
+  { feature: 'Accounting & GL', halaos: 'Full', sprout: 'No', swingvy: 'No', juantax: 'Basic' },
   { feature: 'Tax Filing (BIR)', halaos: 'Auto-generate', sprout: 'Yes', swingvy: 'No', juantax: 'Yes' },
   { feature: 'Tax Filing (IRAS)', halaos: 'Yes', sprout: 'No', swingvy: 'Yes', juantax: 'No' },
-  { feature: 'Accounting', halaos: 'Included', sprout: 'No', swingvy: 'No', juantax: 'Basic' },
-  { feature: 'AI Features', halaos: 'Included', sprout: 'No', swingvy: 'No', juantax: 'No' },
+  { feature: 'HR ↔ Accounting Integration', halaos: 'Built-in', sprout: 'No', swingvy: 'No', juantax: 'No' },
+  { feature: 'AI Features', halaos: 'HR + Finance', sprout: 'No', swingvy: 'No', juantax: 'No' },
   { feature: 'Multi-country', halaos: '4 countries', sprout: 'PH only', swingvy: 'SG/MY', juantax: 'PH only' },
   { feature: 'Employee limit', halaos: 'Unlimited', sprout: 'Plan-based', swingvy: 'Plan-based', juantax: 'N/A' },
 ]
@@ -367,7 +422,7 @@ const toolLinks = [
   letter-spacing: -1px;
 }
 .gradient-text {
-  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -392,7 +447,7 @@ const toolLinks = [
 /* Buttons */
 .btn-primary {
   display: inline-block;
-  background: #4f46e5;
+  background: #2563eb;
   color: #fff;
   font-weight: 600;
   font-size: 15px;
@@ -401,7 +456,7 @@ const toolLinks = [
   text-decoration: none;
   transition: background 0.2s;
 }
-.btn-primary:hover { background: #4338ca; }
+.btn-primary:hover { background: #1d4ed8; }
 .btn-outline {
   display: inline-block;
   border: 1.5px solid #e2e8f0;
@@ -413,7 +468,7 @@ const toolLinks = [
   text-decoration: none;
   transition: all 0.2s;
 }
-.btn-outline:hover { border-color: #4f46e5; color: #4f46e5; }
+.btn-outline:hover { border-color: #2563eb; color: #2563eb; }
 .btn-lg { padding: 14px 36px; font-size: 16px; }
 .btn-text {
   color: #64748b;
@@ -422,7 +477,7 @@ const toolLinks = [
   font-weight: 500;
   margin-left: 16px;
 }
-.btn-text:hover { color: #4f46e5; }
+.btn-text:hover { color: #2563eb; }
 
 /* Social Proof */
 .social-proof {
@@ -443,13 +498,97 @@ const toolLinks = [
   display: block;
   font-size: 32px;
   font-weight: 800;
-  color: #4f46e5;
+  color: #2563eb;
   letter-spacing: -0.5px;
 }
 .proof-label {
   font-size: 14px;
   color: #64748b;
   margin-top: 4px;
+}
+
+/* Products Section */
+.products-section {
+  padding: 80px 0;
+  background: #f8fafc;
+}
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 32px;
+  margin-top: 48px;
+}
+.product-card {
+  background: #fff;
+  border: 2px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 36px 32px;
+  transition: all 0.3s;
+}
+.product-card:hover {
+  box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+  transform: translateY(-2px);
+}
+.product-hr:hover { border-color: #2563eb; }
+.product-finance:hover { border-color: #7c3aed; }
+.product-icon-wrap {
+  margin-bottom: 16px;
+}
+.product-icon-lg { font-size: 40px; }
+.product-card h3 {
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 8px;
+}
+.product-label {
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 6px;
+  font-size: 14px;
+}
+.product-hr .product-label {
+  background: #dbeafe;
+  color: #2563eb;
+}
+.product-finance .product-label {
+  background: #ede9fe;
+  color: #7c3aed;
+}
+.product-desc {
+  color: #64748b;
+  font-size: 15px;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+.product-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px;
+}
+.product-features li {
+  padding: 6px 0;
+  color: #334155;
+  font-size: 14px;
+}
+.product-features li::before {
+  content: '\2713';
+  color: #2563eb;
+  font-weight: 700;
+  margin-right: 8px;
+}
+.product-finance .product-features li::before {
+  color: #7c3aed;
+}
+.btn-product {
+  display: inline-block;
+  width: auto;
+}
+.products-note {
+  text-align: center;
+  color: #64748b;
+  font-size: 14px;
+  margin-top: 24px;
 }
 
 /* Pain Points */
@@ -486,7 +625,7 @@ const toolLinks = [
 .pain-solution {
   font-size: 14px;
   font-weight: 600;
-  color: #4f46e5;
+  color: #2563eb;
   margin-top: 12px;
 }
 
@@ -526,7 +665,7 @@ const toolLinks = [
 }
 .country-card li::before {
   content: '\2713';
-  color: #4f46e5;
+  color: #2563eb;
   font-weight: 700;
   margin-right: 6px;
 }
@@ -551,8 +690,8 @@ const toolLinks = [
 .features { padding: 80px 0; }
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 28px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
 }
 .feature-card {
   background: #fff;
@@ -564,7 +703,7 @@ const toolLinks = [
 .feature-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
 .feature-icon { font-size: 32px; margin-bottom: 12px; }
 .feature-card h3 {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
   color: #0f172a;
   margin: 0 0 8px;
@@ -594,7 +733,7 @@ const toolLinks = [
 .step-num {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
   color: #fff;
   font-size: 20px;
   font-weight: 700;
@@ -623,7 +762,7 @@ const toolLinks = [
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 48px;
-  align-items: center;
+  align-items: start;
 }
 .ai-text h2 {
   font-size: 36px;
@@ -649,7 +788,7 @@ const toolLinks = [
 }
 .ai-features li::before {
   content: '\2713';
-  color: #4f46e5;
+  color: #2563eb;
   font-weight: 700;
   margin-right: 10px;
 }
@@ -680,7 +819,7 @@ const toolLinks = [
   max-width: 85%;
 }
 .ai-msg-user {
-  background: #4f46e5;
+  background: #2563eb;
   color: #fff;
   align-self: flex-end;
 }
@@ -725,7 +864,7 @@ const toolLinks = [
   color: #334155;
 }
 .compare-table td { color: #475569; }
-.highlight-col { background: #eef2ff; }
+.highlight-col { background: #eff6ff; }
 
 /* Tools CTA */
 .tools-cta {
@@ -768,8 +907,8 @@ const toolLinks = [
   transition: all 0.2s;
 }
 .tool-link:hover {
-  border-color: #4f46e5;
-  box-shadow: 0 2px 8px rgba(79,70,229,0.1);
+  border-color: #2563eb;
+  box-shadow: 0 2px 8px rgba(37,99,235,0.1);
 }
 .tool-icon { font-size: 24px; }
 
@@ -783,15 +922,15 @@ const toolLinks = [
   margin: 0 auto;
   text-align: center;
   background: #fff;
-  border: 2px solid #4f46e5;
+  border: 2px solid #2563eb;
   border-radius: 16px;
   padding: 48px 40px;
-  box-shadow: 0 4px 24px rgba(79,70,229,0.1);
+  box-shadow: 0 4px 24px rgba(37,99,235,0.1);
 }
 .free-price {
   font-size: 56px;
   font-weight: 800;
-  color: #4f46e5;
+  color: #2563eb;
   line-height: 1;
   margin-bottom: 8px;
 }
@@ -821,7 +960,7 @@ const toolLinks = [
 }
 .free-perks li::before {
   content: '\2713';
-  color: #4f46e5;
+  color: #2563eb;
   font-weight: 700;
   margin-right: 10px;
 }
@@ -835,7 +974,7 @@ const toolLinks = [
 .cta-section {
   padding: 80px 0;
   text-align: center;
-  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
   color: #fff;
 }
 .cta-section h2 {
@@ -850,7 +989,7 @@ const toolLinks = [
 }
 .cta-section .btn-primary {
   background: #fff;
-  color: #4f46e5;
+  color: #2563eb;
 }
 .cta-section .btn-primary:hover { background: #f1f5f9; }
 
@@ -861,10 +1000,11 @@ const toolLinks = [
   .hero-actions { flex-direction: column; align-items: center; }
   .proof-row { gap: 32px; }
   .pain-grid,
-  .features-grid,
   .steps-row {
     grid-template-columns: 1fr;
   }
+  .products-grid { grid-template-columns: 1fr; }
+  .features-grid { grid-template-columns: 1fr 1fr; }
   .countries-grid { grid-template-columns: 1fr 1fr; }
   .ai-content,
   .tools-cta-content {
@@ -878,6 +1018,7 @@ const toolLinks = [
 
 @media (max-width: 480px) {
   .countries-grid { grid-template-columns: 1fr; }
+  .features-grid { grid-template-columns: 1fr; }
   .proof-row { gap: 24px; }
 }
 </style>
