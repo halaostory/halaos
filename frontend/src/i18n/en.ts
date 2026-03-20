@@ -199,6 +199,7 @@ export default {
     fieldRequired: "This field is required",
     companyPlaceholder: "Your Company Inc.",
     country: "Country",
+    selectCountry: "Select Your Country",
     checkEmail: "Check your email",
     verificationSent:
       "We've sent a verification link to your email address. Please click the link to activate your account.",

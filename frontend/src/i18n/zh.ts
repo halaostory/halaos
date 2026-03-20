@@ -199,6 +199,7 @@ export default {
     fieldRequired: "此字段为必填",
     companyPlaceholder: "您的公司名称",
     country: "国家",
+    selectCountry: "选择国家",
     checkEmail: "请查看邮箱",
     verificationSent:
       "我们已向您的邮箱发送了验证链接，请点击链接激活您的账户。",

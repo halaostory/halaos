@@ -16,6 +16,14 @@ const formRef = ref<FormInst | null>(null)
 const form = ref({ email: '', password: '' })
 const loading = ref(false)
 
+const selectedJurisdiction = ref('PH')
+
+const jurisdictions = [
+  { code: 'PH', name: 'Philippines' },
+  { code: 'SG', name: 'Singapore' },
+  { code: 'LK', name: 'Sri Lanka' },
+]
+
 const rules = computed<FormRules>(() => ({
   email: [
     { required: true, message: t('auth.fieldRequired'), trigger: ['blur', 'input'] },
@@ -68,6 +76,23 @@ async function handleLogin() {
           <span class="product-icon">&#x1F4B0;</span> Finance
         </a>
       </div>
+      <div class="jurisdiction-selector">
+        <p class="jurisdiction-label">{{ t('auth.selectCountry') }}</p>
+        <div class="jurisdiction-options">
+          <button
+            v-for="j in jurisdictions"
+            :key="j.code"
+            type="button"
+            class="jurisdiction-btn"
+            :class="{ active: selectedJurisdiction === j.code }"
+            @click="selectedJurisdiction = j.code"
+            :data-testid="'jurisdiction-' + j.code.toLowerCase()"
+          >
+            <span class="flag">{{ j.code }}</span>
+            <span class="country-name">{{ j.name }}</span>
+          </button>
+        </div>
+      </div>
       <NForm ref="formRef" :model="form" :rules="rules">
         <NFormItem path="email" :label="t('auth.email')">
           <NInput
@@ -75,6 +100,7 @@ async function handleLogin() {
             placeholder="email@company.com"
             autocomplete="username email"
             :input-props="{ type: 'email' }"
+            data-testid="email-input"
           />
         </NFormItem>
         <NFormItem path="password" :label="t('auth.password')">
@@ -84,9 +110,17 @@ async function handleLogin() {
             show-password-on="click"
             :placeholder="t('auth.password')"
             autocomplete="current-password"
+            data-testid="password-input"
           />
         </NFormItem>
-        <NButton type="primary" block :loading="loading" style="margin-top: 8px;" @click.prevent="handleLogin">
+        <NButton
+          type="primary"
+          block
+          :loading="loading"
+          style="margin-top: 8px;"
+          data-testid="login-submit"
+          @click.prevent="handleLogin"
+        >
           {{ t('auth.login') }}
         </NButton>
       </NForm>
@@ -128,7 +162,7 @@ async function handleLogin() {
 .logo-icon {
   width: 36px;
   height: 36px;
-  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
   color: #fff;
   border-radius: 10px;
   display: flex;
@@ -170,18 +204,78 @@ async function handleLogin() {
   cursor: pointer;
 }
 .product-btn:hover {
-  border-color: #a5b4fc;
-  color: #4f46e5;
-  background: #f5f3ff;
+  border-color: #93c5fd;
+  color: #2563eb;
+  background: #eff6ff;
 }
 .product-btn.active {
-  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
   color: #fff;
   border-color: transparent;
   cursor: default;
 }
 .product-icon {
   font-size: 16px;
+}
+.jurisdiction-selector {
+  margin-bottom: 24px;
+}
+.jurisdiction-label {
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-secondary, #64748b);
+  margin-bottom: 10px;
+}
+.jurisdiction-options {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+.jurisdiction-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 24px;
+  border: 2px solid var(--border-default, #e5e7eb);
+  border-radius: 12px;
+  background: var(--bg-surface, #fff);
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 100px;
+}
+.jurisdiction-btn:hover {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+.jurisdiction-btn.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  box-shadow: 0 0 0 1px #2563eb;
+}
+.jurisdiction-btn .flag {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1e3a5f;
+  margin-bottom: 4px;
+}
+.jurisdiction-btn .country-name {
+  font-size: 12px;
+  color: var(--text-secondary, #555);
+}
+@media (max-width: 768px) {
+  .jurisdiction-options {
+    gap: 8px;
+  }
+  .jurisdiction-btn {
+    padding: 10px 16px;
+    min-width: 80px;
+  }
+  .jurisdiction-btn .flag {
+    font-size: 20px;
+  }
+  .jurisdiction-btn .country-name {
+    font-size: 11px;
+  }
 }
 .auth-footer {
   text-align: center;
@@ -192,7 +286,7 @@ async function handleLogin() {
   color: #64748b;
 }
 .auth-footer a {
-  color: #4f46e5;
+  color: #2563eb;
   font-weight: 600;
   text-decoration: none;
   margin-left: 4px;
