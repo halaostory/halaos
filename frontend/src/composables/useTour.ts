@@ -3,11 +3,17 @@ import "driver.js/dist/driver.css";
 import { useAuthStore } from "../stores/auth";
 import { useI18n } from "vue-i18n";
 
-const TOUR_DONE_KEY = "aigonhr_tour_done";
+const TOUR_DONE_KEY = "halaos_tour_done";
 
 export function useTour() {
   const auth = useAuthStore();
   const { t } = useI18n();
+
+  // Migrate old key for existing users
+  if (localStorage.getItem("aigonhr_tour_done") === "true") {
+    localStorage.setItem(TOUR_DONE_KEY, "true");
+    localStorage.removeItem("aigonhr_tour_done");
+  }
 
   function hasDoneTour(): boolean {
     return localStorage.getItem(TOUR_DONE_KEY) === "true";

@@ -62,6 +62,7 @@ type briefingAlert struct {
 type briefingResponse struct {
 	Greeting             string             `json:"greeting"`
 	Date                 string             `json:"date"`
+	DayOfWeek            string             `json:"day_of_week"`
 	Schedule             *scheduleItem      `json:"schedule"`
 	LeaveBalances        []leaveBalanceItem `json:"leave_balances"`
 	NextPayday           *payrollInfo       `json:"next_payday"`
@@ -87,8 +88,10 @@ func (h *Handler) GetBriefing(c *gin.Context) {
 		h.logger.Warn("briefing: employee not found for user", "user_id", userID, "err", err)
 		// Admin/manager users may not have an employee record — return basic briefing
 		basicBriefing := briefingResponse{
-			Greeting: "Good morning!",
-			Date:     today.Format("2006-01-02"),
+			Greeting:      "Good morning!",
+			Date:          today.Format("2006-01-02"),
+			DayOfWeek:     today.Weekday().String(),
+			LeaveBalances: []leaveBalanceItem{},
 		}
 		if role == auth.RoleSuperAdmin || role == auth.RoleAdmin || role == auth.RoleManager {
 			basicBriefing.Manager = h.fetchManagerBriefing(ctx, companyID, today)
@@ -126,6 +129,7 @@ func (h *Handler) GetBriefing(c *gin.Context) {
 	briefing := briefingResponse{
 		Greeting:             greeting,
 		Date:                 today.Format("2006-01-02"),
+		DayOfWeek:            today.Weekday().String(),
 		Schedule:             schedule,
 		LeaveBalances:        leaveBalances,
 		NextPayday:           nextPayday,
@@ -170,7 +174,7 @@ func (h *Handler) fetchLeaveBalances(ctx context.Context, companyID, employeeID 
 		Year:       int32(today.Year()),
 	})
 	if err != nil {
-		return nil
+		return []leaveBalanceItem{}
 	}
 	items := make([]leaveBalanceItem, 0, len(balances))
 	for _, b := range balances {
@@ -199,6 +203,7 @@ func (h *Handler) fetchNextPayday(ctx context.Context, companyID int64, today ti
 		SELECT name, period_start, period_end, pay_date, status
 		FROM payroll_cycles
 		WHERE company_id = $1 AND pay_date >= $2::date
+		  AND status NOT IN ('completed', 'cancelled', 'paid')
 		ORDER BY pay_date ASC
 		LIMIT 1
 	`, companyID, today).Scan(&name, &periodStart, &periodEnd, &payDate, &status)
@@ -250,7 +255,7 @@ func (h *Handler) fetchManagerBriefing(ctx context.Context, companyID int64, tod
 	err := h.pool.QueryRow(ctx, `
 		SELECT name, period_start, period_end, pay_date, status
 		FROM payroll_cycles
-		WHERE company_id = $1 AND status NOT IN ('completed', 'cancelled')
+		WHERE company_id = $1 AND status NOT IN ('completed', 'cancelled', 'paid')
 		ORDER BY pay_date ASC
 		LIMIT 1
 	`, companyID).Scan(&pName, &pStart, &pEnd, &pPayDate, &pStatus)

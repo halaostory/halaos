@@ -178,7 +178,7 @@ onMounted(async () => {
       <!-- Header: Greeting + Schedule + Payday -->
       <div style="margin-bottom: 16px;">
         <div style="display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 600; margin-bottom: 4px;">
-          <span>{{ briefing.greeting }}! {{ t('briefing.todayIs') }} {{ t(`briefing.${briefing.day_of_week.toLowerCase()}`) }}, {{ formattedDate }}</span>
+          <span>{{ briefing.greeting }}! {{ t('briefing.todayIs') }} {{ t(`briefing.${(briefing.day_of_week || '').toLowerCase()}`) }}, {{ formattedDate }}</span>
           <NTag size="small" :bordered="false" type="info">{{ t('briefing.aiPowered') }}</NTag>
         </div>
         <div style="font-size: 14px; color: #666; display: flex; flex-wrap: wrap; gap: 16px;">
@@ -222,7 +222,7 @@ onMounted(async () => {
         <NGi span="0:1">
           <div>
             <!-- Leave Balances -->
-            <div v-if="briefing.leave_balances.length > 0" style="margin-bottom: 12px;">
+            <div v-if="briefing.leave_balances && briefing.leave_balances.length > 0" style="margin-bottom: 12px;">
               <div style="font-weight: 600; font-size: 14px; margin-bottom: 8px;">{{ t('briefing.leaveBalances') }}:</div>
               <NSpace>
                 <NTag
@@ -324,7 +324,7 @@ onMounted(async () => {
           </NGrid>
 
           <!-- Manager Alerts -->
-          <div v-if="briefing.manager.alerts.length > 0" style="margin-top: 12px;">
+          <div v-if="briefing.manager.alerts && briefing.manager.alerts.length > 0" style="margin-top: 12px;">
             <NAlert
               v-for="(alert, idx) in briefing.manager.alerts"
               :key="idx"
