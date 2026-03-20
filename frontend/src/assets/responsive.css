@@ -1,0 +1,178 @@
+/* ==========================================================
+   Global Responsive Utilities for AIStarlight
+   Applied via main.ts — handles tables, forms, grids, cards
+   ========================================================== */
+
+/* --- Responsive Tables --- */
+@media (max-width: 768px) {
+  /* Make tables horizontally scrollable */
+  .table-wrapper,
+  .ledger-table-wrapper,
+  .data-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -12px;
+    padding: 0 12px;
+  }
+
+  table {
+    min-width: 600px;
+  }
+
+  /* Reduce table cell padding on mobile */
+  table th,
+  table td {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  /* Stack page headers */
+  .page-header {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .page-header h1 {
+    font-size: 20px;
+  }
+
+  /* Stack action bars */
+  .action-bar,
+  .toolbar,
+  .filter-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Grid responsiveness: 1 column on mobile */
+  .stat-grid,
+  .stats-grid,
+  .card-grid,
+  .check-grid,
+  .quick-actions {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* 2 columns for small cards */
+  .metric-grid,
+  .summary-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Stack filters vertically */
+  .filters,
+  .filter-row,
+  .ledger-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filters select,
+  .filters input,
+  .filter-row select,
+  .filter-row input,
+  .filter-group select,
+  .filter-group input {
+    width: 100%;
+  }
+
+  /* Tabs: scrollable on mobile */
+  .tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+  }
+
+  .tab-btn,
+  .tabs button {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Modal/dialog responsive */
+  .modal-content,
+  .dialog-content {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    max-height: 90vh;
+    margin: 16px;
+  }
+
+  /* Form layouts: full width inputs */
+  .form-row,
+  .form-grid {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .form-row > *,
+  .form-grid > * {
+    width: 100%;
+  }
+
+  /* Pagination compact */
+  .pagination {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .pagination button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  /* Hide less important columns on mobile */
+  .hide-mobile {
+    display: none;
+  }
+}
+
+/* --- Small phone (< 480px) --- */
+@media (max-width: 480px) {
+  .content {
+    padding: 8px;
+  }
+
+  .metric-grid,
+  .summary-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Even smaller text */
+  table th,
+  table td {
+    padding: 4px 6px;
+    font-size: 11px;
+  }
+}
+
+/* --- Touch-friendly targets --- */
+@media (pointer: coarse) {
+  button,
+  .btn,
+  select,
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="date"],
+  input[type="search"],
+  textarea,
+  select {
+    font-size: 16px; /* prevents iOS zoom */
+  }
+}
+
+/* --- Safe area insets for notched devices --- */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .app {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

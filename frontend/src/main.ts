@@ -7,6 +7,7 @@ import router from "./router";
 import en from "./i18n/en";
 import zh from "./i18n/zh";
 import "./style.css";
+import "./assets/responsive.css";
 
 const i18n = createI18n({
   legacy: false,
