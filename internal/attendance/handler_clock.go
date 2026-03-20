@@ -255,7 +255,8 @@ func (h *Handler) GetSummary(c *gin.Context) {
 		CompanyID: companyID,
 	})
 	if err != nil {
-		response.NotFound(c, "Employee record not found")
+		// Admin/manager users may not have an employee record — return null summary
+		response.OK(c, nil)
 		return
 	}
 

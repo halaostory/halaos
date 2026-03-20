@@ -28,3 +28,10 @@ PH/LK/SG HR system — employees, attendance, leave, payroll, compliance, benefi
 - **AIStarlight endpoint**: POST `/api/v1/webhooks/aigonhr` (HMAC-signed)
 - **Export APIs** (backfill): `/api/v1/integrations/accounting/export/employees`, `/export/payroll-runs`
 - **JWT**: Shared signing secret `INTEGRATION_JWT_SECRET` for cross-app SSO
+
+## gstack
+
+Use the `/browse` skill from gstack for all web browsing. **Never use `mcp__claude-in-chrome__*` tools.**
+
+### Available Skills
+`/office-hours`, `/plan-ceo-review`, `/plan-eng-review`, `/plan-design-review`, `/design-consultation`, `/review`, `/ship`, `/browse`, `/qa`, `/qa-only`, `/design-review`, `/setup-browser-cookies`, `/retro`, `/investigate`, `/document-release`, `/codex`, `/careful`, `/freeze`, `/guard`, `/unfreeze`, `/gstack-upgrade`

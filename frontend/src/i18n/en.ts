@@ -654,6 +654,20 @@ export default {
       ratingMapHint:
         "Rating to multiplier mapping (e.g. 5=1.5x, 4=1.2x, 3=1.0x, 2=0.5x, 1=0x)",
     },
+    thirteenth: {
+      title: "13th Month Pay",
+      employeeName: "Employee Name",
+      monthsWorked: "Months Worked",
+      totalBasic: "Total Basic Pay",
+      amount: "13th Month Amount",
+      taxExempt: "Tax-Exempt (₱90,000)",
+      taxable: "Taxable Excess",
+      status: "Status",
+      year: "Year",
+      calculate: "Calculate",
+      calculated: "13th month pay calculated successfully",
+      calculateFailed: "Failed to calculate 13th month pay",
+    },
   },
   salary: {
     title: "Salary Configuration",
@@ -1969,7 +1983,7 @@ export default {
     prev: "Previous",
     done: "Done",
     viewTour: "View Tutorial",
-    welcomeTitle: "Welcome to AIGoNHR!",
+    welcomeTitle: "Welcome to HalaOS!",
     welcomeDesc:
       "Your AI-powered HR management system. Let us show you around.",
     sidebarTitle: "Navigation Menu",

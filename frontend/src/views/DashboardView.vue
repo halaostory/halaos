@@ -395,8 +395,8 @@ async function handleClockOut() {
       <div style="display: flex; flex-direction: column; gap: 10px;">
         <div v-for="ann in announcements" :key="ann.id" style="padding: 10px; border-radius: 8px; background: var(--n-color-hover, #f5f5f5);">
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-            <NTag :type="ann.priority === 'urgent' ? 'error' : ann.priority === 'important' ? 'warning' : 'default'" size="small">
-              {{ ann.priority }}
+            <NTag :type="ann.priority === 'urgent' ? 'error' : ann.priority === 'important' ? 'warning' : 'info'" size="small">
+              {{ ann.priority || 'normal' }}
             </NTag>
             <span style="font-weight: 600;">{{ ann.title }}</span>
           </div>

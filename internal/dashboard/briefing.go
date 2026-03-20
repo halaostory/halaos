@@ -85,7 +85,15 @@ func (h *Handler) GetBriefing(c *gin.Context) {
 	})
 	if err != nil {
 		h.logger.Warn("briefing: employee not found for user", "user_id", userID, "err", err)
-		response.NotFound(c, "Employee record not found for the current user")
+		// Admin/manager users may not have an employee record — return basic briefing
+		basicBriefing := briefingResponse{
+			Greeting: "Good morning!",
+			Date:     today.Format("2006-01-02"),
+		}
+		if role == auth.RoleSuperAdmin || role == auth.RoleAdmin || role == auth.RoleManager {
+			basicBriefing.Manager = h.fetchManagerBriefing(ctx, companyID, today)
+		}
+		response.OK(c, basicBriefing)
 		return
 	}
 

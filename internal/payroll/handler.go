@@ -273,7 +273,8 @@ func (h *Handler) ListPayslips(c *gin.Context) {
 		CompanyID: companyID,
 	})
 	if err != nil {
-		response.NotFound(c, "Employee not found")
+		// Admin/manager users may not have an employee record — return empty list
+		response.OK(c, []any{})
 		return
 	}
 

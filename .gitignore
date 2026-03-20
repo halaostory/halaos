@@ -40,3 +40,4 @@ frontend-mobile/dist/
 
 # Go
 vendor/
+.gstack/
