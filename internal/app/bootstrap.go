@@ -232,8 +232,11 @@ func (a *App) setupRoutes() {
 
 	jwtSvc := auth.NewJWTService(a.Cfg.JWT.Secret, a.Cfg.JWT.Expiry, a.Cfg.JWT.RefreshExpiry)
 
+	// SSO service (needed by both auth handler and accounting handler)
+	acctSSO := integration.NewSSOService(a.Cfg.Integration.JWTSecret)
+
 	// Handlers
-	authHandler := auth.NewHandler(a.Queries, a.Pool, jwtSvc, a.Resend, a.Logger)
+	authHandler := auth.NewHandler(a.Queries, a.Pool, jwtSvc, a.Resend, a.Logger, a.Redis, acctSSO)
 	companyHandler := company.NewHandler(a.Queries, a.Pool, a.Logger)
 	employeeHandler := employee.NewHandler(a.Queries, a.Pool, a.Logger)
 	attendanceHandler := attendance.NewHandler(a.Queries, a.Pool, a.Logger)
@@ -241,13 +244,12 @@ func (a *App) setupRoutes() {
 	overtimeHandler := overtime.NewHandler(a.Queries, a.Pool, a.Logger)
 	payrollHandler := payroll.NewHandler(a.Queries, a.Pool, a.Logger)
 
-	// Wire accounting integration (outbox + dispatcher + SSO)
+	// Wire accounting integration (outbox + dispatcher)
 	acctEmitter := integration.NewAccountingEmitter(a.Queries, a.Logger)
 	payrollHandler.SetAccountingEmitter(acctEmitter)
 	employeeHandler.SetAccountingEmitter(acctEmitter)
 	acctDispatcher := integration.NewAccountingDispatcher(a.Queries, a.Logger)
 	go acctDispatcher.Run(context.Background())
-	acctSSO := integration.NewSSOService(a.Cfg.Integration.JWTSecret)
 	acctHandler := integration.NewAccountingHandler(a.Queries, acctSSO, a.Logger)
 	complianceHandler := compliance.NewHandler(a.Queries, a.Pool, a.Logger)
 	onboardingHandler := onboarding.NewHandler(a.Queries, a.Pool, a.Logger)
