@@ -14,10 +14,11 @@ const router = createRouter({
       component: () => import("../views/SetupWizardView.vue"),
       meta: { requiresAuth: true, roles: ["super_admin", "admin"] },
     },
-    // Public marketing pages
+    // Public marketing pages (guest only)
     {
       path: "/",
       component: () => import("../components/PublicLayout.vue"),
+      meta: { guestOnly: true },
       children: [
         {
           path: "",
@@ -103,9 +104,16 @@ const router = createRouter({
       name: "verify-email",
       component: () => import("../views/VerifyEmailView.vue"),
     },
-    // Dashboard (authenticated)
+    // SSO Callback
     {
-      path: "/dashboard",
+      path: "/sso",
+      name: "sso",
+      component: () => import("../views/SSOCallbackView.vue"),
+      meta: { title: "SSO Login" },
+    },
+    // Dashboard (authenticated) — at root path
+    {
+      path: "/",
       component: () => import("../components/DashboardLayout.vue"),
       meta: { requiresAuth: true },
       children: [
@@ -498,6 +506,12 @@ const router = createRouter({
         },
       ],
     },
+    // Backward compat: redirect old /dashboard/* paths to root
+    {
+      path: "/dashboard/:pathMatch(.*)*",
+      redirect: (to) => to.path.replace("/dashboard", "") || "/",
+    },
+    // 404
     {
       path: "/:pathMatch(.*)*",
       name: "not-found",
@@ -509,14 +523,17 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuthStore();
 
+  // Auth required but not logged in
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     return { name: "login", query: { redirect: to.fullPath } };
   }
 
+  // Fetch user info if authenticated but no user data
   if (auth.isAuthenticated && !auth.user) {
     await auth.fetchMe();
   }
 
+  // Role-based access control
   if (to.meta.roles && auth.user) {
     const allowed = to.meta.roles as string[];
     if (!allowed.includes(auth.user.role)) {
@@ -524,6 +541,12 @@ router.beforeEach(async (to) => {
     }
   }
 
+  // Redirect authenticated users away from guest-only routes (public pages)
+  if (to.meta.guestOnly && auth.isAuthenticated) {
+    return { name: "dashboard" };
+  }
+
+  // Redirect authenticated users away from login/register
   if ((to.name === "login" || to.name === "register") && auth.isAuthenticated) {
     // Redirect new admins to setup wizard if not completed
     const setupDone = localStorage.getItem("halaos_setup_done");
