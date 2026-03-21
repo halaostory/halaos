@@ -307,13 +307,13 @@ async function openAccounting() {
     const res = await integrationAPI.getAccountingSSOToken()
     const data = (res as any)?.data ?? res
     const ssoToken = data?.sso_token
-    const targetUrl = data?.target_url || 'https://tax.clawpapa.win'
+    const targetUrl = data?.target_url || 'https://finance.halaos.com'
     if (ssoToken) {
       window.open(`${targetUrl}/sso?token=${encodeURIComponent(ssoToken)}`, '_blank')
     }
   } catch {
     // If no accounting link configured, open AIStarlight login directly
-    window.open('https://tax.clawpapa.win', '_blank')
+    window.open('https://finance.halaos.com', '_blank')
   } finally {
     accountingLoading.value = false
   }

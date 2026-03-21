@@ -544,7 +544,7 @@ onMounted(() => {
             <NInput v-model:value="accountingForm.remote_company_id" placeholder="UUID of company in AIStarlight" />
           </NFormItem>
           <NFormItem label="API Endpoint" required>
-            <NInput v-model:value="accountingForm.api_endpoint" placeholder="https://tax.clawpapa.win" />
+            <NInput v-model:value="accountingForm.api_endpoint" placeholder="https://finance.halaos.com" />
           </NFormItem>
           <NFormItem label="Jurisdiction" required>
             <NSelect v-model:value="accountingForm.jurisdiction" :options="jurisdictionOptions" />
