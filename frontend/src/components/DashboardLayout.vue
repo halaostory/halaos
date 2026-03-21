@@ -4,7 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   NLayout, NLayoutSider, NLayoutHeader, NLayoutContent,
-  NMenu, NIcon, NButton, NSpace, NAvatar, NDropdown, NSwitch,
+  NMenu, NIcon, NButton, NSpace, NAvatar, NDropdown, NSwitch, NSelect,
   NBadge, NPopover, NList, NListItem, NThing, NEmpty, NTag, NTime,
   type MenuOption,
 } from 'naive-ui'
@@ -118,15 +118,8 @@ function renderIcon(icon: Component) {
   return () => h(NIcon, null, { default: () => h(icon) })
 }
 
-function renderMenuLabel(titleKey: string, descKey: string) {
-  return () => h('div', null, [
-    h('div', null, t(titleKey)),
-    h('div', { style: 'font-size: 11px; opacity: 0.45; line-height: 1.2; margin-top: 1px;' }, t(descKey)),
-  ])
-}
-
-function mi(titleKey: string, descKey: string, key: string, icon: Component): MenuOption {
-  return { label: renderMenuLabel(titleKey, descKey), key, icon: renderIcon(icon) }
+function mi(titleKey: string, key: string, icon: Component): MenuOption {
+  return { label: t(titleKey), key, icon: renderIcon(icon) }
 }
 
 // Phase 1 feature flags — set to true to show in sidebar
@@ -152,8 +145,8 @@ function isEnabled(key: string): boolean {
 }
 
 /** Push item to array if feature is enabled */
-function pushIf(arr: MenuOption[], key: string, titleKey: string, descKey: string, icon: Component) {
-  if (isEnabled(key)) arr.push(mi(titleKey, descKey, key, icon))
+function pushIf(arr: MenuOption[], key: string, titleKey: string, icon: Component) {
+  if (isEnabled(key)) arr.push(mi(titleKey, key, icon))
 }
 
 const menuOptions = computed<MenuOption[]>(() => {
@@ -162,22 +155,22 @@ const menuOptions = computed<MenuOption[]>(() => {
 
   // ── 1. My Workspace (all users) ──
   const workspace: MenuOption[] = []
-  pushIf(workspace, 'dashboard', 'nav.dashboard', 'navDesc.dashboard', HomeOutline)
-  pushIf(workspace, 'self-service', 'nav.selfService', 'navDesc.selfService', PersonCircleOutline)
-  pushIf(workspace, 'payslips', 'nav.payslips', 'navDesc.payslips', ReceiptOutline)
-  pushIf(workspace, 'announcements', 'nav.announcements', 'navDesc.announcements', MegaphoneOutline)
-  pushIf(workspace, 'hr-requests', 'nav.hrRequests', 'navDesc.hrRequests', FileTrayFullOutline)
+  pushIf(workspace, 'dashboard', 'nav.dashboard', HomeOutline)
+  pushIf(workspace, 'self-service', 'nav.selfService', PersonCircleOutline)
+  pushIf(workspace, 'payslips', 'nav.payslips', ReceiptOutline)
+  pushIf(workspace, 'announcements', 'nav.announcements', MegaphoneOutline)
+  pushIf(workspace, 'hr-requests', 'nav.hrRequests', FileTrayFullOutline)
   if (workspace.length) {
     groups.push({ type: 'group', label: t('nav.groupWorkspace'), key: 'g-workspace', children: workspace })
   }
 
   // ── 2. People (Manager+, Directory visible to all) ──
   const people: MenuOption[] = []
-  if (isAdminOrManager) pushIf(people, 'employees', 'nav.employees', 'navDesc.employees', PeopleOutline)
-  pushIf(people, 'directory', 'nav.directory', 'navDesc.directory', BookOutline)
+  if (isAdminOrManager) pushIf(people, 'employees', 'nav.employees', PeopleOutline)
+  pushIf(people, 'directory', 'nav.directory', BookOutline)
   if (isAdminOrManager) {
-    pushIf(people, 'onboarding', 'nav.onboarding', 'navDesc.onboarding', ClipboardOutline)
-    pushIf(people, '201file', 'nav.file201', 'navDesc.file201', FolderOpenOutline)
+    pushIf(people, 'onboarding', 'nav.onboarding', ClipboardOutline)
+    pushIf(people, '201file', 'nav.file201', FolderOpenOutline)
   }
   if (people.length) {
     groups.push({ type: 'group', label: t('nav.groupPeople'), key: 'g-people', children: people })
@@ -185,16 +178,16 @@ const menuOptions = computed<MenuOption[]>(() => {
 
   // ── 3. Time & Attendance ──
   const timeAtt: MenuOption[] = []
-  pushIf(timeAtt, 'attendance', 'nav.attendance', 'navDesc.attendance', TimeOutline)
-  pushIf(timeAtt, 'leaves', 'nav.leaves', 'navDesc.leaves', CalendarOutline)
-  pushIf(timeAtt, 'leave-calendar', 'nav.leaveCalendar', 'navDesc.leaveCalendar', CalendarNumberOutline)
-  pushIf(timeAtt, 'leave-encashment', 'nav.leaveEncashment', 'navDesc.leaveEncashment', CashOutline)
-  pushIf(timeAtt, 'overtime', 'nav.overtime', 'navDesc.overtime', AlarmOutline)
+  pushIf(timeAtt, 'attendance', 'nav.attendance', TimeOutline)
+  pushIf(timeAtt, 'leaves', 'nav.leaves', CalendarOutline)
+  pushIf(timeAtt, 'leave-calendar', 'nav.leaveCalendar', CalendarNumberOutline)
+  pushIf(timeAtt, 'leave-encashment', 'nav.leaveEncashment', CashOutline)
+  pushIf(timeAtt, 'overtime', 'nav.overtime', AlarmOutline)
   if (isAdminOrManager) {
-    pushIf(timeAtt, 'schedules', 'nav.schedules', 'navDesc.schedules', GridOutline)
-    pushIf(timeAtt, 'approvals', 'nav.approvals', 'navDesc.approvals', CheckmarkCircleOutline)
-    pushIf(timeAtt, 'attendance-report', 'nav.attendanceReport', 'navDesc.attendanceReport', DocumentTextOutline)
-    pushIf(timeAtt, 'dtr', 'nav.dtr', 'navDesc.dtr', ClipboardOutline)
+    pushIf(timeAtt, 'schedules', 'nav.schedules', GridOutline)
+    pushIf(timeAtt, 'approvals', 'nav.approvals', CheckmarkCircleOutline)
+    pushIf(timeAtt, 'attendance-report', 'nav.attendanceReport', DocumentTextOutline)
+    pushIf(timeAtt, 'dtr', 'nav.dtr', ClipboardOutline)
   }
   if (timeAtt.length) {
     groups.push({ type: 'group', label: t('nav.groupTimeAttendance'), key: 'g-time', children: timeAtt })
@@ -202,44 +195,44 @@ const menuOptions = computed<MenuOption[]>(() => {
 
   // ── 4. Payroll & Compensation ──
   const payComp: MenuOption[] = []
-  if (auth.isAdmin) pushIf(payComp, 'payroll', 'nav.payroll', 'navDesc.payroll', WalletOutline)
-  pushIf(payComp, 'loans', 'nav.loans', 'navDesc.loans', CardOutline)
-  pushIf(payComp, 'expenses', 'nav.expenses', 'navDesc.expenses', ReceiptOutline)
-  pushIf(payComp, 'benefits', 'nav.benefits', 'navDesc.benefits', MedkitOutline)
-  if (auth.isAdmin) pushIf(payComp, 'final-pay', 'nav.finalPay', 'navDesc.finalPay', WalletOutline)
-  if (auth.isAdmin) pushIf(payComp, 'accounting', 'nav.accounting', 'navDesc.accounting', OpenOutline)
+  if (auth.isAdmin) pushIf(payComp, 'payroll', 'nav.payroll', WalletOutline)
+  pushIf(payComp, 'loans', 'nav.loans', CardOutline)
+  pushIf(payComp, 'expenses', 'nav.expenses', ReceiptOutline)
+  pushIf(payComp, 'benefits', 'nav.benefits', MedkitOutline)
+  if (auth.isAdmin) pushIf(payComp, 'final-pay', 'nav.finalPay', WalletOutline)
+  if (auth.isAdmin) pushIf(payComp, 'accounting', 'nav.accounting', OpenOutline)
   if (payComp.length) {
     groups.push({ type: 'group', label: t('nav.groupPayroll'), key: 'g-payroll', children: payComp })
   }
 
   // ── 5. Talent & Development ──
   const talent: MenuOption[] = []
-  if (isAdminOrManager) pushIf(talent, 'performance', 'nav.performance', 'navDesc.performance', RibbonOutline)
-  pushIf(talent, 'training', 'nav.training', 'navDesc.training', SchoolOutline)
+  if (isAdminOrManager) pushIf(talent, 'performance', 'nav.performance', RibbonOutline)
+  pushIf(talent, 'training', 'nav.training', SchoolOutline)
   if (isAdminOrManager) {
-    pushIf(talent, 'disciplinary', 'nav.disciplinary', 'navDesc.disciplinary', AlertCircleOutline)
-    pushIf(talent, 'clearance', 'nav.clearance', 'navDesc.clearance', DocumentTextOutline)
-    pushIf(talent, 'milestones', 'nav.milestones', 'navDesc.milestones', RibbonOutline)
+    pushIf(talent, 'disciplinary', 'nav.disciplinary', AlertCircleOutline)
+    pushIf(talent, 'clearance', 'nav.clearance', DocumentTextOutline)
+    pushIf(talent, 'milestones', 'nav.milestones', RibbonOutline)
   }
-  pushIf(talent, 'grievance', 'nav.grievance', 'navDesc.grievance', ChatbubblesOutline)
+  pushIf(talent, 'grievance', 'nav.grievance', ChatbubblesOutline)
   if (talent.length) {
     groups.push({ type: 'group', label: t('nav.groupTalent'), key: 'g-talent', children: talent })
   }
 
   // ── 6. Engagement ──
   const engagement: MenuOption[] = []
-  pushIf(engagement, 'recognition', 'nav.recognition', 'navDesc.recognition', StarOutline)
-  pushIf(engagement, 'pulse-surveys', 'nav.pulseSurveys', 'navDesc.pulseSurveys', HappyOutline)
-  pushIf(engagement, 'policies', 'nav.policies', 'navDesc.policies', DocumentTextOutline)
+  pushIf(engagement, 'recognition', 'nav.recognition', StarOutline)
+  pushIf(engagement, 'pulse-surveys', 'nav.pulseSurveys', HappyOutline)
+  pushIf(engagement, 'policies', 'nav.policies', DocumentTextOutline)
   if (engagement.length) {
     groups.push({ type: 'group', label: t('nav.groupEngagement'), key: 'g-engagement', children: engagement })
   }
 
   // ── 7. AI & Insights ──
   const ai: MenuOption[] = []
-  pushIf(ai, 'agent-hub', 'nav.agentHub', 'navDesc.agentHub', ChatbubblesOutline)
-  if (auth.isAdmin) pushIf(ai, 'analytics', 'nav.analytics', 'navDesc.analytics', BarChartOutline)
-  if (isAdminOrManager) pushIf(ai, 'org-intelligence', 'nav.orgIntelligence', 'navDesc.orgIntelligence', PulseOutline)
+  pushIf(ai, 'agent-hub', 'nav.agentHub', ChatbubblesOutline)
+  if (auth.isAdmin) pushIf(ai, 'analytics', 'nav.analytics', BarChartOutline)
+  if (isAdminOrManager) pushIf(ai, 'org-intelligence', 'nav.orgIntelligence', PulseOutline)
   if (ai.length) {
     groups.push({ type: 'group', label: t('nav.groupAI'), key: 'g-ai', children: ai })
   }
@@ -250,37 +243,37 @@ const menuOptions = computed<MenuOption[]>(() => {
 
     // Sub-group: Workflow Automation
     const wfItems: MenuOption[] = []
-    pushIf(wfItems, 'workflow-rules', 'nav.workflowRules', 'navDesc.workflowRules', GitBranchOutline)
-    pushIf(wfItems, 'workflow-triggers', 'nav.workflowTriggers', 'navDesc.workflowTriggers', FlashOutline)
-    pushIf(wfItems, 'workflow-analytics', 'nav.workflowAnalytics', 'navDesc.workflowAnalytics', TrendingUpOutline)
-    pushIf(wfItems, 'workflow-decisions', 'nav.workflowDecisions', 'navDesc.workflowDecisions', BulbOutline)
+    pushIf(wfItems, 'workflow-rules', 'nav.workflowRules', GitBranchOutline)
+    pushIf(wfItems, 'workflow-triggers', 'nav.workflowTriggers', FlashOutline)
+    pushIf(wfItems, 'workflow-analytics', 'nav.workflowAnalytics', TrendingUpOutline)
+    pushIf(wfItems, 'workflow-decisions', 'nav.workflowDecisions', BulbOutline)
     if (wfItems.length) {
       adminItems.push({ type: 'group', label: t('nav.groupAdminWorkflow'), key: 'g-admin-wf', children: wfItems })
     }
 
     // Sub-group: Company Setup
     const companyItems: MenuOption[] = []
-    pushIf(companyItems, 'departments', 'nav.departments', 'navDesc.departments', BusinessOutline)
-    pushIf(companyItems, 'positions', 'nav.positions', 'navDesc.positions', BriefcaseOutline)
-    pushIf(companyItems, 'salary', 'nav.salary', 'navDesc.salary', CashOutline)
-    pushIf(companyItems, 'holidays', 'nav.holidays', 'navDesc.holidays', TodayOutline)
-    pushIf(companyItems, 'compliance', 'nav.compliance', 'navDesc.compliance', ShieldCheckmarkOutline)
-    pushIf(companyItems, 'tax-filings', 'nav.taxFilings', 'navDesc.taxFilings', DocumentTextOutline)
+    pushIf(companyItems, 'departments', 'nav.departments', BusinessOutline)
+    pushIf(companyItems, 'positions', 'nav.positions', BriefcaseOutline)
+    pushIf(companyItems, 'salary', 'nav.salary', CashOutline)
+    pushIf(companyItems, 'holidays', 'nav.holidays', TodayOutline)
+    pushIf(companyItems, 'compliance', 'nav.compliance', ShieldCheckmarkOutline)
+    pushIf(companyItems, 'tax-filings', 'nav.taxFilings', DocumentTextOutline)
     if (companyItems.length) {
       adminItems.push({ type: 'group', label: t('nav.groupAdminCompany'), key: 'g-admin-company', children: companyItems })
     }
 
     // Sub-group: System Tools
     const sysItems: MenuOption[] = []
-    pushIf(sysItems, 'users', 'nav.users', 'navDesc.users', PeopleOutline)
-    pushIf(sysItems, 'knowledge', 'nav.knowledge', 'navDesc.knowledge', LibraryOutline)
-    pushIf(sysItems, 'integrations', 'nav.integrations', 'navDesc.integrations', LinkOutline)
-    pushIf(sysItems, 'geofences', 'nav.geofences', 'navDesc.geofences', LocationOutline)
-    pushIf(sysItems, 'import-export', 'nav.importExport', 'navDesc.importExport', CloudDownloadOutline)
-    pushIf(sysItems, 'audit', 'nav.audit', 'navDesc.audit', FileTrayFullOutline)
-    pushIf(sysItems, 'billing', 'nav.billing', 'navDesc.billing', WalletOutline)
-    pushIf(sysItems, 'referrals', 'nav.referrals', 'navDesc.referrals', GitBranchOutline)
-    pushIf(sysItems, 'settings', 'nav.settings', 'navDesc.settings', SettingsOutline)
+    pushIf(sysItems, 'users', 'nav.users', PeopleOutline)
+    pushIf(sysItems, 'knowledge', 'nav.knowledge', LibraryOutline)
+    pushIf(sysItems, 'integrations', 'nav.integrations', LinkOutline)
+    pushIf(sysItems, 'geofences', 'nav.geofences', LocationOutline)
+    pushIf(sysItems, 'import-export', 'nav.importExport', CloudDownloadOutline)
+    pushIf(sysItems, 'audit', 'nav.audit', FileTrayFullOutline)
+    pushIf(sysItems, 'billing', 'nav.billing', WalletOutline)
+    pushIf(sysItems, 'referrals', 'nav.referrals', GitBranchOutline)
+    pushIf(sysItems, 'settings', 'nav.settings', SettingsOutline)
     if (sysItems.length) {
       adminItems.push({ type: 'group', label: t('nav.groupAdminSystem'), key: 'g-admin-sys', children: sysItems })
     }
@@ -294,6 +287,16 @@ const menuOptions = computed<MenuOption[]>(() => {
 })
 
 const activeKey = computed(() => route.name as string)
+
+const companyOptions = computed(() =>
+  (auth.companies || []).map((c: { company_name: string; id: number }) => ({ label: c.company_name, value: c.id }))
+)
+const currentCompanyId = computed(() => auth.user?.company_id)
+
+async function handleSwitchCompany(companyId: number) {
+  // Will be implemented in Task 10 (auth store alignment)
+  console.log('Switch company to', companyId)
+}
 
 const accountingLoading = ref(false)
 
@@ -357,9 +360,20 @@ function handleUserAction(key: string) {
       :collapsed-width="64"
       show-trigger
       collapse-mode="width"
+      :collapsed="themeStore.sidebarCollapsed"
+      @update:collapsed="(val: boolean) => themeStore.sidebarCollapsed = val"
     >
-      <div id="app-logo" style="padding: 16px 20px; font-size: 18px; font-weight: 700;">
+      <div id="app-logo" style="padding: 16px 20px; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
         HalaOS
+        <span style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(37, 99, 235, 0.15); color: #3b82f6;">
+          {{ auth.user?.company_country || 'PH' }}
+        </span>
+      </div>
+      <div v-if="companyOptions.length > 1 && !themeStore.sidebarCollapsed" style="padding: 0 12px 8px;">
+        <NSelect :value="currentCompanyId" :options="companyOptions" size="small" @update:value="handleSwitchCompany" />
+      </div>
+      <div v-else-if="auth.user && !themeStore.sidebarCollapsed" style="padding: 0 20px 8px; font-size: 13px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+        {{ auth.companyName }}
       </div>
       <NMenu
         id="sidebar-menu"
