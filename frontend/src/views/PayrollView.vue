@@ -414,7 +414,7 @@ function handleExportBankFile(row: Record<string, unknown>) {
 
 function downloadBankFile() {
   const url = exportAPI.payrollBankFile(bankFileCycleId.value, bankFileFormat.value);
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("access_token");
   fetch(url, { headers: { Authorization: `Bearer ${token}` } })
     .then((res) => res.blob())
     .then((blob) => {
@@ -450,7 +450,7 @@ async function handleUnlock(row: Record<string, unknown>) {
 
 function handleExportCSV(row: Record<string, unknown>) {
   const url = exportAPI.payrollCSV(row.id as number);
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("access_token");
   // Use fetch to add auth header, then download
   fetch(url, { headers: { Authorization: `Bearer ${token}` } })
     .then((res) => res.blob())

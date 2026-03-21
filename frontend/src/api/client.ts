@@ -18,7 +18,7 @@ async function tryRefreshToken(): Promise<boolean> {
     const data =
       res.data || (res as unknown as { token: string; refresh_token: string });
     if (data.token) {
-      localStorage.setItem("token", data.token);
+      localStorage.setItem("access_token", data.token);
       if (data.refresh_token)
         localStorage.setItem("refresh_token", data.refresh_token);
       return true;
@@ -33,7 +33,7 @@ const api = ofetch.create({
   baseURL: import.meta.env.VITE_API_URL || "/api",
   headers: { "Content-Type": "application/json" },
   onRequest({ options }) {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("access_token");
     if (token) {
       const headers = new Headers(options.headers as HeadersInit);
       headers.set("Authorization", `Bearer ${token}`);
@@ -50,7 +50,7 @@ const api = ofetch.create({
         return;
       }
       if (url.includes("/auth/refresh")) {
-        localStorage.removeItem("token");
+        localStorage.removeItem("access_token");
         localStorage.removeItem("refresh_token");
         window.location.href = "/login";
         return;
@@ -68,14 +68,14 @@ const api = ofetch.create({
       const refreshed = await refreshPromise;
       if (refreshed) {
         // Retry the original request with new token
-        const newToken = localStorage.getItem("token");
+        const newToken = localStorage.getItem("access_token");
         const headers = new Headers(options.headers as HeadersInit);
         headers.set("Authorization", `Bearer ${newToken}`);
         await ofetch(request, { ...options, headers });
         return;
       }
 
-      localStorage.removeItem("token");
+      localStorage.removeItem("access_token");
       localStorage.removeItem("refresh_token");
       window.location.href = "/login";
     }
@@ -122,10 +122,16 @@ export const authAPI = {
   }) => put("/v1/auth/profile", data),
   uploadAvatar: (formData: FormData) =>
     api("/v1/auth/avatar", { method: "POST", body: formData, headers: {} }),
+  ssoLogin: (token: string) => post("/v1/auth/sso", { token }),
+  switchCompany: (companyId: number) =>
+    post("/v1/auth/switch-company", { company_id: companyId }),
+  logout: (refreshToken: string) =>
+    post("/v1/auth/logout", { refresh_token: refreshToken }),
 };
 
 // Company
 export const companyAPI = {
+  list: () => get("/v1/companies"),
   get: () => get("/v1/company"),
   update: (data: Record<string, unknown>) => put("/v1/company", data),
   uploadLogo: (formData: FormData) =>
@@ -492,7 +498,7 @@ export const analyticsAPI = {
   getBlindSpots: () => get("/v1/analytics/blind-spots"),
   exportCSV: async () => {
     const baseURL = import.meta.env.VITE_API_URL || "/api";
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("access_token");
     const resp = await fetch(`${baseURL}/v1/analytics/export/csv`, {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -792,7 +798,7 @@ export const file201API = {
     }),
   download: (docId: string) => {
     const baseURL = import.meta.env.VITE_API_URL || "/api";
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("access_token");
     return `${baseURL}/v1/201file/document/${docId}/download?token=${token}`;
   },
   updateDocument: (docId: string, data: Record<string, unknown>) =>
@@ -929,7 +935,7 @@ export const aiAPI = {
     agentSlug?: string,
   ) {
     const baseURL = import.meta.env.VITE_API_URL || "/api";
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("access_token");
     const response = await fetch(`${baseURL}/v1/ai/chat/stream`, {
       method: "POST",
       headers: {

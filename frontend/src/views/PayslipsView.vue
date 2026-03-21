@@ -77,7 +77,7 @@ function viewDetail(row: Record<string, unknown>) {
 
 function downloadPdf(row: Record<string, unknown>) {
   const url = payrollAPI.payslipPdfUrl(String(row.id));
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("access_token");
   const a = document.createElement("a");
   // Use fetch to include auth header
   fetch(url, { headers: { Authorization: `Bearer ${token}` } })

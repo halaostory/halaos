@@ -144,7 +144,7 @@ function exportCSV() {
   if (!dateRange.value) return
   const start = format(new Date(dateRange.value[0]), 'yyyy-MM-dd')
   const end = format(new Date(dateRange.value[1]), 'yyyy-MM-dd')
-  const token = auth.token
+  const token = auth.accessToken
   const url = reportsAPI.dtrCsvUrl(start, end)
   const link = document.createElement('a')
   link.href = url

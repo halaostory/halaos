@@ -222,7 +222,7 @@ async function generateLetter() {
   letterLoading.value = true;
   try {
     const id = Number(route.params.id);
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("access_token");
     const url = employeeAPI.generateLetterUrl(id);
     const payload: Record<string, unknown> = {
       letter_type: letterForm.value.letter_type,
@@ -415,7 +415,7 @@ const docColumns: DataTableColumns<EmployeeDoc> = [
     width: 160,
     render: (row) => {
       const id = Number(route.params.id);
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("access_token");
       const downloadUrl = employeeAPI.downloadDocumentUrl(id, row.id);
       return h(NSpace, { size: 4 }, {
         default: () => [
@@ -488,7 +488,7 @@ async function handleDeleteDoc(docId: string) {
 function downloadCOE() {
   const id = Number(route.params.id);
   const url = employeeAPI.downloadCOEUrl(id);
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("access_token");
   fetch(url, { headers: { Authorization: `Bearer ${token}` } })
     .then((r) => r.blob())
     .then((blob) => {

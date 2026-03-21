@@ -185,7 +185,7 @@ const doleLoading = ref(false);
 async function downloadDOLERegister() {
   doleLoading.value = true;
   try {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("access_token");
     const res = await fetch(reportsAPI.doleRegisterUrl(), {
       headers: { Authorization: `Bearer ${token}` },
     });
