@@ -22,6 +22,7 @@ func (h *Handler) RegisterRoutes(public, protected *gin.RouterGroup, loginLimite
 	protected.PUT("/auth/profile", h.UpdateProfile)
 	protected.POST("/auth/avatar", h.UploadAvatar)
 	protected.POST("/auth/switch-company", h.SwitchCompany)
+	protected.POST("/auth/logout", h.Logout)
 
 	// User Management (admin)
 	protected.GET("/users", AdminOnly(), h.ListUsers)

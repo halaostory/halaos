@@ -2,6 +2,7 @@ package auth
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
@@ -83,6 +85,10 @@ type loginRequest struct {
 
 type refreshRequest struct {
 	RefreshToken string `json:"refresh_token" binding:"required"`
+}
+
+type logoutRequest struct {
+	RefreshToken string `json:"refresh_token"`
 }
 
 type authResponse struct {
@@ -371,6 +377,16 @@ func (h *Handler) Refresh(c *gin.Context) {
 		return
 	}
 
+	// Check refresh token blacklist
+	if h.redis != nil {
+		hash := sha256.Sum256([]byte(req.RefreshToken))
+		key := "blacklist:refresh:" + hex.EncodeToString(hash[:])
+		if h.redis.Exists(c.Request.Context(), key).Val() > 0 {
+			response.Unauthorized(c, "token has been revoked")
+			return
+		}
+	}
+
 	claims, err := h.jwt.ValidateToken(req.RefreshToken)
 	if err != nil {
 		response.Unauthorized(c, "Invalid refresh token")
@@ -408,6 +424,27 @@ func (h *Handler) Refresh(c *gin.Context) {
 			CompanyID: user.CompanyID,
 		},
 	})
+}
+
+func (h *Handler) Logout(c *gin.Context) {
+	var req logoutRequest
+	_ = c.ShouldBindJSON(&req) // optional body
+
+	if req.RefreshToken != "" && h.redis != nil {
+		parser := jwt.NewParser()
+		claims := &Claims{}
+		_, _, err := parser.ParseUnverified(req.RefreshToken, claims)
+		if err == nil && claims.ExpiresAt != nil {
+			ttl := time.Until(claims.ExpiresAt.Time)
+			if ttl > 0 {
+				hash := sha256.Sum256([]byte(req.RefreshToken))
+				key := "blacklist:refresh:" + hex.EncodeToString(hash[:])
+				h.redis.Set(c.Request.Context(), key, "1", ttl)
+			}
+		}
+	}
+
+	c.JSON(http.StatusNoContent, nil)
 }
 
 func (h *Handler) Me(c *gin.Context) {

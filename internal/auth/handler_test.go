@@ -260,6 +260,24 @@ func TestRefresh_UserNotFound(t *testing.T) {
 	}
 }
 
+// --- Logout Tests ---
+
+func TestLogout_Success(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	// With nil Redis, logout should still return 204 (graceful degradation)
+	ac := testutil.AuthContext{UserID: 1, Email: "user@test.com", Role: RoleAdmin, CompanyID: 1}
+	c, w := testutil.NewGinContext("POST", "/api/v1/auth/logout", gin.H{
+		"refresh_token": "some-token",
+	}, ac)
+	h.Logout(c)
+
+	if w.Code != 204 {
+		t.Fatalf("expected 204, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
 // --- ChangePassword Tests ---
 
 func TestChangePassword_Success(t *testing.T) {
