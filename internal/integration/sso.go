@@ -114,3 +114,13 @@ func (s *SSOService) ValidateFinanceToken(tokenStr string) (*FinanceToHRClaims, 
 
 	return claims, nil
 }
+
+// ValidateFinanceEmail validates a Finance→HR SSO token and returns the user email.
+// Satisfies auth.FinanceSSOValidator interface.
+func (s *SSOService) ValidateFinanceEmail(tokenStr string) (string, error) {
+	claims, err := s.ValidateFinanceToken(tokenStr)
+	if err != nil {
+		return "", err
+	}
+	return claims.Email, nil
+}

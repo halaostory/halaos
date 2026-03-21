@@ -15,12 +15,19 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/tonypk/aigonhr/internal/email"
 	"github.com/tonypk/aigonhr/internal/store"
 	"github.com/tonypk/aigonhr/pkg/response"
 )
+
+// FinanceSSOValidator validates Finance→HR SSO tokens and extracts the user email.
+// Implemented by integration.SSOService.
+type FinanceSSOValidator interface {
+	ValidateFinanceEmail(tokenStr string) (email string, err error)
+}
 
 // HashPassword hashes a plain-text password using bcrypt.
 func HashPassword(password string) (string, error) {
@@ -34,15 +41,19 @@ type Handler struct {
 	jwt     *JWTService
 	email   *email.Service
 	logger  *slog.Logger
+	redis   *redis.Client
+	sso     FinanceSSOValidator
 }
 
-func NewHandler(queries *store.Queries, pool *pgxpool.Pool, jwt *JWTService, emailSvc *email.Service, logger *slog.Logger) *Handler {
+func NewHandler(queries *store.Queries, pool *pgxpool.Pool, jwt *JWTService, emailSvc *email.Service, logger *slog.Logger, rdb *redis.Client, sso FinanceSSOValidator) *Handler {
 	return &Handler{
 		queries: queries,
 		pool:    pool,
 		jwt:     jwt,
 		email:   emailSvc,
 		logger:  logger,
+		redis:   rdb,
+		sso:     sso,
 	}
 }
 
@@ -700,4 +711,82 @@ func (h *Handler) ResendVerification(c *gin.Context) {
 	}()
 
 	response.OK(c, gin.H{"message": "If the email exists, a verification link has been sent."})
+}
+
+type ssoLoginRequest struct {
+	SSOToken string `json:"sso_token" binding:"required"`
+}
+
+// SSOLogin handles POST /auth/sso — validates a Finance→HR SSO token and returns auth tokens.
+func (h *Handler) SSOLogin(c *gin.Context) {
+	var req ssoLoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "sso_token is required")
+		return
+	}
+
+	if h.sso == nil {
+		response.InternalError(c, "SSO not configured")
+		return
+	}
+
+	ssoEmail, err := h.sso.ValidateFinanceEmail(req.SSOToken)
+	if err != nil {
+		h.logger.Warn("SSO token validation failed", "error", err)
+		response.Unauthorized(c, "invalid or expired SSO token")
+		return
+	}
+
+	user, err := h.queries.GetUserByEmail(c.Request.Context(), ssoEmail)
+	if err != nil {
+		response.Forbidden(c, "no HR account for this email")
+		return
+	}
+
+	if user.Status != "active" {
+		response.Forbidden(c, "account is not active")
+		return
+	}
+
+	if !user.EmailVerified {
+		response.Forbidden(c, "email not verified")
+		return
+	}
+
+	token, err := h.jwt.GenerateToken(user.ID, user.Email, Role(user.Role), user.CompanyID)
+	if err != nil {
+		response.InternalError(c, "failed to generate token")
+		return
+	}
+
+	refreshToken, err := h.jwt.GenerateRefreshToken(user.ID, user.Email, Role(user.Role), user.CompanyID)
+	if err != nil {
+		response.InternalError(c, "failed to generate refresh token")
+		return
+	}
+
+	_ = h.queries.UpdateLastLogin(c.Request.Context(), user.ID)
+
+	company, _ := h.queries.GetCompanyByID(c.Request.Context(), user.CompanyID)
+
+	resp := authResponse{
+		Token:        token,
+		RefreshToken: refreshToken,
+		User: userResponse{
+			ID:        user.ID,
+			Email:     user.Email,
+			FirstName: user.FirstName,
+			LastName:  user.LastName,
+			Role:      user.Role,
+			CompanyID: user.CompanyID,
+			AvatarUrl: user.AvatarUrl,
+		},
+	}
+	if company.ID != 0 {
+		resp.User.CompanyCountry = company.Country
+		resp.User.CompanyCurrency = company.Currency
+		resp.User.CompanyTimezone = company.Timezone
+	}
+
+	response.OK(c, resp)
 }

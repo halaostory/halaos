@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -17,6 +18,16 @@ import (
 	"github.com/tonypk/aigonhr/internal/testutil"
 )
 
+// mockSSOValidator is a test implementation of FinanceSSOValidator.
+type mockSSOValidator struct {
+	email string
+	err   error
+}
+
+func (m *mockSSOValidator) ValidateFinanceEmail(tokenStr string) (string, error) {
+	return m.email, m.err
+}
+
 // adminAuth returns an AuthContext with proper auth.Role type for GetRole() assertion.
 var adminAuth = testutil.AuthContext{
 	UserID: 1, Email: "admin@test.com", Role: RoleAdmin, CompanyID: 1,
@@ -26,7 +37,7 @@ func newTestHandler(mockDB *testutil.MockDBTX) *Handler {
 	queries := store.New(mockDB)
 	jwt := NewJWTService("test-secret-key-for-unit-tests", time.Hour, 24*time.Hour)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	return NewHandler(queries, nil, jwt, nil, logger)
+	return NewHandler(queries, nil, jwt, nil, logger, nil, nil)
 }
 
 func hashedPassword(plain string) string {
@@ -348,5 +359,133 @@ func TestUpdateProfile_DBError(t *testing.T) {
 
 	if w.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// --- SSOLogin Tests ---
+
+func TestSSOLogin_Success(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+	h.sso = &mockSSOValidator{email: "admin@test.com"}
+
+	// Mock: GetUserByEmail returns active, verified user
+	u := activeUser("admin@test.com", "password123")
+	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...))
+	// Mock: UpdateLastLogin
+	mockDB.OnExecSuccess()
+
+	c, w := testutil.NewGinContext("POST", "/api/v1/auth/sso", gin.H{
+		"sso_token": "valid-sso-token",
+	}, testutil.AuthContext{})
+	h.SSOLogin(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	data := extractData(w)
+	if data["token"] == nil {
+		t.Fatal("expected token in response")
+	}
+	if data["refresh_token"] == nil {
+		t.Fatal("expected refresh_token in response")
+	}
+}
+
+func TestSSOLogin_MissingToken(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+	h.sso = &mockSSOValidator{email: "admin@test.com"}
+
+	c, w := testutil.NewGinContext("POST", "/api/v1/auth/sso", gin.H{}, testutil.AuthContext{})
+	h.SSOLogin(c)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestSSOLogin_SSONotConfigured(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+	// h.sso is nil
+
+	c, w := testutil.NewGinContext("POST", "/api/v1/auth/sso", gin.H{
+		"sso_token": "some-token",
+	}, testutil.AuthContext{})
+	h.SSOLogin(c)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestSSOLogin_InvalidToken(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+	h.sso = &mockSSOValidator{err: fmt.Errorf("invalid token")}
+
+	c, w := testutil.NewGinContext("POST", "/api/v1/auth/sso", gin.H{
+		"sso_token": "invalid-token-string",
+	}, testutil.AuthContext{})
+	h.SSOLogin(c)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestSSOLogin_UserNotFound(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+	h.sso = &mockSSOValidator{email: "nobody@test.com"}
+
+	mockDB.OnQueryRow(testutil.NewErrorRow(pgx.ErrNoRows))
+
+	c, w := testutil.NewGinContext("POST", "/api/v1/auth/sso", gin.H{
+		"sso_token": "valid-sso-token",
+	}, testutil.AuthContext{})
+	h.SSOLogin(c)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestSSOLogin_InactiveUser(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+	h.sso = &mockSSOValidator{email: "admin@test.com"}
+
+	u := activeUser("admin@test.com", "password123")
+	u.Status = "inactive"
+	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...))
+
+	c, w := testutil.NewGinContext("POST", "/api/v1/auth/sso", gin.H{
+		"sso_token": "valid-sso-token",
+	}, testutil.AuthContext{})
+	h.SSOLogin(c)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestSSOLogin_UnverifiedEmail(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+	h.sso = &mockSSOValidator{email: "admin@test.com"}
+
+	u := activeUser("admin@test.com", "password123")
+	u.EmailVerified = false
+	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...))
+
+	c, w := testutil.NewGinContext("POST", "/api/v1/auth/sso", gin.H{
+		"sso_token": "valid-sso-token",
+	}, testutil.AuthContext{})
+	h.SSOLogin(c)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d: %s", w.Code, w.Body.String())
 	}
 }
