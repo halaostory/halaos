@@ -213,6 +213,10 @@ export default {
     verificationFailed: "验证失败",
     noVerificationToken: "未提供验证令牌",
     emailNotVerified: "请先验证您的邮箱地址",
+    getStarted: "免费开始",
+    joinCompanies: "加入100+使用HalaOS的公司",
+    magicLinkExpiry: "链接24小时内有效",
+    didntReceive: "没有收到？",
   },
   country: {
     PHL: "菲律宾",

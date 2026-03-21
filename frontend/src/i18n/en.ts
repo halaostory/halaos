@@ -214,6 +214,10 @@ export default {
     verificationFailed: "Verification Failed",
     noVerificationToken: "No verification token provided",
     emailNotVerified: "Please verify your email address before logging in",
+    getStarted: "Get Started — It's Free",
+    joinCompanies: "Join 100+ companies using HalaOS",
+    magicLinkExpiry: "Link expires in 24 hours",
+    didntReceive: "Didn't receive it?",
   },
   country: {
     PHL: "Philippines",
