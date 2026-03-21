@@ -18,6 +18,15 @@ type CrossAppClaims struct {
 	LastName    string `json:"last_name,omitempty"`
 }
 
+// FinanceToHRClaims represents a cross-app SSO token from Finance→HR.
+// Direction is identified by iss="aistarlight" (vs iss="aigonhr" for HR→Finance).
+type FinanceToHRClaims struct {
+	jwt.RegisteredClaims
+	Email            string `json:"email"`
+	FinanceCompanyID string `json:"finance_company_id"`
+	FinanceUserID    string `json:"finance_user_id"`
+}
+
 // SSOService generates and validates cross-app SSO tokens.
 type SSOService struct {
 	secret string
@@ -75,5 +84,33 @@ func (s *SSOService) ValidateToken(tokenStr string) (*CrossAppClaims, error) {
 	if !ok || !token.Valid {
 		return nil, fmt.Errorf("invalid token claims")
 	}
+	return claims, nil
+}
+
+// ValidateFinanceToken parses and validates a Finance→HR SSO JWT.
+func (s *SSOService) ValidateFinanceToken(tokenStr string) (*FinanceToHRClaims, error) {
+	if s.secret == "" {
+		return nil, fmt.Errorf("INTEGRATION_JWT_SECRET not configured")
+	}
+
+	token, err := jwt.ParseWithClaims(tokenStr, &FinanceToHRClaims{}, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+		}
+		return []byte(s.secret), nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("invalid Finance SSO token: %w", err)
+	}
+
+	claims, ok := token.Claims.(*FinanceToHRClaims)
+	if !ok || !token.Valid {
+		return nil, fmt.Errorf("invalid token claims")
+	}
+
+	if claims.Issuer != "aistarlight" {
+		return nil, fmt.Errorf("invalid issuer: expected aistarlight, got %s", claims.Issuer)
+	}
+
 	return claims, nil
 }
