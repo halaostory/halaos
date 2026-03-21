@@ -6,6 +6,7 @@ import (
 )
 
 func (h *Handler) RegisterRoutes(protected *gin.RouterGroup) {
+	protected.GET("/companies", h.ListUserCompanies)
 	protected.GET("/company", h.GetCompany)
 	protected.PUT("/company", auth.AdminOnly(), h.UpdateCompany)
 	protected.POST("/company/logo", auth.AdminOnly(), h.UploadLogo)

@@ -27,6 +27,19 @@ func NewHandler(queries *store.Queries, pool *pgxpool.Pool, logger *slog.Logger)
 	return &Handler{queries: queries, pool: pool, logger: logger}
 }
 
+func (h *Handler) ListUserCompanies(c *gin.Context) {
+	userID := auth.GetUserID(c)
+
+	companies, err := h.queries.GetUserCompanies(c.Request.Context(), userID)
+	if err != nil {
+		h.logger.Error("failed to list user companies", "error", err, "user_id", userID)
+		response.InternalError(c, "failed to load companies")
+		return
+	}
+
+	response.OK(c, companies)
+}
+
 func (h *Handler) GetCompany(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 	company, err := h.queries.GetCompanyByID(c.Request.Context(), companyID)
