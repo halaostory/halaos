@@ -713,6 +713,81 @@ func (h *Handler) ResendVerification(c *gin.Context) {
 	response.OK(c, gin.H{"message": "If the email exists, a verification link has been sent."})
 }
 
+type switchCompanyRequest struct {
+	CompanyID int64 `json:"company_id" binding:"required"`
+}
+
+// SwitchCompany switches the authenticated user's active company.
+// It verifies membership via user_companies, updates the active company,
+// and returns fresh JWT tokens scoped to the new company.
+func (h *Handler) SwitchCompany(c *gin.Context) {
+	var req switchCompanyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "company_id is required")
+		return
+	}
+
+	userID := GetUserID(c)
+	userEmail := GetEmail(c)
+	ctx := c.Request.Context()
+
+	// Verify user is a member of the target company
+	membership, err := h.queries.GetUserCompanyMembership(ctx, store.GetUserCompanyMembershipParams{
+		UserID:    userID,
+		CompanyID: req.CompanyID,
+	})
+	if err != nil {
+		response.Forbidden(c, "access denied")
+		return
+	}
+
+	// Update the user's active company
+	if err := h.queries.UpdateUserActiveCompany(ctx, store.UpdateUserActiveCompanyParams{
+		ID:        userID,
+		CompanyID: req.CompanyID,
+	}); err != nil {
+		h.logger.Error("failed to switch company", "user_id", userID, "company_id", req.CompanyID, "error", err)
+		response.InternalError(c, "failed to switch company")
+		return
+	}
+
+	// Issue new tokens with the updated company and role
+	role := Role(membership.Role)
+	token, err := h.jwt.GenerateToken(userID, userEmail, role, req.CompanyID)
+	if err != nil {
+		h.logger.Error("failed to generate token", "error", err)
+		response.InternalError(c, "failed to generate token")
+		return
+	}
+	refreshToken, err := h.jwt.GenerateRefreshToken(userID, userEmail, role, req.CompanyID)
+	if err != nil {
+		h.logger.Error("failed to generate refresh token", "error", err)
+		response.InternalError(c, "failed to generate refresh token")
+		return
+	}
+
+	// Enrich response with company info
+	company, _ := h.queries.GetCompanyByID(ctx, req.CompanyID)
+
+	resp := authResponse{
+		Token:        token,
+		RefreshToken: refreshToken,
+		User: userResponse{
+			ID:        userID,
+			Email:     userEmail,
+			Role:      string(role),
+			CompanyID: req.CompanyID,
+		},
+	}
+	if company.ID != 0 {
+		resp.User.CompanyCountry = company.Country
+		resp.User.CompanyCurrency = company.Currency
+		resp.User.CompanyTimezone = company.Timezone
+	}
+
+	response.OK(c, resp)
+}
+
 type ssoLoginRequest struct {
 	SSOToken string `json:"sso_token" binding:"required"`
 }

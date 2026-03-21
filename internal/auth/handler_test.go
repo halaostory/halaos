@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/crypto/bcrypt"
 
@@ -487,5 +488,133 @@ func TestSSOLogin_UnverifiedEmail(t *testing.T) {
 
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("expected 403, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// --- SwitchCompany Tests ---
+
+// companyScanValues returns mock scan values matching the Company struct (30 fields).
+func companyScanValues(id int64, name, country, timezone, currency string) []interface{} {
+	now := time.Now()
+	return []interface{}{
+		id,              // ID
+		name,            // Name
+		(*string)(nil),  // LegalName
+		(*string)(nil),  // Tin
+		(*string)(nil),  // BirRdo
+		(*string)(nil),  // Address
+		(*string)(nil),  // City
+		(*string)(nil),  // Province
+		(*string)(nil),  // ZipCode
+		country,         // Country
+		timezone,        // Timezone
+		currency,        // Currency
+		"semi_monthly",  // PayFrequency
+		"active",        // Status
+		(*string)(nil),  // LogoUrl
+		now,             // CreatedAt
+		now,             // UpdatedAt
+		false,           // GeofenceEnabled
+		(*string)(nil),  // SssErNo
+		(*string)(nil),  // PhilhealthErNo
+		(*string)(nil),  // PagibigErNo
+		(*string)(nil),  // BankName
+		(*string)(nil),  // BankBranch
+		(*string)(nil),  // BankAccountNo
+		(*string)(nil),  // BankAccountName
+		(*string)(nil),  // ContactPerson
+		(*string)(nil),  // ContactEmail
+		(*string)(nil),  // ContactPhone
+		(*string)(nil),  // ReferralCode
+		(*string)(nil),  // ReferredByCode
+		false,           // ReferralRewardClaimed
+	}
+}
+
+func TestSwitchCompany_Success(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	// Mock: GetUserCompanyMembership — user belongs to target company
+	mockDB.OnQueryRow(testutil.NewRow(
+		int64(1), int64(2), "admin", time.Now(),
+	))
+	// Mock: UpdateUserActiveCompany
+	mockDB.OnExecSuccess()
+	// Mock: GetCompanyByID for response enrichment
+	mockDB.OnQueryRow(testutil.NewRow(companyScanValues(2, "Other Co", "SGP", "Asia/Singapore", "SGD")...))
+
+	ac := testutil.AuthContext{UserID: 1, Email: "user@test.com", Role: RoleAdmin, CompanyID: 1}
+	c, w := testutil.NewGinContext("POST", "/api/v1/auth/switch-company", gin.H{"company_id": 2}, ac)
+	h.SwitchCompany(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	data := extractData(w)
+	if data["token"] == nil {
+		t.Fatal("expected token in response")
+	}
+	if data["refresh_token"] == nil {
+		t.Fatal("expected refresh_token in response")
+	}
+	user, ok := data["user"].(map[string]interface{})
+	if !ok {
+		t.Fatal("expected user object in response")
+	}
+	if user["company_id"] != float64(2) {
+		t.Fatalf("expected company_id=2, got %v", user["company_id"])
+	}
+	if user["company_country"] != "SGP" {
+		t.Fatalf("expected company_country=SGP, got %v", user["company_country"])
+	}
+}
+
+func TestSwitchCompany_NotMember(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	// Mock: GetUserCompanyMembership — no rows (not a member)
+	mockDB.OnQueryRow(testutil.NewErrorRow(pgx.ErrNoRows))
+
+	ac := testutil.AuthContext{UserID: 1, Email: "user@test.com", Role: RoleAdmin, CompanyID: 1}
+	c, w := testutil.NewGinContext("POST", "/api/v1/auth/switch-company", gin.H{"company_id": 999}, ac)
+	h.SwitchCompany(c)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestSwitchCompany_MissingCompanyID(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	ac := testutil.AuthContext{UserID: 1, Email: "user@test.com", Role: RoleAdmin, CompanyID: 1}
+	c, w := testutil.NewGinContext("POST", "/api/v1/auth/switch-company", gin.H{}, ac)
+	h.SwitchCompany(c)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestSwitchCompany_UpdateFails(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	// Mock: GetUserCompanyMembership — user is a member
+	mockDB.OnQueryRow(testutil.NewRow(
+		int64(1), int64(2), "admin", time.Now(),
+	))
+	// Mock: UpdateUserActiveCompany — fails
+	mockDB.OnExec(pgconn.NewCommandTag("UPDATE 0"), fmt.Errorf("db error"))
+
+	ac := testutil.AuthContext{UserID: 1, Email: "user@test.com", Role: RoleAdmin, CompanyID: 1}
+	c, w := testutil.NewGinContext("POST", "/api/v1/auth/switch-company", gin.H{"company_id": 2}, ac)
+	h.SwitchCompany(c)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d: %s", w.Code, w.Body.String())
 	}
 }
