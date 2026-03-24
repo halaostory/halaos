@@ -16,6 +16,10 @@ func (h *Handler) RegisterRoutes(public, protected *gin.RouterGroup, loginLimite
 		auth.POST("/sso", loginLimiter, h.SSOLogin)
 		auth.POST("/forgot-password", loginLimiter, h.ForgotPassword)
 		auth.POST("/reset-password", loginLimiter, h.ResetPassword)
+
+		// CLI setup endpoints (public, rate-limited)
+		auth.POST("/cli-register", loginLimiter, h.CLIRegister)
+		auth.POST("/cli-login", loginLimiter, h.CLILogin)
 	}
 
 	// Protected auth routes
