@@ -123,6 +123,10 @@ export const authAPI = {
   uploadAvatar: (formData: FormData) =>
     api("/v1/auth/avatar", { method: "POST", body: formData, headers: {} }),
   ssoLogin: (token: string) => post("/v1/auth/sso", { token }),
+  forgotPassword: (email: string) =>
+    post("/v1/auth/forgot-password", { email }),
+  resetPassword: (token: string, password: string) =>
+    post("/v1/auth/reset-password", { token, password }),
   switchCompany: (companyId: number) =>
     post("/v1/auth/switch-company", { company_id: companyId }),
   logout: (refreshToken: string) =>

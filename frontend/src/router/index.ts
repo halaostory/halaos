@@ -104,6 +104,18 @@ const router = createRouter({
       name: "verify-email",
       component: () => import("../views/VerifyEmailView.vue"),
     },
+    {
+      path: '/forgot-password',
+      name: 'forgot-password',
+      component: () => import('../views/ForgotPasswordView.vue'),
+      meta: { title: 'Forgot Password' },
+    },
+    {
+      path: '/reset-password',
+      name: 'reset-password',
+      component: () => import('../views/ResetPasswordView.vue'),
+      meta: { title: 'Reset Password' },
+    },
     // SSO Callback
     {
       path: "/sso",
