@@ -498,6 +498,119 @@ func (h *Handler) CLIRegister(c *gin.Context) {
 	})
 }
 
+type cliLoginRequest struct {
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required"`
+}
+
+// CLILogin handles POST /auth/cli-login.
+// It allows existing users to login from the CLI and receive a fresh API key.
+// It auto-verifies unverified emails and rotates the cli-default API key on each login.
+// Uses GetUserByEmailAny (finds users regardless of email-verified status),
+// then checks status explicitly. Returns generic 401 for both "not found" and
+// "wrong password" to prevent email enumeration.
+func (h *Handler) CLILogin(c *gin.Context) {
+	var req cliLoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	// Lookup user regardless of email-verified status
+	user, err := h.queries.GetUserByEmailAny(c.Request.Context(), req.Email)
+	if err != nil {
+		response.Error(c, http.StatusUnauthorized, "invalid_credentials", "Invalid email or password")
+		return
+	}
+
+	// Check account status before password verification to avoid leaking user existence
+	if user.Status != "active" {
+		response.Error(c, http.StatusForbidden, "account_disabled", "Account has been disabled")
+		return
+	}
+
+	// Verify password
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
+		response.Error(c, http.StatusUnauthorized, "invalid_credentials", "Invalid email or password")
+		return
+	}
+
+	// Auto-verify email if not verified (CLI login skips the email verification flow)
+	if !user.EmailVerified {
+		if err := h.queries.MarkEmailVerified(c.Request.Context(), user.ID); err != nil {
+			h.logger.Error("failed to mark email verified", "user_id", user.ID, "error", err)
+			response.InternalError(c, "Login failed")
+			return
+		}
+	}
+
+	// Update last login (synchronous)
+	_ = h.queries.UpdateLastLogin(c.Request.Context(), user.ID)
+
+	// Revoke existing cli-default key (best-effort, ignore error)
+	_ = h.queries.RevokeAPIKeyByName(c.Request.Context(), store.RevokeAPIKeyByNameParams{
+		UserID: user.ID,
+		Name:   "cli-default",
+	})
+
+	// Create fresh API key
+	apiKey := generateAPIKey()
+	apiKeyPfx := apiKeyPrefix(apiKey)
+	apiKeyHash := hashAPIKey(apiKey)
+
+	keyRow, err := h.queries.CreateAPIKey(c.Request.Context(), store.CreateAPIKeyParams{
+		UserID:    user.ID,
+		CompanyID: user.CompanyID,
+		Prefix:    apiKeyPfx,
+		KeyHash:   apiKeyHash,
+		Name:      "cli-default",
+	})
+	if err != nil {
+		h.logger.Error("failed to create API key", "user_id", user.ID, "error", err)
+		response.InternalError(c, "Login failed")
+		return
+	}
+
+	// Generate JWT tokens
+	jwtToken, err := h.jwt.GenerateToken(user.ID, user.Email, Role(user.Role), user.CompanyID)
+	if err != nil {
+		h.logger.Error("failed to generate token", "error", err)
+		response.InternalError(c, "Login failed")
+		return
+	}
+
+	refreshToken, err := h.jwt.GenerateRefreshToken(user.ID, user.Email, Role(user.Role), user.CompanyID)
+	if err != nil {
+		h.logger.Error("failed to generate refresh token", "error", err)
+		response.InternalError(c, "Login failed")
+		return
+	}
+
+	// Enrich response with company info
+	loginResp := userResponse{
+		ID:        user.ID,
+		Email:     user.Email,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		Role:      user.Role,
+		CompanyID: user.CompanyID,
+	}
+	comp, compErr := h.queries.GetCompanyByID(c.Request.Context(), user.CompanyID)
+	if compErr == nil {
+		loginResp.CompanyCountry = comp.Country
+		loginResp.CompanyCurrency = comp.Currency
+		loginResp.CompanyTimezone = comp.Timezone
+	}
+
+	response.OK(c, cliRegisterResponse{
+		Token:        jwtToken,
+		RefreshToken: refreshToken,
+		APIKey:       apiKey,
+		APIKeyPrefix: keyRow.Prefix,
+		User:         loginResp,
+	})
+}
+
 func (h *Handler) Login(c *gin.Context) {
 	var req loginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

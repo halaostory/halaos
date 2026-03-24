@@ -2,6 +2,7 @@ package auth
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -105,3 +106,123 @@ func TestCLIRegister_PasswordTooShort(t *testing.T) {
 
 // Compile-time check: ensure store.Company has the expected field set used in cliTestCompany.
 var _ = store.Company{}
+
+// --- CLILogin Tests ---
+
+func TestCLILogin_Success(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	u := activeUser("cli@example.com", "password123")
+	u.EmailVerified = true
+	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...)) // GetUserByEmailAny
+	mockDB.OnExecSuccess()                                   // UpdateLastLogin
+	mockDB.OnExecSuccess()                                   // RevokeAPIKeyByName
+	mockDB.OnQueryRow(testutil.NewRow(cliTestAPIKeyRow()...)) // CreateAPIKey
+	mockDB.OnQueryRow(testutil.NewRow(cliTestCompany()...))   // GetCompanyByID
+
+	c, w := testutil.NewGinContext("POST", "/auth/cli-login", map[string]interface{}{
+		"email":    "cli@example.com",
+		"password": "password123",
+	}, testutil.AuthContext{})
+
+	h.CLILogin(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	data := extractData(w)
+	if data["token"] == nil {
+		t.Fatal("expected token in response")
+	}
+	apiKey, ok := data["api_key"].(string)
+	if !ok || !strings.HasPrefix(apiKey, "halaos_") {
+		t.Fatalf("expected api_key starting with halaos_, got %v", data["api_key"])
+	}
+}
+
+func TestCLILogin_InvalidCredentials(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	mockDB.OnQueryRow(testutil.NewErrorRow(pgx.ErrNoRows)) // GetUserByEmailAny returns no rows
+
+	c, w := testutil.NewGinContext("POST", "/auth/cli-login", map[string]interface{}{
+		"email":    "nobody@example.com",
+		"password": "password123",
+	}, testutil.AuthContext{})
+
+	h.CLILogin(c)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCLILogin_WrongPassword(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	u := activeUser("cli@example.com", "correctpassword")
+	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...)) // GetUserByEmailAny
+
+	c, w := testutil.NewGinContext("POST", "/auth/cli-login", map[string]interface{}{
+		"email":    "cli@example.com",
+		"password": "wrongpassword",
+	}, testutil.AuthContext{})
+
+	h.CLILogin(c)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCLILogin_InactiveAccount(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	u := activeUser("cli@example.com", "password123")
+	u.Status = "inactive"
+	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...)) // GetUserByEmailAny
+
+	c, w := testutil.NewGinContext("POST", "/auth/cli-login", map[string]interface{}{
+		"email":    "cli@example.com",
+		"password": "password123",
+	}, testutil.AuthContext{})
+
+	h.CLILogin(c)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCLILogin_AutoVerifiesUnverifiedEmail(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	u := activeUser("cli@example.com", "password123")
+	u.EmailVerified = false
+	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...)) // GetUserByEmailAny
+	mockDB.OnExecSuccess()                                   // MarkEmailVerified
+	mockDB.OnExecSuccess()                                   // UpdateLastLogin
+	mockDB.OnExecSuccess()                                   // RevokeAPIKeyByName
+	mockDB.OnQueryRow(testutil.NewRow(cliTestAPIKeyRow()...)) // CreateAPIKey
+	mockDB.OnQueryRow(testutil.NewRow(cliTestCompany()...))   // GetCompanyByID
+
+	c, w := testutil.NewGinContext("POST", "/auth/cli-login", map[string]interface{}{
+		"email":    "cli@example.com",
+		"password": "password123",
+	}, testutil.AuthContext{})
+
+	h.CLILogin(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	data := extractData(w)
+	if data["api_key"] == nil {
+		t.Fatal("expected api_key in response")
+	}
+}
