@@ -1,6 +1,6 @@
 ---
 name: halaos-hr
-version: "1.0.0"
+version: "1.1.0"
 description: "AI-powered HR Operating System for Southeast Asia. Full payroll with PH/SG/LK compliance, 9 AI agents (payroll specialist, compliance officer, leave advisor...), attendance with GPS geofencing, leave/OT/expense workflows, org intelligence with flight risk & burnout detection. Zero-setup via OpenClaw."
 user-invocable: true
 emoji: "🏢"
