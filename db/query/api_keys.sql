@@ -21,3 +21,7 @@ UPDATE api_keys SET is_active = false WHERE id = $1 AND user_id = $2;
 
 -- name: TouchAPIKeyLastUsed :exec
 UPDATE api_keys SET last_used_at = NOW() WHERE id = $1;
+
+-- name: RevokeAPIKeyByName :exec
+UPDATE api_keys SET is_active = false
+WHERE user_id = $1 AND name = $2 AND is_active = true;

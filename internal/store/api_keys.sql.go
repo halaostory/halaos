@@ -151,6 +151,21 @@ func (q *Queries) RevokeAPIKey(ctx context.Context, arg RevokeAPIKeyParams) erro
 	return err
 }
 
+const revokeAPIKeyByName = `-- name: RevokeAPIKeyByName :exec
+UPDATE api_keys SET is_active = false
+WHERE user_id = $1 AND name = $2 AND is_active = true
+`
+
+type RevokeAPIKeyByNameParams struct {
+	UserID int64  `json:"user_id"`
+	Name   string `json:"name"`
+}
+
+func (q *Queries) RevokeAPIKeyByName(ctx context.Context, arg RevokeAPIKeyByNameParams) error {
+	_, err := q.db.Exec(ctx, revokeAPIKeyByName, arg.UserID, arg.Name)
+	return err
+}
+
 const touchAPIKeyLastUsed = `-- name: TouchAPIKeyLastUsed :exec
 UPDATE api_keys SET last_used_at = NOW() WHERE id = $1
 `
