@@ -157,6 +157,18 @@ type Announcement struct {
 	CreatedAt         time.Time          `json:"created_at"`
 }
 
+type ApiKey struct {
+	ID         int64              `json:"id"`
+	UserID     int64              `json:"user_id"`
+	CompanyID  int64              `json:"company_id"`
+	Prefix     string             `json:"prefix"`
+	KeyHash    string             `json:"key_hash"`
+	Name       string             `json:"name"`
+	IsActive   bool               `json:"is_active"`
+	LastUsedAt pgtype.Timestamptz `json:"last_used_at"`
+	CreatedAt  time.Time          `json:"created_at"`
+}
+
 type Applicant struct {
 	ID           int64     `json:"id"`
 	CompanyID    int64     `json:"company_id"`
@@ -1908,6 +1920,13 @@ type User struct {
 	EmailVerified              bool               `json:"email_verified"`
 	VerificationToken          *string            `json:"verification_token"`
 	VerificationTokenExpiresAt pgtype.Timestamptz `json:"verification_token_expires_at"`
+}
+
+type UserCompany struct {
+	UserID    int64     `json:"user_id"`
+	CompanyID int64     `json:"company_id"`
+	Role      string    `json:"role"`
+	JoinedAt  time.Time `json:"joined_at"`
 }
 
 type WorkSchedule struct {

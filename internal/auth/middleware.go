@@ -16,6 +16,12 @@ const (
 
 func JWTMiddleware(jwtSvc *JWTService) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Skip JWT validation if already authenticated (e.g. by APIKeyMiddleware)
+		if _, exists := c.Get(ContextKeyUserID); exists {
+			c.Next()
+			return
+		}
+
 		tokenStr := extractBearerToken(c)
 		if tokenStr == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
