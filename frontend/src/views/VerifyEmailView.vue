@@ -38,9 +38,9 @@ onMounted(async () => {
 
     // Normal verification success — auto-login
     if (data.token) {
-      localStorage.setItem('access_token', data.token)
-      localStorage.setItem('refresh_token', data.refresh_token)
-      auth.setUser(data.user)
+      localStorage.setItem('access_token', data.token as string)
+      localStorage.setItem('refresh_token', (data.refresh_token as string) || '')
+      auth.setUser(data.user as { id: number; email: string; first_name: string; last_name: string; role: string; company_id: number })
     }
     status.value = 'success'
     loading.value = false
