@@ -77,6 +77,12 @@ func (h *Handler) CreateEmployeeUser(c *gin.Context) {
 		return
 	}
 
+	// Admin-created employee accounts are pre-verified (no email confirmation needed).
+	if err := qtx.MarkEmailVerified(c.Request.Context(), user.ID); err != nil {
+		response.InternalError(c, "Failed to verify email")
+		return
+	}
+
 	if err := qtx.LinkUserToEmployee(c.Request.Context(), store.LinkUserToEmployeeParams{
 		UserID:    &user.ID,
 		ID:        emp.ID,
