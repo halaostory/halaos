@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
@@ -16,6 +16,13 @@ const auth = useAuthStore()
 
 const currentStep = ref(1)
 const loading = ref(false)
+
+const windowWidth = ref(window.innerWidth)
+const isMobile = computed(() => windowWidth.value < 640)
+
+function handleResize() {
+  windowWidth.value = window.innerWidth
+}
 
 // Step 1: Company Info
 const companyForm = ref({
@@ -70,6 +77,7 @@ const employmentTypeOptions = [
 ]
 
 onMounted(async () => {
+  window.addEventListener('resize', handleResize)
   // Load existing company info
   try {
     const res = await companyAPI.getSettings()
@@ -102,6 +110,8 @@ onMounted(async () => {
     positions.value = Array.isArray(data) ? data : []
   } catch { /* none yet */ }
 })
+
+onUnmounted(() => window.removeEventListener('resize', handleResize))
 
 async function saveCompanyInfo() {
   loading.value = true
@@ -203,12 +213,15 @@ function goToDashboard() {
       </NButton>
     </div>
 
-    <NSteps :current="currentStep" style="margin-bottom: 32px;">
+    <NSteps v-if="!isMobile" :current="currentStep" style="margin-bottom: 32px;">
       <NStep title="Company Info" />
       <NStep title="Departments" />
       <NStep title="Positions" />
       <NStep title="First Employee" />
     </NSteps>
+    <div v-else class="mobile-step-indicator">
+      Step {{ currentStep }} of 4
+    </div>
 
     <!-- Step 1: Company Info -->
     <NCard v-if="currentStep === 1" title="Company Information">
@@ -216,7 +229,7 @@ function goToDashboard() {
         <NTag type="info" size="small">Step 1 of 4</NTag>
       </template>
       <NForm label-placement="top">
-        <NGrid :cols="2" :x-gap="16" :y-gap="0" responsive="screen">
+        <NGrid cols="1 s:2" :x-gap="16" :y-gap="0" responsive="screen">
           <NGi>
             <NFormItem label="Legal Name">
               <NInput v-model:value="companyForm.legal_name" placeholder="e.g. ABC Corporation" />
@@ -256,7 +269,7 @@ function goToDashboard() {
 
         <template v-if="isPH">
           <h4 style="margin: 16px 0 12px; font-size: 14px; color: #666;">Government Registration Numbers</h4>
-          <NGrid :cols="3" :x-gap="16" :y-gap="0" responsive="screen">
+          <NGrid cols="1 s:2 m:3" :x-gap="16" :y-gap="0" responsive="screen">
             <NGi>
               <NFormItem label="SSS ER No.">
                 <NInput v-model:value="companyForm.sss_er_no" placeholder="SSS employer number" />
@@ -294,7 +307,7 @@ function goToDashboard() {
         Add the departments in your organization. Common examples: Engineering, Sales, HR, Finance, Operations.
       </p>
 
-      <NGrid :cols="3" :x-gap="12" responsive="screen" style="margin-bottom: 16px;">
+      <NGrid cols="1 s:2 m:3" :x-gap="12" responsive="screen" style="margin-bottom: 16px;">
         <NGi>
           <NInput v-model:value="newDept.code" placeholder="Code (e.g. ENG)" />
         </NGi>
@@ -337,7 +350,7 @@ function goToDashboard() {
         Add job positions/titles. Examples: Software Engineer, Accountant, Sales Manager, HR Officer.
       </p>
 
-      <NGrid :cols="4" :x-gap="12" responsive="screen" style="margin-bottom: 16px;">
+      <NGrid cols="1 s:2 m:3 l:4" :x-gap="12" responsive="screen" style="margin-bottom: 16px;">
         <NGi>
           <NInput v-model:value="newPos.code" placeholder="Code (e.g. SE)" />
         </NGi>
@@ -389,7 +402,7 @@ function goToDashboard() {
       </p>
 
       <NForm label-placement="top">
-        <NGrid :cols="2" :x-gap="16" :y-gap="0" responsive="screen">
+        <NGrid cols="1 s:2" :x-gap="16" :y-gap="0" responsive="screen">
           <NGi>
             <NFormItem label="Employee No.">
               <NInput v-model:value="employeeForm.employee_no" placeholder="EMP-001" />
@@ -455,7 +468,7 @@ function goToDashboard() {
           Your company is configured and ready to go. Explore the features below to get the most out of HalaOS.
         </p>
 
-        <NGrid :cols="3" :x-gap="16" :y-gap="16" responsive="screen" style="max-width: 600px; margin: 0 auto 32px;">
+        <NGrid cols="1 s:2 m:3" :x-gap="16" :y-gap="16" responsive="screen" style="max-width: 600px; margin: 0 auto 32px;">
           <NGi>
             <div class="explore-card" @click="router.push('/dashboard/employees')">
               <div style="font-size: 24px; margin-bottom: 8px;">&#128101;</div>
@@ -520,6 +533,15 @@ function goToDashboard() {
 }
 .done-card {
   border: 2px solid #4f46e5;
+}
+
+.mobile-step-indicator {
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #4f46e5;
+  padding: 12px 0;
+  margin-bottom: 16px;
 }
 
 @media (max-width: 768px) {
