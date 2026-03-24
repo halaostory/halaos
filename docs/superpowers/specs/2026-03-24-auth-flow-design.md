@@ -57,15 +57,24 @@ WHERE id = $1;
 -- name: GetUserByResetToken :one
 SELECT * FROM users WHERE reset_token = $1 AND reset_token_expires_at > NOW();
 
+-- name: GetUserByResetTokenAny :one
+SELECT * FROM users WHERE reset_token = $1;
+
 -- name: ClearResetToken :exec
 UPDATE users SET reset_token = NULL, reset_token_expires_at = NULL, updated_at = NOW()
 WHERE id = $1;
 
 -- name: ResetUserPassword :exec
 UPDATE users SET password_hash = $2, updated_at = NOW() WHERE id = $1;
+
+-- name: GetUserByEmailAny :one
+SELECT * FROM users WHERE email = $1 LIMIT 1;
 ```
 
-Note: `ResetUserPassword` differs from `AdminResetPassword` (which requires `company_id` as `$3`). The public reset flow only has the user ID from the token lookup, not a company_id.
+Notes:
+- `ResetUserPassword` differs from `AdminResetPassword` (which requires `company_id` as `$3`). The public reset flow only has the user ID from the token lookup, not a company_id.
+- `GetUserByResetTokenAny` (no expiry check) enables distinguishing expired vs never-existed tokens — same pattern as `GetUserByVerificationTokenAny`.
+- `GetUserByEmailAny` (no `status = 'active'` filter) enables the Login handler to detect disabled accounts and return `account_disabled` instead of the misleading `invalid_credentials`. The existing `GetUserByEmail` filters `status = 'active'`, making the status check unreachable.
 
 ### Backend Endpoints
 
@@ -111,12 +120,17 @@ Response (200):
 
 Logic:
 1. Validate password length >= 8
-2. Look up user by `GetUserByResetToken(token)` — if not found, return `token_expired` or `token_invalid` error
-3. Hash new password with bcrypt
-4. Update password via `ResetUserPassword(userID, hashedPassword)` (new query — no company_id needed)
-5. Clear reset token via `ClearResetToken`
-6. Auto-login: generate JWT + refresh tokens
-7. Return tokens + user data (same as Login response)
+2. Look up user by `GetUserByResetToken(token)` (checks expiry)
+3. If not found, differentiate: call `GetUserByResetTokenAny(token)`:
+   - If also not found → return `response.Error(c, http.StatusBadRequest, "token_invalid", "This reset link is invalid")`
+   - If found but expired → return `response.Error(c, http.StatusBadRequest, "token_expired", "This reset link has expired")`
+4. Hash new password with bcrypt
+5. Update password via `ResetUserPassword(userID, hashedPassword)` (new query — no company_id needed)
+6. Clear reset token via `ClearResetToken`
+7. Auto-login: generate JWT + refresh tokens
+8. Return tokens + user data (same as Login response)
+
+Note: `reset_token` column is nullable, so sqlc generates the parameter as `*string`. Pass `&token` (pointer) to both queries.
 
 ### Email Template
 
@@ -187,14 +201,14 @@ This uses `response.Error()` directly to set a semantic error code.
 In `LoginView.vue`, update the error handling in `handleLogin()`:
 
 ```ts
-catch (e) {
+catch (err: any) {
   const errorCode = err.data?.error?.code || err.response?.data?.error?.code
   if (errorCode === 'email_not_verified') {
     // Show inline "resend verification" UI
     showResendVerification.value = true
     resendEmail.value = form.value.email
   } else {
-    message.error(msg)
+    message.error(err.data?.error?.message || err.message || 'Login failed')
   }
 }
 ```
@@ -232,19 +246,20 @@ SELECT * FROM users WHERE verification_token = $1;
 New logic:
 ```go
 // Try with expiry check first
+// Note: verification_token is nullable, so sqlc generates *string parameter — use &token
 user, err := h.queries.GetUserByVerificationToken(ctx, &token)
 if err != nil {
     // Check if token exists but is expired
     expiredUser, err2 := h.queries.GetUserByVerificationTokenAny(ctx, &token)
     if err2 != nil {
-        response.Error(c, 400, "token_invalid", "This verification link is invalid")
+        response.Error(c, http.StatusBadRequest, "token_invalid", "This verification link is invalid")
         return
     }
     if expiredUser.EmailVerified {
-        response.Error(c, 400, "already_verified", "This email is already verified")
+        response.OK(c, gin.H{"status": "already_verified", "message": "Email already verified"})
         return
     }
-    response.Error(c, 400, "token_expired", "This verification link has expired")
+    response.Error(c, http.StatusBadRequest, "token_expired", "This verification link has expired")
     return
 }
 ```
@@ -258,6 +273,8 @@ if user.EmailVerified {
 ```
 
 Note: Uses `response.OK()` (HTTP 200, `success: true`) rather than `response.Error()` because "already verified" is not an error condition — the user's email IS verified. The frontend detects this via `data.status === "already_verified"`.
+
+**Payload shape change:** The existing handler returns `gin.H{"message": "Email already verified"}`. The new version adds a `"status": "already_verified"` field to the response data so the frontend can distinguish "already verified" from a successful first-time verification (which returns JWT tokens).
 
 For the expired token path (found via `GetUserByVerificationTokenAny`), if the user is already verified:
 ```go
@@ -321,14 +338,34 @@ Use CSS media query `@media (max-width: 640px)` for mobile overrides.
 
 ### Backend Changes
 
-Update Login handler error responses in `handler.go`:
+**Login handler restructuring in `handler.go`:**
+
+The current Login handler uses `GetUserByEmail` which has `AND status = 'active'`, making the `status != 'active'` check at line 317 unreachable. Change to `GetUserByEmailAny` (no status filter) so disabled accounts get a proper error:
+
+```go
+// Before: user, err := h.queries.GetUserByEmail(ctx, req.Email)
+// After:
+user, err := h.queries.GetUserByEmailAny(c.Request.Context(), req.Email)
+if err != nil {
+    response.Error(c, http.StatusUnauthorized, "invalid_credentials", "Invalid email or password")
+    return
+}
+
+if user.Status != "active" {
+    response.Error(c, http.StatusForbidden, "account_disabled", "Account has been disabled")
+    return
+}
+```
+
+Full error code mapping:
 
 | Current | New Code | HTTP | Message |
 |---------|----------|------|---------|
-| `response.Unauthorized(c, "Invalid email or password")` (line 313) | `response.Error(c, 401, "invalid_credentials", "Invalid email or password")` | 401 | Same |
-| `response.Unauthorized(c, "Invalid email or password")` (line 323) | `response.Error(c, 401, "invalid_credentials", "Invalid email or password")` | 401 | Same |
-| `response.Forbidden(c, "Account is not active")` (line 318) | `response.Error(c, 403, "account_disabled", "Account has been disabled")` | 403 | Updated |
-| `response.Forbidden(c, "Please verify...")` (line 328) | `response.Error(c, 403, "email_not_verified", "...")` | 403 | Same (see section 2) |
+| `GetUserByEmail` (line 311) | `GetUserByEmailAny` | — | Query change to detect disabled accounts |
+| `response.Unauthorized(c, "Invalid email or password")` (line 313) | `response.Error(c, http.StatusUnauthorized, "invalid_credentials", "Invalid email or password")` | 401 | Same |
+| `response.Forbidden(c, "Account is not active")` (line 318) | `response.Error(c, http.StatusForbidden, "account_disabled", "Account has been disabled")` | 403 | Now reachable |
+| `response.Unauthorized(c, "Invalid email or password")` (line 323) | `response.Error(c, http.StatusUnauthorized, "invalid_credentials", "Invalid email or password")` | 401 | Same |
+| `response.Forbidden(c, "Please verify...")` (line 328) | `response.Error(c, http.StatusForbidden, "email_not_verified", "...")` | 403 | Same (see section 2) |
 
 Update VerifyEmail handler error responses (see section 3).
 
@@ -341,7 +378,7 @@ These codes enable the frontend to show contextual UI (resend verification, cont
 | File | Action | Description |
 |------|--------|-------------|
 | `db/migrations/00083_password_reset.sql` | Create | reset_token columns + index |
-| `db/query/auth.sql` | Modify | Add 5 queries (SetResetToken, GetUserByResetToken, ClearResetToken, ResetUserPassword, GetUserByVerificationTokenAny) |
+| `db/query/auth.sql` | Modify | Add 7 queries (SetResetToken, GetUserByResetToken, GetUserByResetTokenAny, ClearResetToken, ResetUserPassword, GetUserByEmailAny, GetUserByVerificationTokenAny) |
 | `internal/store/` | Regenerate | sqlc generate |
 | `internal/auth/handler.go` | Modify | Add ForgotPassword + ResetPassword handlers, update Login + VerifyEmail error codes |
 | `internal/auth/routes.go` | Modify | Add 2 public routes |
