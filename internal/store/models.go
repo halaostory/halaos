@@ -1920,6 +1920,8 @@ type User struct {
 	EmailVerified              bool               `json:"email_verified"`
 	VerificationToken          *string            `json:"verification_token"`
 	VerificationTokenExpiresAt pgtype.Timestamptz `json:"verification_token_expires_at"`
+	ResetToken                 *string            `json:"reset_token"`
+	ResetTokenExpiresAt        pgtype.Timestamptz `json:"reset_token_expires_at"`
 }
 
 type UserCompany struct {

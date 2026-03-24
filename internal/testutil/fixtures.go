@@ -28,11 +28,13 @@ func FixtureUser() store.User {
 		EmailVerified:              true,
 		VerificationToken:          nil,
 		VerificationTokenExpiresAt: pgtype.Timestamptz{},
+		ResetToken:                 nil,
+		ResetTokenExpiresAt:        pgtype.Timestamptz{},
 	}
 }
 
 // UserScanValues returns the values in the exact scan order used by sqlc-generated
-// User queries (16 fields).
+// User queries (18 fields).
 func UserScanValues(u store.User) []interface{} {
 	return []interface{}{
 		u.ID,
@@ -51,6 +53,8 @@ func UserScanValues(u store.User) []interface{} {
 		u.EmailVerified,
 		u.VerificationToken,
 		u.VerificationTokenExpiresAt,
+		u.ResetToken,
+		u.ResetTokenExpiresAt,
 	}
 }
 

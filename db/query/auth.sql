@@ -53,3 +53,26 @@ SELECT * FROM users WHERE verification_token = $1 AND verification_token_expires
 -- name: MarkEmailVerified :exec
 UPDATE users SET email_verified = true, verification_token = NULL, verification_token_expires_at = NULL, updated_at = NOW()
 WHERE id = $1;
+
+-- name: SetResetToken :exec
+UPDATE users SET reset_token = $2, reset_token_expires_at = $3, updated_at = NOW()
+WHERE id = $1;
+
+-- name: GetUserByResetToken :one
+SELECT * FROM users WHERE reset_token = $1 AND reset_token_expires_at > NOW();
+
+-- name: GetUserByResetTokenAny :one
+SELECT * FROM users WHERE reset_token = $1;
+
+-- name: ClearResetToken :exec
+UPDATE users SET reset_token = NULL, reset_token_expires_at = NULL, updated_at = NOW()
+WHERE id = $1;
+
+-- name: ResetUserPassword :exec
+UPDATE users SET password_hash = $2, updated_at = NOW() WHERE id = $1;
+
+-- name: GetUserByEmailAny :one
+SELECT * FROM users WHERE email = $1 LIMIT 1;
+
+-- name: GetUserByVerificationTokenAny :one
+SELECT * FROM users WHERE verification_token = $1;

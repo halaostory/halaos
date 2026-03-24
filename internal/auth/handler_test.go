@@ -63,6 +63,8 @@ func activeUser(email, password string) store.User {
 		EmailVerified:              true,
 		VerificationToken:          nil,
 		VerificationTokenExpiresAt: pgtype.Timestamptz{},
+		ResetToken:                 nil,
+		ResetTokenExpiresAt:        pgtype.Timestamptz{},
 	}
 }
 
