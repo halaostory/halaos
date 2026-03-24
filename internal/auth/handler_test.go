@@ -619,6 +619,142 @@ func TestSwitchCompany_MissingCompanyID(t *testing.T) {
 	}
 }
 
+// --- ForgotPassword Tests ---
+
+func TestForgotPassword_Success(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	u := activeUser("admin@test.com", "password123")
+	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...)) // GetUserByEmail
+	mockDB.OnExecSuccess()                                   // SetResetToken
+
+	c, w := testutil.NewGinContext("POST", "/auth/forgot-password", gin.H{
+		"email": "admin@test.com",
+	}, testutil.AuthContext{})
+
+	h.ForgotPassword(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	body := testutil.ResponseBody(w)
+	if body["success"] != true {
+		t.Fatal("expected success: true")
+	}
+}
+
+func TestForgotPassword_EmailNotFound(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	mockDB.OnQueryRow(testutil.NewErrorRow(pgx.ErrNoRows))
+
+	c, w := testutil.NewGinContext("POST", "/auth/forgot-password", gin.H{
+		"email": "nobody@test.com",
+	}, testutil.AuthContext{})
+
+	h.ForgotPassword(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// --- ResetPassword Tests ---
+
+func TestResetPassword_Success(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	u := activeUser("admin@test.com", "oldpassword")
+	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...)) // GetUserByResetToken
+	mockDB.OnExecSuccess()                                   // ResetUserPassword
+	mockDB.OnExecSuccess()                                   // ClearResetToken
+	mockDB.OnExecSuccess()                                   // UpdateLastLogin
+	mockDB.OnQueryRow(testutil.NewErrorRow(pgx.ErrNoRows))   // GetCompanyByID (not found, ok)
+
+	c, w := testutil.NewGinContext("POST", "/auth/reset-password", gin.H{
+		"token":    "valid-token-123",
+		"password": "newPassword123",
+	}, testutil.AuthContext{})
+
+	h.ResetPassword(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	data := extractData(w)
+	if data["token"] == nil {
+		t.Fatal("expected JWT token in response")
+	}
+}
+
+func TestResetPassword_InvalidToken(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	mockDB.OnQueryRow(testutil.NewErrorRow(pgx.ErrNoRows)) // GetUserByResetToken
+	mockDB.OnQueryRow(testutil.NewErrorRow(pgx.ErrNoRows)) // GetUserByResetTokenAny also fails
+
+	c, w := testutil.NewGinContext("POST", "/auth/reset-password", gin.H{
+		"token":    "nonexistent-token",
+		"password": "newPassword123",
+	}, testutil.AuthContext{})
+
+	h.ResetPassword(c)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+	body := testutil.ResponseBody(w)
+	errObj, _ := body["error"].(map[string]interface{})
+	if errObj["code"] != "token_invalid" {
+		t.Fatalf("expected error code token_invalid, got %v", errObj["code"])
+	}
+}
+
+func TestResetPassword_ExpiredToken(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	mockDB.OnQueryRow(testutil.NewErrorRow(pgx.ErrNoRows)) // GetUserByResetToken fails
+	u := activeUser("admin@test.com", "oldpassword")
+	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...)) // GetUserByResetTokenAny succeeds
+
+	c, w := testutil.NewGinContext("POST", "/auth/reset-password", gin.H{
+		"token":    "expired-token",
+		"password": "newPassword123",
+	}, testutil.AuthContext{})
+
+	h.ResetPassword(c)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+	body := testutil.ResponseBody(w)
+	errObj, _ := body["error"].(map[string]interface{})
+	if errObj["code"] != "token_expired" {
+		t.Fatalf("expected error code token_expired, got %v", errObj["code"])
+	}
+}
+
+func TestResetPassword_WeakPassword(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	c, w := testutil.NewGinContext("POST", "/auth/reset-password", gin.H{
+		"token":    "valid-token",
+		"password": "short",
+	}, testutil.AuthContext{})
+
+	h.ResetPassword(c)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
 func TestSwitchCompany_UpdateFails(t *testing.T) {
 	mockDB := testutil.NewMockDBTX()
 	h := newTestHandler(mockDB)

@@ -14,6 +14,8 @@ func (h *Handler) RegisterRoutes(public, protected *gin.RouterGroup, loginLimite
 		auth.GET("/verify-email", h.VerifyEmail)
 		auth.POST("/resend-verification", loginLimiter, h.ResendVerification)
 		auth.POST("/sso", loginLimiter, h.SSOLogin)
+		auth.POST("/forgot-password", loginLimiter, h.ForgotPassword)
+		auth.POST("/reset-password", loginLimiter, h.ResetPassword)
 	}
 
 	// Protected auth routes

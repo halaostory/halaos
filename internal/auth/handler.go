@@ -476,6 +476,141 @@ func (h *Handler) Me(c *gin.Context) {
 	response.OK(c, resp)
 }
 
+type forgotPasswordRequest struct {
+	Email string `json:"email" binding:"required,email"`
+}
+
+type resetPasswordRequest struct {
+	Token    string `json:"token" binding:"required"`
+	Password string `json:"password" binding:"required,min=8"`
+}
+
+func (h *Handler) ForgotPassword(c *gin.Context) {
+	var req forgotPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Valid email is required")
+		return
+	}
+
+	successMsg := gin.H{"message": "If an account exists, a reset link has been sent"}
+
+	user, err := h.queries.GetUserByEmail(c.Request.Context(), req.Email)
+	if err != nil {
+		response.OK(c, successMsg)
+		return
+	}
+
+	token, err := generateVerificationToken()
+	if err != nil {
+		h.logger.Error("failed to generate reset token", "error", err)
+		response.OK(c, successMsg)
+		return
+	}
+
+	expiresAt := pgtype.Timestamptz{Time: time.Now().Add(1 * time.Hour), Valid: true}
+	err = h.queries.SetResetToken(c.Request.Context(), store.SetResetTokenParams{
+		ID:                  user.ID,
+		ResetToken:          &token,
+		ResetTokenExpiresAt: expiresAt,
+	})
+	if err != nil {
+		h.logger.Error("failed to set reset token", "error", err)
+		response.OK(c, successMsg)
+		return
+	}
+
+	if h.email != nil && h.email.IsEnabled() {
+		go func() {
+			if err := h.email.SendPasswordResetEmail(user.Email, user.FirstName, token); err != nil {
+				h.logger.Error("failed to send password reset email", "email", user.Email, "error", err)
+			}
+		}()
+	}
+
+	response.OK(c, successMsg)
+}
+
+func (h *Handler) ResetPassword(c *gin.Context) {
+	var req resetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Token and password (min 8 characters) are required")
+		return
+	}
+
+	user, err := h.queries.GetUserByResetToken(c.Request.Context(), &req.Token)
+	if err != nil {
+		// Differentiate expired vs invalid
+		_, err2 := h.queries.GetUserByResetTokenAny(c.Request.Context(), &req.Token)
+		if err2 != nil {
+			response.Error(c, http.StatusBadRequest, "token_invalid", "This reset link is invalid")
+			return
+		}
+		response.Error(c, http.StatusBadRequest, "token_expired", "This reset link has expired")
+		return
+	}
+
+	hashedPassword, err := HashPassword(req.Password)
+	if err != nil {
+		h.logger.Error("failed to hash password", "error", err)
+		response.InternalError(c, "Password reset failed")
+		return
+	}
+
+	err = h.queries.ResetUserPassword(c.Request.Context(), store.ResetUserPasswordParams{
+		ID:           user.ID,
+		PasswordHash: hashedPassword,
+	})
+	if err != nil {
+		h.logger.Error("failed to reset password", "error", err)
+		response.InternalError(c, "Password reset failed")
+		return
+	}
+
+	err = h.queries.ClearResetToken(c.Request.Context(), user.ID)
+	if err != nil {
+		h.logger.Error("failed to clear reset token", "error", err)
+	}
+
+	// Auto-login
+	token, err := h.jwt.GenerateToken(user.ID, user.Email, Role(user.Role), user.CompanyID)
+	if err != nil {
+		h.logger.Error("failed to generate token after reset", "error", err)
+		response.InternalError(c, "Password reset succeeded but login failed")
+		return
+	}
+
+	refreshToken, err := h.jwt.GenerateRefreshToken(user.ID, user.Email, Role(user.Role), user.CompanyID)
+	if err != nil {
+		h.logger.Error("failed to generate refresh token after reset", "error", err)
+		response.InternalError(c, "Password reset succeeded but login failed")
+		return
+	}
+
+	_ = h.queries.UpdateLastLogin(c.Request.Context(), user.ID)
+
+	loginResp := userResponse{
+		ID:        user.ID,
+		Email:     user.Email,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		Role:      user.Role,
+		CompanyID: user.CompanyID,
+	}
+
+	comp, compErr := h.queries.GetCompanyByID(c.Request.Context(), user.CompanyID)
+	if compErr == nil {
+		loginResp.CompanyCountry = comp.Country
+		loginResp.CompanyCurrency = comp.Currency
+		loginResp.CompanyTimezone = comp.Timezone
+	}
+
+	response.OK(c, authResponse{
+		Token:        token,
+		RefreshToken: refreshToken,
+		User:         loginResp,
+	})
+}
+
 type changePasswordRequest struct {
 	CurrentPassword string `json:"current_password" binding:"required"`
 	NewPassword     string `json:"new_password" binding:"required,min=8"`
