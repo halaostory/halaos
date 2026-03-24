@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
 import {
   NCard, NSteps, NStep, NButton, NSpace, NForm, NFormItem,
   NInput, NSelect, NGrid, NGi, NTag, NEmpty, useMessage,
@@ -10,7 +9,6 @@ import { companyAPI, employeeAPI } from '../api/client'
 import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
-const { t } = useI18n()
 const message = useMessage()
 const auth = useAuthStore()
 
@@ -430,7 +428,7 @@ function goToDashboard() {
           </NGi>
           <NGi>
             <NFormItem label="Hire Date">
-              <NInput v-model:value="employeeForm.hire_date" type="date" />
+              <NInput v-model:value="employeeForm.hire_date" :input-props="{ type: 'date' }" />
             </NFormItem>
           </NGi>
           <NGi>

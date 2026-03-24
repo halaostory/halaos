@@ -84,6 +84,7 @@ export const useAuthStore = defineStore("auth", () => {
     last_name: string;
     country?: string;
     referral_code?: string;
+    jurisdiction?: string;
   }): Promise<{ emailSent: boolean }> {
     const raw = await authAPI.register(data);
     const d = (raw as Record<string, unknown>).data as

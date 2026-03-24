@@ -138,6 +138,8 @@ export const companyAPI = {
   list: () => get("/v1/companies"),
   get: () => get("/v1/company"),
   update: (data: Record<string, unknown>) => put("/v1/company", data),
+  getSettings: () => get("/v1/companies/settings"),
+  updateSettings: (data: Record<string, unknown>) => put("/v1/companies/settings", data),
   uploadLogo: (formData: FormData) =>
     api("/v1/company/logo", { method: "POST", body: formData, headers: {} }),
   listDepartments: () => get("/v1/company/departments"),

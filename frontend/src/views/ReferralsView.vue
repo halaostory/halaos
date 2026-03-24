@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, h } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   NCard, NSpace, NButton, NInput, NGrid, NGi,
@@ -38,8 +38,8 @@ const columns = computed<DataTableColumns<Referral>>(() => [
     key: 'status',
     render(row) {
       return row.status === 'activated'
-        ? { type: NTag, props: { type: 'success', size: 'small' }, children: () => t('referral.activated') }
-        : { type: NTag, props: { type: 'warning', size: 'small' }, children: () => t('referral.pending') }
+        ? h(NTag, { type: 'success', size: 'small' }, { default: () => t('referral.activated') })
+        : h(NTag, { type: 'warning', size: 'small' }, { default: () => t('referral.pending') })
     },
   },
   {
