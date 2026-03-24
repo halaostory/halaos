@@ -31,10 +31,16 @@ Current issues:
 **Migration: `db/migrations/00083_password_reset.sql`**
 
 ```sql
+-- +goose Up
 ALTER TABLE users ADD COLUMN reset_token VARCHAR(100);
 ALTER TABLE users ADD COLUMN reset_token_expires_at TIMESTAMPTZ;
 
 CREATE INDEX idx_users_reset_token ON users(reset_token) WHERE reset_token IS NOT NULL;
+
+-- +goose Down
+DROP INDEX IF EXISTS idx_users_reset_token;
+ALTER TABLE users DROP COLUMN IF EXISTS reset_token_expires_at;
+ALTER TABLE users DROP COLUMN IF EXISTS reset_token;
 ```
 
 Reuses the same pattern as `verification_token` / `verification_token_expires_at` from migration 00077.
@@ -54,7 +60,12 @@ SELECT * FROM users WHERE reset_token = $1 AND reset_token_expires_at > NOW();
 -- name: ClearResetToken :exec
 UPDATE users SET reset_token = NULL, reset_token_expires_at = NULL, updated_at = NOW()
 WHERE id = $1;
+
+-- name: ResetUserPassword :exec
+UPDATE users SET password_hash = $2, updated_at = NOW() WHERE id = $1;
 ```
+
+Note: `ResetUserPassword` differs from `AdminResetPassword` (which requires `company_id` as `$3`). The public reset flow only has the user ID from the token lookup, not a company_id.
 
 ### Backend Endpoints
 
@@ -71,11 +82,13 @@ Response (always 200, regardless of whether email exists):
 ```
 
 Logic:
-1. Look up user by email — if not found, return success anyway (prevent enumeration)
+1. Look up user by `GetUserByEmail(email)` — if not found or inactive, return success anyway (prevent enumeration)
 2. Generate 64-hex token via `generateVerificationToken()` (reuse existing function)
 3. Set `reset_token` + `reset_token_expires_at` (NOW + 1 hour) via `SetResetToken`
 4. Send password reset email via `email.SendPasswordResetEmail(email, firstName, resetURL)`
 5. Return success
+
+Note: `GetUserByEmail` filters by `status = 'active'`, so inactive/disabled accounts cannot initiate a reset. This is intentional.
 
 **`POST /auth/reset-password`** (public, rate-limited)
 
@@ -100,7 +113,7 @@ Logic:
 1. Validate password length >= 8
 2. Look up user by `GetUserByResetToken(token)` — if not found, return `token_expired` or `token_invalid` error
 3. Hash new password with bcrypt
-4. Update password via `AdminResetPassword` (reuse existing query)
+4. Update password via `ResetUserPassword(userID, hashedPassword)` (new query — no company_id needed)
 5. Clear reset token via `ClearResetToken`
 6. Auto-login: generate JWT + refresh tokens
 7. Return tokens + user data (same as Login response)
@@ -239,7 +252,17 @@ if err != nil {
 Also change the "already verified" response (line 659-661):
 ```go
 if user.EmailVerified {
-    response.Error(c, http.StatusOK, "already_verified", "Email already verified")
+    response.OK(c, gin.H{"status": "already_verified", "message": "Email already verified"})
+    return
+}
+```
+
+Note: Uses `response.OK()` (HTTP 200, `success: true`) rather than `response.Error()` because "already verified" is not an error condition — the user's email IS verified. The frontend detects this via `data.status === "already_verified"`.
+
+For the expired token path (found via `GetUserByVerificationTokenAny`), if the user is already verified:
+```go
+if expiredUser.EmailVerified {
+    response.OK(c, gin.H{"status": "already_verified", "message": "Email already verified"})
     return
 }
 ```
@@ -248,9 +271,9 @@ if user.EmailVerified {
 
 In `VerifyEmailView.vue`, handle different error codes:
 
-- `token_expired` → Show "Link has expired (valid for 24 hours)" + email input to resend verification
-- `token_invalid` → Show "Invalid link" + "Go to Register" button
-- `already_verified` → Show success "Email already verified" + "Go to Login" button
+- `token_expired` (error response) → Show "Link has expired (valid for 24 hours)" + email input to resend verification
+- `token_invalid` (error response) → Show "Invalid link" + "Go to Register" button
+- `already_verified` (success response, `data.status === "already_verified"`) → Show "Email already verified" + "Go to Login" button
 
 ---
 
@@ -318,7 +341,7 @@ These codes enable the frontend to show contextual UI (resend verification, cont
 | File | Action | Description |
 |------|--------|-------------|
 | `db/migrations/00083_password_reset.sql` | Create | reset_token columns + index |
-| `db/query/auth.sql` | Modify | Add 4 queries (SetResetToken, GetUserByResetToken, ClearResetToken, GetUserByVerificationTokenAny) |
+| `db/query/auth.sql` | Modify | Add 5 queries (SetResetToken, GetUserByResetToken, ClearResetToken, ResetUserPassword, GetUserByVerificationTokenAny) |
 | `internal/store/` | Regenerate | sqlc generate |
 | `internal/auth/handler.go` | Modify | Add ForgotPassword + ResetPassword handlers, update Login + VerifyEmail error codes |
 | `internal/auth/routes.go` | Modify | Add 2 public routes |
