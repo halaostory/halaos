@@ -308,24 +308,24 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	user, err := h.queries.GetUserByEmail(c.Request.Context(), req.Email)
+	user, err := h.queries.GetUserByEmailAny(c.Request.Context(), req.Email)
 	if err != nil {
-		response.Unauthorized(c, "Invalid email or password")
+		response.Error(c, http.StatusUnauthorized, "invalid_credentials", "Invalid email or password")
 		return
 	}
 
 	if user.Status != "active" {
-		response.Forbidden(c, "Account is not active")
+		response.Error(c, http.StatusForbidden, "account_disabled", "Account has been disabled")
 		return
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
-		response.Unauthorized(c, "Invalid email or password")
+		response.Error(c, http.StatusUnauthorized, "invalid_credentials", "Invalid email or password")
 		return
 	}
 
 	if !user.EmailVerified {
-		response.Forbidden(c, "Please verify your email address before logging in")
+		response.Error(c, http.StatusForbidden, "email_not_verified", "Please verify your email address before logging in")
 		return
 	}
 
@@ -787,12 +787,21 @@ func (h *Handler) VerifyEmail(c *gin.Context) {
 
 	user, err := h.queries.GetUserByVerificationToken(c.Request.Context(), &token)
 	if err != nil {
-		response.BadRequest(c, "Invalid or expired verification token")
+		expiredUser, err2 := h.queries.GetUserByVerificationTokenAny(c.Request.Context(), &token)
+		if err2 != nil {
+			response.Error(c, http.StatusBadRequest, "token_invalid", "This verification link is invalid")
+			return
+		}
+		if expiredUser.EmailVerified {
+			response.OK(c, gin.H{"status": "already_verified", "message": "Email already verified"})
+			return
+		}
+		response.Error(c, http.StatusBadRequest, "token_expired", "This verification link has expired")
 		return
 	}
 
 	if user.EmailVerified {
-		response.OK(c, gin.H{"message": "Email already verified"})
+		response.OK(c, gin.H{"status": "already_verified", "message": "Email already verified"})
 		return
 	}
 

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -151,16 +152,21 @@ func TestLogin_InactiveAccount(t *testing.T) {
 
 	u := activeUser("admin@test.com", "password123")
 	u.Status = "inactive"
-	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...))
+	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...)) // GetUserByEmailAny
 
 	c, w := testutil.NewGinContext("POST", "/auth/login", gin.H{
 		"email": "admin@test.com", "password": "password123",
-	}, adminAuth)
+	}, testutil.AuthContext{})
 
 	h.Login(c)
 
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("expected 403, got %d: %s", w.Code, w.Body.String())
+	}
+	body := testutil.ResponseBody(w)
+	errObj, _ := body["error"].(map[string]interface{})
+	if errObj["code"] != "account_disabled" {
+		t.Fatalf("expected error code account_disabled, got %v", errObj["code"])
 	}
 }
 
@@ -772,5 +778,103 @@ func TestSwitchCompany_UpdateFails(t *testing.T) {
 
 	if w.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestLogin_EmailNotVerified_ReturnsSemanticCode(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	u := activeUser("admin@test.com", "password123")
+	u.EmailVerified = false
+	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...)) // GetUserByEmailAny
+
+	c, w := testutil.NewGinContext("POST", "/auth/login", gin.H{
+		"email": "admin@test.com", "password": "password123",
+	}, testutil.AuthContext{})
+
+	h.Login(c)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d: %s", w.Code, w.Body.String())
+	}
+	body := testutil.ResponseBody(w)
+	errObj, _ := body["error"].(map[string]interface{})
+	if errObj["code"] != "email_not_verified" {
+		t.Fatalf("expected error code email_not_verified, got %v", errObj["code"])
+	}
+}
+
+func TestLogin_AccountDisabled_ReturnsSemanticCode(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	u := activeUser("admin@test.com", "password123")
+	u.Status = "disabled"
+	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...)) // GetUserByEmailAny
+
+	c, w := testutil.NewGinContext("POST", "/auth/login", gin.H{
+		"email": "admin@test.com", "password": "password123",
+	}, testutil.AuthContext{})
+
+	h.Login(c)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d: %s", w.Code, w.Body.String())
+	}
+	body := testutil.ResponseBody(w)
+	errObj, _ := body["error"].(map[string]interface{})
+	if errObj["code"] != "account_disabled" {
+		t.Fatalf("expected error code account_disabled, got %v", errObj["code"])
+	}
+}
+
+func TestVerifyEmail_TokenExpired_ReturnsSemanticCode(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	mockDB.OnQueryRow(testutil.NewErrorRow(pgx.ErrNoRows)) // GetUserByVerificationToken fails
+	u := activeUser("admin@test.com", "password123")
+	u.EmailVerified = false
+	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...)) // GetUserByVerificationTokenAny succeeds
+
+	c, w := testutil.NewGinContextWithQuery("GET", "/auth/verify-email",
+		url.Values{"token": {"expired-token"}}, testutil.AuthContext{})
+
+	h.VerifyEmail(c)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+	body := testutil.ResponseBody(w)
+	errObj, _ := body["error"].(map[string]interface{})
+	if errObj["code"] != "token_expired" {
+		t.Fatalf("expected error code token_expired, got %v", errObj["code"])
+	}
+}
+
+func TestVerifyEmail_AlreadyVerified_ReturnsSuccess(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+
+	u := activeUser("admin@test.com", "password123")
+	u.EmailVerified = true
+	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...)) // GetUserByVerificationToken
+
+	c, w := testutil.NewGinContextWithQuery("GET", "/auth/verify-email",
+		url.Values{"token": {"some-token"}}, testutil.AuthContext{})
+
+	h.VerifyEmail(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	body := testutil.ResponseBody(w)
+	if body["success"] != true {
+		t.Fatal("expected success: true")
+	}
+	data, _ := body["data"].(map[string]interface{})
+	if data["status"] != "already_verified" {
+		t.Fatalf("expected status already_verified, got %v", data["status"])
 	}
 }
