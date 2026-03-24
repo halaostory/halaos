@@ -15,51 +15,58 @@ func main() {
 		baseURL = "http://localhost:8080"
 	}
 	apiKey := os.Getenv("HALAOS_API_KEY")
-	if apiKey == "" {
-		fmt.Fprintln(os.Stderr, "HALAOS_API_KEY environment variable is required")
-		os.Exit(1)
-	}
 
-	client := NewClient(baseURL, apiKey)
+	var client *Client
+	if apiKey != "" {
+		client = NewClient(baseURL, apiKey)
+	}
 
 	s := server.NewMCPServer("halaos-hr", version,
 		server.WithToolCapabilities(true),
 	)
 
-	// Employees
-	s.AddTool(listEmployeesTool(), makeListEmployees(client))
-	s.AddTool(getEmployeeTool(), makeGetEmployee(client))
-	s.AddTool(getDirectoryTool(), makeGetDirectory(client))
-	s.AddTool(getOrgChartTool(), makeGetOrgChart(client))
+	// Always register setup tool (works without API key)
+	s.AddTool(setupAccountTool(), makeSetupAccount(baseURL))
 
-	// Attendance
-	s.AddTool(getAttendanceRecordsTool(), makeGetAttendanceRecords(client))
-	s.AddTool(getAttendanceSummaryTool(), makeGetAttendanceSummary(client))
-	s.AddTool(clockInTool(), makeClockIn(client))
-	s.AddTool(clockOutTool(), makeClockOut(client))
+	if client != nil {
+		// Employees
+		s.AddTool(listEmployeesTool(), makeListEmployees(client))
+		s.AddTool(getEmployeeTool(), makeGetEmployee(client))
+		s.AddTool(getDirectoryTool(), makeGetDirectory(client))
+		s.AddTool(getOrgChartTool(), makeGetOrgChart(client))
 
-	// Leave
-	s.AddTool(getLeaveBalancesTool(), makeGetLeaveBalances(client))
-	s.AddTool(listLeaveRequestsTool(), makeListLeaveRequests(client))
-	s.AddTool(createLeaveRequestTool(), makeCreateLeaveRequest(client))
+		// Attendance
+		s.AddTool(getAttendanceRecordsTool(), makeGetAttendanceRecords(client))
+		s.AddTool(getAttendanceSummaryTool(), makeGetAttendanceSummary(client))
+		s.AddTool(clockInTool(), makeClockIn(client))
+		s.AddTool(clockOutTool(), makeClockOut(client))
 
-	// Payroll
-	s.AddTool(listPayrollCyclesTool(), makeListPayrollCycles(client))
-	s.AddTool(getPayslipTool(), makeGetPayslip(client))
-	s.AddTool(calculate13thMonthTool(), makeCalculate13thMonth(client))
+		// Leave
+		s.AddTool(listLeaveTypesTool(), makeListLeaveTypes(client))
+		s.AddTool(getLeaveBalancesTool(), makeGetLeaveBalances(client))
+		s.AddTool(listAllLeaveBalancesTool(), makeListAllLeaveBalances(client))
+		s.AddTool(listLeaveRequestsTool(), makeListLeaveRequests(client))
+		s.AddTool(createLeaveRequestTool(), makeCreateLeaveRequest(client))
 
-	// Compliance
-	s.AddTool(getSSSTableTool(), makeGetSSSTable(client))
-	s.AddTool(getPhilHealthTableTool(), makeGetPhilHealthTable(client))
-	s.AddTool(getBIRTaxTableTool(), makeGetBIRTaxTable(client))
+		// Payroll
+		s.AddTool(listPayrollCyclesTool(), makeListPayrollCycles(client))
+		s.AddTool(listPayslipsTool(), makeListPayslips(client))
+		s.AddTool(getPayslipTool(), makeGetPayslip(client))
+		s.AddTool(calculate13thMonthTool(), makeCalculate13thMonth(client))
 
-	// Dashboard
-	s.AddTool(getDashboardStatsTool(), makeGetDashboardStats(client))
-	s.AddTool(getFlightRiskTool(), makeGetFlightRisk(client))
-	s.AddTool(getComplianceAlertsTool(), makeGetComplianceAlerts(client))
+		// Compliance
+		s.AddTool(getSSSTableTool(), makeGetSSSTable(client))
+		s.AddTool(getPhilHealthTableTool(), makeGetPhilHealthTable(client))
+		s.AddTool(getBIRTaxTableTool(), makeGetBIRTaxTable(client))
 
-	// AI
-	s.AddTool(aiChatTool(), makeAIChat(client))
+		// Dashboard
+		s.AddTool(getDashboardStatsTool(), makeGetDashboardStats(client))
+		s.AddTool(getFlightRiskTool(), makeGetFlightRisk(client))
+		s.AddTool(getComplianceAlertsTool(), makeGetComplianceAlerts(client))
+
+		// AI
+		s.AddTool(aiChatTool(), makeAIChat(client))
+	}
 
 	if err := server.ServeStdio(s); err != nil {
 		fmt.Fprintf(os.Stderr, "server error: %v\n", err)

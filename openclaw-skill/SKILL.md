@@ -1,7 +1,7 @@
 ---
-name: halaos-hr-copilot
-version: "2.1.0"
-description: "AI HR Copilot for Southeast Asia. Works with HalaOS MCP Server for live data (employees, attendance, leave, payroll, compliance, org intelligence) or standalone with built-in PH/SG/LK labor law knowledge. Your HR department in a conversation."
+name: halaos-hr
+version: "1.1.0"
+description: "AI-powered HR Operating System for Southeast Asia. Full payroll with PH/SG/LK compliance, 9 AI agents (payroll specialist, compliance officer, leave advisor...), attendance with GPS geofencing, leave/OT/expense workflows, org intelligence with flight risk & burnout detection. Zero-setup via OpenClaw."
 user-invocable: true
 emoji: "🏢"
 homepage: "https://halaos.com"
@@ -12,202 +12,124 @@ metadata:
       env:
         - "HALAOS_API_KEY"
       config:
-        - "~/.openclaw/skills/halaos-hr-copilot/config.json"
+        - "~/.openclaw/skills/halaos-hr/config.json"
 ---
 
-# HalaOS HR Copilot
+# HalaOS — AI-Powered HR Operating System
 
-Your AI HR copilot for Southeast Asia. Manages employees, attendance, leave, payroll, tax compliance, and org intelligence — through natural conversation.
+Enterprise HR system built for Southeast Asia. Handles employees, attendance, leave, payroll, tax compliance, benefits, loans, training, performance reviews, and more — with 9 specialized AI agents that understand local labor law.
+
+**Zero setup for basic use.** Install and start asking HR questions immediately. Connect your HalaOS account for full platform access.
 
 ## How It Works
 
 This skill operates in two modes:
 
-### Mode 1: MCP Server (Recommended — Full Platform Access)
+### Mode 1: OpenClaw Native (Default — No Registration Needed)
 
-When the **HalaOS MCP Server** is configured, the AI has direct access to 24 live HR tools — no HTTP calls, no API docs to read. Just use the MCP tools.
+AI HR assistant powered by your OpenClaw channels. Answers HR questions, calculates PH/SG/LK government contributions, generates compliance documents, and manages team data locally.
 
-**Setup:**
-
-1. Get your API key: Log into HalaOS → Settings → API Keys → Create New Key (starts with `halaos_`, shown only once)
-2. Add to your MCP config (Claude Desktop, Claude Code, or any MCP client):
-
-```json
-{
-  "mcpServers": {
-    "halaos-hr": {
-      "command": "/usr/local/bin/halaos-mcp",
-      "env": {
-        "HALAOS_API_KEY": "halaos_YOUR_API_KEY_HERE",
-        "HALAOS_BASE_URL": "https://your-halaos-instance.com"
-      }
-    }
-  }
-}
+**Just install and start:**
+```
+/halaos-hr
+> Calculate SSS contribution for salary 25,000 PHP
+> How many vacation leave days does Philippine labor law require?
+> Generate a Certificate of Employment for John Santos
+> What are the BIR filing deadlines this quarter?
+> Calculate 13th month pay for employee with 180,000 annual salary
 ```
 
-> **Don't have an API key?** Just add the MCP server without `HALAOS_API_KEY` — on first use, the `setup_account` tool will guide you through registration.
+### Mode 2: Cloud Platform (Full Features — Requires Registration)
 
-**Available MCP Tools (24):**
+Connect to your HalaOS account for the complete HR platform: payroll processing, attendance tracking, leave management, AI-powered org intelligence, and automated compliance.
 
-| Category | Tools |
-|----------|-------|
-| Employees | `list_employees`, `get_employee`, `get_directory`, `get_org_chart` |
-| Attendance | `get_attendance_records`, `get_attendance_summary`, `clock_in`, `clock_out` |
-| Leave | `list_leave_types`, `get_leave_balances`, `list_all_leave_balances`, `list_leave_requests`, `create_leave_request` |
-| Payroll | `list_payroll_cycles`, `list_payslips`, `get_payslip`, `calculate_13th_month` |
-| Compliance | `get_sss_table`, `get_philhealth_table`, `get_bir_tax_table` |
-| Dashboard | `get_dashboard_stats`, `get_flight_risk`, `get_compliance_alerts` |
-| AI | `ai_chat` |
-
-**Role restrictions:** `get_flight_risk` and `get_compliance_alerts` require Manager or Admin role. `list_all_leave_balances` requires Admin role.
-
-## First-Time Setup (No API Key Yet?)
-
-If `HALAOS_API_KEY` is not configured, the only available tool is `setup_account`. Use it to create an account or log in:
-
-**New user:**
-1. Ask the user for their email address
-2. Call `setup_account` with `action="register"`, their email, and a password they choose
-3. Show them the returned API key and the config instructions
-4. They add `HALAOS_API_KEY` to their MCP config and restart
-
-**Existing user:**
-1. Call `setup_account` with `action="login"` and their credentials
-2. Show the new API key and config instructions
-
-After setting the key and restarting, all 24 HR tools become available.
-
-### Mode 2: Standalone (No Setup Needed)
-
-Without MCP or API key, the skill works as an offline HR knowledge assistant — answers labor law questions, calculates government contributions, generates documents. See "Standalone Mode" section below.
+Set `HALAOS_API_KEY` to enable. See "Cloud Platform Setup" section below.
 
 ---
 
-## Workflow Scenarios
+## What It Does
 
-When the user interacts with this skill and MCP tools are available, use these workflow patterns. Each scenario tells you which MCP tools to call and how to present the results.
+### Core HR
+- **Employee Management**: Profiles, 201 files, document tracking, salary assignment, org chart, directory
+- **Attendance & Time**: Clock in/out, GPS geofencing, shift scheduling, DTR reports, correction workflows
+- **Leave Management**: Balances, requests, approvals, calendar, carryover, encashment
+- **Overtime**: Request submission, approval workflow, rate calculation
+- **Payroll**: Multi-frequency cycles, automated computation, payslips, 13th month pay, final pay, bonus structures
+- **Benefits**: Plan enrollment, dependent management, claims workflow
+- **Loans**: Application, approval, amortization, salary deduction integration
 
-### Scenario 1: Morning Briefing
+### Compliance & Tax (Southeast Asia)
+- **Philippines**: SSS, PhilHealth, Pag-IBIG, BIR withholding tax (TRAIN Law), BIR 2316/2550M/2550Q/1601C/1701/1702/0619E/SAWT
+- **Sri Lanka**: EPF/ETF filings
+- **Singapore**: IRAS compliance
+- **Reports**: DTR, DOLE register, CSV/bank file export
 
-**Trigger:** User says "good morning", "briefing", "what's happening today", or any start-of-day greeting.
+### Workforce Operations
+- **Onboarding/Offboarding**: Templates, checklists, clearance workflows, final pay
+- **Training & Certification**: Programs, enrollment, expiry tracking, compliance training
+- **Performance**: Review cycles, self/manager reviews, KPI & goal tracking
+- **Disciplinary**: Incident logging, actions, appeals, resolution
+- **Grievance**: Filing, investigation, resolution, withdrawal
+- **Policies**: Creation, versioning, employee acknowledgment tracking
+- **Expenses**: Claims, approvals, reimbursement tracking
 
-**Action:** Call these tools in sequence:
-1. `get_dashboard_stats` — headcount, attendance, pending items
-2. `list_leave_requests` with `status=pending` — pending approvals
-3. `get_compliance_alerts` — overdue filings, expiring documents
-
-**Response format:**
-```
-Morning briefing:
-- Employees: Y total, X present today
-- Pending leave: N requests waiting (list names + types)
-- Pending overtime: N requests
-- Compliance: N alerts (summarize top issues)
-Ask: "Want me to dig into any of these?"
-```
-
-### Scenario 2: Leave Management
-
-**Trigger:** User asks about leave requests, approvals, or balances.
-
-**Action:**
-1. `list_leave_requests` with `status=pending` — show pending requests
-2. `list_all_leave_balances` — get all employee balances (admin only), cross-reference with pending requests
-3. If user needs leave type IDs, call `list_leave_types` first
-4. If user asks about team coverage, call `get_attendance_records` for that date
-
-**Response format:** Table with employee name, leave type, dates, days requested, and remaining balance. Flag anyone with low balance.
-
-### Scenario 3: Payroll Review
-
-**Trigger:** User asks about payroll, salary, deductions, or net pay.
-
-**Action:**
-1. `list_payroll_cycles` — show latest cycle
-2. `list_payslips` — list available payslips for the current user
-3. `get_payslip` with specific payslip_id for detailed breakdown
-4. `get_sss_table` / `get_philhealth_table` / `get_bir_tax_table` for contribution questions
-
-**Response format:** Clear table with gross, itemized deductions (SSS, PhilHealth, Pag-IBIG, tax), and net pay.
-
-### Scenario 4: Flight Risk & Retention
-
-**Trigger:** User asks "who might leave", "flight risk", "retention", or "attrition".
-
-**Action:**
-1. `get_flight_risk` — get flagged employees
-2. `get_dashboard_stats` — for context (department sizes)
-
-**Response format:** List flagged employees with risk factors. Identify patterns (e.g., "3 of 5 haven't had a raise in 12+ months"). Suggest concrete actions. Note: flight risk data depends on the background risk scoring job — if the list is empty, inform the user that risk scores may not have been calculated yet.
-
-### Scenario 5: Employee Lookup
-
-**Trigger:** User asks about a specific employee by name.
-
-**Action:**
-1. `list_employees` with search filter, or `get_employee` if ID is known
-2. Optionally `get_leave_balances` if user asks about leave
-
-**Response format:** Concise profile — name, department, position, hire date, tenure, employment type.
-
-### Scenario 6: Compliance Check
-
-**Trigger:** User asks about tax tables, SSS, PhilHealth, BIR, or compliance.
-
-**Action:** Call the relevant compliance tool:
-- `get_sss_table` — SSS contribution brackets
-- `get_philhealth_table` — PhilHealth rates
-- `get_bir_tax_table` with frequency parameter — BIR withholding brackets
-
-**Response format:** Show the relevant bracket for the salary in question. Always show both employee and employer shares.
-
-### Scenario 7: Org Structure
-
-**Trigger:** User asks about organization, reporting structure, departments, or headcount.
-
-**Action:**
-1. `get_org_chart` — full hierarchy
-2. `get_directory` — employee listing with contacts
-3. `get_dashboard_stats` — department distribution
-
-**Response format:** Tree structure showing reporting lines. Note any span-of-control issues (managers with too many direct reports).
-
-### Scenario 8: End-of-Day Summary
-
-**Trigger:** User asks for "summary", "how are we doing", "team health", or end-of-day check.
-
-**Action:**
-1. `get_dashboard_stats` — overall numbers
-2. `get_flight_risk` — risk overview
-3. `get_compliance_alerts` — compliance status
-
-**Response format:** Department-by-department health summary. Highlight strong areas and areas needing attention. Offer specific recommendations with next steps.
+### AI & Intelligence
+- **9 Specialized AI Agents** with tool access to live company data
+- **Org Intelligence**: Flight risk detection, burnout risk, team health metrics, blind spot analysis
+- **Dashboard AI**: Briefings, form auto-fill, compliance alerts, manager suggestions
+- **Workflow Automation**: Rules engine, SLA tracking, autonomous decision agent
 
 ---
 
-## Standalone Mode
+## 中文说明
 
-When no MCP server or API key is available, answer HR questions using built-in knowledge.
+HalaOS 是一款面向东南亚的 AI 驱动人力资源操作系统。支持员工管理、考勤、请假、薪资、税务合规、福利、贷款、培训、绩效等全模块 HR 功能，内置 9 个专业 AI 代理，精通当地劳动法。
+
+**两种模式：**
+- **原生模式（默认）**：直接通过 OpenClaw 提问 HR 问题、计算政府缴费、生成合规文件，零注册即用
+- **云平台模式（完整功能）**：连接 HalaOS 账号，使用完整薪资处理、考勤追踪、AI 组织洞察等功能
+
+**核心功能：**
+- 全自动薪资计算（含菲律宾 SSS/PhilHealth/Pag-IBIG/BIR 税表）
+- GPS 地理围栏考勤、弹性排班、DTR 报表
+- 假期管理（余额、审批、结转、兑现）
+- 9 个 AI 代理（薪资专家、合规官、考勤经理、请假顾问等）
+- 组织智能（离职风险、倦怠风险、团队健康、盲点分析）
+- 201 档案管理、培训认证、绩效 KPI、纪律处分、申诉流程
+
+---
+
+## OpenClaw Native Mode
 
 ### First Run — Configuration
 
 On first use, ask the user about their company context:
 
-1. **Country/Jurisdiction**: `PH` (Philippines, default), `SG` (Singapore), `LK` (Sri Lanka)
-2. **Company Size**: Small (1-50), Medium (51-200), Large (200+)
+1. **Country/Jurisdiction**: Which country's labor law to apply?
+   - `PH` (Philippines) — default, most comprehensive
+   - `SG` (Singapore)
+   - `LK` (Sri Lanka)
 
-Store in `~/.openclaw/skills/halaos-hr-copilot/config.json`:
+2. **Company Size**: Affects compliance requirements
+   - Small (1-50), Medium (51-200), Large (200+)
+
+3. **Storage**: Where to save HR data locally
+   - Notion, Google Sheets, Obsidian, Local files
+
+Store in `~/.openclaw/skills/halaos-hr/config.json`:
 ```json
 {
   "jurisdiction": "PH",
   "company_size": "medium",
+  "storage": "notion",
   "currency": "PHP",
   "timezone": "Asia/Manila"
 }
 ```
 
 ### HR Knowledge Base
+
+In native mode, answer HR questions using built-in knowledge of Southeast Asian labor law:
 
 **Philippine Labor Law:**
 - Minimum wage by region (NCR, CALABARZON, etc.)
@@ -230,6 +152,8 @@ Store in `~/.openclaw/skills/halaos-hr-copilot/config.json`:
 - Gratuity calculation (half month per year after 5 years)
 
 ### Government Contribution Calculator
+
+When asked to calculate contributions, use these formulas:
 
 **SSS (Philippines 2024):**
 - Employee: 4.5% of monthly salary credit
@@ -257,14 +181,195 @@ Store in `~/.openclaw/skills/halaos-hr-copilot/config.json`:
 
 ### Document Generation
 
-Generate common HR documents:
+Generate common HR documents in native mode:
+
 - **Certificate of Employment (COE)**: Employee name, position, dates, salary (optional)
 - **Employment Contract**: Based on jurisdiction template
 - **Memorandum / Notice**: Warning, suspension, termination
 - **Leave Summary**: Balance report per employee
 - **Payslip**: Basic computation with deductions breakdown
 
+### Employee Data Management
+
+When the user manages employees locally:
+
+```
+> Add employee Maria Santos, position: Accountant, department: Finance, salary: 35000 PHP
+> List all employees
+> Show Maria's leave balance
+> Calculate Maria's net pay for January
+> Generate DTR report for Finance department, March 2026
+```
+
+Employee record format:
+```json
+{
+  "name": "Maria Santos",
+  "position": "Accountant",
+  "department": "Finance",
+  "salary": 35000,
+  "currency": "PHP",
+  "hire_date": "2024-06-15",
+  "status": "active",
+  "jurisdiction": "PH"
+}
+```
+
 ---
+
+## AI Agents Reference
+
+When connected to the cloud platform, 9 specialized AI agents are available. Each has tools that access live company data.
+
+| ID | Agent | Specialty | Tools |
+|----|-------|-----------|-------|
+| 1 | General HR Assistant | All-purpose HR questions | 9 tools (employee, leave, attendance, payroll, policy, compliance, knowledge base) |
+| 2 | Payroll Specialist | Payroll, tax, deductions, 13th month, final pay | Payroll analysis, salary simulation, contribution tables |
+| 3 | Attendance Manager | Clock in/out, DTR, schedules, geofencing | Attendance records, patterns, schedule data |
+| 4 | Compliance Officer | Labor law, DOLE, BIR, government filings | Compliance checking, policy lookup, filing deadlines |
+| 5 | Leave Advisor | Balances, entitlements, carryover, encashment | Leave balances, request history, calendar |
+| 6 | Onboarding Guide | New hire setup, 201 file, policies | Onboarding tasks, document requirements |
+| 7 | Performance Reviewer | KPIs, goals, review cycles | Performance data, goal tracking |
+| 8 | Training Advisor | Skills gaps, certifications, compliance training | Training records, certification expiry |
+| 9 | Workflow Decision Agent | Autonomous approval recommendations | Approval context, workflow rules, confidence scoring |
+
+### Using Agents in Native Mode
+
+In native mode (no API key), the skill itself acts as a general HR assistant using built-in knowledge. Agent-specific expertise is simulated:
+
+```
+> Ask the compliance officer: what BIR forms do I need to file this month?
+> Ask the payroll specialist: calculate overtime pay for 8 hours on a regular holiday
+> Ask the leave advisor: can an employee carry over unused SIL to next year?
+```
+
+### Using Agents in Cloud Mode
+
+With `HALAOS_API_KEY` set, queries are routed to specialized agents with access to your actual company data:
+
+```
+> How many employees are at risk of burnout?
+> Generate this month's payroll for all employees
+> Who has expiring certifications in the next 30 days?
+> What's the leave utilization rate by department?
+```
+
+---
+
+## Cloud Platform Setup
+
+For the full HR platform with payroll processing, attendance, AI agents, and compliance automation:
+
+1. Visit your HalaOS instance (provided by your admin)
+2. Log in or register with magic link
+3. Go to Settings > API Keys > Create New Key
+4. Set `HALAOS_API_KEY` in your OpenClaw config
+
+> **Don't have an API key?** Just add the MCP server without `HALAOS_API_KEY` — on first use, the `setup_account` tool will guide you through registration.
+
+## First-Time Setup (No API Key Yet?)
+
+If `HALAOS_API_KEY` is not configured, the only available tool is `setup_account`. Use it to create an account or log in:
+
+**New user:**
+1. Ask the user for their email address
+2. Call `setup_account` with `action="register"`, their email, and a password they choose
+3. Show them the returned API key and the config instructions
+4. They add `HALAOS_API_KEY` to their MCP config and restart
+
+**Existing user:**
+1. Call `setup_account` with `action="login"` and their credentials
+2. Show the new API key and config instructions
+
+After setting the key and restarting, all 24 HR tools become available.
+
+### Cloud API Endpoints
+
+All API calls require: `Authorization: Bearer <HALAOS_API_KEY>`
+
+Base URL: `HALAOS_URL` env var, or your HalaOS instance URL.
+
+**Dashboard & Intelligence:**
+```
+GET  {baseUrl}/api/v1/dashboard/stats              — Company overview stats
+GET  {baseUrl}/api/v1/dashboard/action-items        — Pending approvals & tasks
+GET  {baseUrl}/api/v1/dashboard/flight-risk          — Employee attrition risk
+GET  {baseUrl}/api/v1/dashboard/burnout-risk         — Burnout detection
+GET  {baseUrl}/api/v1/dashboard/team-health          — Team health metrics
+GET  {baseUrl}/api/v1/dashboard/compliance-alerts    — Compliance warnings
+GET  {baseUrl}/api/v1/ai/briefing                    — AI-generated daily briefing
+```
+
+**Employees:**
+```
+GET  {baseUrl}/api/v1/employees                     — List employees
+GET  {baseUrl}/api/v1/employees/:id                 — Get employee details
+GET  {baseUrl}/api/v1/directory                     — Employee directory
+GET  {baseUrl}/api/v1/directory/org-chart            — Organization chart
+```
+
+**Attendance:**
+```
+POST {baseUrl}/api/v1/attendance/clock-in           — Clock in
+POST {baseUrl}/api/v1/attendance/clock-out           — Clock out
+GET  {baseUrl}/api/v1/attendance/records             — Attendance records
+GET  {baseUrl}/api/v1/attendance/summary             — Attendance summary
+GET  {baseUrl}/api/v1/attendance/report              — DTR report
+```
+
+**Leave:**
+```
+GET  {baseUrl}/api/v1/leaves/balances               — My leave balances
+POST {baseUrl}/api/v1/leaves/requests               — Submit leave request
+GET  {baseUrl}/api/v1/leaves/requests               — List leave requests
+GET  {baseUrl}/api/v1/leaves/calendar               — Leave calendar
+```
+
+**Payroll:**
+```
+GET  {baseUrl}/api/v1/payroll/cycles                — List payroll cycles
+POST {baseUrl}/api/v1/payroll/runs                  — Run payroll
+GET  {baseUrl}/api/v1/payroll/payslips              — List payslips
+GET  {baseUrl}/api/v1/payroll/payslips/:id/pdf      — Download payslip PDF
+POST {baseUrl}/api/v1/payroll/13th-month/calculate  — Calculate 13th month pay
+```
+
+**Compliance:**
+```
+GET  {baseUrl}/api/v1/compliance/sss-table          — SSS contribution table
+GET  {baseUrl}/api/v1/compliance/philhealth-table   — PhilHealth table
+GET  {baseUrl}/api/v1/compliance/pagibig-table      — Pag-IBIG table
+GET  {baseUrl}/api/v1/compliance/bir-tax-table      — BIR tax table
+POST {baseUrl}/api/v1/compliance/government-forms/generate — Generate BIR forms
+GET  {baseUrl}/api/v1/tax-filings/upcoming          — Upcoming filing deadlines
+```
+
+**Approvals:**
+```
+GET  {baseUrl}/api/v1/approvals/pending             — Pending approvals
+POST {baseUrl}/api/v1/approvals/:id/approve         — Approve request
+POST {baseUrl}/api/v1/approvals/:id/reject          — Reject request
+```
+
+**Analytics:**
+```
+GET  {baseUrl}/api/v1/analytics/summary             — HR analytics summary
+GET  {baseUrl}/api/v1/analytics/headcount-trend     — Headcount over time
+GET  {baseUrl}/api/v1/analytics/turnover            — Turnover statistics
+GET  {baseUrl}/api/v1/analytics/department-costs    — Department cost analysis
+GET  {baseUrl}/api/v1/analytics/attendance-patterns — Attendance patterns
+GET  {baseUrl}/api/v1/analytics/leave-utilization   — Leave utilization
+GET  {baseUrl}/api/v1/analytics/blind-spots         — Manager blind spots
+```
+
+**AI Chat:**
+```
+POST {baseUrl}/api/v1/ai/chat                       — Chat with AI agent
+GET  {baseUrl}/api/v1/ai/agents                     — List available agents
+GET  {baseUrl}/api/v1/ai/sessions                   — List chat sessions
+```
+
+When `HALAOS_API_KEY` is set, prefer using cloud API endpoints for all queries. When not set, use built-in knowledge and local data.
 
 ## Response Formatting
 
@@ -274,24 +379,8 @@ Generate common HR documents:
 - For compliance questions, always cite the specific law or regulation
 - Show attendance summaries with present/absent/late counts
 - For analytics, present trends with direction indicators (up/down/stable)
-- When presenting lists of employees, always include department and position for context
-
----
-
-## 中文说明
-
-HalaOS HR Copilot 是面向东南亚的 AI 人力资源副驾驶。通过自然对话管理员工、考勤、请假、薪资、税务合规和组织洞察。
-
-**两种模式：**
-- **MCP 模式（推荐）**：配置 HalaOS MCP Server，AI 直接调用 24 个 HR 工具访问实时数据
-- **独立模式**：无需配置，内置菲律宾/新加坡/斯里兰卡劳动法知识库，离线可用
-
-**核心场景：** 早报简报、请假审批、薪资核查、离职风险预警、合规检查、组织架构查询、团队健康分析。
-
----
 
 ## Links
 
 - Website: https://halaos.com
 - GitHub: https://github.com/tonypk/aigonhr
-- MCP Server: `go install github.com/tonypk/aigonhr/cmd/mcp@latest`

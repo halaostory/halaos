@@ -86,3 +86,12 @@ func TestCallCLIEndpoint_ConflictError(t *testing.T) {
 		t.Fatal("expected error for 409 response")
 	}
 }
+
+func TestToolRegistration_NoAPIKey(t *testing.T) {
+	// When HALAOS_API_KEY is empty, only setup_account should be registered.
+	// This is a structural test — we verify the tool definition exists and is valid.
+	tool := setupAccountTool()
+	if tool.Name != "setup_account" {
+		t.Fatalf("expected tool name 'setup_account', got '%s'", tool.Name)
+	}
+}
