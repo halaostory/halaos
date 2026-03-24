@@ -301,6 +301,203 @@ func (h *Handler) Register(c *gin.Context) {
 	})
 }
 
+type cliRegisterRequest struct {
+	Email        string `json:"email" binding:"required,email"`
+	Password     string `json:"password" binding:"required,min=8"`
+	CompanyName  string `json:"company_name"`
+	Country      string `json:"country"`
+	ReferralCode string `json:"referral_code"`
+}
+
+type cliRegisterResponse struct {
+	Token          string       `json:"token"`
+	RefreshToken   string       `json:"refresh_token"`
+	APIKey         string       `json:"api_key"`
+	APIKeyPrefix   string       `json:"api_key_prefix"`
+	User           userResponse `json:"user"`
+}
+
+// CLIRegister handles POST /auth/cli-register.
+// It allows new users to register and receive an API key in one step from the CLI,
+// skipping browser-based email verification.
+func (h *Handler) CLIRegister(c *gin.Context) {
+	var req cliRegisterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	// Check if email already exists
+	_, err := h.queries.GetUserByEmail(c.Request.Context(), req.Email)
+	if err == nil {
+		response.Error(c, http.StatusConflict, "email_exists", "Email already registered. Use cli-login instead.")
+		return
+	}
+
+	// Derive company name from email domain if empty
+	if req.CompanyName == "" {
+		parts := strings.SplitN(req.Email, "@", 2)
+		if len(parts) == 2 {
+			req.CompanyName = parts[1]
+		} else {
+			req.CompanyName = "My Company"
+		}
+	}
+
+	// Default country
+	country := req.Country
+	if country == "" {
+		country = "PHL"
+	}
+
+	// Hash password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		h.logger.Error("failed to hash password", "error", err)
+		response.InternalError(c, "Registration failed")
+		return
+	}
+
+	// Begin transaction
+	tx, err := h.pool.Begin(c.Request.Context())
+	if err != nil {
+		h.logger.Error("failed to begin transaction", "error", err)
+		response.InternalError(c, "Registration failed")
+		return
+	}
+	defer tx.Rollback(c.Request.Context())
+
+	qtx := h.queries.WithTx(tx)
+
+	// Resolve country defaults
+	cc := countryConfig(country)
+
+	// Create company with country-specific settings
+	company, err := qtx.CreateCompanyWithCountry(c.Request.Context(), store.CreateCompanyWithCountryParams{
+		Name:         req.CompanyName,
+		Country:      cc.Country,
+		Currency:     cc.Currency,
+		Timezone:     cc.Timezone,
+		PayFrequency: cc.PayFrequency,
+	})
+	if err != nil {
+		h.logger.Error("failed to create company", "error", err)
+		response.InternalError(c, "Registration failed")
+		return
+	}
+
+	// Create user with super_admin role
+	user, err := qtx.CreateUser(c.Request.Context(), store.CreateUserParams{
+		Email:        req.Email,
+		PasswordHash: string(hashedPassword),
+		FirstName:    "User",
+		LastName:     "",
+		Role:         string(RoleSuperAdmin),
+		CompanyID:    company.ID,
+	})
+	if err != nil {
+		h.logger.Error("failed to create user", "error", err)
+		response.InternalError(c, "Registration failed")
+		return
+	}
+
+	// Create token balance with initial free tokens
+	_, tokenErr := qtx.CreateTokenBalance(c.Request.Context(), store.CreateTokenBalanceParams{
+		CompanyID: company.ID,
+		Balance:   1000,
+	})
+	if tokenErr != nil {
+		h.logger.Warn("failed to create initial token balance", "company_id", company.ID, "error", tokenErr)
+	}
+
+	// Seed country-specific leave types and holidays
+	if seedErr := seedCountryDefaults(c.Request.Context(), qtx, company.ID, country); seedErr != nil {
+		h.logger.Warn("failed to seed country defaults", "company_id", company.ID, "country", country, "error", seedErr)
+	}
+
+	// Track referral if a referral code was provided
+	if req.ReferralCode != "" {
+		referrer, refErr := qtx.GetCompanyByReferralCode(c.Request.Context(), &req.ReferralCode)
+		if refErr == nil && referrer.ID != company.ID {
+			_ = qtx.SetReferredByCode(c.Request.Context(), store.SetReferredByCodeParams{
+				ID:             company.ID,
+				ReferredByCode: &req.ReferralCode,
+			})
+			_, _ = qtx.CreateReferralEvent(c.Request.Context(), store.CreateReferralEventParams{
+				ReferrerCompanyID: referrer.ID,
+				ReferredCompanyID: company.ID,
+				ReferralCode:      req.ReferralCode,
+			})
+			h.logger.Info("referral tracked", "referrer", referrer.ID, "referred", company.ID, "code", req.ReferralCode)
+		}
+	}
+
+	// Auto-verify email (CLI registration skips email verification flow)
+	if err := qtx.MarkEmailVerified(c.Request.Context(), user.ID); err != nil {
+		h.logger.Error("failed to mark email verified", "error", err)
+		response.InternalError(c, "Registration failed")
+		return
+	}
+
+	// Create API key inside transaction
+	apiKey := generateAPIKey()
+	apiKeyPfx := apiKeyPrefix(apiKey)
+	apiKeyHash := hashAPIKey(apiKey)
+
+	keyRow, err := qtx.CreateAPIKey(c.Request.Context(), store.CreateAPIKeyParams{
+		UserID:    user.ID,
+		CompanyID: company.ID,
+		Prefix:    apiKeyPfx,
+		KeyHash:   apiKeyHash,
+		Name:      "cli-default",
+	})
+	if err != nil {
+		h.logger.Error("failed to create API key", "error", err)
+		response.InternalError(c, "Registration failed")
+		return
+	}
+
+	// Commit transaction
+	if err := tx.Commit(c.Request.Context()); err != nil {
+		h.logger.Error("failed to commit transaction", "error", err)
+		response.InternalError(c, "Registration failed")
+		return
+	}
+
+	// Generate JWT tokens
+	jwtToken, err := h.jwt.GenerateToken(user.ID, user.Email, Role(user.Role), user.CompanyID)
+	if err != nil {
+		h.logger.Error("failed to generate token", "error", err)
+		response.InternalError(c, "Registration failed")
+		return
+	}
+
+	refreshToken, err := h.jwt.GenerateRefreshToken(user.ID, user.Email, Role(user.Role), user.CompanyID)
+	if err != nil {
+		h.logger.Error("failed to generate refresh token", "error", err)
+		response.InternalError(c, "Registration failed")
+		return
+	}
+
+	response.Created(c, cliRegisterResponse{
+		Token:        jwtToken,
+		RefreshToken: refreshToken,
+		APIKey:       apiKey,
+		APIKeyPrefix: keyRow.Prefix,
+		User: userResponse{
+			ID:              user.ID,
+			Email:           user.Email,
+			FirstName:       user.FirstName,
+			LastName:        user.LastName,
+			Role:            user.Role,
+			CompanyID:       user.CompanyID,
+			CompanyCountry:  company.Country,
+			CompanyCurrency: company.Currency,
+			CompanyTimezone: company.Timezone,
+		},
+	})
+}
+
 func (h *Handler) Login(c *gin.Context) {
 	var req loginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
