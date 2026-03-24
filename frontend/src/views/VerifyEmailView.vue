@@ -25,8 +25,9 @@ onMounted(async () => {
   }
 
   try {
-    const res = await authAPI.verifyEmail(token)
-    const data = res.data || res
+    const raw = await authAPI.verifyEmail(token)
+    const res = raw as Record<string, unknown>
+    const data = ((res.data as Record<string, unknown>) || res) as Record<string, unknown>
 
     // Check for "already_verified" success response
     if (data.status === 'already_verified') {
