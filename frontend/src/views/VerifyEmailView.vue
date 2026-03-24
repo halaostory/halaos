@@ -32,11 +32,7 @@ onMounted(async () => {
 
     // Auto-login if tokens are returned (magic link flow)
     if (data.token && typeof data.token === 'string') {
-      localStorage.setItem('token', data.token)
-      if (data.refresh_token && typeof data.refresh_token === 'string') {
-        localStorage.setItem('refresh_token', data.refresh_token)
-      }
-      // Set user info in auth store
+      auth.setTokens(data.token, (data.refresh_token as string) || '')
       if (data.user) {
         auth.setUser(data.user as { id: number; email: string; first_name: string; last_name: string; role: string; company_id: number })
       }
