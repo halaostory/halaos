@@ -97,6 +97,69 @@ func (s *Service) SendVerificationEmail(toEmail, firstName, token string) error 
 	return nil
 }
 
+// SendPasswordResetEmail sends a password reset link to the user.
+func (s *Service) SendPasswordResetEmail(toEmail, firstName, token string) error {
+	resetURL := fmt.Sprintf("%s/reset-password?token=%s", s.baseURL, token)
+
+	subject := "Reset your HalaOS password"
+	html := fmt.Sprintf(`
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #1a1a2e;">
+  <div style="text-align: center; margin-bottom: 32px;">
+    <h1 style="color: #4f46e5; font-size: 28px; margin: 0;">HalaOS</h1>
+    <p style="color: #64748b; font-size: 14px;">Unified HR &amp; Accounting Platform</p>
+  </div>
+  <h2 style="font-size: 20px; margin-bottom: 16px;">Hi %s,</h2>
+  <p style="font-size: 16px; line-height: 1.6; color: #334155;">
+    We received a request to reset your password. Click the button below to choose a new password.
+  </p>
+  <div style="text-align: center; margin: 32px 0;">
+    <a href="%s" style="display: inline-block; padding: 14px 32px; background: #4f46e5; color: #fff; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 600;">
+      Reset Password
+    </a>
+  </div>
+  <p style="font-size: 14px; color: #64748b;">
+    Or copy and paste this link: <br>
+    <a href="%s" style="color: #4f46e5; word-break: break-all;">%s</a>
+  </p>
+  <p style="font-size: 14px; color: #94a3b8; margin-top: 32px;">
+    This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email.
+  </p>
+  <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+  <p style="font-size: 12px; color: #94a3b8; text-align: center;">
+    HalaOS &mdash; HR, Payroll &amp; Tax Compliance
+  </p>
+</body>
+</html>`, firstName, resetURL, resetURL, resetURL)
+
+	if s.client == nil {
+		s.logger.Info("email service not configured, logging password reset email",
+			"to", toEmail,
+			"subject", subject,
+			"reset_url", resetURL,
+		)
+		return nil
+	}
+
+	params := &resend.SendEmailRequest{
+		From:    s.from,
+		To:      []string{toEmail},
+		Subject: subject,
+		Html:    html,
+	}
+
+	sent, err := s.client.Emails.Send(params)
+	if err != nil {
+		s.logger.Error("failed to send password reset email", "to", toEmail, "error", err)
+		return fmt.Errorf("failed to send email: %w", err)
+	}
+
+	s.logger.Info("password reset email sent", "to", toEmail, "email_id", sent.Id)
+	return nil
+}
+
 // SendWelcomeEmail sends a welcome email after successful verification.
 func (s *Service) SendWelcomeEmail(toEmail, firstName string) error {
 	subject := "Welcome to HalaOS!"
