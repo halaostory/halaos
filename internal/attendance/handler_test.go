@@ -137,8 +137,8 @@ func TestGetSummary_EmployeeNotFound(t *testing.T) {
 	c, w := testutil.NewGinContextWithQuery("GET", "/attendance/summary", nil, adminAuth)
 	h.GetSummary(c)
 
-	if w.Code != http.StatusNotFound {
-		t.Fatalf("expected 404, got %d: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
 }
 

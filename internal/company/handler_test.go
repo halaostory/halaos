@@ -58,6 +58,9 @@ func companyScanValues() []interface{} {
 		(*string)(nil),  // ContactPerson
 		(*string)(nil),  // ContactEmail
 		(*string)(nil),  // ContactPhone
+		(*string)(nil),  // ReferralCode
+		(*string)(nil),  // ReferredByCode
+		false,           // ReferralRewardClaimed
 	}
 }
 
