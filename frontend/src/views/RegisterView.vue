@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { NInput, NButton, NSpace, NResult, useMessage } from 'naive-ui'
@@ -23,6 +23,16 @@ const jurisdictions = [
   { code: 'SG', name: 'Singapore' },
   { code: 'LK', name: 'Sri Lanka' },
 ]
+
+onMounted(() => {
+  const saved = localStorage.getItem('halaos_jurisdiction')
+  if (saved) selectedJurisdiction.value = saved
+})
+
+function selectJurisdiction(code: string) {
+  selectedJurisdiction.value = code
+  localStorage.setItem('halaos_jurisdiction', code)
+}
 
 async function handleRegister() {
   const email = emailInput.value.trim()
@@ -121,7 +131,7 @@ function handleKeydown(e: KeyboardEvent) {
             type="button"
             class="jurisdiction-btn"
             :class="{ active: selectedJurisdiction === j.code }"
-            @click="selectedJurisdiction = j.code"
+            @click="selectJurisdiction(j.code)"
             :data-testid="'jurisdiction-' + j.code.toLowerCase()"
           >
             <span class="flag">{{ j.code }}</span>
