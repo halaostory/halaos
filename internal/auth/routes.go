@@ -24,6 +24,11 @@ func (h *Handler) RegisterRoutes(public, protected *gin.RouterGroup, loginLimite
 	protected.POST("/auth/switch-company", h.SwitchCompany)
 	protected.POST("/auth/logout", h.Logout)
 
+	// API Key management
+	protected.POST("/api-keys", h.CreateAPIKey)
+	protected.GET("/api-keys", h.ListAPIKeys)
+	protected.DELETE("/api-keys/:id", h.RevokeAPIKey)
+
 	// User Management (admin)
 	protected.GET("/users", AdminOnly(), h.ListUsers)
 	protected.POST("/users/employee-account", AdminOnly(), h.CreateEmployeeUser)

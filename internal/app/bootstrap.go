@@ -341,6 +341,7 @@ func (a *App) setupRoutes() {
 	api.POST("/contact", a.Limiter.LoginMiddleware(), a.handleContactForm)
 
 	protected := api.Group("")
+	protected.Use(auth.APIKeyMiddleware(a.Queries))
 	protected.Use(auth.JWTMiddleware(jwtSvc))
 	protected.Use(a.Limiter.APIMiddleware())
 
