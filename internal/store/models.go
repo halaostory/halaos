@@ -1931,6 +1931,31 @@ type UserCompany struct {
 	JoinedAt  time.Time `json:"joined_at"`
 }
 
+type VirtualOfficeConfig struct {
+	CompanyID int64     `json:"company_id"`
+	Template  string    `json:"template"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type VirtualOfficeSeat struct {
+	ID              int64     `json:"id"`
+	CompanyID       int64     `json:"company_id"`
+	EmployeeID      int64     `json:"employee_id"`
+	Floor           int32     `json:"floor"`
+	Zone            string    `json:"zone"`
+	SeatX           int32     `json:"seat_x"`
+	SeatY           int32     `json:"seat_y"`
+	AvatarType      string    `json:"avatar_type"`
+	AvatarColor     string    `json:"avatar_color"`
+	CustomStatus    *string   `json:"custom_status"`
+	CustomEmoji     *string   `json:"custom_emoji"`
+	ManualStatus    *string   `json:"manual_status"`
+	MeetingRoomZone *string   `json:"meeting_room_zone"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
+
 type WorkSchedule struct {
 	ID         int64     `json:"id"`
 	CompanyID  int64     `json:"company_id"`
