@@ -22,7 +22,9 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: |
+            frontend/package-lock.json
+            frontend-mobile/package-lock.json
 
       - name: Build Go binaries
         run: |
@@ -30,11 +32,22 @@ jobs:
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/worker ./cmd/worker
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/migrate ./cmd/migrate
 
-      - name: Build frontend
+      - name: Build desktop frontend
         working-directory: frontend
         run: |
           npm ci
           npm run build
+
+      - name: Build H5 mobile frontend
+        working-directory: frontend-mobile
+        run: |
+          npm ci
+          npm run build
+
+      - name: Copy mobile dist
+        run: |
+          rm -rf frontend/mobile-dist
+          cp -r frontend-mobile/dist frontend/mobile-dist
 
       - name: Upload to server
         uses: appleboy/scp-action@v0.1.7
@@ -42,7 +55,7 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ubuntu
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: "bin/,db/migrations/,Dockerfile.prebuilt,docker-compose.deploy.yml,frontend/dist/,frontend/nginx.conf,frontend/Dockerfile.prebuilt"
+          source: "bin/,db/migrations/,Dockerfile.prebuilt,docker-compose.deploy.yml,frontend/dist/,frontend/mobile-dist/,frontend/nginx.conf,frontend/Dockerfile.prebuilt"
           target: "~/aigonhr/"
           overwrite: true
 

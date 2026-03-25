@@ -5,8 +5,10 @@ type TemplateZone struct {
 	ID       string    `json:"id"`
 	Type     string    `json:"type"` // desk_area, meeting_room, cafe, lounge, phone_booth
 	Label    string    `json:"label"`
-	X, Y     int       `json:"x"`
-	W, H     int       `json:"w"`
+	X        int       `json:"x"`
+	Y        int       `json:"y"`
+	W        int       `json:"w"`
+	H        int       `json:"h"`
 	Capacity int       `json:"capacity,omitempty"`
 	Seats    []SeatPos `json:"seats,omitempty"`
 }

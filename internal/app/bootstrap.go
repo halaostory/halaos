@@ -296,6 +296,9 @@ func (a *App) setupRoutes() {
 	var aiProvider provider.Provider
 	if a.Cfg.AI.Enabled {
 		switch {
+		case a.Cfg.AI.MiniMaxKey != "":
+			aiProvider = provider.NewMiniMax(a.Cfg.AI.MiniMaxKey, "")
+			a.Logger.Info("AI provider: MiniMax")
 		case a.Cfg.AI.AnthropicKey != "":
 			aiProvider = provider.NewAnthropic(a.Cfg.AI.AnthropicKey, "")
 			a.Logger.Info("AI provider: Anthropic")

@@ -16,13 +16,18 @@ import (
 const (
 	openaiAPIURL        = "https://api.openai.com/v1/chat/completions"
 	defaultOpenAIModel  = "gpt-4o"
+	minimaxAPIURL       = "https://api.minimax.io/v1/chat/completions"
+	defaultMiniMaxModel = "MiniMax-M1"
 )
 
 // OpenAI implements Provider for the OpenAI Chat Completions API.
+// Also used for OpenAI-compatible providers (MiniMax, etc.) via custom baseURL.
 type OpenAI struct {
-	apiKey string
-	model  string
-	client *http.Client
+	apiKey  string
+	model   string
+	baseURL string
+	name    string
+	client  *http.Client
 }
 
 // NewOpenAI creates an OpenAI provider.
@@ -31,13 +36,29 @@ func NewOpenAI(apiKey, model string) *OpenAI {
 		model = defaultOpenAIModel
 	}
 	return &OpenAI{
-		apiKey: apiKey,
-		model:  model,
-		client: &http.Client{Timeout: 120 * time.Second},
+		apiKey:  apiKey,
+		model:   model,
+		baseURL: openaiAPIURL,
+		name:    "openai",
+		client:  &http.Client{Timeout: 120 * time.Second},
 	}
 }
 
-func (o *OpenAI) Name() string { return "openai" }
+// NewMiniMax creates a MiniMax provider using the OpenAI-compatible API.
+func NewMiniMax(apiKey, model string) *OpenAI {
+	if model == "" {
+		model = defaultMiniMaxModel
+	}
+	return &OpenAI{
+		apiKey:  apiKey,
+		model:   model,
+		baseURL: minimaxAPIURL,
+		name:    "minimax",
+		client:  &http.Client{Timeout: 120 * time.Second},
+	}
+}
+
+func (o *OpenAI) Name() string { return o.name }
 
 // --- OpenAI API types ---
 
@@ -198,7 +219,7 @@ func (o *OpenAI) doRequest(ctx context.Context, req Request, stream bool) (*http
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", openaiAPIURL, bytes.NewReader(jsonBody))
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", o.baseURL, bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}

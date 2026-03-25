@@ -111,6 +111,7 @@ type AIConfig struct {
 	AnthropicKey string
 	OpenAIKey    string
 	GeminiKey    string
+	MiniMaxKey   string
 	Enabled      bool
 }
 
@@ -153,6 +154,7 @@ func Load() *Config {
 			AnthropicKey: getEnv("ANTHROPIC_API_KEY", ""),
 			OpenAIKey:    getEnv("OPENAI_API_KEY", ""),
 			GeminiKey:    getEnv("GEMINI_API_KEY", ""),
+			MiniMaxKey:   getEnv("MINIMAX_API_KEY", ""),
 			Enabled:      getEnvBool("AI_ENABLED", true),
 		},
 		CORS: CORSConfig{
