@@ -1269,6 +1269,16 @@ export const npsAPI = {
   summary: () => get("/v1/nps/summary"),
 };
 
+// Onboarding Checklist (admin getting-started)
+export const onboardingChecklistAPI = {
+  getProgress: (persona = "admin") =>
+    get("/v1/onboarding-checklist/my-progress", { persona }),
+  completeStep: (step: string, persona = "admin") =>
+    post("/v1/onboarding-checklist/complete-step", { step, persona }),
+  dismiss: (persona = "admin") =>
+    post("/v1/onboarding-checklist/dismiss", { persona }),
+}
+
 // Virtual Office
 export const virtualOfficeAPI = {
   getConfig: () => get("/v1/virtual-office/config"),
