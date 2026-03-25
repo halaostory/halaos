@@ -165,3 +165,25 @@ func TestGetSnapshot_NotConfigured(t *testing.T) {
 		t.Fatalf("expected 404, got %d: %s", w.Code, w.Body.String())
 	}
 }
+
+func TestUpdateMyAvatar_InvalidType(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+	c, w := testutil.NewGinContext("PUT", "/virtual-office/my-avatar",
+		gin.H{"avatar_type": "unicorn", "avatar_color": "#FF0000"}, empAuth)
+	h.UpdateMyAvatar(c)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateMyAvatar_InvalidColor(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+	c, w := testutil.NewGinContext("PUT", "/virtual-office/my-avatar",
+		gin.H{"avatar_type": "person_1", "avatar_color": "red"}, empAuth)
+	h.UpdateMyAvatar(c)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
