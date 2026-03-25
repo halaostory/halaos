@@ -27,15 +27,15 @@
       </n-collapse>
 
       <!-- Canvas + sidebar -->
-      <div style="display: flex; gap: 12px">
-        <div style="flex: 1; position: relative">
+      <div class="vo-main">
+        <div class="vo-canvas-wrap">
           <OfficeCanvas
             :template="template"
             :seats="snapshot?.seats ?? []"
             @select="selectedSeat = $event"
           />
         </div>
-        <div style="width: 170px">
+        <div class="vo-sidebar">
           <MiniMap
             v-if="template"
             :template-width="template.width"
@@ -122,3 +122,23 @@ onBeforeUnmount(() => {
   if (pollTimer) clearInterval(pollTimer)
 })
 </script>
+
+<style scoped>
+.vo-main {
+  display: flex;
+  gap: 16px;
+}
+.vo-canvas-wrap {
+  flex: 1;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #f0f0f0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  padding: 12px;
+  overflow: hidden;
+}
+.vo-sidebar {
+  width: 190px;
+  flex-shrink: 0;
+}
+</style>

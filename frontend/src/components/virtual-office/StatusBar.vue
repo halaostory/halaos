@@ -1,5 +1,5 @@
 <template>
-  <div style="display: flex; gap: 8px; align-items: center; padding: 8px 0">
+  <div class="status-bar">
     <n-input
       v-model:value="customStatus"
       :placeholder="t('virtualOffice.statusPlaceholder')"
@@ -96,3 +96,16 @@ async function clearStatus() {
   }
 }
 </script>
+
+<style scoped>
+.status-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 16px;
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #f0f0f0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+</style>
