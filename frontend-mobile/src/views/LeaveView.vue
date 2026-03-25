@@ -18,7 +18,7 @@ import {
   showToast,
   showConfirmDialog,
 } from "vant";
-import { leaveAPI, formPrefillAPI } from "../api/client";
+import { leaveAPI, formPrefillAPI, onboardingChecklistAPI } from "../api/client";
 import AiFormAssist from "../components/ai/AiFormAssist.vue";
 import EmptyState from "../components/EmptyState.vue";
 import { format } from "date-fns";
@@ -217,6 +217,7 @@ function goToApplyTab() {
 }
 
 onMounted(() => {
+  onboardingChecklistAPI.completeStep('view_leave').catch(() => {});
   loadBalances();
   loadTypes();
 });

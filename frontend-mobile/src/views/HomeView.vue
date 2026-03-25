@@ -13,6 +13,7 @@ import {
 import { useAuthStore } from "../stores/auth";
 import { attendanceAPI, leaveAPI, notificationAPI } from "../api/client";
 import AiQuickAsk from "../components/ai/AiQuickAsk.vue";
+import OnboardingChecklist from "../components/OnboardingChecklist.vue";
 import { getSuggestions } from "../composables/useAiContext";
 import { format } from "date-fns";
 import type { AttendanceSummary, LeaveBalance, ApiResponse } from "../types";
@@ -109,6 +110,8 @@ onMounted(loadData);
   <PullRefresh v-model="refreshing" @refresh="onRefresh">
     <div class="home-page">
       <div class="home-greeting">{{ greeting }}</div>
+
+      <OnboardingChecklist />
 
       <!-- Clock Status Card -->
       <Skeleton :loading="loading" :row="3" class="home-skeleton">

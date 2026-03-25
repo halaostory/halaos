@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   List,
@@ -10,7 +10,7 @@ import {
   Divider,
   showToast,
 } from "vant";
-import { payrollAPI } from "../api/client";
+import { payrollAPI, onboardingChecklistAPI } from "../api/client";
 import AiQuickAsk from "../components/ai/AiQuickAsk.vue";
 import EmptyState from "../components/EmptyState.vue";
 import { format } from "date-fns";
@@ -83,6 +83,10 @@ function formatDate(dt: string) {
 function formatPeriod(start: string, end: string) {
   return `${format(new Date(start), "MMM dd")} - ${format(new Date(end), "MMM dd, yyyy")}`;
 }
+
+onMounted(() => {
+  onboardingChecklistAPI.completeStep('view_payslip').catch(() => {});
+});
 </script>
 
 <template>
