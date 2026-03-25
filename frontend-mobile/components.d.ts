@@ -15,9 +15,12 @@ declare module 'vue' {
     AiMessageBubble: typeof import('./src/components/ai/AiMessageBubble.vue')['default']
     AiQuickAsk: typeof import('./src/components/ai/AiQuickAsk.vue')['default']
     AiSuggestionChips: typeof import('./src/components/ai/AiSuggestionChips.vue')['default']
+    EmptyState: typeof import('./src/components/EmptyState.vue')['default']
     MobileLayout: typeof import('./src/components/MobileLayout.vue')['default']
+    OnboardingChecklist: typeof import('./src/components/OnboardingChecklist.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    VanButton: typeof import('vant/es')['Button']
     VanIcon: typeof import('vant/es')['Icon']
   }
 }

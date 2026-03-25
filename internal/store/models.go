@@ -1326,6 +1326,18 @@ type NpsFeedback struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type OnboardingProgress struct {
+	ID          int64              `json:"id"`
+	CompanyID   int64              `json:"company_id"`
+	UserID      int64              `json:"user_id"`
+	Persona     string             `json:"persona"`
+	Steps       json.RawMessage    `json:"steps"`
+	Dismissed   bool               `json:"dismissed"`
+	CompletedAt pgtype.Timestamptz `json:"completed_at"`
+	CreatedAt   time.Time          `json:"created_at"`
+	UpdatedAt   time.Time          `json:"updated_at"`
+}
+
 type OnboardingTask struct {
 	ID           int64              `json:"id"`
 	CompanyID    int64              `json:"company_id"`
