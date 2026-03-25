@@ -529,6 +529,32 @@ func (fg *FormGenerator) GenerateAndStore(ctx context.Context, companyID int64, 
 		p := form.Period
 		period = &p
 
+	case "W2":
+		// W-2 requires employee_id (passed via additional params or separate endpoint)
+		return nil, fmt.Errorf("W-2 generation requires employee_id — use dedicated endpoint")
+
+	case "FORM_941":
+		quarter := 0
+		if month >= 1 && month <= 3 {
+			quarter = 1
+		} else if month >= 4 && month <= 6 {
+			quarter = 2
+		} else if month >= 7 && month <= 9 {
+			quarter = 3
+		} else if month >= 10 && month <= 12 {
+			quarter = 4
+		}
+		if quarter == 0 {
+			return nil, fmt.Errorf("invalid month for 941: provide month 1-12")
+		}
+		form, err := fg.Generate941(ctx, companyID, taxYear, quarter)
+		if err != nil {
+			return nil, err
+		}
+		payload = form
+		p := fmt.Sprintf("Q%d", quarter)
+		period = &p
+
 	default:
 		return nil, fmt.Errorf("unsupported form type: %s", formType)
 	}
