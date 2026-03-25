@@ -35,7 +35,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useMessage } from 'naive-ui'
+import { NInput, NSelect, NButton, useMessage } from 'naive-ui'
 import { virtualOfficeAPI } from '../../api/client'
 
 const props = defineProps<{ meetingRooms?: { zone_id: string; label: string }[] }>()

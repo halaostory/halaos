@@ -23,7 +23,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useMessage } from 'naive-ui'
+import { NCard, NSpace, NRadioGroup, NRadio, NButton, useMessage } from 'naive-ui'
 import { virtualOfficeAPI } from '../../api/client'
 
 const props = defineProps<{ currentTemplate?: string }>()
@@ -51,8 +51,8 @@ async function saveConfig() {
 async function autoAssign() {
   assigning.value = true
   try {
-    const res = await virtualOfficeAPI.autoAssign()
-    const data = res as { assigned: number }
+    const res = await virtualOfficeAPI.autoAssign() as { data?: { assigned: number } }
+    const data = (res.data || res) as { assigned: number }
     message.success(t('virtualOffice.autoAssignSuccess', { count: data.assigned }))
     emit('saved')
   } catch {

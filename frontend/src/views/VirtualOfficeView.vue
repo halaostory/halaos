@@ -56,6 +56,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { NSpace, NPageHeader, NResult, NSpin, NCollapse, NCollapseItem } from 'naive-ui'
 import { useAuthStore } from '../stores/auth'
 import { virtualOfficeAPI } from '../api/client'
 import OfficeCanvas from '../components/virtual-office/OfficeCanvas.vue'
@@ -83,8 +84,8 @@ let pollTimer: ReturnType<typeof setInterval> | null = null
 async function loadData() {
   loading.value = true
   try {
-    const cfgRes = await virtualOfficeAPI.getConfig()
-    config.value = cfgRes as { template: string }
+    const cfgRes = await virtualOfficeAPI.getConfig() as { data?: { template: string } }
+    config.value = (cfgRes.data || cfgRes) as { template: string }
 
     // Load template JSON (validate against allowlist before dynamic import)
     const allowedTemplates = ['small', 'medium', 'large']
@@ -105,8 +106,8 @@ async function loadData() {
 
 async function fetchSnapshot() {
   try {
-    const res = await virtualOfficeAPI.getSnapshot()
-    snapshot.value = res as typeof snapshot.value
+    const res = await virtualOfficeAPI.getSnapshot() as { data?: typeof snapshot.value }
+    snapshot.value = (res.data || res) as typeof snapshot.value
   } catch {
     // Silent fail — will retry on next poll
   }

@@ -17,6 +17,7 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import { NStatistic } from 'naive-ui'
 defineProps<{ stats: Record<string, number> }>()
 const { t } = useI18n()
 </script>
