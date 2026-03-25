@@ -40,6 +40,7 @@ func (h *Handler) checkGeofence(c *gin.Context, companyID int64, lat, lng float6
 
 	var closestID int64
 	closestDist := math.MaxFloat64
+	enforced := false
 	for _, gf := range geofences {
 		// Check enforcement direction
 		if enforceClockIn && !gf.EnforceOnClockIn {
@@ -48,6 +49,7 @@ func (h *Handler) checkGeofence(c *gin.Context, companyID int64, lat, lng float6
 		if !enforceClockIn && !gf.EnforceOnClockOut {
 			continue
 		}
+		enforced = true
 
 		gfLat, _ := gf.Latitude.Float64Value()
 		gfLng, _ := gf.Longitude.Float64Value()
@@ -61,6 +63,10 @@ func (h *Handler) checkGeofence(c *gin.Context, companyID int64, lat, lng float6
 		}
 	}
 
+	// No geofences enforce this action — allow it
+	if !enforced {
+		return geofenceResult{status: "not_checked"}
+	}
 	if closestID > 0 {
 		return geofenceResult{matchedID: closestID, status: "inside"}
 	}
