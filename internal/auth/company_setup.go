@@ -27,6 +27,8 @@ func countryConfig(country string) countryDefaults {
 		return countryDefaults{Country: "SGP", Currency: "SGD", Timezone: "Asia/Singapore", PayFrequency: "monthly"}
 	case "IDN":
 		return countryDefaults{Country: "IDN", Currency: "IDR", Timezone: "Asia/Jakarta", PayFrequency: "monthly"}
+	case "USA":
+		return countryDefaults{Country: "USA", Currency: "USD", Timezone: "America/New_York", PayFrequency: "bi_weekly"}
 	default:
 		return countryDefaults{Country: "PHL", Currency: "PHP", Timezone: "Asia/Manila", PayFrequency: "semi_monthly"}
 	}
@@ -43,6 +45,8 @@ func seedCountryDefaults(ctx context.Context, q *store.Queries, companyID int64,
 	switch country {
 	case "LKA":
 		return seedLKADefaults(ctx, q, companyID)
+	case "USA":
+		return seedUSADefaults(ctx, q, companyID)
 	default:
 		return seedPHLDefaults(ctx, q, companyID)
 	}
