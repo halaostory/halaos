@@ -156,6 +156,9 @@ func (h *Handler) CreateEmployee(c *gin.Context) {
 		return
 	}
 
+	// Initialize leave balances for all active leave types (best-effort, non-blocking)
+	h.initLeaveBalances(c.Request.Context(), companyID, emp.ID, hireDate)
+
 	// Emit employee.hired event for Integration Hub provisioning
 	h.emitEmployeeEvent(c, companyID, emp.ID, "employee.hired", map[string]any{
 		"email":           derefStr(req.Email),
@@ -511,6 +514,39 @@ func (h *Handler) DeleteDocument(c *gin.Context) {
 		return
 	}
 	response.OK(c, gin.H{"message": "Deleted"})
+}
+
+// initLeaveBalances creates zero-balance rows for all active leave types so the
+// employee can see their leave entitlements immediately. Best-effort: errors are
+// logged but do not block employee creation.
+func (h *Handler) initLeaveBalances(ctx context.Context, companyID, employeeID int64, hireDate time.Time) {
+	year := int32(hireDate.Year())
+	if y := int32(time.Now().Year()); y > year {
+		year = y
+	}
+	leaveTypes, err := h.queries.ListLeaveTypes(ctx, companyID)
+	if err != nil {
+		h.logger.Error("failed to list leave types for balance init", "error", err)
+		return
+	}
+	var zero pgtype.Numeric
+	_ = zero.Scan("0")
+	for _, lt := range leaveTypes {
+		if _, err := h.queries.UpsertLeaveBalance(ctx, store.UpsertLeaveBalanceParams{
+			CompanyID:   companyID,
+			EmployeeID:  employeeID,
+			LeaveTypeID: lt.ID,
+			Year:        year,
+			Earned:      lt.DefaultDays,
+			Carried:     zero,
+		}); err != nil {
+			h.logger.Error("failed to init leave balance",
+				"employee_id", employeeID,
+				"leave_type_id", lt.ID,
+				"error", err,
+			)
+		}
+	}
 }
 
 // emitEmployeeEvent fires an hr_event for integration provisioning.
