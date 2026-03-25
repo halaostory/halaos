@@ -66,7 +66,8 @@ JOIN payroll_cycles pc ON pc.id = pr.cycle_id
 WHERE pi.employee_id = $1
   AND pr.company_id = $2
   AND pr.status = 'completed'
-  AND EXTRACT(YEAR FROM pc.period_start) = $3;
+  AND pc.period_start >= make_date($3, 1, 1)
+  AND pc.period_start < make_date($3 + 1, 1, 1);
 
 -- name: GetStateTaxBrackets :many
 -- List state tax brackets for a given state and filing status

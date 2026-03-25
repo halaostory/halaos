@@ -223,13 +223,14 @@ JOIN payroll_cycles pc ON pc.id = pr.cycle_id
 WHERE pi.employee_id = $1
   AND pr.company_id = $2
   AND pr.status = 'completed'
-  AND EXTRACT(YEAR FROM pc.period_start) = $3
+  AND pc.period_start >= make_date($3, 1, 1)
+  AND pc.period_start < make_date($3 + 1, 1, 1)
 `
 
 type GetYTDPayrollTotalsParams struct {
-	EmployeeID  int64     `json:"employee_id"`
-	CompanyID   int64     `json:"company_id"`
-	PeriodStart time.Time `json:"period_start"`
+	EmployeeID int64 `json:"employee_id"`
+	CompanyID  int64 `json:"company_id"`
+	Year       int32 `json:"year"`
 }
 
 type GetYTDPayrollTotalsRow struct {
@@ -240,7 +241,7 @@ type GetYTDPayrollTotalsRow struct {
 
 // Get YTD totals for an employee (for SS wage base cap, 401k limit tracking)
 func (q *Queries) GetYTDPayrollTotals(ctx context.Context, arg GetYTDPayrollTotalsParams) (GetYTDPayrollTotalsRow, error) {
-	row := q.db.QueryRow(ctx, getYTDPayrollTotals, arg.EmployeeID, arg.CompanyID, arg.PeriodStart)
+	row := q.db.QueryRow(ctx, getYTDPayrollTotals, arg.EmployeeID, arg.CompanyID, arg.Year)
 	var i GetYTDPayrollTotalsRow
 	err := row.Scan(&i.YtdGross, &i.YtdSsEe, &i.YtdPretax)
 	return i, err
