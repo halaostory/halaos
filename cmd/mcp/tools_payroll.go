@@ -29,6 +29,28 @@ func makeListPayrollCycles(c *Client) server.ToolHandlerFunc {
 	}
 }
 
+func listPayslipsTool() mcp.Tool {
+	return mcp.NewTool("list_payslips",
+		mcp.WithDescription("List payslips for the current user. Shows gross pay, deductions, and net pay for each payroll period."),
+		mcp.WithString("page", mcp.Description("Page number (default: 1)")),
+		mcp.WithString("limit", mcp.Description("Items per page (default: 10)")),
+	)
+}
+
+func makeListPayslips(c *Client) server.ToolHandlerFunc {
+	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		query := map[string]string{
+			"page":  req.GetString("page", "1"),
+			"limit": req.GetString("limit", "10"),
+		}
+		data, err := c.Get("/payroll/payslips", query)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+		return formatJSON(data)
+	}
+}
+
 func getPayslipTool() mcp.Tool {
 	return mcp.NewTool("get_payslip",
 		mcp.WithDescription("Get a specific payslip by ID. Shows gross pay, deductions, net pay, and breakdown."),
