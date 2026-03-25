@@ -1,6 +1,7 @@
 package attendance
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
@@ -201,6 +202,16 @@ func (h *Handler) ClockOut(c *gin.Context) {
 			nilIfZero(gfResult.matchedID), gfStatus, log.ID); err != nil {
 			h.logger.Error("failed to update clock-out geofence status", "log_id", log.ID, "error", err)
 		}
+	}
+
+	// Clear virtual office manual_status on clock-out
+	if err := h.queries.ClearManualStatusByEmployee(c.Request.Context(), store.ClearManualStatusByEmployeeParams{
+		CompanyID: companyID, EmployeeID: emp.ID,
+	}); err != nil {
+		h.logger.Error("failed to clear VO manual status on clock-out", "employee_id", emp.ID, "error", err)
+	}
+	if h.rdb != nil {
+		_ = h.rdb.Del(c.Request.Context(), fmt.Sprintf("vo:snapshot:%d", companyID)).Err()
 	}
 
 	response.OK(c, log)

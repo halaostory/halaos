@@ -110,3 +110,18 @@ ORDER BY e.department_id, e.last_name, e.first_name;
 
 -- name: ListOccupiedPositions :many
 SELECT floor, seat_x, seat_y FROM virtual_office_seats WHERE company_id = $1;
+
+-- name: ClearManualStatusByEmployee :exec
+UPDATE virtual_office_seats SET
+    manual_status = NULL,
+    meeting_room_zone = NULL,
+    updated_at = NOW()
+WHERE company_id = $1 AND employee_id = $2;
+
+-- name: ClearStaleManualStatuses :exec
+UPDATE virtual_office_seats SET
+    manual_status = NULL,
+    meeting_room_zone = NULL,
+    updated_at = NOW()
+WHERE manual_status IS NOT NULL
+  AND updated_at < CURRENT_DATE;

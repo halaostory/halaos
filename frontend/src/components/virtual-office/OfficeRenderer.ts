@@ -32,6 +32,8 @@ export class OfficeRenderer {
   private container: Container
   private tileSize: number = 32
   private template: OfficeTemplate | null = null
+  private adminMode: boolean = false
+  onEmptySeatClick: ((position: { floor: number; zone: string; seat_x: number; seat_y: number }) => void) | null = null
 
   constructor(app: Application) {
     this.container = new Container()
@@ -118,8 +120,19 @@ export class OfficeRenderer {
         const marker = new Graphics()
         const cx = s.x * this.tileSize + this.tileSize / 2
         const cy = s.y * this.tileSize + this.tileSize / 2
-        marker.circle(cx, cy, 4)
-        marker.fill({ color: style.border, alpha: 0.3 })
+        const radius = this.adminMode ? 6 : 4
+        marker.circle(cx, cy, radius)
+        marker.fill({ color: style.border, alpha: this.adminMode ? 0.5 : 0.3 })
+        if (this.adminMode) {
+          marker.eventMode = 'static'
+          marker.cursor = 'pointer'
+          const zoneId = zone.id
+          const seatX = s.x
+          const seatY = s.y
+          marker.on('pointertap', () => {
+            this.onEmptySeatClick?.({ floor: 1, zone: zoneId, seat_x: seatX, seat_y: seatY })
+          })
+        }
         this.container.addChild(marker)
       }
     }
@@ -182,6 +195,11 @@ export class OfficeRenderer {
         this.container.addChild(desk)
       }
     }
+  }
+
+  setAdminMode(enabled: boolean) {
+    this.adminMode = enabled
+    if (this.template) this.loadTemplate(this.template)
   }
 
   destroy() {

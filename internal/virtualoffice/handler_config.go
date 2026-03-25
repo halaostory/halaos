@@ -132,6 +132,17 @@ func (h *Handler) RemoveSeat(c *gin.Context) {
 	response.OK(c, gin.H{"message": "Seat removed"})
 }
 
+func (h *Handler) ListUnassigned(c *gin.Context) {
+	companyID := auth.GetCompanyID(c)
+	employees, err := h.queries.ListUnassignedActiveEmployees(c.Request.Context(), companyID)
+	if err != nil {
+		h.logger.Error("failed to list unassigned employees", "error", err)
+		response.InternalError(c, "Failed to list employees")
+		return
+	}
+	response.OK(c, employees)
+}
+
 func (h *Handler) AutoAssign(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 	ctx := c.Request.Context()

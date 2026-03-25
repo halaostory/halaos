@@ -241,7 +241,7 @@ func (a *App) setupRoutes() {
 	authHandler := auth.NewHandler(a.Queries, a.Pool, jwtSvc, a.Resend, a.Logger, a.Redis, acctSSO)
 	companyHandler := company.NewHandler(a.Queries, a.Pool, a.Logger)
 	employeeHandler := employee.NewHandler(a.Queries, a.Pool, a.Logger)
-	attendanceHandler := attendance.NewHandler(a.Queries, a.Pool, a.Logger)
+	attendanceHandler := attendance.NewHandler(a.Queries, a.Pool, a.Logger, a.Redis)
 	leaveHandler := leave.NewHandler(a.Queries, a.Pool, a.Logger, a.Email)
 	overtimeHandler := overtime.NewHandler(a.Queries, a.Pool, a.Logger)
 	payrollHandler := payroll.NewHandler(a.Queries, a.Pool, a.Logger)

@@ -24,16 +24,24 @@
         {{ seat.leave_type }}
       </n-descriptions-item>
     </n-descriptions>
+    <n-button v-if="isAdmin" type="error" size="small" block style="margin-top: 8px" @click="emit('removeSeat', seat!.employee_id)">
+      {{ t('virtualOffice.removeSeat') }}
+    </n-button>
   </n-card>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { NCard, NDescriptions, NDescriptionsItem, NTag } from 'naive-ui'
+import { NCard, NDescriptions, NDescriptionsItem, NTag, NButton } from 'naive-ui'
 import type { SeatData } from './SpriteManager'
 
-const props = defineProps<{ seat: SeatData | null }>()
+const props = withDefaults(defineProps<{ seat: SeatData | null; isAdmin?: boolean }>(), {
+  isAdmin: false,
+})
+const emit = defineEmits<{
+  (e: 'removeSeat', employeeId: number): void
+}>()
 const { t } = useI18n()
 
 const statusType = computed(() => {

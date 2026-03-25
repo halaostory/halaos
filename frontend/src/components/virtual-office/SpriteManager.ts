@@ -1,4 +1,4 @@
-import { Container, Graphics, Text, TextStyle } from 'pixi.js'
+import { Container, Graphics, Text, TextStyle, Ticker } from 'pixi.js'
 
 export interface SeatData {
   seat_id: number
@@ -24,6 +24,10 @@ export interface SeatData {
 interface SpriteEntry {
   container: Container
   data: SeatData
+  ring: Graphics
+  targetRingColor: number
+  currentRingAlpha: number
+  entranceProgress: number
 }
 
 const STATUS_RING: Record<string, number> = {
@@ -39,12 +43,12 @@ const STATUS_RING: Record<string, number> = {
 
 const STATUS_EMOJI: Record<string, string> = {
   working: '',
-  overtime: '🔥',
-  focused: '🎧',
-  in_meeting: '🤝',
-  on_break: '☕',
-  away: '💤',
-  on_leave: '🏖️',
+  overtime: '\uD83D\uDD25',
+  focused: '\uD83C\uDFA7',
+  in_meeting: '\uD83E\uDD1D',
+  on_break: '\u2615',
+  away: '\uD83D\uDCA4',
+  on_leave: '\uD83C\uDFD6\uFE0F',
   offline: '',
 }
 
@@ -54,13 +58,33 @@ export class SpriteManager {
   private sprites = new Map<number, SpriteEntry>()
   private container: Container
   private tileSize: number
+  private filterIds: Set<number> | null = null
+  private ticker: Ticker
+  private focusedTime = 0
 
   onSeatClick: ((seat: SeatData) => void) | null = null
+  onSeatHover: ((seat: SeatData, globalX: number, globalY: number) => void) | null = null
+  onSeatLeave: (() => void) | null = null
 
   constructor(parentContainer: Container, tileSize: number) {
     this.tileSize = tileSize
     this.container = new Container()
     parentContainer.addChild(this.container)
+    this.ticker = new Ticker()
+    this.ticker.add(this.animate, this)
+    this.ticker.start()
+  }
+
+  /** Set filter: pass matching employee IDs to highlight, null to clear filter */
+  setFilter(matchIds: number[] | null) {
+    this.filterIds = matchIds ? new Set(matchIds) : null
+    for (const [id, entry] of this.sprites) {
+      if (!this.filterIds) {
+        entry.container.alpha = 1
+      } else {
+        entry.container.alpha = this.filterIds.has(id) ? 1 : 0.15
+      }
+    }
   }
 
   update(seats: SeatData[]) {
@@ -92,6 +116,14 @@ export class SpriteManager {
     }
   }
 
+  /** Get the screen bounds for a seat sprite (for tooltip positioning) */
+  getSeatBounds(employeeId: number): { x: number; y: number; width: number; height: number } | null {
+    const entry = this.sprites.get(employeeId)
+    if (!entry) return null
+    const bounds = entry.container.getBounds()
+    return { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }
+  }
+
   private createSprite(seat: SeatData) {
     const c = new Container()
     c.x = seat.seat_x * this.tileSize
@@ -99,6 +131,12 @@ export class SpriteManager {
     c.eventMode = 'static'
     c.cursor = 'pointer'
     c.on('pointertap', () => this.onSeatClick?.(seat))
+    c.on('pointerover', (e) => {
+      this.onSeatHover?.(seat, e.globalX, e.globalY)
+    })
+    c.on('pointerout', () => {
+      this.onSeatLeave?.()
+    })
 
     const cx = this.tileSize / 2
     const cy = this.tileSize / 2
@@ -192,7 +230,7 @@ export class SpriteManager {
     // Custom status bubble
     if (seat.custom_status) {
       const statusStr = seat.custom_status.length > 14
-        ? seat.custom_status.slice(0, 14) + '…'
+        ? seat.custom_status.slice(0, 14) + '\u2026'
         : seat.custom_status
       const statusText = new Text({
         text: statusStr,
@@ -236,8 +274,25 @@ export class SpriteManager {
       c.addChild(late)
     }
 
+    // Entrance animation: start small and transparent
+    c.alpha = 0
+    c.scale.set(0.5)
+
     this.container.addChild(c)
-    this.sprites.set(seat.employee_id, { container: c, data: seat })
+
+    // Apply filter dimming if active
+    if (this.filterIds && !this.filterIds.has(seat.employee_id)) {
+      c.alpha = 0.15
+    }
+
+    this.sprites.set(seat.employee_id, {
+      container: c,
+      data: seat,
+      ring,
+      targetRingColor: ringColor,
+      currentRingAlpha: 1,
+      entranceProgress: 0,
+    })
   }
 
   private updateSprite(entry: SpriteEntry, seat: SeatData) {
@@ -248,8 +303,39 @@ export class SpriteManager {
     }
   }
 
+  private animate = () => {
+    this.focusedTime += 0.02
+
+    for (const [, entry] of this.sprites) {
+      // Entrance animation (200ms = ~12 frames at 60fps)
+      if (entry.entranceProgress < 1) {
+        entry.entranceProgress = Math.min(1, entry.entranceProgress + 0.08)
+        const t = easeOutCubic(entry.entranceProgress)
+
+        // Only animate alpha if not filtered out
+        const isFiltered = this.filterIds && !this.filterIds.has(entry.data.employee_id)
+        if (!isFiltered) {
+          entry.container.alpha = t
+        }
+        entry.container.scale.set(0.5 + 0.5 * t)
+      }
+
+      // Focused pulse: oscillate ring alpha between 0.4 and 1.0
+      if (entry.data.status === 'focused') {
+        const pulse = 0.7 + 0.3 * Math.sin(this.focusedTime * 3)
+        entry.ring.alpha = pulse
+      }
+    }
+  }
+
   destroy() {
+    this.ticker.stop()
+    this.ticker.destroy()
     this.container.destroy({ children: true })
     this.sprites.clear()
   }
+}
+
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3)
 }

@@ -57,6 +57,38 @@ func (q *Queries) AssignSeat(ctx context.Context, arg AssignSeatParams) (Virtual
 	return i, err
 }
 
+const clearManualStatusByEmployee = `-- name: ClearManualStatusByEmployee :exec
+UPDATE virtual_office_seats SET
+    manual_status = NULL,
+    meeting_room_zone = NULL,
+    updated_at = NOW()
+WHERE company_id = $1 AND employee_id = $2
+`
+
+type ClearManualStatusByEmployeeParams struct {
+	CompanyID  int64 `json:"company_id"`
+	EmployeeID int64 `json:"employee_id"`
+}
+
+func (q *Queries) ClearManualStatusByEmployee(ctx context.Context, arg ClearManualStatusByEmployeeParams) error {
+	_, err := q.db.Exec(ctx, clearManualStatusByEmployee, arg.CompanyID, arg.EmployeeID)
+	return err
+}
+
+const clearStaleManualStatuses = `-- name: ClearStaleManualStatuses :exec
+UPDATE virtual_office_seats SET
+    manual_status = NULL,
+    meeting_room_zone = NULL,
+    updated_at = NOW()
+WHERE manual_status IS NOT NULL
+  AND updated_at < CURRENT_DATE
+`
+
+func (q *Queries) ClearStaleManualStatuses(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, clearStaleManualStatuses)
+	return err
+}
+
 const getSeatByEmployee = `-- name: GetSeatByEmployee :one
 SELECT id, company_id, employee_id, floor, zone, seat_x, seat_y, avatar_type, avatar_color, custom_status, custom_emoji, manual_status, meeting_room_zone, created_at, updated_at FROM virtual_office_seats WHERE company_id = $1 AND employee_id = $2
 `

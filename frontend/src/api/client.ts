@@ -1288,6 +1288,7 @@ export const virtualOfficeAPI = {
     post("/v1/virtual-office/seats/assign", data),
   autoAssign: () => post("/v1/virtual-office/seats/auto", {}),
   removeSeat: (employeeId: number) => del(`/v1/virtual-office/seats/${employeeId}`),
+  listUnassigned: () => get("/v1/virtual-office/unassigned"),
   getSnapshot: () => get("/v1/virtual-office/snapshot"),
   updateMyStatus: (data: { manual_status?: string | null; meeting_room_zone?: string | null; custom_status?: string | null; custom_emoji?: string | null }) =>
     put("/v1/virtual-office/my-status", data),
