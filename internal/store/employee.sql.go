@@ -468,7 +468,7 @@ func (q *Queries) GetEmployeeForCOE(ctx context.Context, arg GetEmployeeForCOEPa
 }
 
 const getEmployeeProfile = `-- name: GetEmployeeProfile :one
-SELECT ep.employee_id, ep.address_line1, ep.address_line2, ep.city, ep.province, ep.zip_code, ep.emergency_name, ep.emergency_phone, ep.emergency_relation, ep.bank_name, ep.bank_account_no, ep.bank_account_name, ep.tin, ep.sss_no, ep.philhealth_no, ep.pagibig_no, ep.blood_type, ep.religion, ep.updated_at FROM employee_profiles ep
+SELECT ep.employee_id, ep.address_line1, ep.address_line2, ep.city, ep.province, ep.zip_code, ep.emergency_name, ep.emergency_phone, ep.emergency_relation, ep.bank_name, ep.bank_account_no, ep.bank_account_name, ep.tin, ep.sss_no, ep.philhealth_no, ep.pagibig_no, ep.blood_type, ep.religion, ep.updated_at, ep.ssn_encrypted, ep.state_of_residence, ep.w4_filing_status, ep.w4_additional_withholding, ep.w4_multiple_jobs, ep.w4_dependents_credit, ep.w4_other_income, ep.w4_deductions, ep.state_allowances FROM employee_profiles ep
 JOIN employees e ON e.id = ep.employee_id
 WHERE ep.employee_id = $1 AND e.company_id = $2
 `
@@ -501,6 +501,15 @@ func (q *Queries) GetEmployeeProfile(ctx context.Context, arg GetEmployeeProfile
 		&i.BloodType,
 		&i.Religion,
 		&i.UpdatedAt,
+		&i.SsnEncrypted,
+		&i.StateOfResidence,
+		&i.W4FilingStatus,
+		&i.W4AdditionalWithholding,
+		&i.W4MultipleJobs,
+		&i.W4DependentsCredit,
+		&i.W4OtherIncome,
+		&i.W4Deductions,
+		&i.StateAllowances,
 	)
 	return i, err
 }
@@ -1215,7 +1224,7 @@ ON CONFLICT (employee_id) DO UPDATE SET
     philhealth_no = EXCLUDED.philhealth_no,
     pagibig_no = EXCLUDED.pagibig_no,
     updated_at = NOW()
-RETURNING employee_id, address_line1, address_line2, city, province, zip_code, emergency_name, emergency_phone, emergency_relation, bank_name, bank_account_no, bank_account_name, tin, sss_no, philhealth_no, pagibig_no, blood_type, religion, updated_at
+RETURNING employee_id, address_line1, address_line2, city, province, zip_code, emergency_name, emergency_phone, emergency_relation, bank_name, bank_account_no, bank_account_name, tin, sss_no, philhealth_no, pagibig_no, blood_type, religion, updated_at, ssn_encrypted, state_of_residence, w4_filing_status, w4_additional_withholding, w4_multiple_jobs, w4_dependents_credit, w4_other_income, w4_deductions, state_allowances
 `
 
 type UpsertEmployeeProfileParams struct {
@@ -1277,6 +1286,15 @@ func (q *Queries) UpsertEmployeeProfile(ctx context.Context, arg UpsertEmployeeP
 		&i.BloodType,
 		&i.Religion,
 		&i.UpdatedAt,
+		&i.SsnEncrypted,
+		&i.StateOfResidence,
+		&i.W4FilingStatus,
+		&i.W4AdditionalWithholding,
+		&i.W4MultipleJobs,
+		&i.W4DependentsCredit,
+		&i.W4OtherIncome,
+		&i.W4Deductions,
+		&i.StateAllowances,
 	)
 	return i, err
 }

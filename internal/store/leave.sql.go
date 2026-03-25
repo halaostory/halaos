@@ -205,7 +205,7 @@ INSERT INTO leave_types (
     is_convertible, requires_attachment, min_days_notice,
     accrual_type, gender_specific, is_statutory
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-RETURNING id, company_id, code, name, is_paid, default_days, is_convertible, requires_attachment, min_days_notice, accrual_type, gender_specific, is_statutory, is_active, created_at, max_carryover, carryover_expiry_months
+RETURNING id, company_id, code, name, is_paid, default_days, is_convertible, requires_attachment, min_days_notice, accrual_type, gender_specific, is_statutory, is_active, created_at, max_carryover, carryover_expiry_months, accrual_method, accrual_rate, accrual_period
 `
 
 type CreateLeaveTypeParams struct {
@@ -254,6 +254,9 @@ func (q *Queries) CreateLeaveType(ctx context.Context, arg CreateLeaveTypeParams
 		&i.CreatedAt,
 		&i.MaxCarryover,
 		&i.CarryoverExpiryMonths,
+		&i.AccrualMethod,
+		&i.AccrualRate,
+		&i.AccrualPeriod,
 	)
 	return i, err
 }
@@ -465,7 +468,7 @@ func (q *Queries) GetLeaveRequest(ctx context.Context, arg GetLeaveRequestParams
 }
 
 const getLeaveTypeByCode = `-- name: GetLeaveTypeByCode :one
-SELECT id, company_id, code, name, is_paid, default_days, is_convertible, requires_attachment, min_days_notice, accrual_type, gender_specific, is_statutory, is_active, created_at, max_carryover, carryover_expiry_months FROM leave_types WHERE company_id = $1 AND code = $2 AND is_active = true
+SELECT id, company_id, code, name, is_paid, default_days, is_convertible, requires_attachment, min_days_notice, accrual_type, gender_specific, is_statutory, is_active, created_at, max_carryover, carryover_expiry_months, accrual_method, accrual_rate, accrual_period FROM leave_types WHERE company_id = $1 AND code = $2 AND is_active = true
 `
 
 type GetLeaveTypeByCodeParams struct {
@@ -493,6 +496,9 @@ func (q *Queries) GetLeaveTypeByCode(ctx context.Context, arg GetLeaveTypeByCode
 		&i.CreatedAt,
 		&i.MaxCarryover,
 		&i.CarryoverExpiryMonths,
+		&i.AccrualMethod,
+		&i.AccrualRate,
+		&i.AccrualPeriod,
 	)
 	return i, err
 }
@@ -850,7 +856,7 @@ func (q *Queries) ListLeaveRequests(ctx context.Context, arg ListLeaveRequestsPa
 }
 
 const listLeaveTypes = `-- name: ListLeaveTypes :many
-SELECT id, company_id, code, name, is_paid, default_days, is_convertible, requires_attachment, min_days_notice, accrual_type, gender_specific, is_statutory, is_active, created_at, max_carryover, carryover_expiry_months FROM leave_types WHERE company_id = $1 AND is_active = true ORDER BY name
+SELECT id, company_id, code, name, is_paid, default_days, is_convertible, requires_attachment, min_days_notice, accrual_type, gender_specific, is_statutory, is_active, created_at, max_carryover, carryover_expiry_months, accrual_method, accrual_rate, accrual_period FROM leave_types WHERE company_id = $1 AND is_active = true ORDER BY name
 `
 
 func (q *Queries) ListLeaveTypes(ctx context.Context, companyID int64) ([]LeaveType, error) {
@@ -879,6 +885,9 @@ func (q *Queries) ListLeaveTypes(ctx context.Context, companyID int64) ([]LeaveT
 			&i.CreatedAt,
 			&i.MaxCarryover,
 			&i.CarryoverExpiryMonths,
+			&i.AccrualMethod,
+			&i.AccrualRate,
+			&i.AccrualPeriod,
 		); err != nil {
 			return nil, err
 		}

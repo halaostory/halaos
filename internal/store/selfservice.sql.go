@@ -138,7 +138,7 @@ func (q *Queries) GetMyCompensation(ctx context.Context, arg GetMyCompensationPa
 }
 
 const getMyLatestPayslip = `-- name: GetMyLatestPayslip :one
-SELECT pi.id, pi.run_id, pi.employee_id, pi.basic_pay, pi.gross_pay, pi.taxable_income, pi.total_deductions, pi.net_pay, pi.sss_ee, pi.sss_er, pi.sss_ec, pi.philhealth_ee, pi.philhealth_er, pi.pagibig_ee, pi.pagibig_er, pi.withholding_tax, pi.breakdown, pi.work_days, pi.hours_worked, pi.ot_hours, pi.late_deduction, pi.undertime_deduction, pi.holiday_pay, pi.night_diff, pi.created_at, pi.bonus_pay, pc.name as cycle_name, pc.period_start, pc.period_end
+SELECT pi.id, pi.run_id, pi.employee_id, pi.basic_pay, pi.gross_pay, pi.taxable_income, pi.total_deductions, pi.net_pay, pi.sss_ee, pi.sss_er, pi.sss_ec, pi.philhealth_ee, pi.philhealth_er, pi.pagibig_ee, pi.pagibig_er, pi.withholding_tax, pi.breakdown, pi.work_days, pi.hours_worked, pi.ot_hours, pi.late_deduction, pi.undertime_deduction, pi.holiday_pay, pi.night_diff, pi.created_at, pi.bonus_pay, pi.federal_tax, pi.social_security_ee, pi.social_security_er, pi.medicare_ee, pi.medicare_er, pi.additional_medicare, pi.state_tax, pi.state_disability, pi.futa, pi.sui, pi.pretax_deductions, pc.name as cycle_name, pc.period_start, pc.period_end
 FROM payroll_items pi
 JOIN payroll_runs pr ON pr.id = pi.run_id
 JOIN payroll_cycles pc ON pc.id = pr.cycle_id
@@ -179,6 +179,17 @@ type GetMyLatestPayslipRow struct {
 	NightDiff          pgtype.Numeric  `json:"night_diff"`
 	CreatedAt          time.Time       `json:"created_at"`
 	BonusPay           pgtype.Numeric  `json:"bonus_pay"`
+	FederalTax         pgtype.Numeric  `json:"federal_tax"`
+	SocialSecurityEe   pgtype.Numeric  `json:"social_security_ee"`
+	SocialSecurityEr   pgtype.Numeric  `json:"social_security_er"`
+	MedicareEe         pgtype.Numeric  `json:"medicare_ee"`
+	MedicareEr         pgtype.Numeric  `json:"medicare_er"`
+	AdditionalMedicare pgtype.Numeric  `json:"additional_medicare"`
+	StateTax           pgtype.Numeric  `json:"state_tax"`
+	StateDisability    pgtype.Numeric  `json:"state_disability"`
+	Futa               pgtype.Numeric  `json:"futa"`
+	Sui                pgtype.Numeric  `json:"sui"`
+	PretaxDeductions   pgtype.Numeric  `json:"pretax_deductions"`
 	CycleName          string          `json:"cycle_name"`
 	PeriodStart        time.Time       `json:"period_start"`
 	PeriodEnd          time.Time       `json:"period_end"`
@@ -214,6 +225,17 @@ func (q *Queries) GetMyLatestPayslip(ctx context.Context, arg GetMyLatestPayslip
 		&i.NightDiff,
 		&i.CreatedAt,
 		&i.BonusPay,
+		&i.FederalTax,
+		&i.SocialSecurityEe,
+		&i.SocialSecurityEr,
+		&i.MedicareEe,
+		&i.MedicareEr,
+		&i.AdditionalMedicare,
+		&i.StateTax,
+		&i.StateDisability,
+		&i.Futa,
+		&i.Sui,
+		&i.PretaxDeductions,
 		&i.CycleName,
 		&i.PeriodStart,
 		&i.PeriodEnd,

@@ -132,11 +132,15 @@ INSERT INTO payroll_items (
     sss_ee, sss_er, sss_ec, philhealth_ee, philhealth_er,
     pagibig_ee, pagibig_er, withholding_tax,
     breakdown, work_days, hours_worked, ot_hours,
-    late_deduction, undertime_deduction, holiday_pay, night_diff, bonus_pay
+    late_deduction, undertime_deduction, holiday_pay, night_diff, bonus_pay,
+    federal_tax, social_security_ee, social_security_er,
+    medicare_ee, medicare_er, additional_medicare,
+    state_tax, state_disability, futa, sui, pretax_deductions
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-    $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
-) RETURNING id, run_id, employee_id, basic_pay, gross_pay, taxable_income, total_deductions, net_pay, sss_ee, sss_er, sss_ec, philhealth_ee, philhealth_er, pagibig_ee, pagibig_er, withholding_tax, breakdown, work_days, hours_worked, ot_hours, late_deduction, undertime_deduction, holiday_pay, night_diff, created_at, bonus_pay
+    $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,
+    $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35
+) RETURNING id, run_id, employee_id, basic_pay, gross_pay, taxable_income, total_deductions, net_pay, sss_ee, sss_er, sss_ec, philhealth_ee, philhealth_er, pagibig_ee, pagibig_er, withholding_tax, breakdown, work_days, hours_worked, ot_hours, late_deduction, undertime_deduction, holiday_pay, night_diff, created_at, bonus_pay, federal_tax, social_security_ee, social_security_er, medicare_ee, medicare_er, additional_medicare, state_tax, state_disability, futa, sui, pretax_deductions
 `
 
 type CreatePayrollItemParams struct {
@@ -164,6 +168,17 @@ type CreatePayrollItemParams struct {
 	HolidayPay         pgtype.Numeric  `json:"holiday_pay"`
 	NightDiff          pgtype.Numeric  `json:"night_diff"`
 	BonusPay           pgtype.Numeric  `json:"bonus_pay"`
+	FederalTax         pgtype.Numeric  `json:"federal_tax"`
+	SocialSecurityEe   pgtype.Numeric  `json:"social_security_ee"`
+	SocialSecurityEr   pgtype.Numeric  `json:"social_security_er"`
+	MedicareEe         pgtype.Numeric  `json:"medicare_ee"`
+	MedicareEr         pgtype.Numeric  `json:"medicare_er"`
+	AdditionalMedicare pgtype.Numeric  `json:"additional_medicare"`
+	StateTax           pgtype.Numeric  `json:"state_tax"`
+	StateDisability    pgtype.Numeric  `json:"state_disability"`
+	Futa               pgtype.Numeric  `json:"futa"`
+	Sui                pgtype.Numeric  `json:"sui"`
+	PretaxDeductions   pgtype.Numeric  `json:"pretax_deductions"`
 }
 
 func (q *Queries) CreatePayrollItem(ctx context.Context, arg CreatePayrollItemParams) (PayrollItem, error) {
@@ -192,6 +207,17 @@ func (q *Queries) CreatePayrollItem(ctx context.Context, arg CreatePayrollItemPa
 		arg.HolidayPay,
 		arg.NightDiff,
 		arg.BonusPay,
+		arg.FederalTax,
+		arg.SocialSecurityEe,
+		arg.SocialSecurityEr,
+		arg.MedicareEe,
+		arg.MedicareEr,
+		arg.AdditionalMedicare,
+		arg.StateTax,
+		arg.StateDisability,
+		arg.Futa,
+		arg.Sui,
+		arg.PretaxDeductions,
 	)
 	var i PayrollItem
 	err := row.Scan(
@@ -221,6 +247,17 @@ func (q *Queries) CreatePayrollItem(ctx context.Context, arg CreatePayrollItemPa
 		&i.NightDiff,
 		&i.CreatedAt,
 		&i.BonusPay,
+		&i.FederalTax,
+		&i.SocialSecurityEe,
+		&i.SocialSecurityEr,
+		&i.MedicareEe,
+		&i.MedicareEr,
+		&i.AdditionalMedicare,
+		&i.StateTax,
+		&i.StateDisability,
+		&i.Futa,
+		&i.Sui,
+		&i.PretaxDeductions,
 	)
 	return i, err
 }
@@ -441,7 +478,7 @@ func (q *Queries) GetCurrentSalary(ctx context.Context, arg GetCurrentSalaryPara
 }
 
 const getEmployeePayrollHistory = `-- name: GetEmployeePayrollHistory :many
-SELECT pi.id, pi.run_id, pi.employee_id, pi.basic_pay, pi.gross_pay, pi.taxable_income, pi.total_deductions, pi.net_pay, pi.sss_ee, pi.sss_er, pi.sss_ec, pi.philhealth_ee, pi.philhealth_er, pi.pagibig_ee, pi.pagibig_er, pi.withholding_tax, pi.breakdown, pi.work_days, pi.hours_worked, pi.ot_hours, pi.late_deduction, pi.undertime_deduction, pi.holiday_pay, pi.night_diff, pi.created_at, pi.bonus_pay, pr.cycle_id, pc.name as cycle_name, pc.period_start, pc.period_end
+SELECT pi.id, pi.run_id, pi.employee_id, pi.basic_pay, pi.gross_pay, pi.taxable_income, pi.total_deductions, pi.net_pay, pi.sss_ee, pi.sss_er, pi.sss_ec, pi.philhealth_ee, pi.philhealth_er, pi.pagibig_ee, pi.pagibig_er, pi.withholding_tax, pi.breakdown, pi.work_days, pi.hours_worked, pi.ot_hours, pi.late_deduction, pi.undertime_deduction, pi.holiday_pay, pi.night_diff, pi.created_at, pi.bonus_pay, pi.federal_tax, pi.social_security_ee, pi.social_security_er, pi.medicare_ee, pi.medicare_er, pi.additional_medicare, pi.state_tax, pi.state_disability, pi.futa, pi.sui, pi.pretax_deductions, pr.cycle_id, pc.name as cycle_name, pc.period_start, pc.period_end
 FROM payroll_items pi
 JOIN payroll_runs pr ON pr.id = pi.run_id
 JOIN payroll_cycles pc ON pc.id = pr.cycle_id
@@ -483,6 +520,17 @@ type GetEmployeePayrollHistoryRow struct {
 	NightDiff          pgtype.Numeric  `json:"night_diff"`
 	CreatedAt          time.Time       `json:"created_at"`
 	BonusPay           pgtype.Numeric  `json:"bonus_pay"`
+	FederalTax         pgtype.Numeric  `json:"federal_tax"`
+	SocialSecurityEe   pgtype.Numeric  `json:"social_security_ee"`
+	SocialSecurityEr   pgtype.Numeric  `json:"social_security_er"`
+	MedicareEe         pgtype.Numeric  `json:"medicare_ee"`
+	MedicareEr         pgtype.Numeric  `json:"medicare_er"`
+	AdditionalMedicare pgtype.Numeric  `json:"additional_medicare"`
+	StateTax           pgtype.Numeric  `json:"state_tax"`
+	StateDisability    pgtype.Numeric  `json:"state_disability"`
+	Futa               pgtype.Numeric  `json:"futa"`
+	Sui                pgtype.Numeric  `json:"sui"`
+	PretaxDeductions   pgtype.Numeric  `json:"pretax_deductions"`
 	CycleID            int64           `json:"cycle_id"`
 	CycleName          string          `json:"cycle_name"`
 	PeriodStart        time.Time       `json:"period_start"`
@@ -525,6 +573,17 @@ func (q *Queries) GetEmployeePayrollHistory(ctx context.Context, arg GetEmployee
 			&i.NightDiff,
 			&i.CreatedAt,
 			&i.BonusPay,
+			&i.FederalTax,
+			&i.SocialSecurityEe,
+			&i.SocialSecurityEr,
+			&i.MedicareEe,
+			&i.MedicareEr,
+			&i.AdditionalMedicare,
+			&i.StateTax,
+			&i.StateDisability,
+			&i.Futa,
+			&i.Sui,
+			&i.PretaxDeductions,
 			&i.CycleID,
 			&i.CycleName,
 			&i.PeriodStart,
@@ -689,7 +748,7 @@ func (q *Queries) GetPayrollItemsForAccounting(ctx context.Context, runID int64)
 }
 
 const getPayrollItemsForRun = `-- name: GetPayrollItemsForRun :many
-SELECT pi.id, pi.run_id, pi.employee_id, pi.basic_pay, pi.gross_pay, pi.taxable_income, pi.total_deductions, pi.net_pay, pi.sss_ee, pi.sss_er, pi.sss_ec, pi.philhealth_ee, pi.philhealth_er, pi.pagibig_ee, pi.pagibig_er, pi.withholding_tax, pi.breakdown, pi.work_days, pi.hours_worked, pi.ot_hours, pi.late_deduction, pi.undertime_deduction, pi.holiday_pay, pi.night_diff, pi.created_at, pi.bonus_pay, e.employee_no, e.first_name, e.last_name
+SELECT pi.id, pi.run_id, pi.employee_id, pi.basic_pay, pi.gross_pay, pi.taxable_income, pi.total_deductions, pi.net_pay, pi.sss_ee, pi.sss_er, pi.sss_ec, pi.philhealth_ee, pi.philhealth_er, pi.pagibig_ee, pi.pagibig_er, pi.withholding_tax, pi.breakdown, pi.work_days, pi.hours_worked, pi.ot_hours, pi.late_deduction, pi.undertime_deduction, pi.holiday_pay, pi.night_diff, pi.created_at, pi.bonus_pay, pi.federal_tax, pi.social_security_ee, pi.social_security_er, pi.medicare_ee, pi.medicare_er, pi.additional_medicare, pi.state_tax, pi.state_disability, pi.futa, pi.sui, pi.pretax_deductions, e.employee_no, e.first_name, e.last_name
 FROM payroll_items pi
 JOIN employees e ON e.id = pi.employee_id
 WHERE pi.run_id = $1
@@ -723,6 +782,17 @@ type GetPayrollItemsForRunRow struct {
 	NightDiff          pgtype.Numeric  `json:"night_diff"`
 	CreatedAt          time.Time       `json:"created_at"`
 	BonusPay           pgtype.Numeric  `json:"bonus_pay"`
+	FederalTax         pgtype.Numeric  `json:"federal_tax"`
+	SocialSecurityEe   pgtype.Numeric  `json:"social_security_ee"`
+	SocialSecurityEr   pgtype.Numeric  `json:"social_security_er"`
+	MedicareEe         pgtype.Numeric  `json:"medicare_ee"`
+	MedicareEr         pgtype.Numeric  `json:"medicare_er"`
+	AdditionalMedicare pgtype.Numeric  `json:"additional_medicare"`
+	StateTax           pgtype.Numeric  `json:"state_tax"`
+	StateDisability    pgtype.Numeric  `json:"state_disability"`
+	Futa               pgtype.Numeric  `json:"futa"`
+	Sui                pgtype.Numeric  `json:"sui"`
+	PretaxDeductions   pgtype.Numeric  `json:"pretax_deductions"`
 	EmployeeNo         string          `json:"employee_no"`
 	FirstName          string          `json:"first_name"`
 	LastName           string          `json:"last_name"`
@@ -764,6 +834,17 @@ func (q *Queries) GetPayrollItemsForRun(ctx context.Context, runID int64) ([]Get
 			&i.NightDiff,
 			&i.CreatedAt,
 			&i.BonusPay,
+			&i.FederalTax,
+			&i.SocialSecurityEe,
+			&i.SocialSecurityEr,
+			&i.MedicareEe,
+			&i.MedicareEr,
+			&i.AdditionalMedicare,
+			&i.StateTax,
+			&i.StateDisability,
+			&i.Futa,
+			&i.Sui,
+			&i.PretaxDeductions,
 			&i.EmployeeNo,
 			&i.FirstName,
 			&i.LastName,
@@ -1118,7 +1199,7 @@ func (q *Queries) ListPayrollCycles(ctx context.Context, arg ListPayrollCyclesPa
 }
 
 const listPayrollItems = `-- name: ListPayrollItems :many
-SELECT pi.id, pi.run_id, pi.employee_id, pi.basic_pay, pi.gross_pay, pi.taxable_income, pi.total_deductions, pi.net_pay, pi.sss_ee, pi.sss_er, pi.sss_ec, pi.philhealth_ee, pi.philhealth_er, pi.pagibig_ee, pi.pagibig_er, pi.withholding_tax, pi.breakdown, pi.work_days, pi.hours_worked, pi.ot_hours, pi.late_deduction, pi.undertime_deduction, pi.holiday_pay, pi.night_diff, pi.created_at, pi.bonus_pay, e.employee_no, e.first_name, e.last_name
+SELECT pi.id, pi.run_id, pi.employee_id, pi.basic_pay, pi.gross_pay, pi.taxable_income, pi.total_deductions, pi.net_pay, pi.sss_ee, pi.sss_er, pi.sss_ec, pi.philhealth_ee, pi.philhealth_er, pi.pagibig_ee, pi.pagibig_er, pi.withholding_tax, pi.breakdown, pi.work_days, pi.hours_worked, pi.ot_hours, pi.late_deduction, pi.undertime_deduction, pi.holiday_pay, pi.night_diff, pi.created_at, pi.bonus_pay, pi.federal_tax, pi.social_security_ee, pi.social_security_er, pi.medicare_ee, pi.medicare_er, pi.additional_medicare, pi.state_tax, pi.state_disability, pi.futa, pi.sui, pi.pretax_deductions, e.employee_no, e.first_name, e.last_name
 FROM payroll_items pi
 JOIN employees e ON e.id = pi.employee_id
 WHERE pi.run_id = $1
@@ -1152,6 +1233,17 @@ type ListPayrollItemsRow struct {
 	NightDiff          pgtype.Numeric  `json:"night_diff"`
 	CreatedAt          time.Time       `json:"created_at"`
 	BonusPay           pgtype.Numeric  `json:"bonus_pay"`
+	FederalTax         pgtype.Numeric  `json:"federal_tax"`
+	SocialSecurityEe   pgtype.Numeric  `json:"social_security_ee"`
+	SocialSecurityEr   pgtype.Numeric  `json:"social_security_er"`
+	MedicareEe         pgtype.Numeric  `json:"medicare_ee"`
+	MedicareEr         pgtype.Numeric  `json:"medicare_er"`
+	AdditionalMedicare pgtype.Numeric  `json:"additional_medicare"`
+	StateTax           pgtype.Numeric  `json:"state_tax"`
+	StateDisability    pgtype.Numeric  `json:"state_disability"`
+	Futa               pgtype.Numeric  `json:"futa"`
+	Sui                pgtype.Numeric  `json:"sui"`
+	PretaxDeductions   pgtype.Numeric  `json:"pretax_deductions"`
 	EmployeeNo         string          `json:"employee_no"`
 	FirstName          string          `json:"first_name"`
 	LastName           string          `json:"last_name"`
@@ -1193,6 +1285,17 @@ func (q *Queries) ListPayrollItems(ctx context.Context, runID int64) ([]ListPayr
 			&i.NightDiff,
 			&i.CreatedAt,
 			&i.BonusPay,
+			&i.FederalTax,
+			&i.SocialSecurityEe,
+			&i.SocialSecurityEr,
+			&i.MedicareEe,
+			&i.MedicareEr,
+			&i.AdditionalMedicare,
+			&i.StateTax,
+			&i.StateDisability,
+			&i.Futa,
+			&i.Sui,
+			&i.PretaxDeductions,
 			&i.EmployeeNo,
 			&i.FirstName,
 			&i.LastName,
@@ -1208,7 +1311,7 @@ func (q *Queries) ListPayrollItems(ctx context.Context, runID int64) ([]ListPayr
 }
 
 const listPayrollItemsWithBank = `-- name: ListPayrollItemsWithBank :many
-SELECT pi.id, pi.run_id, pi.employee_id, pi.basic_pay, pi.gross_pay, pi.taxable_income, pi.total_deductions, pi.net_pay, pi.sss_ee, pi.sss_er, pi.sss_ec, pi.philhealth_ee, pi.philhealth_er, pi.pagibig_ee, pi.pagibig_er, pi.withholding_tax, pi.breakdown, pi.work_days, pi.hours_worked, pi.ot_hours, pi.late_deduction, pi.undertime_deduction, pi.holiday_pay, pi.night_diff, pi.created_at, pi.bonus_pay, e.employee_no, e.first_name, e.last_name,
+SELECT pi.id, pi.run_id, pi.employee_id, pi.basic_pay, pi.gross_pay, pi.taxable_income, pi.total_deductions, pi.net_pay, pi.sss_ee, pi.sss_er, pi.sss_ec, pi.philhealth_ee, pi.philhealth_er, pi.pagibig_ee, pi.pagibig_er, pi.withholding_tax, pi.breakdown, pi.work_days, pi.hours_worked, pi.ot_hours, pi.late_deduction, pi.undertime_deduction, pi.holiday_pay, pi.night_diff, pi.created_at, pi.bonus_pay, pi.federal_tax, pi.social_security_ee, pi.social_security_er, pi.medicare_ee, pi.medicare_er, pi.additional_medicare, pi.state_tax, pi.state_disability, pi.futa, pi.sui, pi.pretax_deductions, e.employee_no, e.first_name, e.last_name,
        ep.bank_name, ep.bank_account_no, ep.bank_account_name
 FROM payroll_items pi
 JOIN employees e ON e.id = pi.employee_id
@@ -1244,6 +1347,17 @@ type ListPayrollItemsWithBankRow struct {
 	NightDiff          pgtype.Numeric  `json:"night_diff"`
 	CreatedAt          time.Time       `json:"created_at"`
 	BonusPay           pgtype.Numeric  `json:"bonus_pay"`
+	FederalTax         pgtype.Numeric  `json:"federal_tax"`
+	SocialSecurityEe   pgtype.Numeric  `json:"social_security_ee"`
+	SocialSecurityEr   pgtype.Numeric  `json:"social_security_er"`
+	MedicareEe         pgtype.Numeric  `json:"medicare_ee"`
+	MedicareEr         pgtype.Numeric  `json:"medicare_er"`
+	AdditionalMedicare pgtype.Numeric  `json:"additional_medicare"`
+	StateTax           pgtype.Numeric  `json:"state_tax"`
+	StateDisability    pgtype.Numeric  `json:"state_disability"`
+	Futa               pgtype.Numeric  `json:"futa"`
+	Sui                pgtype.Numeric  `json:"sui"`
+	PretaxDeductions   pgtype.Numeric  `json:"pretax_deductions"`
 	EmployeeNo         string          `json:"employee_no"`
 	FirstName          string          `json:"first_name"`
 	LastName           string          `json:"last_name"`
@@ -1288,6 +1402,17 @@ func (q *Queries) ListPayrollItemsWithBank(ctx context.Context, runID int64) ([]
 			&i.NightDiff,
 			&i.CreatedAt,
 			&i.BonusPay,
+			&i.FederalTax,
+			&i.SocialSecurityEe,
+			&i.SocialSecurityEr,
+			&i.MedicareEe,
+			&i.MedicareEr,
+			&i.AdditionalMedicare,
+			&i.StateTax,
+			&i.StateDisability,
+			&i.Futa,
+			&i.Sui,
+			&i.PretaxDeductions,
 			&i.EmployeeNo,
 			&i.FirstName,
 			&i.LastName,

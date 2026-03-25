@@ -571,6 +571,15 @@ type CompanyPolicy struct {
 	UpdatedAt              time.Time `json:"updated_at"`
 }
 
+type CompanyRegistrationNumber struct {
+	ID                int64     `json:"id"`
+	CompanyID         int64     `json:"company_id"`
+	Country           string    `json:"country"`
+	RegistrationType  string    `json:"registration_type"`
+	RegistrationValue string    `json:"registration_value"`
+	CreatedAt         time.Time `json:"created_at"`
+}
+
 type ComplianceAlert struct {
 	ID            int64              `json:"id"`
 	CompanyID     int64              `json:"company_id"`
@@ -643,6 +652,8 @@ type CountryTaxBracket struct {
 	FixedAmount   pgtype.Numeric `json:"fixed_amount"`
 	Description   *string        `json:"description"`
 	CreatedAt     time.Time      `json:"created_at"`
+	FilingStatus  *string        `json:"filing_status"`
+	State         *string        `json:"state"`
 }
 
 type Department struct {
@@ -760,6 +771,20 @@ type Employee struct {
 	ContractEndDate    pgtype.Date `json:"contract_end_date"`
 }
 
+type EmployeeBenefitDeduction struct {
+	ID              int64          `json:"id"`
+	CompanyID       int64          `json:"company_id"`
+	EmployeeID      int64          `json:"employee_id"`
+	DeductionType   string         `json:"deduction_type"`
+	AmountPerPeriod pgtype.Numeric `json:"amount_per_period"`
+	AnnualLimit     pgtype.Numeric `json:"annual_limit"`
+	ReducesFica     bool           `json:"reduces_fica"`
+	EffectiveDate   time.Time      `json:"effective_date"`
+	EndDate         pgtype.Date    `json:"end_date"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+}
+
 type EmployeeBurnoutScore struct {
 	ID           int64           `json:"id"`
 	CompanyID    int64           `json:"company_id"`
@@ -794,25 +819,34 @@ type EmployeeDocument struct {
 }
 
 type EmployeeProfile struct {
-	EmployeeID        int64     `json:"employee_id"`
-	AddressLine1      *string   `json:"address_line1"`
-	AddressLine2      *string   `json:"address_line2"`
-	City              *string   `json:"city"`
-	Province          *string   `json:"province"`
-	ZipCode           *string   `json:"zip_code"`
-	EmergencyName     *string   `json:"emergency_name"`
-	EmergencyPhone    *string   `json:"emergency_phone"`
-	EmergencyRelation *string   `json:"emergency_relation"`
-	BankName          *string   `json:"bank_name"`
-	BankAccountNo     *string   `json:"bank_account_no"`
-	BankAccountName   *string   `json:"bank_account_name"`
-	Tin               *string   `json:"tin"`
-	SssNo             *string   `json:"sss_no"`
-	PhilhealthNo      *string   `json:"philhealth_no"`
-	PagibigNo         *string   `json:"pagibig_no"`
-	BloodType         *string   `json:"blood_type"`
-	Religion          *string   `json:"religion"`
-	UpdatedAt         time.Time `json:"updated_at"`
+	EmployeeID              int64          `json:"employee_id"`
+	AddressLine1            *string        `json:"address_line1"`
+	AddressLine2            *string        `json:"address_line2"`
+	City                    *string        `json:"city"`
+	Province                *string        `json:"province"`
+	ZipCode                 *string        `json:"zip_code"`
+	EmergencyName           *string        `json:"emergency_name"`
+	EmergencyPhone          *string        `json:"emergency_phone"`
+	EmergencyRelation       *string        `json:"emergency_relation"`
+	BankName                *string        `json:"bank_name"`
+	BankAccountNo           *string        `json:"bank_account_no"`
+	BankAccountName         *string        `json:"bank_account_name"`
+	Tin                     *string        `json:"tin"`
+	SssNo                   *string        `json:"sss_no"`
+	PhilhealthNo            *string        `json:"philhealth_no"`
+	PagibigNo               *string        `json:"pagibig_no"`
+	BloodType               *string        `json:"blood_type"`
+	Religion                *string        `json:"religion"`
+	UpdatedAt               time.Time      `json:"updated_at"`
+	SsnEncrypted            []byte         `json:"ssn_encrypted"`
+	StateOfResidence        *string        `json:"state_of_residence"`
+	W4FilingStatus          *string        `json:"w4_filing_status"`
+	W4AdditionalWithholding pgtype.Numeric `json:"w4_additional_withholding"`
+	W4MultipleJobs          *bool          `json:"w4_multiple_jobs"`
+	W4DependentsCredit      pgtype.Numeric `json:"w4_dependents_credit"`
+	W4OtherIncome           pgtype.Numeric `json:"w4_other_income"`
+	W4Deductions            pgtype.Numeric `json:"w4_deductions"`
+	StateAllowances         *int32         `json:"state_allowances"`
 }
 
 type EmployeeRiskScore struct {
@@ -1233,6 +1267,9 @@ type LeaveType struct {
 	CreatedAt             time.Time      `json:"created_at"`
 	MaxCarryover          pgtype.Numeric `json:"max_carryover"`
 	CarryoverExpiryMonths *int32         `json:"carryover_expiry_months"`
+	AccrualMethod         *string        `json:"accrual_method"`
+	AccrualRate           pgtype.Numeric `json:"accrual_rate"`
+	AccrualPeriod         *string        `json:"accrual_period"`
 }
 
 type Loan struct {
@@ -1487,6 +1524,17 @@ type PayrollItem struct {
 	NightDiff          pgtype.Numeric  `json:"night_diff"`
 	CreatedAt          time.Time       `json:"created_at"`
 	BonusPay           pgtype.Numeric  `json:"bonus_pay"`
+	FederalTax         pgtype.Numeric  `json:"federal_tax"`
+	SocialSecurityEe   pgtype.Numeric  `json:"social_security_ee"`
+	SocialSecurityEr   pgtype.Numeric  `json:"social_security_er"`
+	MedicareEe         pgtype.Numeric  `json:"medicare_ee"`
+	MedicareEr         pgtype.Numeric  `json:"medicare_er"`
+	AdditionalMedicare pgtype.Numeric  `json:"additional_medicare"`
+	StateTax           pgtype.Numeric  `json:"state_tax"`
+	StateDisability    pgtype.Numeric  `json:"state_disability"`
+	Futa               pgtype.Numeric  `json:"futa"`
+	Sui                pgtype.Numeric  `json:"sui"`
+	PretaxDeductions   pgtype.Numeric  `json:"pretax_deductions"`
 }
 
 type PayrollRun struct {

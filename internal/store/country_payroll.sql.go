@@ -71,7 +71,7 @@ func (q *Queries) GetCountryPayrollConfig(ctx context.Context, arg GetCountryPay
 }
 
 const getCountryTaxBracket = `-- name: GetCountryTaxBracket :one
-SELECT id, country, effective_from, effective_to, frequency, bracket_min, bracket_max, tax_rate, fixed_amount, description, created_at FROM country_tax_brackets
+SELECT id, country, effective_from, effective_to, frequency, bracket_min, bracket_max, tax_rate, fixed_amount, description, created_at, filing_status, state FROM country_tax_brackets
 WHERE country = $1
   AND frequency = $2
   AND bracket_min <= $3
@@ -110,6 +110,8 @@ func (q *Queries) GetCountryTaxBracket(ctx context.Context, arg GetCountryTaxBra
 		&i.FixedAmount,
 		&i.Description,
 		&i.CreatedAt,
+		&i.FilingStatus,
+		&i.State,
 	)
 	return i, err
 }
@@ -190,7 +192,7 @@ func (q *Queries) ListCountryPayrollConfigs(ctx context.Context, country string)
 }
 
 const listCountryTaxBrackets = `-- name: ListCountryTaxBrackets :many
-SELECT id, country, effective_from, effective_to, frequency, bracket_min, bracket_max, tax_rate, fixed_amount, description, created_at FROM country_tax_brackets
+SELECT id, country, effective_from, effective_to, frequency, bracket_min, bracket_max, tax_rate, fixed_amount, description, created_at, filing_status, state FROM country_tax_brackets
 WHERE country = $1
   AND effective_from <= $2
   AND (effective_to IS NULL OR effective_to >= $2)
@@ -224,6 +226,65 @@ func (q *Queries) ListCountryTaxBrackets(ctx context.Context, arg ListCountryTax
 			&i.FixedAmount,
 			&i.Description,
 			&i.CreatedAt,
+			&i.FilingStatus,
+			&i.State,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listCountryTaxBracketsByState = `-- name: ListCountryTaxBracketsByState :many
+SELECT id, country, effective_from, effective_to, frequency, bracket_min, bracket_max, tax_rate, fixed_amount, description, created_at, filing_status, state FROM country_tax_brackets
+WHERE country = $1
+  AND state = $2
+  AND (filing_status = $3 OR $3 = '' OR $3 IS NULL)
+  AND effective_from <= $4
+  AND (effective_to IS NULL OR effective_to >= $4)
+ORDER BY bracket_min
+`
+
+type ListCountryTaxBracketsByStateParams struct {
+	Country       string    `json:"country"`
+	State         *string   `json:"state"`
+	FilingStatus  *string   `json:"filing_status"`
+	EffectiveFrom time.Time `json:"effective_from"`
+}
+
+// List tax brackets for a US state with filing status
+func (q *Queries) ListCountryTaxBracketsByState(ctx context.Context, arg ListCountryTaxBracketsByStateParams) ([]CountryTaxBracket, error) {
+	rows, err := q.db.Query(ctx, listCountryTaxBracketsByState,
+		arg.Country,
+		arg.State,
+		arg.FilingStatus,
+		arg.EffectiveFrom,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CountryTaxBracket{}
+	for rows.Next() {
+		var i CountryTaxBracket
+		if err := rows.Scan(
+			&i.ID,
+			&i.Country,
+			&i.EffectiveFrom,
+			&i.EffectiveTo,
+			&i.Frequency,
+			&i.BracketMin,
+			&i.BracketMax,
+			&i.TaxRate,
+			&i.FixedAmount,
+			&i.Description,
+			&i.CreatedAt,
+			&i.FilingStatus,
+			&i.State,
 		); err != nil {
 			return nil, err
 		}
