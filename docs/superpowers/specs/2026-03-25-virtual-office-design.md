@@ -23,8 +23,8 @@ Admin first-time setup:
 Employee daily experience:
   Sidebar → Virtual Office → See the office map
   → Own avatar appears at desk (auto from clock-in)
-  → Set status: "写Q1报表" 📊
-  → Click colleague → see their status, role, clock-in time
+  → Set custom status: "写Q1报表" 📊
+  → Click colleague → see their custom status, role, clock-in time
   → Set "in meeting" → avatar moves to meeting room
   → Clock out → avatar disappears from desk
 ```
@@ -41,9 +41,8 @@ Company-level office configuration. One row per company.
 |--------|------|-------------|
 | company_id | BIGINT PK | FK to companies |
 | template | TEXT NOT NULL DEFAULT 'small' | Template ID: small/medium/large |
-| floor_count | INT NOT NULL DEFAULT 1 | Number of floors (basic: always 1) |
-| created_at | TIMESTAMPTZ | |
-| updated_at | TIMESTAMPTZ | |
+| created_at | TIMESTAMPTZ NOT NULL DEFAULT now() | |
+| updated_at | TIMESTAMPTZ NOT NULL DEFAULT now() | |
 
 #### `virtual_office_seats`
 
@@ -60,17 +59,21 @@ Employee seat assignment and personalization. One row per assigned employee.
 | seat_y | INT NOT NULL | Grid Y coordinate |
 | avatar_type | TEXT DEFAULT 'person_1' | Sprite ID: person_1-6, cat, dog, rabbit, bear, penguin, shiba |
 | avatar_color | TEXT DEFAULT '#4A90D9' | Clothing/accent color hex |
-| custom_status | TEXT | User-set status text (max 50 chars) |
-| custom_emoji | TEXT | User-set emoji |
-| current_task | TEXT | What the user is working on (max 50 chars) |
+| custom_status | TEXT | User-set status text, e.g. "写Q1报表" or "Sprint planning" (max 50 chars) |
+| custom_emoji | TEXT | User-set emoji, e.g. "📊" |
 | manual_status | TEXT | Manual override: in_meeting, on_break, focused, away (NULL = auto-derive) |
 | meeting_room_zone | TEXT | Which meeting room zone ID (when manual_status = in_meeting) |
-| updated_at | TIMESTAMPTZ | |
+| created_at | TIMESTAMPTZ NOT NULL DEFAULT now() | |
+| updated_at | TIMESTAMPTZ NOT NULL DEFAULT now() | |
 
 **Indexes:**
 - UNIQUE (company_id, employee_id)
 - UNIQUE (company_id, floor, seat_x, seat_y) — no two employees on same seat
-- (company_id, floor) — snapshot query
+- (company_id) — snapshot query join
+
+**Constraints:**
+- `meeting_room_zone` must be validated against the template's meeting room zone IDs when `manual_status = 'in_meeting'`. Invalid zone values are rejected with 400.
+- Only employees with `status IN ('active', 'probationary')` can be assigned seats. Terminated/separated employees are excluded from seat assignment and snapshot results.
 
 **No real-time status table needed.** Online/offline/on_leave status is derived from existing `attendance_logs` and `leave_requests` at query time.
 
@@ -90,6 +93,83 @@ Priority (highest to lowest):
    → status: "offline"
 ```
 
+### Snapshot SQL Query
+
+The snapshot endpoint uses a single query with CTEs to derive status for all seated employees:
+
+```sql
+-- name: GetVirtualOfficeSnapshot :many
+WITH today_leaves AS (
+    SELECT DISTINCT ON (lr.employee_id)
+           lr.employee_id, lt.name AS leave_type
+    FROM leave_requests lr
+    JOIN leave_types lt ON lt.id = lr.leave_type_id
+    WHERE lr.company_id = $1
+      AND lr.status = 'approved'
+      AND CURRENT_DATE BETWEEN lr.start_date AND lr.end_date
+    ORDER BY lr.employee_id, lr.created_at DESC
+),
+today_attendance AS (
+    SELECT DISTINCT ON (employee_id)
+           employee_id,
+           clock_in_at,
+           clock_out_at,
+           late_minutes
+    FROM attendance_logs
+    WHERE company_id = $1
+      AND clock_in_at >= CURRENT_DATE
+      AND clock_in_at < CURRENT_DATE + INTERVAL '1 day'
+    ORDER BY employee_id, clock_in_at DESC
+)
+SELECT
+    s.id AS seat_id,
+    s.employee_id,
+    e.first_name || ' ' || e.last_name AS name,
+    COALESCE(p.title, '') AS position,
+    COALESCE(d.name, '') AS department,
+    s.floor,
+    s.zone,
+    s.seat_x,
+    s.seat_y,
+    s.avatar_type,
+    s.avatar_color,
+    s.custom_status,
+    s.custom_emoji,
+    s.manual_status,
+    s.meeting_room_zone,
+    tl.leave_type,
+    ta.clock_in_at,
+    ta.clock_out_at,
+    COALESCE(ta.late_minutes, 0) AS late_minutes
+FROM virtual_office_seats s
+JOIN employees e ON e.id = s.employee_id AND e.company_id = s.company_id
+LEFT JOIN positions p ON p.id = e.position_id
+LEFT JOIN departments d ON d.id = e.department_id
+LEFT JOIN today_leaves tl ON tl.employee_id = s.employee_id
+LEFT JOIN today_attendance ta ON ta.employee_id = s.employee_id
+WHERE s.company_id = $1
+  AND e.status IN ('active', 'probationary')
+ORDER BY s.floor, s.zone, s.seat_y, s.seat_x;
+```
+
+**Required indexes** (beyond the table-level indexes above):
+- `attendance_logs(company_id, clock_in_at)` — existing index works since query uses range condition `>= CURRENT_DATE AND < CURRENT_DATE + 1 day`
+- `leave_requests(company_id, status, start_date, end_date)` — add if missing
+
+Status derivation is done in Go code after the query, using the priority rules defined above.
+
+### Auto-Assign Algorithm
+
+`POST /seats/auto` assigns unassigned active employees to empty seats:
+
+1. Load the company's template definition from `templates.go`
+2. Query all active/probationary employees not yet assigned a seat
+3. Query all occupied seat positions for the company
+4. Group unassigned employees by `department_id`
+5. Iterate through template desk zones in order; within each zone, iterate through seats in row-major order (y then x)
+6. For each empty seat, assign the next unassigned employee from the current department group. When a department group is exhausted, move to the next.
+7. Return count of assigned vs skipped (skipped = no more empty seats)
+
 ## API Design
 
 ### New Endpoints
@@ -99,7 +179,7 @@ All under `/api/v1/virtual-office/`.
 #### Admin Endpoints (AdminOnly or ManagerOrAbove)
 
 **`GET /config`** — Get company's virtual office config.
-- Response: `{ template, floor_count }` or 404 if not configured.
+- Response: `{ template }` or 404 if not configured.
 
 **`PUT /config`** — Create or update office config.
 - Request: `{ "template": "medium" }`
@@ -107,26 +187,38 @@ All under `/api/v1/virtual-office/`.
 
 **`POST /seats/assign`** — Assign an employee to a seat.
 - Request: `{ "employee_id": 42, "floor": 1, "zone": "desk-a", "seat_x": 3, "seat_y": 2 }`
-- Validates: seat not occupied, employee not already assigned, coordinates within template bounds.
+- Validates:
+  - Employee exists and has `status IN ('active', 'probationary')` — rejects terminated/separated.
+  - Seat not already occupied (UNIQUE constraint on company_id, floor, seat_x, seat_y).
+  - Employee not already assigned (UNIQUE constraint on company_id, employee_id).
+  - Coordinates within template bounds (checked against `templates.go` definitions).
+  - Zone is a valid zone ID for the company's selected template.
 
-**`POST /seats/auto`** — Auto-assign all unassigned employees by department.
-- Groups employees by department, assigns sequentially to desk zones.
-- Skips already-assigned employees.
-- Response: `{ "assigned": 25, "skipped": 5 }`
+**`POST /seats/auto`** — Auto-assign all unassigned active/probationary employees by department.
+- See "Auto-Assign Algorithm" section above for the full algorithm.
+- Only assigns employees with `status IN ('active', 'probationary')`.
+- Skips already-assigned employees and occupied seats.
+- Response: `{ "assigned": 25, "skipped": 5, "no_seats": 0 }` — `no_seats` is employees that couldn't be assigned due to template capacity.
 
 **`DELETE /seats/:employee_id`** — Remove an employee's seat assignment.
+
+**`GET /seats`** — List all seat assignments for the company.
+- Response: array of seat records with employee name/department for the admin seat management UI.
+- Used by OfficeSetup.vue to show current seat assignments and allow drag-to-reassign.
 
 #### Employee Endpoints (Authenticated)
 
 **`GET /snapshot`** — Core polling endpoint. Returns full office state.
-- Cached in Redis for 30 seconds (key: `vo:snapshot:{company_id}`).
+- Uses the snapshot SQL query (see "Snapshot SQL Query" section) to fetch all seat data.
+- Status derivation is done in Go code after the query, applying the priority rules.
+- `meeting_rooms` array is computed by grouping employees with `manual_status = 'in_meeting'` by `meeting_room_zone`, with labels from the template definition.
+- Cached in Redis for 30 seconds (key: `vo:snapshot:{company_id}`). If Redis is unavailable, falls back to direct query (no error).
 - Invalidated on clock-in/clock-out/leave-approval events (best-effort, not blocking).
 - Response:
 
 ```json
 {
   "template": "medium",
-  "floor_count": 1,
   "stats": {
     "total_assigned": 30,
     "online": 12,
@@ -151,7 +243,6 @@ All under `/api/v1/virtual-office/`.
       "is_late": false,
       "custom_status": "写Q1报表",
       "custom_emoji": "📊",
-      "current_task": "Q1 Financial Report",
       "clock_in_at": "2026-03-25T09:02:00Z",
       "leave_type": null,
       "meeting_room_zone": null
@@ -160,32 +251,58 @@ All under `/api/v1/virtual-office/`.
   "meeting_rooms": [
     {
       "zone_id": "meeting-a",
-      "label": "会议室 A",
+      "label": "Meeting Room",
       "occupant_ids": [45, 48, 51]
     }
   ]
 }
 ```
 
-**`PUT /my-status`** — Set own status, emoji, current task.
-- Request: `{ "manual_status": "in_meeting", "meeting_room_zone": "meeting-a", "custom_emoji": "📊", "current_task": "Sprint planning" }`
-- Setting `manual_status` to `null` clears manual override (reverts to auto-derive).
+**`PUT /my-status`** — Set own manual status, custom status text, and emoji.
+- Request: `{ "manual_status": "in_meeting", "meeting_room_zone": "meeting-a", "custom_status": "Sprint planning", "custom_emoji": "📊" }`
+- All fields are optional; only provided fields are updated (PATCH semantics).
+- Setting `manual_status` to `null` or `""` clears manual override (reverts to auto-derive).
+- When `manual_status = "in_meeting"`, `meeting_room_zone` is required and validated against the company's template meeting room zones. When clearing `in_meeting`, `meeting_room_zone` is also cleared.
+- Auth: uses `auth.GetUserID(c)` → `GetEmployeeByUserID` to resolve the calling user's seat.
 - Invalidates Redis snapshot cache.
 
-**`PUT /my-avatar`** — Change own avatar.
+**`PUT /my-avatar`** — Change own avatar appearance only (no status fields).
 - Request: `{ "avatar_type": "cat", "avatar_color": "#E74C3C" }`
-- Validates avatar_type is one of the allowed set.
+- Validates `avatar_type` is one of: person_1-6, cat, dog, rabbit, bear, penguin, shiba.
+- Validates `avatar_color` is a valid hex color (regex `^#[0-9A-Fa-f]{6}$`).
+- Auth: uses `auth.GetUserID(c)` → `GetEmployeeByUserID` to resolve the calling user's seat.
 - Invalidates Redis snapshot cache.
 
 ### Implementation Location
 
 ```
 internal/virtualoffice/
-  handler.go         — Handler struct{queries, pool, logger, redis}, RegisterRoutes
-  handler_config.go  — GET/PUT config, POST seats/assign, POST seats/auto, DELETE seats
+  handler.go         — Handler struct, NewHandler, RegisterRoutes
+  handler_config.go  — GET/PUT config, GET seats, POST seats/assign, POST seats/auto, DELETE seats
   handler_status.go  — GET snapshot (with derivation logic), PUT my-status
   handler_avatar.go  — PUT my-avatar
+  templates.go       — Embedded template definitions (small/medium/large) for server-side validation
 ```
+
+**Handler struct:**
+```go
+type Handler struct {
+    queries *store.Queries
+    pool    *pgxpool.Pool
+    logger  *slog.Logger
+    rdb     *redis.Client  // for snapshot cache
+}
+```
+
+Constructor: `NewHandler(queries, pool, logger, rdb)`. Wired in `bootstrap.go` as:
+```go
+virtualOfficeHandler := virtualoffice.NewHandler(a.Queries, a.Pool, a.Logger, a.Redis)
+```
+
+**Server-side templates:** `templates.go` contains a `var Templates map[string]TemplateInfo` with each template's max grid dimensions and valid zone IDs. Used for:
+- Validating seat coordinates are within template bounds on `POST /seats/assign`
+- Validating `meeting_room_zone` is a valid meeting room zone on `PUT /my-status`
+- Auto-assign algorithm uses template seat positions
 
 New sqlc queries in `db/query/virtual_office.sql`. Migration file for the two new tables.
 
@@ -351,11 +468,11 @@ Static JSON files in `frontend/src/assets/virtual-office/templates/`.
 
 | Status | Desk Appearance | Character | Bubble |
 |--------|----------------|-----------|--------|
-| working | Computer on, chair occupied | Normal idle animation | custom_emoji + current_task |
-| overtime | Desk lamp on | Normal + 🔥 overhead | custom text |
-| focused | Computer on | Normal + 🎧 overhead | custom text |
+| working | Computer on, chair occupied | Normal idle animation | custom_emoji + custom_status |
+| overtime | Desk lamp on | Normal + 🔥 overhead | custom_status |
+| focused | Computer on | Normal + 🎧 overhead | custom_status |
 | in_meeting | Computer on (empty chair) | Appears in meeting room | none at desk |
-| on_break | Computer on (empty chair) | Appears in cafe zone | ☕ |
+| on_break | Computer on (empty chair) | Remains at desk with ☕ icon (cafe zone movement is future-phase) | ☕ |
 | away | Computer on, chair occupied | Semi-transparent | 💤 |
 | on_leave | Computer off, leave badge on desk | Not visible | Badge shows leave type icon |
 | offline | Computer off, empty | Not visible | none |
@@ -393,7 +510,7 @@ Floor types: wood, carpet, tile. Wall segments. Zone boundary indicators.
 
 ## Performance Considerations
 
-- **Snapshot caching:** Redis cache with 30s TTL. Single query joins attendance_logs + leave_requests + virtual_office_seats. For 100 employees, this is a lightweight query with proper indexes.
+- **Snapshot caching:** Redis cache with 30s TTL. Single CTE query joins attendance_logs + leave_requests + virtual_office_seats + employees + departments + positions. For 100 employees, this is a lightweight query with proper indexes. Redis failure gracefully falls back to direct query.
 - **Cache invalidation:** Best-effort invalidation on clock-in/clock-out/status-change. If cache is stale, worst case is 30s delay — acceptable for observation mode.
 - **Pixi.js rendering:** 100 sprites at 32×32 is trivial for Pixi.js. No performance concern.
 - **Polling:** Single GET /snapshot every 30s per connected client. For 100 concurrent viewers, that's ~3.3 req/s — negligible server load with Redis cache.
@@ -402,7 +519,7 @@ Floor types: wood, carpet, tile. Wall segments. Zone boundary indicators.
 
 - All endpoints require JWT authentication.
 - Admin endpoints (config, seat assignment) require AdminOnly or ManagerOrAbove middleware.
-- Users can only modify their own status/avatar (enforced via `auth.GetEmployeeID(c)`).
+- Users can only modify their own status/avatar (enforced via `auth.GetUserID(c)` → `GetEmployeeByUserID` lookup).
 - Snapshot is visible to all authenticated users in the same company (company_id from JWT).
 - No sensitive data in snapshot (no salary, no personal details — just name, position, department, status).
 
@@ -434,12 +551,13 @@ Floor types: wood, carpet, tile. Wall segments. Zone boundary indicators.
 
 | File | Purpose |
 |------|---------|
-| `db/migrations/000XX_virtual_office.sql` | Create virtual_office_config + virtual_office_seats tables |
+| `db/migrations/00084_virtual_office.sql` | Create virtual_office_config + virtual_office_seats tables |
 | `db/query/virtual_office.sql` | sqlc queries for all CRUD + snapshot |
-| `internal/virtualoffice/handler.go` | Handler struct, RegisterRoutes |
-| `internal/virtualoffice/handler_config.go` | Config + seat assignment endpoints |
+| `internal/virtualoffice/handler.go` | Handler struct, NewHandler, RegisterRoutes |
+| `internal/virtualoffice/handler_config.go` | Config + seat CRUD endpoints (GET/PUT config, GET/POST/DELETE seats) |
 | `internal/virtualoffice/handler_status.go` | Snapshot + my-status endpoints |
 | `internal/virtualoffice/handler_avatar.go` | Avatar change endpoint |
+| `internal/virtualoffice/templates.go` | Server-side template definitions for validation |
 | `internal/virtualoffice/handler_test.go` | Unit tests |
 | `frontend/src/views/VirtualOfficeView.vue` | Main page |
 | `frontend/src/components/virtual-office/*.vue` | 6 Vue components |
