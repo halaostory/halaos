@@ -44,3 +44,13 @@ WHERE country = $1 AND config_key = $2;
 -- List all payroll config for a country
 SELECT * FROM country_payroll_config
 WHERE country = $1;
+
+-- name: ListCountryTaxBracketsByState :many
+-- List tax brackets for a US state with filing status
+SELECT * FROM country_tax_brackets
+WHERE country = $1
+  AND state = $2
+  AND (filing_status = $3 OR $3 = '' OR $3 IS NULL)
+  AND effective_from <= $4
+  AND (effective_to IS NULL OR effective_to >= $4)
+ORDER BY bracket_min;

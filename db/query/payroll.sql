@@ -107,10 +107,14 @@ INSERT INTO payroll_items (
     sss_ee, sss_er, sss_ec, philhealth_ee, philhealth_er,
     pagibig_ee, pagibig_er, withholding_tax,
     breakdown, work_days, hours_worked, ot_hours,
-    late_deduction, undertime_deduction, holiday_pay, night_diff, bonus_pay
+    late_deduction, undertime_deduction, holiday_pay, night_diff, bonus_pay,
+    federal_tax, social_security_ee, social_security_er,
+    medicare_ee, medicare_er, additional_medicare,
+    state_tax, state_disability, futa, sui, pretax_deductions
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-    $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
+    $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,
+    $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35
 ) RETURNING *;
 
 -- name: ListPayrollItems :many
