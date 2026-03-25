@@ -1279,6 +1279,27 @@ export const onboardingChecklistAPI = {
     post("/v1/onboarding-checklist/dismiss", { persona }),
 }
 
+// Benefit Deductions (US)
+export const benefitDeductionAPI = {
+  list: (employeeId: number) =>
+    get("/v1/payroll/benefit-deductions", { employee_id: String(employeeId) }),
+  create: (data: Record<string, unknown>) =>
+    post("/v1/payroll/benefit-deductions", data),
+  update: (id: number, data: Record<string, unknown>) =>
+    put(`/v1/payroll/benefit-deductions/${id}`, data),
+  remove: (id: number) =>
+    del(`/v1/payroll/benefit-deductions/${id}`),
+}
+
+// Company Registration Numbers (US)
+export const companyRegistrationAPI = {
+  list: () => get("/v1/company/registration-numbers"),
+  upsert: (data: Record<string, unknown>) =>
+    post("/v1/company/registration-numbers", data),
+  remove: (id: number) =>
+    del(`/v1/company/registration-numbers/${id}`),
+}
+
 // Virtual Office
 export const virtualOfficeAPI = {
   getConfig: () => get("/v1/virtual-office/config"),

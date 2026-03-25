@@ -29,6 +29,7 @@ import {
 } from "naive-ui";
 import { h } from "vue";
 import { employeeAPI, salaryAPI, companyAPI, integrationAPI, userAPI } from "../api/client";
+import BenefitDeductionConfig from "../components/payroll/BenefitDeductionConfig.vue";
 import { format } from "date-fns";
 import { useCurrency } from "../composables/useCurrency";
 
@@ -40,6 +41,7 @@ const authStore = useAuthStore();
 const { formatCurrency } = useCurrency();
 const companyCountry = computed(() => authStore.user?.company_country || "PHL");
 const isPHL = computed(() => companyCountry.value === "PHL");
+const isUSA = computed(() => companyCountry.value === "USA");
 const employee = ref<Record<string, unknown> | null>(null);
 const profile = ref<Record<string, unknown> | null>(null);
 const salary = ref<Record<string, unknown> | null>(null);
@@ -736,6 +738,12 @@ async function handleAssignSalary() {
           >{{ t("employee.assignSalary") }}</NButton
         >
       </NCard>
+
+      <!-- Benefit Deductions (US) -->
+      <BenefitDeductionConfig
+        v-if="isUSA && employee"
+        :employee-id="(employee as any).id"
+      />
 
       <!-- Documents Card -->
       <NCard :title="t('employee.documents')">
