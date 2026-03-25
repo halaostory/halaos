@@ -154,3 +154,14 @@ func TestAutoAssign_NoUnassigned(t *testing.T) {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
 }
+
+func TestGetSnapshot_NotConfigured(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+	mockDB.OnQueryRow(testutil.NewErrorRow(pgx.ErrNoRows))
+	c, w := testutil.NewGinContextWithQuery("GET", "/virtual-office/snapshot", nil, empAuth)
+	h.GetSnapshot(c)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
