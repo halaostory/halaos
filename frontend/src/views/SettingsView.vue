@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { NCard, NForm, NFormItem, NInput, NSelect, NButton, NSpace, NUpload, NAvatar, NSwitch, NTag, NPopconfirm, NEmpty, useMessage } from 'naive-ui'
+import { NCard, NForm, NFormItem, NInput, NSelect, NButton, NSpace, NUpload, NAvatar, NSwitch, NTag, NPopconfirm, NEmpty, NAlert, useMessage } from 'naive-ui'
 import type { UploadFileInfo } from 'naive-ui'
-import { companyAPI, botAPI, byokAPI } from '../api/client'
+import { companyAPI, botAPI, byokAPI, apiKeyAPI } from '../api/client'
 import { useAuthStore } from '../stores/auth'
 
 const { t } = useI18n()
@@ -268,7 +268,74 @@ async function deleteByokKey(id: string) {
 
 onMounted(() => {
   loadByokKeys()
+  loadApiKeys()
 })
+
+// API Key Management
+interface ApiKeyItem {
+  id: number
+  prefix: string
+  name: string
+  created_at: string
+  last_used_at: string | null
+}
+
+const apiKeys = ref<ApiKeyItem[]>([])
+const showApiKeyForm = ref(false)
+const apiKeyForm = ref({ name: '' })
+const newlyCreatedKey = ref('')
+const apiKeySaving = ref(false)
+
+async function loadApiKeys() {
+  try {
+    const res = await apiKeyAPI.listKeys() as { data?: ApiKeyItem[] }
+    apiKeys.value = (res.data || (Array.isArray(res) ? res : [])) as ApiKeyItem[]
+  } catch {
+    // no keys yet
+  }
+}
+
+async function createApiKey() {
+  if (!apiKeyForm.value.name.trim()) {
+    message.warning(t('common.fillAllFields'))
+    return
+  }
+  apiKeySaving.value = true
+  try {
+    const res = await apiKeyAPI.createKey({ name: apiKeyForm.value.name.trim() }) as { data?: { key?: string } }
+    const result = (res.data || res) as { key?: string }
+    if (result.key) {
+      newlyCreatedKey.value = result.key
+    }
+    message.success(t('settings.apiKeysCreated'))
+    apiKeyForm.value = { name: '' }
+    showApiKeyForm.value = false
+    await loadApiKeys()
+  } catch {
+    message.error(t('settings.saveFailed'))
+  } finally {
+    apiKeySaving.value = false
+  }
+}
+
+async function revokeApiKey(id: number) {
+  try {
+    await apiKeyAPI.revokeKey(id)
+    message.success(t('settings.apiKeysRevoked'))
+    await loadApiKeys()
+  } catch {
+    message.error(t('settings.saveFailed'))
+  }
+}
+
+function copyToClipboard(text: string) {
+  navigator.clipboard.writeText(text)
+  message.success('Copied!')
+}
+
+function formatDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString()
+}
 </script>
 
 <template>
@@ -461,6 +528,61 @@ onMounted(() => {
         </div>
       </div>
       <NEmpty v-else :description="t('settings.byokNoKeys')" />
+    </NCard>
+
+    <!-- API Key Management -->
+    <NCard :title="t('settings.apiKeysTitle')" style="margin-top: 24px;">
+      <template #header-extra>
+        <NButton size="small" type="primary" @click="showApiKeyForm = !showApiKeyForm">
+          {{ showApiKeyForm ? t('common.cancel') : t('settings.apiKeysAddKey') }}
+        </NButton>
+      </template>
+
+      <p style="color: #666; font-size: 13px; margin: 0 0 16px 0;">{{ t('settings.apiKeysDesc') }}</p>
+
+      <!-- Newly Created Key Alert -->
+      <NAlert v-if="newlyCreatedKey" type="warning" :title="t('settings.apiKeysCreated')" closable style="margin-bottom: 16px;" @close="newlyCreatedKey = ''">
+        <p style="margin: 0 0 8px 0;">{{ t('settings.apiKeysCreatedWarning') }}</p>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <code style="flex: 1; padding: 8px 12px; background: #fff; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 13px; word-break: break-all;">{{ newlyCreatedKey }}</code>
+          <NButton size="small" type="primary" @click="copyToClipboard(newlyCreatedKey)">Copy</NButton>
+        </div>
+      </NAlert>
+
+      <!-- Create Key Form -->
+      <div v-if="showApiKeyForm" style="margin-bottom: 20px; padding: 16px; background: #f9f9f9; border-radius: 8px;">
+        <NForm label-placement="left" label-width="120">
+          <NFormItem :label="t('settings.apiKeysName')">
+            <NInput v-model:value="apiKeyForm.name" :placeholder="t('settings.apiKeysNameHint')" @keyup.enter="createApiKey" />
+          </NFormItem>
+          <NButton type="primary" :loading="apiKeySaving" @click="createApiKey">{{ t('settings.apiKeysAddKey') }}</NButton>
+        </NForm>
+      </div>
+
+      <!-- Keys List -->
+      <div v-if="apiKeys.length > 0">
+        <div v-for="key in apiKeys" :key="key.id" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <NTag size="small">{{ t('settings.apiKeysPrefix') }}</NTag>
+            <span style="font-family: monospace; font-size: 13px;">{{ key.prefix }}...</span>
+            <span v-if="key.name" style="color: #666; font-size: 13px;">{{ key.name }}</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="color: #999; font-size: 12px;">
+              {{ t('settings.apiKeysLastUsed') }}:
+              {{ key.last_used_at ? formatDate(key.last_used_at) : t('settings.apiKeysNeverUsed') }}
+            </span>
+            <span style="color: #999; font-size: 12px;">{{ formatDate(key.created_at) }}</span>
+            <NPopconfirm @positive-click="revokeApiKey(key.id)">
+              <template #trigger>
+                <NButton size="tiny" quaternary type="error">{{ t('settings.apiKeysRevoke') }}</NButton>
+              </template>
+              {{ t('settings.apiKeysRevokeConfirm') }}
+            </NPopconfirm>
+          </div>
+        </div>
+      </div>
+      <NEmpty v-else :description="t('settings.apiKeysNoKeys')" />
     </NCard>
   </div>
 </template>

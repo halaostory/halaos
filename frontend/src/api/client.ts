@@ -1255,6 +1255,13 @@ export const byokAPI = {
     post("/v1/byok/keys/validate", data),
 };
 
+// API Keys
+export const apiKeyAPI = {
+  listKeys: () => get("/v1/api-keys"),
+  createKey: (data: { name: string }) => post("/v1/api-keys", data),
+  revokeKey: (id: number) => del(`/v1/api-keys/${id}`),
+}
+
 // NPS Feedback
 export const npsAPI = {
   submit: (data: { score: number; comment?: string }) => post("/v1/nps", data),
