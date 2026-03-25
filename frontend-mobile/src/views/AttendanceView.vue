@@ -4,6 +4,7 @@ import { useI18n } from "vue-i18n";
 import { List, Cell, CellGroup, Tag, showToast, showLoadingToast, closeToast } from "vant";
 import { attendanceAPI, geofenceAPI } from "../api/client";
 import AiQuickAsk from "../components/ai/AiQuickAsk.vue";
+import EmptyState from "../components/EmptyState.vue";
 import { useGeolocation } from "../composables/useGeolocation";
 import { format } from "date-fns";
 import type {
@@ -196,9 +197,15 @@ function formatRecordDate(dt: string) {
       <List
         v-model:loading="listLoading"
         :finished="finished"
-        :finished-text="records.length === 0 ? t('attendance.noRecords') : ''"
+        :finished-text="records.length > 0 ? '' : ''"
         @load="loadRecords"
       >
+        <EmptyState
+          v-if="records.length === 0 && finished"
+          icon="⏰"
+          :title="t('emptyState.attendance.title')"
+          :description="t('emptyState.attendance.desc')"
+        />
         <Cell v-for="r in records" :key="r.id" :label="formatRecordDate(r.clock_in)">
           <template #title>
             <div class="record-row">

@@ -10,10 +10,10 @@ import {
   Cell,
   Button,
   Tag,
-  Empty,
   showToast,
 } from "vant";
 import AiQuickAsk from "../components/ai/AiQuickAsk.vue";
+import EmptyState from "../components/EmptyState.vue";
 import { notificationAPI } from "../api/client";
 import { format } from "date-fns";
 import type { Notification, ApiResponse } from "../types";
@@ -124,7 +124,11 @@ onMounted(loadNotifications);
         @load="loadNotifications"
       >
         <template v-if="notifications.length === 0 && !loading">
-          <Empty :description="t('notifications.noNotifications')" />
+          <EmptyState
+            icon="🔔"
+            :title="t('emptyState.notifications.title')"
+            :description="t('emptyState.notifications.desc')"
+          />
         </template>
 
         <SwipeCell v-for="n in notifications" :key="n.id" :disabled="n.is_read">

@@ -167,6 +167,12 @@ export default {
     reasonSuggestions: "原因建议",
     remindClockIn: "提醒我打卡",
   },
+  emptyState: {
+    leaves: { title: '暂无请假记录', desc: '提交请假申请，您的主管将收到通知。', cta: '申请请假' },
+    attendance: { title: '暂无考勤记录', desc: '打卡开始记录工时。', cta: '立即打卡' },
+    payslips: { title: '暂无工资单', desc: '工资单在每次发薪后生成，请在下个发薪周期后查看。' },
+    notifications: { title: '暂无通知', desc: '审批、公告和重要更新将在此显示。' },
+  },
   onboarding: {
     welcome: "欢迎，{name}！",
     completeSteps: "完成以下步骤开始使用",

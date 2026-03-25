@@ -12,6 +12,7 @@ import {
 } from "vant";
 import { payrollAPI } from "../api/client";
 import AiQuickAsk from "../components/ai/AiQuickAsk.vue";
+import EmptyState from "../components/EmptyState.vue";
 import { format } from "date-fns";
 import type { Payslip, ApiResponse } from "../types";
 
@@ -95,9 +96,15 @@ function formatPeriod(start: string, end: string) {
     <List
       v-model:loading="loading"
       :finished="finished"
-      :finished-text="payslips.length === 0 ? t('payslips.noPayslips') : ''"
+      :finished-text="payslips.length > 0 ? '' : ''"
       @load="loadPayslips"
     >
+      <EmptyState
+        v-if="payslips.length === 0 && finished"
+        icon="💰"
+        :title="t('emptyState.payslips.title')"
+        :description="t('emptyState.payslips.desc')"
+      />
       <CellGroup inset v-if="payslips.length > 0">
         <Cell
           v-for="ps in payslips"

@@ -20,6 +20,7 @@ import {
 } from "vant";
 import { leaveAPI, formPrefillAPI } from "../api/client";
 import AiFormAssist from "../components/ai/AiFormAssist.vue";
+import EmptyState from "../components/EmptyState.vue";
 import { format } from "date-fns";
 import type {
   LeaveBalance,
@@ -211,6 +212,10 @@ function onAiReasonSelect(text: string) {
   reason.value = text;
 }
 
+function goToApplyTab() {
+  activeTab.value = 1;
+}
+
 onMounted(() => {
   loadBalances();
   loadTypes();
@@ -321,9 +326,16 @@ onMounted(() => {
         <List
           v-model:loading="historyLoading"
           :finished="historyFinished"
-          :finished-text="requests.length === 0 ? t('leave.noHistory') : ''"
+          :finished-text="requests.length > 0 ? '' : ''"
           @load="loadHistory"
         >
+          <EmptyState
+            v-if="requests.length === 0 && historyFinished"
+            icon="🏖️"
+            :title="t('emptyState.leaves.title')"
+            :description="t('emptyState.leaves.desc')"
+            :primaryAction="{ label: t('emptyState.leaves.cta'), handler: goToApplyTab }"
+          />
           <SwipeCell v-for="r in requests" :key="r.id" :disabled="r.status !== 'pending'">
             <Cell :label="`${r.start_date} ~ ${r.end_date}`">
               <template #title>
