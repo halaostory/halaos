@@ -61,6 +61,7 @@ import (
 	"github.com/tonypk/aigonhr/internal/milestone"
 	"github.com/tonypk/aigonhr/internal/notification"
 	"github.com/tonypk/aigonhr/internal/onboarding"
+	onboardingChecklist "github.com/tonypk/aigonhr/internal/onboarding_checklist"
 	"github.com/tonypk/aigonhr/internal/overtime"
 	"github.com/tonypk/aigonhr/internal/payroll"
 	"github.com/tonypk/aigonhr/internal/performance"
@@ -254,6 +255,7 @@ func (a *App) setupRoutes() {
 	acctHandler := integration.NewAccountingHandler(a.Queries, acctSSO, a.Logger)
 	complianceHandler := compliance.NewHandler(a.Queries, a.Pool, a.Logger)
 	onboardingHandler := onboarding.NewHandler(a.Queries, a.Pool, a.Logger)
+	onboardingChecklistHandler := onboardingChecklist.NewHandler(a.Queries, a.Pool, a.Logger)
 	performanceHandler := performance.NewHandler(a.Queries, a.Pool, a.Logger)
 	selfServiceHandler := selfservice.NewHandler(a.Queries, a.Pool, a.Logger)
 	analyticsHandler := analytics.NewHandler(a.Queries, a.Pool, a.Logger)
@@ -357,6 +359,7 @@ func (a *App) setupRoutes() {
 	payrollHandler.RegisterRoutes(protected)
 	complianceHandler.RegisterRoutes(protected)
 	onboardingHandler.RegisterRoutes(protected)
+	onboardingChecklistHandler.RegisterRoutes(protected)
 	performanceHandler.RegisterRoutes(protected)
 	selfServiceHandler.RegisterRoutes(protected)
 	analyticsHandler.RegisterRoutes(protected)
