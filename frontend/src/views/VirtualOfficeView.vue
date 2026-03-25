@@ -86,7 +86,12 @@ async function loadData() {
     const cfgRes = await virtualOfficeAPI.getConfig()
     config.value = cfgRes as { template: string }
 
-    // Load template JSON
+    // Load template JSON (validate against allowlist before dynamic import)
+    const allowedTemplates = ['small', 'medium', 'large']
+    if (!allowedTemplates.includes(config.value.template)) {
+      config.value = null
+      return
+    }
     const tmplModule = await import(`../assets/virtual-office/templates/${config.value.template}.json`)
     template.value = tmplModule.default as OfficeTemplate
 

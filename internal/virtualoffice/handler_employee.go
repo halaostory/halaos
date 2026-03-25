@@ -17,6 +17,11 @@ var validAvatarTypes = map[string]bool{
 	"bear": true, "penguin": true, "shiba": true,
 }
 
+var validManualStatuses = map[string]bool{
+	"focused": true, "in_meeting": true, "on_break": true,
+	"away": true, "overtime": true,
+}
+
 var hexColorRe = regexp.MustCompile(`^#[0-9A-Fa-f]{6}$`)
 
 func (h *Handler) UpdateMyStatus(c *gin.Context) {
@@ -32,6 +37,24 @@ func (h *Handler) UpdateMyStatus(c *gin.Context) {
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, err.Error())
+		return
+	}
+
+	// Validate manual_status against allowlist
+	if req.ManualStatus != nil && *req.ManualStatus != "" {
+		if !validManualStatuses[*req.ManualStatus] {
+			response.BadRequest(c, "Invalid status. Must be one of: focused, in_meeting, on_break, away, overtime")
+			return
+		}
+	}
+
+	// Validate length limits
+	if req.CustomStatus != nil && len(*req.CustomStatus) > 100 {
+		response.BadRequest(c, "Custom status must be 100 characters or less")
+		return
+	}
+	if req.CustomEmoji != nil && len(*req.CustomEmoji) > 10 {
+		response.BadRequest(c, "Custom emoji must be 10 characters or less")
 		return
 	}
 

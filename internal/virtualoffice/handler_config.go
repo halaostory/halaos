@@ -160,10 +160,10 @@ func (h *Handler) AutoAssign(c *gin.Context) {
 		return
 	}
 
-	type pos struct{ x, y int }
+	type pos struct{ floor, x, y int }
 	occupiedSet := make(map[pos]bool)
 	for _, o := range occupied {
-		occupiedSet[pos{int(o.SeatX), int(o.SeatY)}] = true
+		occupiedSet[pos{int(o.Floor), int(o.SeatX), int(o.SeatY)}] = true
 	}
 
 	deskGroups := GetDeskSeats(cfg.Template)
@@ -173,7 +173,7 @@ func (h *Handler) AutoAssign(c *gin.Context) {
 	}
 	for _, group := range deskGroups {
 		for _, s := range group.Seats {
-			if !occupiedSet[pos{s.X, s.Y}] {
+			if !occupiedSet[pos{1, s.X, s.Y}] {
 				availableSeats = append(availableSeats, struct {
 					Zone string
 					X, Y int
@@ -183,13 +183,14 @@ func (h *Handler) AutoAssign(c *gin.Context) {
 	}
 
 	assigned := 0
-	noSeats := 0
-	for i, emp := range unassigned {
-		if i >= len(availableSeats) {
-			noSeats = len(unassigned) - i
+	skipped := 0
+	seatIdx := 0
+	for _, emp := range unassigned {
+		if seatIdx >= len(availableSeats) {
 			break
 		}
-		seat := availableSeats[i]
+		seat := availableSeats[seatIdx]
+		seatIdx++
 		_, err := h.queries.AssignSeat(ctx, store.AssignSeatParams{
 			CompanyID:  companyID,
 			EmployeeID: emp.ID,
@@ -199,16 +200,22 @@ func (h *Handler) AutoAssign(c *gin.Context) {
 			SeatY:      int32(seat.Y),
 		})
 		if err != nil {
+			skipped++
 			h.logger.Error("auto-assign failed for employee", "employee_id", emp.ID, "error", err)
 			continue
 		}
 		assigned++
 	}
 
+	noSeats := 0
+	if seatIdx >= len(availableSeats) && assigned+skipped < len(unassigned) {
+		noSeats = len(unassigned) - assigned - skipped
+	}
+
 	h.invalidateSnapshot(ctx, companyID)
 	response.OK(c, gin.H{
 		"assigned": assigned,
-		"skipped":  0,
+		"skipped":  skipped,
 		"no_seats": noSeats,
 	})
 }
