@@ -75,6 +75,7 @@ import (
 	"github.com/tonypk/aigonhr/internal/recognition"
 	"github.com/tonypk/aigonhr/internal/nps"
 	"github.com/tonypk/aigonhr/internal/referral"
+	"github.com/tonypk/aigonhr/internal/virtualoffice"
 	"github.com/tonypk/aigonhr/internal/workflow"
 )
 
@@ -280,6 +281,7 @@ func (a *App) setupRoutes() {
 	pulseHandler := pulse.NewHandler(a.Queries, a.Pool, a.Logger)
 	recognitionHandler := recognition.NewHandler(a.Queries, a.Pool, a.Logger)
 	hrrequestHandler := hrrequest.NewHandler(a.Queries, a.Pool, a.Logger)
+	virtualOfficeHandler := virtualoffice.NewHandler(a.Queries, a.Pool, a.Logger, a.Redis)
 
 	// Billing service
 	billingSvc := billing.NewService(a.Queries, a.Logger)
@@ -383,6 +385,7 @@ func (a *App) setupRoutes() {
 	pulseHandler.RegisterRoutes(protected)
 	recognitionHandler.RegisterRoutes(protected)
 	hrrequestHandler.RegisterRoutes(protected)
+	virtualOfficeHandler.RegisterRoutes(protected)
 
 	billingHandler.RegisterRoutes(protected)
 
