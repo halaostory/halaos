@@ -69,6 +69,7 @@ const { formatCurrency } = useCurrency();
 const authStore = useAuthStore();
 const companyCountry = computed(() => authStore.user?.company_country || "PHL");
 const isLKA = computed(() => companyCountry.value === "LKA");
+const isUSA = computed(() => companyCountry.value === "USA");
 
 // Active tab
 const activeTab = ref("cycles");
@@ -1381,7 +1382,13 @@ function formatRatingMap(rm: Record<string, number>): string {
             width: 100,
             render: (r: Record<string, unknown>) => formatCurrency(r.holiday_pay),
           },
-          ...(isLKA ? [
+          ...(isUSA ? [
+            { title: t('payroll.usa.federalTax'), key: 'federal_tax', width: 110, render: (r: Record<string, unknown>) => formatCurrency(r.federal_tax) },
+            { title: t('payroll.usa.socialSecurityEE'), key: 'social_security_ee', width: 100, render: (r: Record<string, unknown>) => formatCurrency(r.social_security_ee) },
+            { title: t('payroll.usa.medicareEE'), key: 'medicare_ee', width: 90, render: (r: Record<string, unknown>) => formatCurrency(r.medicare_ee) },
+            { title: t('payroll.usa.stateTax'), key: 'state_tax', width: 100, render: (r: Record<string, unknown>) => formatCurrency(r.state_tax) },
+            { title: t('payroll.usa.pretaxDeductions'), key: 'pretax_deductions', width: 120, render: (r: Record<string, unknown>) => formatCurrency(r.pretax_deductions) },
+          ] : isLKA ? [
             { title: 'EPF (EE)', key: 'epf_ee', width: 90, render: (r: Record<string, unknown>) => formatCurrency(r.epf_ee) },
             { title: 'EPF (ER)', key: 'epf_er', width: 90, render: (r: Record<string, unknown>) => formatCurrency(r.epf_er) },
             { title: 'ETF (ER)', key: 'etf_er', width: 90, render: (r: Record<string, unknown>) => formatCurrency(r.etf_er) },
