@@ -311,3 +311,13 @@ export const botAPI = {
   unlinkPlatform: (platform: string) =>
     api(`/v1/bot/link/${platform}`, { method: "DELETE" }),
 };
+
+// Onboarding Checklist
+export const onboardingChecklistAPI = {
+  getProgress: (persona = "employee") =>
+    get("/v1/onboarding-checklist/my-progress", { persona }),
+  completeStep: (step: string, persona = "employee") =>
+    post("/v1/onboarding-checklist/complete-step", { step, persona }),
+  dismiss: (persona = "employee") =>
+    post("/v1/onboarding-checklist/dismiss", { persona }),
+};

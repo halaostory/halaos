@@ -167,4 +167,23 @@ export default {
     reasonSuggestions: "原因建议",
     remindClockIn: "提醒我打卡",
   },
+  onboarding: {
+    welcome: "欢迎，{name}！",
+    completeSteps: "完成以下步骤开始使用",
+    skip: "跳过",
+    completed: "{n} / {total} 已完成",
+    steps: {
+      profile: "完善个人资料",
+      profileDesc: "姓名、头像、紧急联系人",
+      firstClock: "首次打卡",
+      firstClockDesc: "点击打卡按钮记录考勤",
+      viewLeave: "了解请假流程",
+      viewLeaveDesc: "查看假期余额并提交请假申请",
+      viewPayslip: "查看工资单",
+      viewPayslipDesc: "查看薪资明细和扣款",
+      aiChat: "认识AI助手",
+      aiChatDesc: "随时咨询HR政策问题",
+    },
+    allDone: "全部完成！准备就绪。",
+  },
 };
