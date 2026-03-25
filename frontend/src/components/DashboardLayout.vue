@@ -138,6 +138,7 @@ const features: Record<string, boolean> = {
   holidays: true, 'org-intelligence': true, 'workflow-rules': true, accounting: true,
   'workflow-analytics': true, 'workflow-triggers': true, 'workflow-decisions': true,
   'pulse-surveys': true, recognition: true, 'hr-requests': true,
+  'virtual-office': true,
 }
 
 function isEnabled(key: string): boolean {
@@ -223,6 +224,7 @@ const menuOptions = computed<MenuOption[]>(() => {
   const engagement: MenuOption[] = []
   pushIf(engagement, 'recognition', 'nav.recognition', StarOutline)
   pushIf(engagement, 'pulse-surveys', 'nav.pulseSurveys', HappyOutline)
+  pushIf(engagement, 'virtual-office', 'nav.virtualOffice', BusinessOutline)
   pushIf(engagement, 'policies', 'nav.policies', DocumentTextOutline)
   if (engagement.length) {
     groups.push({ type: 'group', label: t('nav.groupEngagement'), key: 'g-engagement', children: engagement })

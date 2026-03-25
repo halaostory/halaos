@@ -1268,3 +1268,19 @@ export const npsAPI = {
   status: () => get("/v1/nps/status"),
   summary: () => get("/v1/nps/summary"),
 };
+
+// Virtual Office
+export const virtualOfficeAPI = {
+  getConfig: () => get("/v1/virtual-office/config"),
+  updateConfig: (data: { template: string }) => put("/v1/virtual-office/config", data),
+  listSeats: () => get("/v1/virtual-office/seats"),
+  assignSeat: (data: { employee_id: number; floor: number; zone: string; seat_x: number; seat_y: number }) =>
+    post("/v1/virtual-office/seats/assign", data),
+  autoAssign: () => post("/v1/virtual-office/seats/auto", {}),
+  removeSeat: (employeeId: number) => del(`/v1/virtual-office/seats/${employeeId}`),
+  getSnapshot: () => get("/v1/virtual-office/snapshot"),
+  updateMyStatus: (data: { manual_status?: string | null; meeting_room_zone?: string | null; custom_status?: string | null; custom_emoji?: string | null }) =>
+    put("/v1/virtual-office/my-status", data),
+  updateMyAvatar: (data: { avatar_type: string; avatar_color: string }) =>
+    put("/v1/virtual-office/my-avatar", data),
+}

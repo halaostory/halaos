@@ -510,6 +510,12 @@ const router = createRouter({
           name: "pulse-respond",
           component: () => import("../views/PulseRespondView.vue"),
         },
+        // Virtual Office
+        {
+          path: "virtual-office",
+          name: "virtual-office",
+          component: () => import("../views/VirtualOfficeView.vue"),
+        },
         // Notifications
         {
           path: "notifications",
