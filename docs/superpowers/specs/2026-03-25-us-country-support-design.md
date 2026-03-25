@@ -66,33 +66,33 @@ Married Filing Jointly and Head of Household have different bracket thresholds (
 | Additional Medicare | 0.9% (EE only) | — | Earnings > $200,000 |
 
 **Implementation notes:**
-- Track YTD wages per employee to enforce Social Security wage base cap
+- Track YTD wages per employee to enforce Social Security wage base cap (aggregate from `payroll_items` for the calendar year)
 - Additional Medicare Tax applies only to employee, not employer
-- Both Social Security and Medicare are NOT reduced by pre-tax deductions (401k, insurance are subject to FICA)
+- 401(k) contributions are subject to FICA (do NOT reduce FICA wages). Section 125 cafeteria plan deductions (health insurance, HSA, FSA) reduce FICA wages.
 
 ### 1.3 FUTA (Federal Unemployment Tax)
 
 - Rate: 6.0% on first $7,000 of wages per employee per year
 - Credit for state unemployment (SUI): typically 5.4%, making effective FUTA rate = 0.6%
+- **FUTA credit reduction states:** California is a credit reduction state (1.2% reduction for 2025), making the effective CA FUTA rate **1.8%** instead of 0.6%. Store the company's actual FUTA rate in `company_registration_numbers` (key: `futa_rate`) since it varies by state and year.
 - Employer-only tax (no employee share)
-- Store company's FUTA rate in `country_payroll_config` or company settings
 
 ### 1.4 State Income Tax
 
 **California (CA):**
 - 9 brackets from 1% to 12.3% (2025)
 - Mental Health Services Tax: additional 1% on taxable income > $1,000,000
-- SDI (State Disability Insurance): 1.1% on first $153,164 of wages (employee-only)
+- SDI (State Disability Insurance): 1.2% with no wage base cap (employee-only, per SB 951 effective 2024)
 - SUI rate: varies by employer (0.5% - 6.2% on first $7,000)
 
 **New York (NY):**
-- 8 brackets from 4% to 10.9% (2025)
+- 9 brackets from 4% to 10.9% (2025)
 - NYC residents pay additional city tax: 4 brackets 3.078% - 3.876%
 - SUI rate: varies by employer on first $12,500
 
 **Texas (TX), Florida (FL), Washington (WA):**
 - No state income tax
-- TX/FL: no SUI employee share; WA: has Paid Family & Medical Leave (0.74% split EE/ER)
+- TX/FL: no SUI employee share; WA: has Paid Family & Medical Leave (0.92% total, split ~71.5% EE / ~28.5% ER)
 
 **Implementation:** Each state stored as rows in `country_tax_brackets` with `state` field. State selection based on employee's `state_of_residence`.
 
@@ -102,7 +102,7 @@ These reduce federal and state taxable income (but NOT FICA wages, except for Se
 
 | Deduction Type | Annual Limit (2025) | Reduces Federal Tax | Reduces FICA |
 |---------------|--------------------|--------------------|-------------|
-| 401(k) Traditional | $23,500 ($31,000 if 50+) | Yes | No |
+| 401(k) Traditional | $23,500 ($31,000 age 50+; $34,750 age 60-63 per SECURE 2.0) | Yes | No |
 | Health Insurance (Section 125) | Varies | Yes | Yes |
 | Dental/Vision Insurance | Varies | Yes | Yes |
 | HSA | $4,300 individual / $8,550 family | Yes | Yes |
@@ -179,7 +179,7 @@ US PTO commonly accrues over time rather than being granted upfront:
 | Thanksgiving | 4th Thursday of November |
 | Christmas Day | December 25 |
 
-Seed 2025 and 2026 dates. All as `regular_holiday` type (affects OT pay calculation at 1.5x or 2.0x depending on company policy).
+Seed 2025 and 2026 dates. All as `regular_holiday` type. **Note:** Unlike the Philippines, the US has no federal law requiring premium pay for working on holidays. Holiday pay is entirely at the employer's discretion. The system allows companies to configure holiday pay rates (default: no premium; configurable to 1.5x or 2.0x).
 
 ---
 
@@ -202,7 +202,7 @@ Store in the flexible `country_identifier_fields` pattern (i18n keys + condition
 | State Withholding Allowances | `state_allowances` | Integer | Plain |
 
 **SSN Security:**
-- Encrypt at rest using AES-256-GCM (existing `pkg/crypto` or new encryption helper)
+- Encrypt at rest using AES-256-GCM (new `pkg/crypto` package — see Section 7.1)
 - Display as `XXX-XX-1234` (only last 4 digits visible)
 - Full SSN accessible only to super_admin with audit logging
 - Never include full SSN in API responses (always masked)
@@ -276,22 +276,39 @@ Store in `company_registration_numbers` table (flexible key-value):
 ### 6.1 New Migration: `000XX_us_country_support.sql`
 
 ```sql
--- Seed USA into country_payroll_config
-INSERT INTO country_payroll_config (country, config) VALUES ('USA', '{
-  "standard_hours_per_week": 40,
-  "ot_rate": 1.5,
-  "ca_daily_ot_rate": 1.5,
-  "ca_double_ot_rate": 2.0,
-  "night_diff_rate": 0,
-  "has_13th_month": false,
-  "pay_frequencies": ["weekly", "bi_weekly", "semi_monthly", "monthly"]
-}');
+-- Seed USA into country_payroll_config (uses existing key-value pattern, NOT single JSON blob)
+INSERT INTO country_payroll_config (country, config_key, config_value)
+VALUES
+  ('USA', 'ot_rates', '{"regular": 1.5, "ca_daily": 1.5, "ca_double": 2.0}'),
+  ('USA', 'standard_hours', '{"per_week": 40}'),
+  ('USA', 'night_diff', '{"rate": 0}'),
+  ('USA', 'thirteenth_month', '{"enabled": false}'),
+  ('USA', 'pay_frequencies', '["weekly", "bi_weekly", "semi_monthly", "monthly"]');
+
+-- Add filing_status and state columns to country_tax_brackets
+ALTER TABLE country_tax_brackets ADD COLUMN IF NOT EXISTS filing_status VARCHAR(30);
+ALTER TABLE country_tax_brackets ADD COLUMN IF NOT EXISTS state VARCHAR(5);
+
+-- Add US columns to payroll_items for typed tax storage
+ALTER TABLE payroll_items ADD COLUMN IF NOT EXISTS federal_tax NUMERIC(12,2) DEFAULT 0;
+ALTER TABLE payroll_items ADD COLUMN IF NOT EXISTS social_security_ee NUMERIC(12,2) DEFAULT 0;
+ALTER TABLE payroll_items ADD COLUMN IF NOT EXISTS social_security_er NUMERIC(12,2) DEFAULT 0;
+ALTER TABLE payroll_items ADD COLUMN IF NOT EXISTS medicare_ee NUMERIC(12,2) DEFAULT 0;
+ALTER TABLE payroll_items ADD COLUMN IF NOT EXISTS medicare_er NUMERIC(12,2) DEFAULT 0;
+ALTER TABLE payroll_items ADD COLUMN IF NOT EXISTS additional_medicare NUMERIC(12,2) DEFAULT 0;
+ALTER TABLE payroll_items ADD COLUMN IF NOT EXISTS state_tax NUMERIC(12,2) DEFAULT 0;
+ALTER TABLE payroll_items ADD COLUMN IF NOT EXISTS state_disability NUMERIC(12,2) DEFAULT 0;
+ALTER TABLE payroll_items ADD COLUMN IF NOT EXISTS futa NUMERIC(12,2) DEFAULT 0;
+ALTER TABLE payroll_items ADD COLUMN IF NOT EXISTS sui NUMERIC(12,2) DEFAULT 0;
+ALTER TABLE payroll_items ADD COLUMN IF NOT EXISTS pretax_deductions NUMERIC(12,2) DEFAULT 0;
 
 -- Seed federal tax brackets (Single, MFJ, HoH) into country_tax_brackets
--- Seed CA and NY state brackets into country_tax_brackets (with state field)
+-- Seed CA and NY state brackets into country_tax_brackets (with state + filing_status)
 -- Seed FICA rates into country_contribution_rates
--- Seed CA SDI, SUI rates into country_contribution_rates
+-- Seed CA SDI rate (1.2%, no cap) into country_contribution_rates
 ```
+
+> **Note:** `country_payroll_config` uses the existing key-value pattern (`config_key` + `config_value` columns), matching the PHL/LKA seed data format. New `payroll_items` columns store US tax amounts as typed fields for efficient W-2/941 aggregation (PH columns remain for backward compatibility — both sets default to 0).
 
 ### 6.2 New Table: `employee_benefit_deductions`
 
@@ -327,18 +344,28 @@ CREATE TABLE company_registration_numbers (
 
 ### 6.4 Schema Changes
 
-- Add `state_of_residence VARCHAR(5)` to `employees` table
-- Add `w4_filing_status VARCHAR(30)` to `employees` table
-- Add `w4_additional_withholding NUMERIC(12,2) DEFAULT 0` to `employees` table
-- Add `w4_multiple_jobs BOOLEAN DEFAULT false` to `employees` table
-- Add `w4_dependents_credit NUMERIC(12,2) DEFAULT 0` to `employees` table
-- Add `w4_other_income NUMERIC(12,2) DEFAULT 0` to `employees` table
-- Add `w4_deductions NUMERIC(12,2) DEFAULT 0` to `employees` table
-- Add `ssn_encrypted BYTEA` to `employees` table (encrypted at rest)
-- Add `accrual_method VARCHAR(20) DEFAULT 'upfront'` to `leave_types` table
-- Add `accrual_rate NUMERIC(8,4)` to `leave_types` table
-- Add `max_carryover INTEGER` to `leave_types` table
-- Add `state VARCHAR(5)` to `country_tax_brackets` table (for state-level brackets)
+**`employee_profiles` table** (US-specific fields alongside existing PH fields):
+- Add `ssn_encrypted BYTEA` (AES-256-GCM encrypted at rest)
+- Add `state_of_residence VARCHAR(5)`
+- Add `w4_filing_status VARCHAR(30)`
+- Add `w4_additional_withholding NUMERIC(12,2) DEFAULT 0`
+- Add `w4_multiple_jobs BOOLEAN DEFAULT false`
+- Add `w4_dependents_credit NUMERIC(12,2) DEFAULT 0`
+- Add `w4_other_income NUMERIC(12,2) DEFAULT 0`
+- Add `w4_deductions NUMERIC(12,2) DEFAULT 0`
+- Add `state_allowances INTEGER DEFAULT 0`
+
+**`leave_types` table** (accrual support):
+- Add `accrual_method VARCHAR(20) DEFAULT 'upfront'` (values: `upfront`, `accrual`)
+- Add `accrual_rate NUMERIC(8,4)` (days per accrual period)
+- Add `accrual_period VARCHAR(20)` (values: `monthly`, `bi_weekly`, `weekly`)
+- Add `max_carryover INTEGER` (max days carried to next year, NULL = unlimited)
+
+**`country_tax_brackets` table** (already altered in 6.1):
+- Add `filing_status VARCHAR(30)` (for federal brackets by filing status)
+- Add `state VARCHAR(5)` (for state-level brackets)
+
+> **Design note:** US fields go on `employee_profiles` (not `employees`) following the precedent of PH fields (`tin`, `sss_no`, `philhealth_no`, `pagibig_no`). Both sets of fields are country-conditional in the frontend.
 
 ---
 
@@ -353,6 +380,8 @@ CREATE TABLE company_registration_numbers (
 | `internal/compliance/forms_us.go` | W-2, Form 941, CA DE 9, NY NYS-45 generation |
 | `internal/compliance/forms_us_test.go` | Unit tests for US compliance forms |
 | `internal/auth/seed_usa.go` | `seedUSADefaults()` — leave types, holidays, tax data |
+| `pkg/crypto/encryption.go` | AES-256-GCM encrypt/decrypt helpers for SSN storage |
+| `pkg/crypto/encryption_test.go` | Unit tests for encryption package |
 | `db/migrations/000XX_us_country_support.sql` | Migration for US tables, seeds, schema changes |
 | `db/query/us_payroll.sql` | US-specific queries (benefit deductions, state brackets, YTD tracking) |
 
@@ -360,7 +389,7 @@ CREATE TABLE company_registration_numbers (
 
 | File | Change |
 |------|--------|
-| `internal/payroll/calculator.go` | Add `case "USA"` to country switch, call `computePayUS()` |
+| `internal/payroll/calculator.go` | Add `case "USA"` to country switch, call `computePayUS()`. Add US fields to `EmployeePayData` struct: `FederalTax`, `SocialSecurityEE/ER`, `MedicareEE/ER`, `AdditionalMedicare`, `StateTax`, `StateDisability`, `FUTA`, `SUI`, `PreTaxDeductions` |
 | `internal/auth/company_setup.go` | Add `case "USA"` to `countryConfig()` and `seedCountryDefaults()` |
 | `internal/compliance/forms.go` | Add `case "USA"` to `GenerateAndStore()` dispatcher |
 | `db/query/payroll.sql` | Add queries for `employee_benefit_deductions`, `company_registration_numbers` |
