@@ -3,10 +3,11 @@ import { ref, computed, onMounted, h } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   NCard, NButton, NSpace, NTag, NModal, NForm, NFormItem, NTabs, NTabPane, NInput,
-  NSelect, NDatePicker, NSwitch, NDataTable, NEmpty, useMessage,
+  NSelect, NDatePicker, NSwitch, NDataTable, useMessage,
   type DataTableColumns,
 } from 'naive-ui'
 import { attendanceAPI, employeeAPI } from '../api/client'
+import EmptyState from '../components/EmptyState.vue'
 
 const { t } = useI18n()
 const message = useMessage()
@@ -502,7 +503,12 @@ onMounted(() => {
             :scroll-x="1100"
             size="small"
           />
-          <NEmpty v-else :description="t('attendance.noSchedules')" />
+          <EmptyState
+            v-else
+            icon="📅"
+            :title="t('emptyState.schedules.title')"
+            :description="t('emptyState.schedules.desc')"
+          />
         </NSpace>
       </NTabPane>
 
@@ -521,7 +527,12 @@ onMounted(() => {
             :row-key="(row: any) => row.id"
             size="small"
           />
-          <NEmpty v-else :description="t('attendance.noTemplates')" />
+          <EmptyState
+            v-else
+            icon="📅"
+            :title="t('emptyState.schedules.title')"
+            :description="t('emptyState.schedules.desc')"
+          />
         </NSpace>
       </NTabPane>
 
@@ -539,7 +550,12 @@ onMounted(() => {
             :row-key="(row: any) => row.id"
             size="small"
           />
-          <NEmpty v-else :description="t('attendance.noAssignments')" />
+          <EmptyState
+            v-else
+            icon="📅"
+            :title="t('emptyState.schedules.title')"
+            :description="t('emptyState.schedules.desc')"
+          />
         </NSpace>
       </NTabPane>
     </NTabs>

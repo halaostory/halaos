@@ -4,10 +4,11 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import {
   NCard, NButton, NSpace, NTag, NInput, NDescriptions, NDescriptionsItem,
-  NModal, NForm, NFormItem, NDatePicker, NDataTable, NEmpty, NAlert, useMessage,
+  NModal, NForm, NFormItem, NDatePicker, NDataTable, NAlert, useMessage,
   type DataTableColumns,
 } from 'naive-ui'
 import { attendanceAPI, geofenceAPI } from '../api/client'
+import EmptyState from '../components/EmptyState.vue'
 import { format } from 'date-fns'
 import { useAuthStore } from '../stores/auth'
 
@@ -365,7 +366,13 @@ const pendingCorrectionColumns: DataTableColumns<Correction> = [
         :row-key="(row: any) => row.id"
         size="small"
       />
-      <NEmpty v-else :description="t('attendance.noCorrections')" />
+      <EmptyState
+        v-else
+        icon="⏰"
+        :title="t('emptyState.attendance.title')"
+        :description="t('emptyState.attendance.desc')"
+        :primaryAction="{ label: t('emptyState.attendance.cta'), handler: clockIn }"
+      />
     </NCard>
 
     <!-- Correction Request Modal -->

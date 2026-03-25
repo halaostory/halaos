@@ -4,9 +4,10 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   NInput, NSelect, NSpace, NCard, NGrid, NGi, NAvatar,
-  NTag, NEmpty, NSpin, NRadioGroup, NRadioButton,
+  NTag, NSpin, NRadioGroup, NRadioButton,
 } from 'naive-ui'
 import { directoryAPI, companyAPI } from '../api/client'
+import EmptyState from '../components/EmptyState.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -203,7 +204,12 @@ onMounted(() => {
     <NSpin :show="loading">
       <!-- List View -->
       <template v-if="viewMode === 'list'">
-        <NEmpty v-if="employees.length === 0 && !loading" :description="t('directory.noEmployees')" />
+        <EmptyState
+          v-if="employees.length === 0 && !loading"
+          icon="👥"
+          :title="t('emptyState.directory.title')"
+          :description="t('emptyState.directory.desc')"
+        />
         <NGrid v-else :cols="4" :x-gap="16" :y-gap="16" responsive="screen" :item-responsive="true">
           <NGi v-for="emp in employees" :key="emp.id" span="0:4 600:2 900:1">
             <NCard hoverable style="cursor: pointer;" @click="goToProfile(emp.id)">
@@ -239,7 +245,12 @@ onMounted(() => {
 
       <!-- Org Chart View -->
       <template v-else>
-        <NEmpty v-if="flatOrgList.length === 0 && !loading" :description="t('directory.noEmployees')" />
+        <EmptyState
+          v-if="flatOrgList.length === 0 && !loading"
+          icon="👥"
+          :title="t('emptyState.directory.title')"
+          :description="t('emptyState.directory.desc')"
+        />
         <div v-else class="org-chart">
           <div
             v-for="item in flatOrgList"

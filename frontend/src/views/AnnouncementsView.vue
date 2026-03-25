@@ -2,10 +2,11 @@
 import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
-  NCard, NButton, NSpace, NTag, NEmpty, NModal, NForm, NFormItem,
+  NCard, NButton, NSpace, NTag, NModal, NForm, NFormItem,
   NInput, NSelect, NDatePicker, useMessage, NTime, NPopconfirm,
 } from 'naive-ui'
 import { announcementAPI } from '../api/client'
+import EmptyState from '../components/EmptyState.vue'
 import { useAuthStore } from '../stores/auth'
 
 const { t } = useI18n()
@@ -116,7 +117,12 @@ function toggleShowAll() {
       </NSpace>
     </div>
 
-    <NEmpty v-if="announcements.length === 0" :description="t('announcement.noAnnouncements')" />
+    <EmptyState
+      v-if="announcements.length === 0"
+      icon="📢"
+      :title="t('emptyState.announcements.title')"
+      :description="t('emptyState.announcements.desc')"
+    />
 
     <div style="display: flex; flex-direction: column; gap: 16px;">
       <NCard v-for="ann in announcements" :key="ann.id">

@@ -17,7 +17,6 @@ import {
   NInputNumber,
   NSwitch,
   NCard,
-  NEmpty,
   NTimeline,
   NTimelineItem,
   NCheckbox,
@@ -26,6 +25,7 @@ import {
   type DataTableColumns,
 } from "naive-ui";
 import { payrollAPI, exportAPI, thirteenthMonthAPI, performanceAPI, integrationAPI } from "../api/client";
+import EmptyState from '../components/EmptyState.vue'
 import { useCurrency } from "../composables/useCurrency";
 import { useAuthStore } from "../stores/auth";
 
@@ -994,7 +994,12 @@ function formatRatingMap(rm: Record<string, number>): string {
 
           <!-- Auto-Payroll Activity Log -->
           <h3 style="margin-bottom: 12px;">{{ t('payroll.auto.activityLog') }}</h3>
-          <NEmpty v-if="autoLogs.length === 0 && !autoLogsLoading" :description="t('payroll.auto.noLogs')" />
+          <EmptyState
+            v-if="autoLogs.length === 0 && !autoLogsLoading"
+            icon="💰"
+            :title="t('emptyState.payslips.title')"
+            :description="t('emptyState.payslips.desc')"
+          />
           <NTimeline v-else>
             <NTimelineItem
               v-for="log in autoLogs"
@@ -1146,7 +1151,12 @@ function formatRatingMap(rm: Record<string, number>): string {
           {{ t("payroll.bonus.approveSelected") }} ({{ selectedAllocationIds.length }})
         </NButton>
       </NSpace>
-      <NEmpty v-if="allocations.length === 0 && !allocationsLoading" :description="t('payroll.bonus.noAllocations')" />
+      <EmptyState
+        v-if="allocations.length === 0 && !allocationsLoading"
+        icon="💰"
+        :title="t('emptyState.payslips.title')"
+        :description="t('emptyState.payslips.desc')"
+      />
       <NDataTable
         v-else
         :columns="[

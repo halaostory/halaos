@@ -6,7 +6,6 @@ import {
   NButton,
   NSpace,
   NTag,
-  NEmpty,
   NModal,
   NInput,
   NDrawer,
@@ -22,6 +21,7 @@ import {
   type DataTableColumns,
 } from "naive-ui";
 import { approvalAPI } from "../api/client";
+import EmptyState from '../components/EmptyState.vue'
 import { format } from "date-fns";
 
 const { t } = useI18n();
@@ -194,9 +194,11 @@ function recommendationTag(rec: string | undefined) {
   <div>
     <h2 style="margin-bottom: 16px">{{ t("approval.title") }}</h2>
     <NDataTable :columns="columns" :data="data" :loading="loading" />
-    <NEmpty
+    <EmptyState
       v-if="!loading && data.length === 0"
-      :description="t('approval.noPending')"
+      icon="✅"
+      :title="t('emptyState.approvals.title')"
+      :description="t('emptyState.approvals.desc')"
       style="margin-top: 24px"
     />
     <NModal v-model:show="showRejectModal" :title="t('common.reject')" preset="card" style="max-width: 420px; width: 95vw;">

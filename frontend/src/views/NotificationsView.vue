@@ -10,7 +10,6 @@ import {
   NSpace,
   NButton,
   NTag,
-  NEmpty,
   NSelect,
   NBadge,
   NPagination,
@@ -18,6 +17,7 @@ import {
   useMessage,
 } from "naive-ui";
 import { notificationAPI } from "../api/client";
+import EmptyState from '../components/EmptyState.vue'
 
 const router = useRouter();
 
@@ -252,9 +252,11 @@ onMounted(() => {
       </NSpace>
     </NCard>
 
-    <NEmpty
+    <EmptyState
       v-if="paginatedNotifications.length === 0 && !loading"
-      :description="t('notification.noNotifications')"
+      icon="🔔"
+      :title="t('emptyState.notifications.title')"
+      :description="t('emptyState.notifications.desc')"
       style="padding: 48px 0"
     />
 

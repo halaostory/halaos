@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { NSpace, NButton, NTag, NEmpty, NSpin } from 'naive-ui'
+import { useRouter } from 'vue-router'
+import { NSpace, NButton, NTag, NSpin } from 'naive-ui'
 import { leaveAPI } from '../api/client'
+import EmptyState from '../components/EmptyState.vue'
 
 const { t } = useI18n()
+const router = useRouter()
 
 const loading = ref(false)
 const currentYear = ref(new Date().getFullYear())
@@ -211,7 +214,14 @@ onMounted(fetchLeaves)
         </tbody>
       </table>
 
-      <NEmpty v-if="leaves.length === 0 && !loading" :description="t('leaveCalendar.noLeaves')" style="margin-top: 24px;" />
+      <EmptyState
+        v-if="leaves.length === 0 && !loading"
+        icon="🏖️"
+        :title="t('emptyState.leaves.title')"
+        :description="t('emptyState.leaves.desc')"
+        :primaryAction="{ label: t('emptyState.leaves.cta'), handler: () => router.push({ name: 'leave' }) }"
+        style="margin-top: 24px;"
+      />
     </NSpin>
   </div>
 </template>
