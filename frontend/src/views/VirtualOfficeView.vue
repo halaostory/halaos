@@ -1,62 +1,80 @@
 <template>
-  <n-space vertical :size="12">
-    <n-page-header :title="t('virtualOffice.title')" />
-
-    <!-- No config yet: show setup -->
-    <template v-if="!config && !loading">
-      <n-result status="info" :title="t('virtualOffice.noOffice')" :description="t('virtualOffice.setupFirst')">
-        <template #footer>
-          <OfficeSetup @saved="loadData" />
-        </template>
-      </n-result>
-    </template>
-
-    <!-- Loading -->
-    <n-spin v-else-if="loading" size="large" style="display: flex; justify-content: center; padding: 80px 0" />
-
-    <!-- Office view -->
-    <template v-else>
-      <!-- Stats bar -->
-      <OfficeStats :stats="snapshot?.stats ?? {}" />
-
-      <!-- Admin setup toggle -->
-      <n-collapse v-if="isAdmin" style="margin-bottom: 8px">
-        <n-collapse-item :title="t('virtualOffice.setup')">
-          <OfficeSetup :current-template="config?.template" @saved="loadData" />
-        </n-collapse-item>
-      </n-collapse>
-
-      <!-- Canvas + sidebar -->
-      <div class="vo-main">
-        <div class="vo-canvas-wrap">
-          <OfficeCanvas
-            :template="template"
-            :seats="snapshot?.seats ?? []"
-            @select="selectedSeat = $event"
-          />
-        </div>
-        <div class="vo-sidebar">
-          <MiniMap
-            v-if="template"
-            :template-width="template.width"
-            :template-height="template.height"
-            :tile-size="template.tileSize"
-            :seats="snapshot?.seats ?? []"
-          />
-          <SeatInfoCard v-if="selectedSeat" :seat="selectedSeat" style="margin-top: 12px" />
-        </div>
+  <div class="vo-standalone">
+    <!-- Top bar -->
+    <div class="vo-topbar">
+      <div class="vo-topbar-left">
+        <n-button text @click="goBack">
+          <template #icon><n-icon :component="ArrowBackOutline" /></template>
+          {{ t('common.back') }}
+        </n-button>
+        <span class="vo-topbar-title">{{ t('virtualOffice.title') }}</span>
       </div>
+      <div class="vo-topbar-right">
+        <n-avatar :size="28" round>{{ authStore.fullName?.charAt(0) || 'U' }}</n-avatar>
+        <span class="vo-topbar-user">{{ authStore.fullName }}</span>
+      </div>
+    </div>
 
-      <!-- Status bar -->
-      <StatusBar :meeting-rooms="snapshot?.meeting_rooms as any" @updated="fetchSnapshot" />
-    </template>
-  </n-space>
+    <!-- Content -->
+    <div class="vo-content">
+      <!-- No config yet: show setup -->
+      <template v-if="!config && !loading">
+        <n-result status="info" :title="t('virtualOffice.noOffice')" :description="t('virtualOffice.setupFirst')">
+          <template #footer>
+            <OfficeSetup @saved="loadData" />
+          </template>
+        </n-result>
+      </template>
+
+      <!-- Loading -->
+      <n-spin v-else-if="loading" size="large" style="display: flex; justify-content: center; padding: 80px 0" />
+
+      <!-- Office view -->
+      <template v-else>
+        <!-- Stats bar -->
+        <OfficeStats :stats="snapshot?.stats ?? {}" />
+
+        <!-- Admin setup toggle -->
+        <n-collapse v-if="isAdmin" style="margin: 8px 0">
+          <n-collapse-item :title="t('virtualOffice.setup')">
+            <OfficeSetup :current-template="config?.template" @saved="loadData" />
+          </n-collapse-item>
+        </n-collapse>
+
+        <!-- Canvas + sidebar -->
+        <div class="vo-main">
+          <div class="vo-canvas-wrap">
+            <OfficeCanvas
+              :template="template"
+              :seats="snapshot?.seats ?? []"
+              @select="selectedSeat = $event"
+            />
+          </div>
+          <div class="vo-sidebar">
+            <MiniMap
+              v-if="template"
+              :template-width="template.width"
+              :template-height="template.height"
+              :tile-size="template.tileSize"
+              :seats="snapshot?.seats ?? []"
+            />
+            <SeatInfoCard v-if="selectedSeat" :seat="selectedSeat" style="margin-top: 12px" />
+          </div>
+        </div>
+
+        <!-- Status bar -->
+        <StatusBar :meeting-rooms="snapshot?.meeting_rooms as any" @updated="fetchSnapshot" />
+      </template>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { NSpace, NPageHeader, NResult, NSpin, NCollapse, NCollapseItem } from 'naive-ui'
+import { NButton, NIcon, NAvatar, NResult, NSpin, NCollapse, NCollapseItem } from 'naive-ui'
+import { ArrowBackOutline } from '@vicons/ionicons5'
 import { useAuthStore } from '../stores/auth'
 import { virtualOfficeAPI } from '../api/client'
 import OfficeCanvas from '../components/virtual-office/OfficeCanvas.vue'
@@ -68,6 +86,7 @@ import MiniMap from '../components/virtual-office/MiniMap.vue'
 import type { SeatData } from '../components/virtual-office/SpriteManager'
 import type { OfficeTemplate } from '../components/virtual-office/OfficeRenderer'
 
+const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
 
@@ -80,6 +99,10 @@ const selectedSeat = ref<SeatData | null>(null)
 const isAdmin = computed(() => authStore.isAdmin)
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
+
+function goBack() {
+  router.push({ name: 'dashboard' })
+}
 
 async function loadData() {
   loading.value = true
@@ -124,9 +147,52 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.vo-standalone {
+  min-height: 100vh;
+  background: #FAFAFA;
+  display: flex;
+  flex-direction: column;
+}
+.vo-topbar {
+  height: 52px;
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  flex-shrink: 0;
+}
+.vo-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.vo-topbar-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+.vo-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.vo-topbar-user {
+  font-size: 13px;
+  color: #666;
+}
+.vo-content {
+  flex: 1;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 .vo-main {
   display: flex;
   gap: 16px;
+  flex: 1;
 }
 .vo-canvas-wrap {
   flex: 1;

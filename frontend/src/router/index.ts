@@ -14,6 +14,13 @@ const router = createRouter({
       component: () => import("../views/SetupWizardView.vue"),
       meta: { requiresAuth: true, roles: ["super_admin", "admin"] },
     },
+    // Virtual Office (standalone, no sidebar)
+    {
+      path: "/virtual-office",
+      name: "virtual-office",
+      component: () => import("../views/VirtualOfficeView.vue"),
+      meta: { requiresAuth: true },
+    },
     // Public marketing pages (guest only)
     {
       path: "/",
@@ -510,12 +517,7 @@ const router = createRouter({
           name: "pulse-respond",
           component: () => import("../views/PulseRespondView.vue"),
         },
-        // Virtual Office
-        {
-          path: "virtual-office",
-          name: "virtual-office",
-          component: () => import("../views/VirtualOfficeView.vue"),
-        },
+        // Virtual Office — moved to standalone route (outside DashboardLayout)
         // Notifications
         {
           path: "notifications",
