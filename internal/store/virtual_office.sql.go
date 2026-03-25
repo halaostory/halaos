@@ -115,7 +115,7 @@ today_attendance AS (
 SELECT
     s.id AS seat_id,
     s.employee_id,
-    e.first_name || ' ' || e.last_name AS name,
+    CAST(e.first_name || ' ' || e.last_name AS TEXT) AS name,
     COALESCE(p.title, '') AS position,
     COALESCE(d.name, '') AS department,
     s.floor,
@@ -146,7 +146,7 @@ ORDER BY s.floor, s.zone, s.seat_y, s.seat_x
 type GetSnapshotSeatsRow struct {
 	SeatID          int64              `json:"seat_id"`
 	EmployeeID      int64              `json:"employee_id"`
-	Name            interface{}        `json:"name"`
+	Name            string             `json:"name"`
 	Position        string             `json:"position"`
 	Department      string             `json:"department"`
 	Floor           int32              `json:"floor"`
