@@ -30,6 +30,8 @@ onMounted(async () => {
     background: '#FAFAFA',
     resizeTo: canvasContainer.value,
     antialias: true,
+    resolution: window.devicePixelRatio || 1,
+    autoDensity: true,
   })
   canvasContainer.value.appendChild(app.canvas as HTMLCanvasElement)
 

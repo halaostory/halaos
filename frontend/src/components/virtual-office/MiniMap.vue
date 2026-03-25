@@ -35,8 +35,15 @@ function draw() {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
 
+  const dpr = window.devicePixelRatio || 1
   const cw = 160
   const ch = 110
+  canvas.width = cw * dpr
+  canvas.height = ch * dpr
+  canvas.style.width = cw + 'px'
+  canvas.style.height = ch + 'px'
+  ctx.scale(dpr, dpr)
+
   const scaleX = cw / (props.templateWidth * props.tileSize)
   const scaleY = ch / (props.templateHeight * props.tileSize)
   const scale = Math.min(scaleX, scaleY)
