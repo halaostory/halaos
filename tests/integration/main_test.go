@@ -34,8 +34,8 @@ func TestMain(m *testing.M) {
 	}
 	resp, status, err := doPost(baseURL+"/api/v1/auth/login", "", body)
 	if err != nil || status != 200 {
-		fmt.Fprintf(os.Stderr, "SKIP: cannot login to %s (err=%v, status=%d)\n", baseURL, err, status)
-		os.Exit(0)
+		fmt.Fprintf(os.Stderr, "FATAL: cannot login to %s (err=%v, status=%d)\n", baseURL, err, status)
+		os.Exit(1)
 	}
 
 	var loginResp struct {
@@ -45,8 +45,8 @@ func TestMain(m *testing.M) {
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(resp, &loginResp); err != nil || !loginResp.Success {
-		fmt.Fprintf(os.Stderr, "SKIP: login failed (parse=%v, success=%v)\n", err, loginResp.Success)
-		os.Exit(0)
+		fmt.Fprintf(os.Stderr, "FATAL: login failed (parse=%v, success=%v)\n", err, loginResp.Success)
+		os.Exit(1)
 	}
 	authToken = loginResp.Data.Token
 	fmt.Printf("Logged in as admin@demo.com, token=%s...\n", authToken[:20])

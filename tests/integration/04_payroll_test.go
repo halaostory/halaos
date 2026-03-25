@@ -36,6 +36,8 @@ func TestCreatePayrollCycle(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(data, &cycle))
 	assert.Equal(t, "draft", cycle.Status)
+	assert.NotZero(t, cycle.ID, "cycle ID should be non-zero")
+	assert.Equal(t, "Integration Test - Feb 2026 P1", cycle.Name)
 	testCycleID = cycle.ID
 	t.Logf("Created payroll cycle ID=%d, status=%s", cycle.ID, cycle.Status)
 }
@@ -56,16 +58,22 @@ func TestRunPayroll(t *testing.T) {
 		Status string `json:"status"`
 	}
 	require.NoError(t, json.Unmarshal(data, &run))
+	assert.NotZero(t, run.ID, "payroll run ID should be non-zero")
 	t.Logf("Payroll run ID=%d, status=%s", run.ID, run.Status)
 }
 
 func TestGetPayslips(t *testing.T) {
-	// Check existing payslips (from seed data or previous runs)
-	for _, token := range empUserTokens {
+	require.NotEmpty(t, empUserTokens, "need employee user tokens")
+
+	for empID, token := range empUserTokens {
 		resp, status, err := apiGetAs(token, "/payroll/payslips", nil)
 		require.NoError(t, err)
 		requireSuccess(t, resp, status)
-		t.Logf("Payslips response: %d bytes", len(resp))
+
+		data := extractData(t, resp)
+		// Data should be parseable (either a list or an object)
+		assert.NotNil(t, data, "payslip data should not be nil for employee %d", empID)
+		t.Logf("Employee %d payslips: %d bytes", empID, len(data))
 		break
 	}
 }

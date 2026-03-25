@@ -5,7 +5,7 @@
       "args": ["run", "./cmd/mcp/"],
       "env": {
         "HALAOS_API_KEY": "halaos_YOUR_API_KEY_HERE",
-        "HALAOS_BASE_URL": "http://3.1.66.212:8080"
+        "HALAOS_BASE_URL": "http://3.1.66.212"
       }
     }
   }
