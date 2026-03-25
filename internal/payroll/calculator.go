@@ -75,6 +75,26 @@ type EmployeePayData struct {
 	EPFER float64
 	ETFER float64
 
+	// Government contributions — United States
+	FederalTax           float64
+	SocialSecurityEE     float64
+	SocialSecurityER     float64
+	MedicareEE           float64
+	MedicareER           float64
+	AdditionalMedicare   float64
+	StateTax             float64
+	StateDisability      float64
+	FUTA                 float64
+	SUI                  float64
+	PreTaxDeductions     float64
+	Section125Deductions float64
+
+	// W-4 fields (loaded from employee_profiles)
+	W4AdditionalWithholding float64
+	W4DependentsCredit      float64
+	W4OtherIncome           float64
+	W4Deductions            float64
+
 	// Final
 	TotalDeductions float64
 	TaxableIncome   float64
@@ -255,6 +275,84 @@ func (calc *Calculator) RunPayroll(ctx context.Context, runID int64, companyID i
 			pd.Breakdown["etf_er"] = pd.ETFER
 			pd.Breakdown["apit"] = pd.WithholdingTax
 
+		case "USA":
+			state := ""
+			filingStatus := "single"
+			payPeriodsPerYear := 26
+
+			profile, profErr := calc.queries.GetEmployeeProfile(ctx, store.GetEmployeeProfileParams{
+				EmployeeID: emp.ID,
+				CompanyID:  companyID,
+			})
+			if profErr == nil {
+				if profile.StateOfResidence != nil {
+					state = *profile.StateOfResidence
+				}
+				if profile.W4FilingStatus != nil && *profile.W4FilingStatus != "" {
+					filingStatus = *profile.W4FilingStatus
+				}
+				if profile.W4AdditionalWithholding.Valid {
+					pd.W4AdditionalWithholding = numericToFloat(profile.W4AdditionalWithholding)
+				}
+				if profile.W4DependentsCredit.Valid {
+					pd.W4DependentsCredit = numericToFloat(profile.W4DependentsCredit)
+				}
+				if profile.W4OtherIncome.Valid {
+					pd.W4OtherIncome = numericToFloat(profile.W4OtherIncome)
+				}
+				if profile.W4Deductions.Valid {
+					pd.W4Deductions = numericToFloat(profile.W4Deductions)
+				}
+			}
+
+			switch company.PayFrequency {
+			case "weekly":
+				payPeriodsPerYear = 52
+			case "bi_weekly":
+				payPeriodsPerYear = 26
+			case "semi_monthly":
+				payPeriodsPerYear = 24
+			case "monthly":
+				payPeriodsPerYear = 12
+			}
+
+			deductions, dErr := calc.queries.ListEmployeeBenefitDeductions(ctx, store.ListEmployeeBenefitDeductionsParams{
+				CompanyID:     companyID,
+				EmployeeID:    emp.ID,
+				EffectiveDate: effectiveDate,
+			})
+			if dErr == nil {
+				for _, d := range deductions {
+					amt := numericToFloat(d.AmountPerPeriod)
+					pd.PreTaxDeductions += amt
+					if d.ReducesFica {
+						pd.Section125Deductions += amt
+					}
+				}
+			}
+
+			calc.computePayUS(&pd, workingDaysInPeriod, state)
+			calc.computeContributionsUS(ctx, &pd, effectiveDate, companyID, state)
+			calc.computeWithholdingTaxUS(ctx, &pd, effectiveDate, payPeriodsPerYear, filingStatus, state)
+
+			pd.TotalDeductions = pd.FederalTax + pd.StateTax + pd.SocialSecurityEE +
+				pd.MedicareEE + pd.AdditionalMedicare + pd.StateDisability +
+				pd.PreTaxDeductions + pd.LateDeduction + pd.UndertimeDeduction + pd.LeaveDeduction
+
+			pd.Breakdown["federal_tax"] = pd.FederalTax
+			pd.Breakdown["social_security_ee"] = pd.SocialSecurityEE
+			pd.Breakdown["social_security_er"] = pd.SocialSecurityER
+			pd.Breakdown["medicare_ee"] = pd.MedicareEE
+			pd.Breakdown["medicare_er"] = pd.MedicareER
+			pd.Breakdown["additional_medicare"] = pd.AdditionalMedicare
+			pd.Breakdown["state_tax"] = pd.StateTax
+			pd.Breakdown["state_disability"] = pd.StateDisability
+			pd.Breakdown["futa"] = pd.FUTA
+			pd.Breakdown["sui"] = pd.SUI
+			pd.Breakdown["pretax_deductions"] = pd.PreTaxDeductions
+			pd.Breakdown["state"] = state
+			pd.Breakdown["filing_status"] = filingStatus
+
 		default: // PHL and others — existing PH logic
 			calc.computePay(&pd, workingDaysInPeriod)
 			calc.computeContributions(ctx, &pd, effectiveDate)
@@ -324,6 +422,17 @@ func (calc *Calculator) RunPayroll(ctx context.Context, runID int64, companyID i
 			HolidayPay:         numericFromFloat(pd.HolidayPay),
 			NightDiff:          numericFromFloat(pd.NightDiff),
 			BonusPay:           numericFromFloat(pd.BonusPay),
+			FederalTax:         numericFromFloat(pd.FederalTax),
+			SocialSecurityEe:   numericFromFloat(pd.SocialSecurityEE),
+			SocialSecurityEr:   numericFromFloat(pd.SocialSecurityER),
+			MedicareEe:         numericFromFloat(pd.MedicareEE),
+			MedicareEr:         numericFromFloat(pd.MedicareER),
+			AdditionalMedicare: numericFromFloat(pd.AdditionalMedicare),
+			StateTax:           numericFromFloat(pd.StateTax),
+			StateDisability:    numericFromFloat(pd.StateDisability),
+			Futa:               numericFromFloat(pd.FUTA),
+			Sui:                numericFromFloat(pd.SUI),
+			PretaxDeductions:   numericFromFloat(pd.PreTaxDeductions),
 		})
 		if err != nil {
 			calc.logger.Error("failed to create payroll item", "employee_id", emp.ID, "error", err)
