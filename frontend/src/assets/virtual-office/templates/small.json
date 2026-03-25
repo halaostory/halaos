@@ -1,0 +1,47 @@
+{
+  "id": "small",
+  "name": "Small Office",
+  "description": "Cozy office for teams up to 10",
+  "width": 20,
+  "height": 16,
+  "tileSize": 32,
+  "zones": [
+    {
+      "id": "desk-a",
+      "type": "desk_area",
+      "label": "Workstations",
+      "x": 1, "y": 1, "w": 12, "h": 6,
+      "seats": [
+        { "x": 2, "y": 2 }, { "x": 5, "y": 2 }, { "x": 8, "y": 2 }, { "x": 11, "y": 2 },
+        { "x": 2, "y": 5 }, { "x": 5, "y": 5 }, { "x": 8, "y": 5 }, { "x": 11, "y": 5 },
+        { "x": 2, "y": 3 }, { "x": 5, "y": 3 }
+      ]
+    },
+    {
+      "id": "meeting-a",
+      "type": "meeting_room",
+      "label": "Meeting Room",
+      "x": 1, "y": 9, "w": 6, "h": 5,
+      "capacity": 6,
+      "meeting_seats": [
+        { "x": 2, "y": 10 }, { "x": 4, "y": 10 },
+        { "x": 2, "y": 12 }, { "x": 4, "y": 12 }
+      ]
+    },
+    {
+      "id": "cafe",
+      "type": "cafe",
+      "label": "Tea Room",
+      "x": 9, "y": 9, "w": 5, "h": 5
+    }
+  ],
+  "furniture": [
+    { "type": "desk", "x": 2, "y": 2 }, { "type": "desk", "x": 5, "y": 2 },
+    { "type": "desk", "x": 8, "y": 2 }, { "type": "desk", "x": 11, "y": 2 },
+    { "type": "desk", "x": 2, "y": 5 }, { "type": "desk", "x": 5, "y": 5 },
+    { "type": "desk", "x": 8, "y": 5 }, { "type": "desk", "x": 11, "y": 5 },
+    { "type": "plant", "x": 0, "y": 0 }, { "type": "plant", "x": 19, "y": 0 },
+    { "type": "whiteboard", "x": 2, "y": 9 },
+    { "type": "coffee_machine", "x": 10, "y": 10 }
+  ]
+}
