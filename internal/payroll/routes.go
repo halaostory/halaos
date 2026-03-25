@@ -36,4 +36,15 @@ func (h *Handler) RegisterRoutes(protected *gin.RouterGroup) {
 	protected.POST("/payroll/bonus/structures/:id/calculate", auth.AdminOnly(), h.CalculateBonusAllocations)
 	protected.POST("/payroll/bonus/structures/:id/allocations", auth.AdminOnly(), h.CreateBonusAllocation)
 	protected.POST("/payroll/bonus/allocations/approve", auth.AdminOnly(), h.ApproveBonusAllocations)
+
+	// Benefit Deductions (US)
+	protected.GET("/payroll/benefit-deductions", auth.AdminOnly(), h.ListBenefitDeductions)
+	protected.POST("/payroll/benefit-deductions", auth.AdminOnly(), h.CreateBenefitDeduction)
+	protected.PUT("/payroll/benefit-deductions/:id", auth.AdminOnly(), h.UpdateBenefitDeduction)
+	protected.DELETE("/payroll/benefit-deductions/:id", auth.AdminOnly(), h.DeleteBenefitDeduction)
+
+	// Company Registration Numbers (US)
+	protected.GET("/company/registration-numbers", auth.AdminOnly(), h.ListRegistrationNumbers)
+	protected.POST("/company/registration-numbers", auth.AdminOnly(), h.UpsertRegistrationNumber)
+	protected.DELETE("/company/registration-numbers/:id", auth.AdminOnly(), h.DeleteRegistrationNumber)
 }
