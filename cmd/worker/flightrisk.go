@@ -9,13 +9,14 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/tonypk/aigonhr/internal/analytics/flightrisk"
+	"github.com/tonypk/aigonhr/internal/integration"
 	"github.com/tonypk/aigonhr/internal/notification"
 	"github.com/tonypk/aigonhr/internal/store"
 )
 
 // calculateFlightRisk scores all employees across all companies and upserts results.
 // Runs weekly on Monday only. Notifies managers when an employee crosses score 70.
-func calculateFlightRisk(ctx context.Context, queries *store.Queries, pool *pgxpool.Pool, logger *slog.Logger) {
+func calculateFlightRisk(ctx context.Context, queries *store.Queries, pool *pgxpool.Pool, brainEmitter *integration.BrainEmitter, logger *slog.Logger) {
 	if time.Now().Weekday() != time.Monday {
 		return
 	}
@@ -52,6 +53,19 @@ func calculateFlightRisk(ctx context.Context, queries *store.Queries, pool *pgxp
 				"error", err,
 			)
 			continue
+		}
+
+		// Emit brain events for each scored employee
+		for _, risk := range risks {
+			factors := make([]integration.EventFactor, len(risk.Factors))
+			for i, f := range risk.Factors {
+				factors[i] = integration.EventFactor{
+					Factor: f.Factor,
+					Points: f.Points,
+					Detail: f.Detail,
+				}
+			}
+			_ = brainEmitter.EmitRiskUpdated(ctx, company.ID, risk.EmployeeID, risk.EmployeeNo, risk.Name, risk.Department, risk.RiskScore, factors, 0)
 		}
 
 		totalScored += len(risks)

@@ -84,6 +84,8 @@ func main() {
 		triggerDispatcher = workflow.NewTriggerDispatcher(queries, agentEvaluator, workflowEngine, pool, logger)
 	}
 
+	brainEmitter := integration.NewBrainEmitter(queries, logger)
+
 	logger.Info("worker started")
 
 	// Event outbox processor + agent task executor
@@ -110,7 +112,7 @@ func main() {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				runPeriodicJobs(ctx, queries, pool, rdb, aiProvider, workflowEngine, calculator, emailSvc, logger)
+				runPeriodicJobs(ctx, queries, pool, rdb, aiProvider, workflowEngine, calculator, emailSvc, brainEmitter, logger)
 			}
 		}
 	}()
@@ -183,7 +185,7 @@ func dispatchEvent(ctx context.Context, queries *store.Queries, calculator *payr
 	}
 }
 
-func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.Pool, _ *redis.Client, aiProvider provider.Provider, workflowEngine *workflow.Engine, calculator *payroll.Calculator, emailSvc *email.Service, logger *slog.Logger) {
+func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.Pool, _ *redis.Client, aiProvider provider.Provider, workflowEngine *workflow.Engine, calculator *payroll.Calculator, emailSvc *email.Service, brainEmitter *integration.BrainEmitter, logger *slog.Logger) {
 	logger.Info("running periodic jobs")
 
 	// Auto-close open attendance records from previous day
@@ -217,19 +219,19 @@ func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.
 	checkAbsenceFollowup(ctx, queries, pool, logger)
 
 	// Calculate flight risk scores (weekly, Monday only)
-	calculateFlightRisk(ctx, queries, pool, logger)
+	calculateFlightRisk(ctx, queries, pool, brainEmitter, logger)
 
 	// Calculate team health scores (weekly, Monday only)
-	calculateTeamHealth(ctx, queries, pool, logger)
+	calculateTeamHealth(ctx, queries, pool, brainEmitter, logger)
 
 	// Calculate burnout risk scores (weekly, Monday only)
-	calculateBurnoutScores(ctx, queries, pool, logger)
+	calculateBurnoutScores(ctx, queries, pool, brainEmitter, logger)
 
 	// Detect manager blind spots (weekly, Monday only, after scorers)
-	detectManagerBlindSpots(ctx, queries, pool, logger)
+	detectManagerBlindSpots(ctx, queries, pool, brainEmitter, logger)
 
 	// Snapshot score history + org aggregates (weekly, Monday only, after scorers)
-	snapshotScoreHistory(ctx, queries, pool, logger)
+	snapshotScoreHistory(ctx, queries, pool, brainEmitter, logger)
 
 	// Generate executive briefings (weekly, Monday only, after snapshots)
 	generateExecutiveBriefings(ctx, queries, aiProvider, logger)

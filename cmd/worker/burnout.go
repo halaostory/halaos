@@ -9,13 +9,14 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/tonypk/aigonhr/internal/analytics/burnout"
+	"github.com/tonypk/aigonhr/internal/integration"
 	"github.com/tonypk/aigonhr/internal/notification"
 	"github.com/tonypk/aigonhr/internal/store"
 )
 
 // calculateBurnoutScores scores all employees across all companies for burnout risk.
 // Runs weekly on Monday only. Notifies managers when an employee crosses score 60.
-func calculateBurnoutScores(ctx context.Context, queries *store.Queries, pool *pgxpool.Pool, logger *slog.Logger) {
+func calculateBurnoutScores(ctx context.Context, queries *store.Queries, pool *pgxpool.Pool, brainEmitter *integration.BrainEmitter, logger *slog.Logger) {
 	if time.Now().Weekday() != time.Monday {
 		return
 	}
@@ -52,6 +53,19 @@ func calculateBurnoutScores(ctx context.Context, queries *store.Queries, pool *p
 				"error", err,
 			)
 			continue
+		}
+
+		// Emit brain events for each scored employee
+		for _, score := range scores {
+			factors := make([]integration.EventFactor, len(score.Factors))
+			for i, f := range score.Factors {
+				factors[i] = integration.EventFactor{
+					Factor: f.Factor,
+					Points: f.Points,
+					Detail: f.Detail,
+				}
+			}
+			_ = brainEmitter.EmitBurnoutUpdated(ctx, company.ID, score.EmployeeID, score.EmployeeNo, score.Name, score.Department, score.BurnoutScore, factors, 0)
 		}
 
 		totalScored += len(scores)

@@ -8,11 +8,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/tonypk/aigonhr/internal/analytics/teamhealth"
+	"github.com/tonypk/aigonhr/internal/integration"
 	"github.com/tonypk/aigonhr/internal/store"
 )
 
 // calculateTeamHealth scores each department's health weekly (Monday only).
-func calculateTeamHealth(ctx context.Context, queries *store.Queries, pool *pgxpool.Pool, logger *slog.Logger) {
+func calculateTeamHealth(ctx context.Context, queries *store.Queries, pool *pgxpool.Pool, brainEmitter *integration.BrainEmitter, logger *slog.Logger) {
 	if time.Now().Weekday() != time.Monday {
 		return
 	}
@@ -48,6 +49,19 @@ func calculateTeamHealth(ctx context.Context, queries *store.Queries, pool *pgxp
 				"error", err,
 			)
 			continue
+		}
+
+		// Emit brain events for each scored department
+		for _, dh := range scores {
+			factors := make([]integration.EventFactor, len(dh.Factors))
+			for i, f := range dh.Factors {
+				factors[i] = integration.EventFactor{
+					Factor: f.Name,
+					Points: f.Score,
+					Detail: f.Detail,
+				}
+			}
+			_ = brainEmitter.EmitTeamHealthUpdated(ctx, company.ID, dh.DepartmentID, dh.DepartmentName, dh.HealthScore, factors, 0)
 		}
 
 		totalDepts += len(scores)
