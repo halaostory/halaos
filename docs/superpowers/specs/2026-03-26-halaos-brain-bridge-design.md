@@ -88,7 +88,7 @@ Event queue — identical structure to `accounting_outbox`.
 | `hr.team_health.updated` | `teamhealth.Scorer.UpsertScores()` | department | `{department_id, department_name, health_score, factors[], prev_score}` |
 | `hr.blindspot.detected` | `blindspot.Scorer.UpsertSpots()` | manager | `{manager_id, manager_name, spot_type, severity, title, description, employees[{id, employee_no, name, detail}]}` |
 | `hr.attendance.anomaly` | Daily attendance cron | company | `{date, anomalies: [{employee_id, employee_no, name, type, detail}]}` |
-| `hr.org_snapshot.weekly` | Weekly analytics cron (Sunday) | company | `{avg_flight_risk, avg_burnout, avg_team_health, high_risk_count, high_burnout_count, headcount, low_health_dept_count}` |
+| `hr.org_snapshot.weekly` | Weekly analytics cron (Monday — runs with other scorers) | company | `{avg_flight_risk, avg_burnout, avg_team_health, high_risk_count, high_burnout_count, headcount, low_health_dept_count}` |
 
 ### New Files
 
@@ -117,7 +117,7 @@ Event queue — identical structure to `accounting_outbox`.
 Mirrors `accounting_dispatcher.go`:
 - Poll interval: 5 seconds
 - Batch size: 20 events per cycle
-- Delivery: POST to `{brain_links.api_endpoint}/api/v1/webhooks/halaos`
+- Delivery: POST to `{brain_links.api_endpoint}/webhooks/halaos` (Brain's webhook group is at `/webhooks`, no `/api/v1` prefix)
 - Headers: `X-Signature-256` (value: `sha256=<hex_digest>`, matching Brain's `WebhookVerifier` convention), `X-Event-Type`, `X-Event-ID`, `Content-Type: application/json`
 - Auth: `Authorization: Bearer {brain_links.api_key_enc}` (decrypted before use)
 - **Note:** This differs from `accounting_dispatcher.go` which uses `X-Webhook-Signature` with raw hex. The Brain dispatcher must use Brain's `sha256=` prefix convention.
