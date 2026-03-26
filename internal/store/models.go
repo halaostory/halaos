@@ -429,6 +429,36 @@ type BotUserLink struct {
 	UpdatedAt       time.Time          `json:"updated_at"`
 }
 
+type BrainLink struct {
+	ID            int64              `json:"id"`
+	CompanyID     int64              `json:"company_id"`
+	BrainTenantID uuid.UUID          `json:"brain_tenant_id"`
+	ApiEndpoint   string             `json:"api_endpoint"`
+	ApiKeyEnc     string             `json:"api_key_enc"`
+	WebhookSecret string             `json:"webhook_secret"`
+	IsActive      bool               `json:"is_active"`
+	LastSyncedAt  pgtype.Timestamptz `json:"last_synced_at"`
+	CreatedAt     time.Time          `json:"created_at"`
+	UpdatedAt     time.Time          `json:"updated_at"`
+}
+
+type BrainOutbox struct {
+	ID             int64              `json:"id"`
+	CompanyID      int64              `json:"company_id"`
+	EventType      string             `json:"event_type"`
+	AggregateType  string             `json:"aggregate_type"`
+	AggregateID    int64              `json:"aggregate_id"`
+	Payload        json.RawMessage    `json:"payload"`
+	IdempotencyKey string             `json:"idempotency_key"`
+	Status         string             `json:"status"`
+	RetryCount     int32              `json:"retry_count"`
+	MaxRetries     int32              `json:"max_retries"`
+	NextRetryAt    pgtype.Timestamptz `json:"next_retry_at"`
+	SentAt         pgtype.Timestamptz `json:"sent_at"`
+	ErrorMessage   *string            `json:"error_message"`
+	CreatedAt      time.Time          `json:"created_at"`
+}
+
 type ByokKey struct {
 	ID            uuid.UUID `json:"id"`
 	CompanyID     int64     `json:"company_id"`
