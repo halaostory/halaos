@@ -252,6 +252,11 @@ func (a *App) setupRoutes() {
 	employeeHandler.SetAccountingEmitter(acctEmitter)
 	acctDispatcher := integration.NewAccountingDispatcher(a.Queries, a.Logger)
 	go acctDispatcher.Run(context.Background())
+
+	// Wire brain integration (outbox + dispatcher)
+	brainDispatcher := integration.NewBrainDispatcher(a.Queries, a.Logger)
+	go brainDispatcher.Run(context.Background())
+
 	acctHandler := integration.NewAccountingHandler(a.Queries, acctSSO, a.Logger)
 	complianceHandler := compliance.NewHandler(a.Queries, a.Pool, a.Logger)
 	onboardingHandler := onboarding.NewHandler(a.Queries, a.Pool, a.Logger)
