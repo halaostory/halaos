@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/tonypk/aigonhr/internal/auth"
 	"github.com/tonypk/aigonhr/internal/store"
@@ -298,6 +299,15 @@ func profileScanValues() []interface{} {
 		(*string)(nil),  // BloodType
 		(*string)(nil),  // Religion
 		now,             // UpdatedAt
+		[]byte(nil),     // SsnEncrypted
+		(*string)(nil),  // StateOfResidence
+		(*string)(nil),  // W4FilingStatus
+		pgtype.Numeric{}, // W4AdditionalWithholding
+		(*bool)(nil),    // W4MultipleJobs
+		pgtype.Numeric{}, // W4DependentsCredit
+		pgtype.Numeric{}, // W4OtherIncome
+		pgtype.Numeric{}, // W4Deductions
+		(*int32)(nil),   // StateAllowances
 	}
 }
 
