@@ -44,6 +44,9 @@ func leaveTypeScanValues() []interface{} {
 		time.Now(),          // CreatedAt
 		pgtype.Numeric{},    // MaxCarryover
 		(*int32)(nil),       // CarryoverExpiryMonths
+		(*string)(nil),      // AccrualMethod
+		pgtype.Numeric{},    // AccrualRate
+		(*string)(nil),      // AccrualPeriod
 	}
 }
 
