@@ -1,0 +1,40 @@
+name: E2E Tests
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * 0'  # Sunday 3am UTC
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: cd e2e && npm ci
+      - name: Install Playwright
+        run: cd e2e && npx playwright install chromium --with-deps
+      - name: Run API tests
+        run: cd e2e && npx playwright test --project=api
+        env:
+          E2E_BASE_URL: https://halaos.com
+      - name: Run browser tests
+        run: cd e2e && npx playwright test --project=browser
+        env:
+          E2E_BASE_URL: https://halaos.com
+      - name: Run H5 mobile tests
+        run: cd e2e && npx playwright test --project=h5
+        env:
+          E2E_BASE_URL: https://halaos.com
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-report
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+          retention-days: 14
