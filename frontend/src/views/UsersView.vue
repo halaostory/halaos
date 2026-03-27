@@ -42,6 +42,7 @@ const passwordTarget = ref<UserRow | null>(null)
 const newPassword = ref('')
 
 const roleOptions = computed(() => [
+  { label: t('userMgmt.superAdmin'), value: 'super_admin' },
   { label: t('userMgmt.admin'), value: 'admin' },
   { label: t('userMgmt.manager'), value: 'manager' },
   { label: t('userMgmt.employee'), value: 'employee' },

@@ -1126,27 +1126,35 @@ UPDATE employees SET
     employment_type = COALESCE($13, employment_type),
     status = COALESCE($14, status),
     nationality = COALESCE($15, nationality),
+    birth_date = COALESCE($16, birth_date),
+    hire_date = COALESCE($17, hire_date),
+    gender = COALESCE($18, gender),
+    civil_status = COALESCE($19, civil_status),
     updated_at = NOW()
 WHERE id = $1 AND company_id = $2
 RETURNING id, company_id, user_id, employee_no, first_name, last_name, middle_name, suffix, display_name, email, phone, birth_date, gender, civil_status, nationality, department_id, position_id, cost_center_id, manager_id, hire_date, regularization_date, separation_date, employment_type, status, created_at, updated_at, contract_end_date
 `
 
 type UpdateEmployeeParams struct {
-	ID             int64   `json:"id"`
-	CompanyID      int64   `json:"company_id"`
-	FirstName      string  `json:"first_name"`
-	LastName       string  `json:"last_name"`
-	MiddleName     *string `json:"middle_name"`
-	DisplayName    *string `json:"display_name"`
-	Email          *string `json:"email"`
-	Phone          *string `json:"phone"`
-	DepartmentID   *int64  `json:"department_id"`
-	PositionID     *int64  `json:"position_id"`
-	CostCenterID   *int64  `json:"cost_center_id"`
-	ManagerID      *int64  `json:"manager_id"`
-	EmploymentType string  `json:"employment_type"`
-	Status         string  `json:"status"`
-	Nationality    *string `json:"nationality"`
+	ID             int64       `json:"id"`
+	CompanyID      int64       `json:"company_id"`
+	FirstName      string      `json:"first_name"`
+	LastName       string      `json:"last_name"`
+	MiddleName     *string     `json:"middle_name"`
+	DisplayName    *string     `json:"display_name"`
+	Email          *string     `json:"email"`
+	Phone          *string     `json:"phone"`
+	DepartmentID   *int64      `json:"department_id"`
+	PositionID     *int64      `json:"position_id"`
+	CostCenterID   *int64      `json:"cost_center_id"`
+	ManagerID      *int64      `json:"manager_id"`
+	EmploymentType string      `json:"employment_type"`
+	Status         string      `json:"status"`
+	Nationality    *string     `json:"nationality"`
+	BirthDate      pgtype.Date `json:"birth_date"`
+	HireDate       pgtype.Date `json:"hire_date"`
+	Gender         *string     `json:"gender"`
+	CivilStatus    *string     `json:"civil_status"`
 }
 
 func (q *Queries) UpdateEmployee(ctx context.Context, arg UpdateEmployeeParams) (Employee, error) {
@@ -1166,6 +1174,10 @@ func (q *Queries) UpdateEmployee(ctx context.Context, arg UpdateEmployeeParams) 
 		arg.EmploymentType,
 		arg.Status,
 		arg.Nationality,
+		arg.BirthDate,
+		arg.HireDate,
+		arg.Gender,
+		arg.CivilStatus,
 	)
 	var i Employee
 	err := row.Scan(

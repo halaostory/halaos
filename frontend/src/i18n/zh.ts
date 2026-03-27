@@ -919,6 +919,7 @@ export default {
     active: "活跃",
     inactive: "停用",
     suspended: "已暂停",
+    superAdmin: "超级管理员",
     admin: "管理员",
     manager: "经理",
     employee: "员工",

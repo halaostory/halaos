@@ -220,6 +220,10 @@ func (h *Handler) UpdateEmployee(c *gin.Context) {
 		EmploymentType *string `json:"employment_type"`
 		Status         *string `json:"status"`
 		Nationality    *string `json:"nationality"`
+		BirthDate      *string `json:"birth_date"`
+		HireDate       *string `json:"hire_date"`
+		Gender         *string `json:"gender"`
+		CivilStatus    *string `json:"civil_status"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, err.Error())
@@ -245,6 +249,19 @@ func (h *Handler) UpdateEmployee(c *gin.Context) {
 		empStatus = *req.Status
 	}
 
+	var birthDate pgtype.Date
+	if req.BirthDate != nil {
+		if bd, err := time.Parse("2006-01-02", *req.BirthDate); err == nil {
+			birthDate = pgtype.Date{Time: bd, Valid: true}
+		}
+	}
+	var hireDate pgtype.Date
+	if req.HireDate != nil {
+		if hd, err := time.Parse("2006-01-02", *req.HireDate); err == nil {
+			hireDate = pgtype.Date{Time: hd, Valid: true}
+		}
+	}
+
 	emp, err := h.queries.UpdateEmployee(c.Request.Context(), store.UpdateEmployeeParams{
 		ID:             id,
 		CompanyID:      companyID,
@@ -261,6 +278,10 @@ func (h *Handler) UpdateEmployee(c *gin.Context) {
 		EmploymentType: employmentType,
 		Status:         empStatus,
 		Nationality:    req.Nationality,
+		BirthDate:      birthDate,
+		HireDate:       hireDate,
+		Gender:         req.Gender,
+		CivilStatus:    req.CivilStatus,
 	})
 	if err != nil {
 		response.NotFound(c, "Employee not found")

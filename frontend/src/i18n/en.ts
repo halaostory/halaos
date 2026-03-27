@@ -925,6 +925,7 @@ export default {
     active: "Active",
     inactive: "Inactive",
     suspended: "Suspended",
+    superAdmin: "Super Admin",
     admin: "Admin",
     manager: "Manager",
     employee: "Employee",

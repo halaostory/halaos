@@ -50,6 +50,10 @@ UPDATE employees SET
     employment_type = COALESCE($13, employment_type),
     status = COALESCE($14, status),
     nationality = COALESCE($15, nationality),
+    birth_date = COALESCE(sqlc.narg('birth_date'), birth_date),
+    hire_date = COALESCE(sqlc.narg('hire_date'), hire_date),
+    gender = COALESCE(sqlc.narg('gender'), gender),
+    civil_status = COALESCE(sqlc.narg('civil_status'), civil_status),
     updated_at = NOW()
 WHERE id = $1 AND company_id = $2
 RETURNING *;
