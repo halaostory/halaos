@@ -1,0 +1,18 @@
+{
+  "name": "aigonhr-e2e",
+  "private": true,
+  "scripts": {
+    "test:api": "npx playwright test --project=api",
+    "test:browser": "npx playwright test --project=browser",
+    "test:h5": "npx playwright test --project=h5",
+    "test:all": "npx playwright test",
+    "test:cleanup": "npx tsx fixtures/cleanup.ts",
+    "report": "npx playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0",
+    "@types/node": "^25.5.0",
+    "tsx": "^4.0.0",
+    "typescript": "^6.0.2"
+  }
+}
