@@ -136,7 +136,7 @@ async function handleImportEmployees() {
 }
 
 function downloadWithAuth(url: string) {
-  const token = localStorage.getItem('token')
+  const token = localStorage.getItem('access_token')
   fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
   })

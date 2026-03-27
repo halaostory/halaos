@@ -37,6 +37,9 @@ const api = ofetch.create({
     if (token) {
       const headers = new Headers(options.headers as HeadersInit);
       headers.set("Authorization", `Bearer ${token}`);
+      if (options.body instanceof FormData) {
+        headers.delete("Content-Type");
+      }
       options.headers = headers;
     }
   },

@@ -168,7 +168,7 @@ function handleRowClick(row: Record<string, unknown>) {
 
 function handleExportCSV() {
   const url = exportAPI.employeesCSV()
-  const token = localStorage.getItem('token')
+  const token = localStorage.getItem('access_token')
   fetch(url, { headers: { Authorization: `Bearer ${token}` } })
     .then((res) => {
       if (!res.ok) throw new Error('Export failed')

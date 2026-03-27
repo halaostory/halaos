@@ -25,6 +25,25 @@ type Handler struct {
 	logger  *slog.Logger
 }
 
+var dateFormats = []string{
+	"2006-01-02",  // YYYY-MM-DD
+	"1/2/2006",    // M/D/YYYY
+	"01/02/2006",  // MM/DD/YYYY
+	"2006/01/02",  // YYYY/MM/DD
+	"Jan 2, 2006", // Mon D, YYYY
+	"2-Jan-2006",  // D-Mon-YYYY
+}
+
+func parseDate(s string) (time.Time, error) {
+	s = strings.TrimSpace(s)
+	for _, layout := range dateFormats {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("unrecognized date format: %s", s)
+}
+
 func NewHandler(queries *store.Queries, pool *pgxpool.Pool, logger *slog.Logger) *Handler {
 	return &Handler{queries: queries, pool: pool, logger: logger}
 }
@@ -103,10 +122,10 @@ func (h *Handler) ImportEmployeesCSV(c *gin.Context) {
 			continue
 		}
 
-		hireDate, err := time.Parse("2006-01-02", hireDateStr)
+		hireDate, err := parseDate(hireDateStr)
 		if err != nil {
 			skipped++
-			errors = append(errors, fmt.Sprintf("Line %d: invalid hire_date format (expected YYYY-MM-DD)", lineNum))
+			errors = append(errors, fmt.Sprintf("Line %d: invalid hire_date format (accepted: YYYY-MM-DD, M/D/YYYY, MM/DD/YYYY)", lineNum))
 			continue
 		}
 
@@ -116,7 +135,7 @@ func (h *Handler) ImportEmployeesCSV(c *gin.Context) {
 
 		var birthDate pgtype.Date
 		if bd := getCol("birth_date"); bd != "" {
-			parsed, err := time.Parse("2006-01-02", bd)
+			parsed, err := parseDate(bd)
 			if err == nil {
 				birthDate = pgtype.Date{Time: parsed, Valid: true}
 			}
@@ -295,8 +314,8 @@ func (h *Handler) PreviewImportCSV(c *gin.Context) {
 		if row.HireDate == "" {
 			row.Errors = append(row.Errors, "Missing hire_date")
 			row.Valid = false
-		} else if _, err := time.Parse("2006-01-02", row.HireDate); err != nil {
-			row.Errors = append(row.Errors, "Invalid hire_date (expected YYYY-MM-DD)")
+		} else if _, err := parseDate(row.HireDate); err != nil {
+			row.Errors = append(row.Errors, "Invalid hire_date (accepted: YYYY-MM-DD, M/D/YYYY, MM/DD/YYYY)")
 			row.Valid = false
 		}
 		if row.EmploymentType == "" {

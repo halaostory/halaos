@@ -111,7 +111,7 @@ function handleSearch() {
 }
 
 function handleExportCSV() {
-  const token = localStorage.getItem('token')
+  const token = localStorage.getItem('access_token')
   const start = dateRange.value ? format(new Date(dateRange.value[0]), 'yyyy-MM-dd') : format(subDays(new Date(), 30), 'yyyy-MM-dd')
   const end = dateRange.value ? format(new Date(dateRange.value[1]), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
   const url = exportAPI.attendanceCSV(start, end)
