@@ -16,7 +16,11 @@ export async function seedEmployees(api: ApiClient): Promise<void> {
   const employeeIds: number[] = [];
   const employeeNos: string[] = [];
 
-  for (let i = 0; i < 60; i++) {
+  // Use timestamp suffix to make emails unique per seed run (avoids stale user accounts from previous runs)
+  const ts = Date.now();
+  const emailSuffix = `${ts}`;
+
+  for (let i = 0; i < 20; i++) {
     const empNo = `E2E-${String(i + 1).padStart(3, '0')}`;
     const firstName = FIRST_NAMES[i % FIRST_NAMES.length];
     const lastName = LAST_NAMES[i % LAST_NAMES.length];
@@ -28,7 +32,7 @@ export async function seedEmployees(api: ApiClient): Promise<void> {
       employee_no: empNo,
       first_name: firstName,
       last_name: lastName,
-      email: `${empNo.toLowerCase()}@test.halaos.com`,
+      email: `${empNo.toLowerCase()}-${emailSuffix}@test.halaos.com`,
       hire_date: hireDate,
       employment_type: EMPLOYMENT_TYPES[i % EMPLOYMENT_TYPES.length],
       department_id: deptId,
@@ -42,11 +46,14 @@ export async function seedEmployees(api: ApiClient): Promise<void> {
 
   // Create user accounts for first 10 employees and get tokens
   const employeeTokens: Record<string, string> = {};
+  const employeeRefreshTokens: Record<string, string> = {};
+  const employeeEmails: Record<string, string> = {};
+  const employeePasswords: Record<string, string> = {};
   const baseURL = process.env.E2E_BASE_URL || 'https://halaos.com';
 
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 3; i++) {
     const empNo = employeeNos[i];
-    const email = `${empNo.toLowerCase()}@test.halaos.com`;
+    const email = `${empNo.toLowerCase()}-${emailSuffix}@test.halaos.com`;
     const password = `EmpPass${i + 1}!abc`;
 
     try {
@@ -58,16 +65,20 @@ export async function seedEmployees(api: ApiClient): Promise<void> {
         role: i === 0 ? 'manager' : 'employee',
       });
 
-      // Login to get token
+      // Login to get token (use higher retry config like globalSetup)
       const loginApi = await createApiClient(baseURL);
+      loginApi.setRetryConfig(5, 310_000);
       const loginRes = await loginApi.post('/api/v1/auth/cli-login', { email, password });
       employeeTokens[empNo] = loginRes.token || loginRes.access_token;
+      employeeRefreshTokens[empNo] = loginRes.refresh_token || '';
+      employeeEmails[empNo] = email;
+      employeePasswords[empNo] = password;
       await loginApi.dispose();
     } catch (err) {
       console.warn(`  Warning: Could not create user for ${empNo}: ${err}`);
     }
   }
 
-  updateState({ employeeIds, employeeNos, employeeTokens });
+  updateState({ employeeIds, employeeNos, employeeTokens, employeeRefreshTokens, employeeEmails, employeePasswords });
   console.log(`  Employees: ${employeeIds.length}, User accounts: ${Object.keys(employeeTokens).length}`);
 }

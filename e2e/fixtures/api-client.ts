@@ -1,7 +1,8 @@
 import { request, type APIRequestContext, type APIResponse } from '@playwright/test';
 
-const THROTTLE_MS = 700;
-const MAX_RETRIES = 3;
+const THROTTLE_MS = 1200; // 1.2s between requests to stay under 100 req/min rate limit
+const MAX_RETRIES = 2;
+const MAX_WAIT_MS = 3_000; // Default max wait per retry (3s) — keeps tests fast
 
 let lastRequestTime = 0;
 
@@ -101,12 +102,21 @@ export class ApiClient {
     await this.ctx.dispose();
   }
 
-  private async doWithRetry(fn: () => Promise<APIResponse>, retries = MAX_RETRIES): Promise<APIResponse> {
-    for (let i = 0; i < retries; i++) {
+  /** Allow callers to set higher retry budget (e.g. globalSetup can wait minutes) */
+  setRetryConfig(retries: number, maxWaitMs: number): void {
+    this._retries = retries;
+    this._maxWaitMs = maxWaitMs;
+  }
+  private _retries = MAX_RETRIES;
+  private _maxWaitMs = MAX_WAIT_MS;
+
+  private async doWithRetry(fn: () => Promise<APIResponse>): Promise<APIResponse> {
+    for (let i = 0; i < this._retries; i++) {
       const res = await fn();
       if (res.status() === 429) {
-        const wait = parseInt(res.headers()['retry-after'] || '2') * 1000 + 1000;
-        console.warn(`Rate limited, waiting ${wait}ms...`);
+        const retryAfter = parseInt(res.headers()['retry-after'] || '2');
+        const wait = Math.min(retryAfter * 1000, this._maxWaitMs) + 1000;
+        console.warn(`Rate limited (retry-after: ${retryAfter}s), waiting ${Math.round(wait / 1000)}s [attempt ${i + 1}/${this._retries}]...`);
         await new Promise(r => setTimeout(r, wait));
         continue;
       }

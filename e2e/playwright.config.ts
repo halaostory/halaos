@@ -3,7 +3,9 @@ import { defineConfig } from '@playwright/test';
 const BASE_URL = process.env.E2E_BASE_URL || 'https://halaos.com';
 
 export default defineConfig({
-  globalSetup: './fixtures/data-factory.ts',
+  // globalSetup disabled — data already seeded, re-enable after rate limits clear
+  // globalSetup: './fixtures/data-factory.ts',
+  workers: 1,
   retries: 1,
   expect: { timeout: 10_000 },
   reporter: [['html'], ['junit', { outputFile: 'test-results/junit.xml' }]],

@@ -19,9 +19,10 @@ export async function seedCompany(api: ApiClient): Promise<void> {
   // Login
   const loginRes = await api.post('/api/v1/auth/cli-login', { email, password });
   const token = loginRes.token || loginRes.access_token;
+  const refreshToken = loginRes.refresh_token || '';
   if (!token) throw new Error('cli-login did not return token');
 
   api.setToken(token);
-  updateState({ companyName, adminToken: token, adminEmail: email, adminPassword: password });
+  updateState({ companyName, adminToken: token, adminRefreshToken: refreshToken, adminEmail: email, adminPassword: password });
   console.log(`  Company created: ${companyName}`);
 }

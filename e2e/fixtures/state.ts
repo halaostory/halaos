@@ -6,9 +6,13 @@ const STATE_PATH = resolve(__dirname, '../.test-state.json');
 export interface TestState {
   companyName: string;
   adminToken: string;
+  adminRefreshToken: string;
   adminEmail: string;
   adminPassword: string;
   employeeTokens: Record<string, string>;
+  employeeRefreshTokens: Record<string, string>;
+  employeeEmails: Record<string, string>;
+  employeePasswords: Record<string, string>;
   departmentIds: number[];
   positionIds: number[];
   costCenterIds: number[];
@@ -25,9 +29,13 @@ export interface TestState {
 const DEFAULT_STATE: TestState = {
   companyName: '',
   adminToken: '',
+  adminRefreshToken: '',
   adminEmail: '',
   adminPassword: '',
   employeeTokens: {},
+  employeeRefreshTokens: {},
+  employeeEmails: {},
+  employeePasswords: {},
   departmentIds: [],
   positionIds: [],
   costCenterIds: [],
