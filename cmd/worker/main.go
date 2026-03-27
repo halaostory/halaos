@@ -265,6 +265,9 @@ func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.
 
 	// Send onboarding drip emails (hourly)
 	sendDripEmails(ctx, queries, emailSvc, logger)
+
+	// Clear stale virtual office manual statuses (daily, idempotent)
+	clearStaleVOStatuses(ctx, queries, logger)
 }
 
 func autoCloseAttendance(ctx context.Context, queries *store.Queries, logger *slog.Logger) {
