@@ -25,6 +25,8 @@ interface PreviewRow {
   email: string
   hire_date: string
   employment_type: string
+  department: string
+  position: string
   valid: boolean
   errors: string[]
 }
@@ -45,6 +47,8 @@ const previewColumns = computed<DataTableColumns<PreviewRow>>(() => [
   { title: t('common.email'), key: 'email', width: 180 },
   { title: t('employee.hireDate'), key: 'hire_date', width: 120 },
   { title: t('employee.employmentType'), key: 'employment_type', width: 120 },
+  { title: t('employee.department'), key: 'department', width: 150 },
+  { title: t('employee.position'), key: 'position', width: 150 },
   {
     title: t('common.status'),
     key: 'valid',
@@ -175,8 +179,8 @@ function exportLeaveBalances() {
 }
 
 function downloadTemplate() {
-  const header = 'employee_no,first_name,last_name,middle_name,email,phone,gender,birth_date,hire_date,employment_type'
-  const sample = 'EMP-001,Juan,Dela Cruz,,juan@example.com,09171234567,male,1990-01-15,2024-01-01,regular'
+  const header = 'employee_no,first_name,last_name,middle_name,email,phone,gender,birth_date,hire_date,employment_type,department,position'
+  const sample = 'EMP-001,Juan,Dela Cruz,,juan@example.com,09171234567,male,1990-01-15,2024-01-01,regular,Human Resources Department,HR Assistant'
   const blob = new Blob([header + '\n' + sample + '\n'], { type: 'text/csv' })
   const a = document.createElement('a')
   a.href = URL.createObjectURL(blob)

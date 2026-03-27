@@ -170,11 +170,17 @@ function handleExportCSV() {
   const url = exportAPI.employeesCSV()
   const token = localStorage.getItem('token')
   fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-    .then((res) => res.blob())
-    .then((blob) => {
+    .then((res) => {
+      if (!res.ok) throw new Error('Export failed')
+      const disposition = res.headers.get('Content-Disposition')
+      const match = disposition?.match(/filename=(.+)/)
+      const filename = match ? match[1] : 'employees.csv'
+      return res.blob().then((blob) => ({ blob, filename }))
+    })
+    .then(({ blob, filename }) => {
       const a = document.createElement('a')
       a.href = URL.createObjectURL(blob)
-      a.download = 'employees.csv'
+      a.download = filename
       a.click()
       URL.revokeObjectURL(a.href)
     })

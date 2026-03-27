@@ -250,6 +250,73 @@ func (q *Queries) DeleteEmployeeDocument(ctx context.Context, arg DeleteEmployee
 	return err
 }
 
+const exportEmployeesCSV = `-- name: ExportEmployeesCSV :many
+SELECT e.employee_no, e.first_name, e.last_name,
+       COALESCE(e.middle_name, '') as middle_name,
+       COALESCE(e.email, '') as email,
+       COALESCE(e.phone, '') as phone,
+       COALESCE(e.gender, '') as gender,
+       e.birth_date, e.hire_date,
+       e.employment_type, e.status,
+       COALESCE(d.name, '') as department_name,
+       COALESCE(p.title, '') as position_title
+FROM employees e
+LEFT JOIN departments d ON d.id = e.department_id
+LEFT JOIN positions p ON p.id = e.position_id
+WHERE e.company_id = $1
+ORDER BY e.last_name, e.first_name
+`
+
+type ExportEmployeesCSVRow struct {
+	EmployeeNo     string      `json:"employee_no"`
+	FirstName      string      `json:"first_name"`
+	LastName       string      `json:"last_name"`
+	MiddleName     string      `json:"middle_name"`
+	Email          string      `json:"email"`
+	Phone          string      `json:"phone"`
+	Gender         string      `json:"gender"`
+	BirthDate      pgtype.Date `json:"birth_date"`
+	HireDate       time.Time   `json:"hire_date"`
+	EmploymentType string      `json:"employment_type"`
+	Status         string      `json:"status"`
+	DepartmentName string      `json:"department_name"`
+	PositionTitle  string      `json:"position_title"`
+}
+
+func (q *Queries) ExportEmployeesCSV(ctx context.Context, companyID int64) ([]ExportEmployeesCSVRow, error) {
+	rows, err := q.db.Query(ctx, exportEmployeesCSV, companyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportEmployeesCSVRow{}
+	for rows.Next() {
+		var i ExportEmployeesCSVRow
+		if err := rows.Scan(
+			&i.EmployeeNo,
+			&i.FirstName,
+			&i.LastName,
+			&i.MiddleName,
+			&i.Email,
+			&i.Phone,
+			&i.Gender,
+			&i.BirthDate,
+			&i.HireDate,
+			&i.EmploymentType,
+			&i.Status,
+			&i.DepartmentName,
+			&i.PositionTitle,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getEmployeeByID = `-- name: GetEmployeeByID :one
 SELECT id, company_id, user_id, employee_no, first_name, last_name, middle_name, suffix, display_name, email, phone, birth_date, gender, civil_status, nationality, department_id, position_id, cost_center_id, manager_id, hire_date, regularization_date, separation_date, employment_type, status, created_at, updated_at, contract_end_date FROM employees WHERE id = $1 AND company_id = $2
 `

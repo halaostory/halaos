@@ -1215,7 +1215,7 @@ export default {
     importFailed: "Import failed",
     exportStarted: "Export started",
     csvFormat:
-      "CSV format: employee_no, first_name, last_name, middle_name, email, phone, gender, birth_date, hire_date, employment_type",
+      "CSV format: employee_no, first_name, last_name, middle_name, email, phone, gender, birth_date (YYYY-MM-DD), hire_date (YYYY-MM-DD), employment_type, department, position. Required: employee_no, first_name, last_name, hire_date, employment_type.",
     previewBtn: "Preview",
     previewSummary: "Preview Summary",
     previewTotal: "Total",

@@ -277,6 +277,32 @@ func (q *Queries) GetDepartmentByID(ctx context.Context, arg GetDepartmentByIDPa
 	return i, err
 }
 
+const getDepartmentByName = `-- name: GetDepartmentByName :one
+SELECT id, company_id, code, name, parent_id, head_employee_id, is_active, created_at, updated_at FROM departments WHERE company_id = $1 AND LOWER(name) = LOWER($2) AND is_active = true
+`
+
+type GetDepartmentByNameParams struct {
+	CompanyID int64  `json:"company_id"`
+	Lower     string `json:"lower"`
+}
+
+func (q *Queries) GetDepartmentByName(ctx context.Context, arg GetDepartmentByNameParams) (Department, error) {
+	row := q.db.QueryRow(ctx, getDepartmentByName, arg.CompanyID, arg.Lower)
+	var i Department
+	err := row.Scan(
+		&i.ID,
+		&i.CompanyID,
+		&i.Code,
+		&i.Name,
+		&i.ParentID,
+		&i.HeadEmployeeID,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getPositionByID = `-- name: GetPositionByID :one
 SELECT id, company_id, code, title, department_id, grade, is_active, created_at, updated_at FROM positions WHERE id = $1 AND company_id = $2
 `
@@ -288,6 +314,32 @@ type GetPositionByIDParams struct {
 
 func (q *Queries) GetPositionByID(ctx context.Context, arg GetPositionByIDParams) (Position, error) {
 	row := q.db.QueryRow(ctx, getPositionByID, arg.ID, arg.CompanyID)
+	var i Position
+	err := row.Scan(
+		&i.ID,
+		&i.CompanyID,
+		&i.Code,
+		&i.Title,
+		&i.DepartmentID,
+		&i.Grade,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getPositionByTitle = `-- name: GetPositionByTitle :one
+SELECT id, company_id, code, title, department_id, grade, is_active, created_at, updated_at FROM positions WHERE company_id = $1 AND LOWER(title) = LOWER($2) AND is_active = true
+`
+
+type GetPositionByTitleParams struct {
+	CompanyID int64  `json:"company_id"`
+	Lower     string `json:"lower"`
+}
+
+func (q *Queries) GetPositionByTitle(ctx context.Context, arg GetPositionByTitleParams) (Position, error) {
+	row := q.db.QueryRow(ctx, getPositionByTitle, arg.CompanyID, arg.Lower)
 	var i Position
 	err := row.Scan(
 		&i.ID,

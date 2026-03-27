@@ -59,6 +59,12 @@ UPDATE departments SET
 WHERE id = $1 AND company_id = $2
 RETURNING *;
 
+-- name: GetDepartmentByName :one
+SELECT * FROM departments WHERE company_id = $1 AND LOWER(name) = LOWER($2) AND is_active = true;
+
+-- name: GetPositionByTitle :one
+SELECT * FROM positions WHERE company_id = $1 AND LOWER(title) = LOWER($2) AND is_active = true;
+
 -- name: CreatePosition :one
 INSERT INTO positions (company_id, code, title, department_id, grade)
 VALUES ($1, $2, $3, $4, $5)

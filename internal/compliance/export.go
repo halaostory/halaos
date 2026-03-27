@@ -85,11 +85,11 @@ func (h *Handler) ExportPayrollCSV(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
-// ExportEmployeesCSV exports employee list as CSV.
+// ExportEmployeesCSV exports employee list as CSV (all statuses, with department/position).
 func (h *Handler) ExportEmployeesCSV(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 
-	employees, err := h.queries.ListActiveEmployees(c.Request.Context(), companyID)
+	employees, err := h.queries.ExportEmployeesCSV(c.Request.Context(), companyID)
 	if err != nil {
 		response.InternalError(c, "Failed to list employees")
 		return
@@ -105,18 +105,16 @@ func (h *Handler) ExportEmployeesCSV(c *gin.Context) {
 	_ = w.Write([]string{
 		"Employee No", "First Name", "Last Name", "Middle Name",
 		"Email", "Phone", "Gender", "Birth Date",
-		"Hire Date", "Employment Type", "Status",
+		"Hire Date", "Employment Type", "Department", "Position", "Status",
 	})
 
 	for _, emp := range employees {
 		_ = w.Write([]string{
 			emp.EmployeeNo, emp.FirstName, emp.LastName,
-			ptrOr(emp.MiddleName, ""),
-			ptrOr(emp.Email, ""), ptrOr(emp.Phone, ""),
-			ptrOr(emp.Gender, ""),
+			emp.MiddleName, emp.Email, emp.Phone, emp.Gender,
 			formatDate(emp.BirthDate),
 			emp.HireDate.Format("2006-01-02"),
-			emp.EmploymentType, emp.Status,
+			emp.EmploymentType, emp.DepartmentName, emp.PositionTitle, emp.Status,
 		})
 	}
 	writeCSVBranding(w)

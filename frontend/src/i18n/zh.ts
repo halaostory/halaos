@@ -1208,7 +1208,7 @@ export default {
     importFailed: "导入失败",
     exportStarted: "导出已开始",
     csvFormat:
-      "CSV格式: employee_no, first_name, last_name, middle_name, email, phone, gender, birth_date, hire_date, employment_type",
+      "CSV格式: employee_no, first_name, last_name, middle_name, email, phone, gender, birth_date (YYYY-MM-DD), hire_date (YYYY-MM-DD), employment_type, department, position。必填: employee_no, first_name, last_name, hire_date, employment_type。",
     previewBtn: "预览",
     previewSummary: "预览摘要",
     previewTotal: "总计",

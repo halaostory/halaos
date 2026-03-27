@@ -145,6 +145,28 @@ func (h *Handler) ImportEmployeesCSV(c *gin.Context) {
 			params.Gender = &v
 		}
 
+		// Resolve department by name
+		if deptName := getCol("department"); deptName != "" {
+			dept, err := h.queries.GetDepartmentByName(c.Request.Context(), store.GetDepartmentByNameParams{
+				CompanyID: companyID,
+				Lower:     deptName,
+			})
+			if err == nil {
+				params.DepartmentID = &dept.ID
+			}
+		}
+
+		// Resolve position by title
+		if posTitle := getCol("position"); posTitle != "" {
+			pos, err := h.queries.GetPositionByTitle(c.Request.Context(), store.GetPositionByTitleParams{
+				CompanyID: companyID,
+				Lower:     posTitle,
+			})
+			if err == nil {
+				params.PositionID = &pos.ID
+			}
+		}
+
 		_, err = h.queries.CreateEmployee(c.Request.Context(), params)
 		if err != nil {
 			skipped++
@@ -213,6 +235,8 @@ func (h *Handler) PreviewImportCSV(c *gin.Context) {
 		Email          string   `json:"email"`
 		HireDate       string   `json:"hire_date"`
 		EmploymentType string   `json:"employment_type"`
+		Department     string   `json:"department"`
+		Position       string   `json:"position"`
 		Valid          bool     `json:"valid"`
 		Errors         []string `json:"errors"`
 	}
@@ -247,6 +271,8 @@ func (h *Handler) PreviewImportCSV(c *gin.Context) {
 			Email:          getCol("email"),
 			HireDate:       getCol("hire_date"),
 			EmploymentType: getCol("employment_type"),
+			Department:     getCol("department"),
+			Position:       getCol("position"),
 			Valid:          true,
 		}
 

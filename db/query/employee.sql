@@ -217,3 +217,19 @@ LEFT JOIN positions p ON p.id = e.position_id
 LEFT JOIN users u ON u.id = e.user_id
 WHERE e.company_id = $1 AND e.status = 'active'
 ORDER BY e.last_name, e.first_name;
+
+-- name: ExportEmployeesCSV :many
+SELECT e.employee_no, e.first_name, e.last_name,
+       COALESCE(e.middle_name, '') as middle_name,
+       COALESCE(e.email, '') as email,
+       COALESCE(e.phone, '') as phone,
+       COALESCE(e.gender, '') as gender,
+       e.birth_date, e.hire_date,
+       e.employment_type, e.status,
+       COALESCE(d.name, '') as department_name,
+       COALESCE(p.title, '') as position_title
+FROM employees e
+LEFT JOIN departments d ON d.id = e.department_id
+LEFT JOIN positions p ON p.id = e.position_id
+WHERE e.company_id = $1
+ORDER BY e.last_name, e.first_name;
