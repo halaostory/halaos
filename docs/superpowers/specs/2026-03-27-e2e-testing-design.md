@@ -2,13 +2,13 @@
 
 ## Goal
 
-Comprehensive testing of all 39 backend modules (372 API endpoints) and 30+ frontend pages using Playwright as a unified framework, running against the production server with test company isolation.
+Comprehensive testing of all 46 backend modules (~400 API endpoints) and 50+ frontend pages using Playwright as a unified framework, running against the production server with test company isolation.
 
 ## Architecture
 
 Single Playwright project with three layers:
-1. **Data Factory** — Creates an isolated test company via API, seeds realistic data (60 employees, 30 days attendance, leave, payroll, etc.)
-2. **API Integration Tests** — Tests all 372 endpoints using Playwright's `request` API (no browser)
+1. **Data Factory** — Creates an isolated test company via CLI auth API, seeds realistic data (60 employees, 30 days attendance, leave, payroll, etc.)
+2. **API Integration Tests** — Tests all endpoints using Playwright's `request` API (no browser)
 3. **Browser E2E Tests** — Tests all frontend pages with Chromium automation
 
 All tests run against `https://halaos.com` (production). Data isolation via dedicated test company (`company_id` multi-tenancy).
@@ -33,24 +33,27 @@ aigonhr/
 
     fixtures/
       auth.ts                 # Login fixtures: adminContext, employeeContext
-      data-factory.ts         # globalSetup entry — orchestrates factory modules
-      api-client.ts           # Typed API helper (wraps Playwright request)
+                              # Sets localStorage("halaos_setup_done", "true") for browser tests
+      data-factory.ts         # globalSetup entry — thin orchestrator that imports and calls
+                              # each factory/*.ts module in sequence. No business logic here.
+      api-client.ts           # Typed API helper (wraps Playwright request, includes throttle)
 
-    factory/                  # Data factory modules (one per domain)
-      company.ts              # Register test company + admin user
+    factory/                  # Data factory modules (one per domain, each exports a function)
+      company.ts              # Register test company via cli-register + admin user
       departments.ts          # 8 departments + 15 positions + 3 cost centers
-      employees.ts            # 60 employees (various statuses, types, departments)
+      employees.ts            # 60 employees + user accounts + tokens
       attendance.ts           # 30 days of clock-in/out records (~1800 records)
       leave.ts                # Leave types + 20 leave requests (approved/pending/rejected)
-      payroll.ts              # Salary structures, payroll cycle, run calculation
+      payroll.ts              # Salary structures, components, employee salaries, cycle, run
       benefits.ts             # Benefit plans + enrollments
       training.ts             # Training programs + enrollments + certificates
       performance.ts          # Performance reviews + goals
       compliance.ts           # Compliance forms + filings
-      misc.ts                 # Loans, expenses, announcements, knowledge, holidays, etc.
+      misc.ts                 # Loans, expenses, announcements, knowledge, holidays,
+                              # overtime, milestones, billing, referrals, etc.
 
     tests/
-      api/                    # API integration tests (39 files, one per module)
+      api/                    # API integration tests (46 files, one per module)
         auth.spec.ts
         employees.spec.ts
         attendance.spec.ts
@@ -64,20 +67,37 @@ aigonhr/
         analytics.spec.ts
         approval.spec.ts
         importexport.spec.ts
-        ... (26 more, one per remaining module)
+        overtime.spec.ts
+        milestone.spec.ts
+        billing.spec.ts
+        referral.spec.ts
+        ai.spec.ts            # Includes chat, agents, byok, nps
+        integration.spec.ts   # Includes accounting integration sub-routes
+        ... (remaining modules)
 
-      browser/                # Browser E2E tests (30+ files, one per page)
+      browser/                # Browser E2E tests (50+ files, one per page)
         login.spec.ts
+        setup-wizard.spec.ts
         dashboard.spec.ts
         employees.spec.ts
         employee-detail.spec.ts
         attendance.spec.ts
+        attendance-records.spec.ts
+        attendance-report.spec.ts
+        dtr.spec.ts
+        schedules.spec.ts
+        geofence.spec.ts
         leave.spec.ts
+        leave-calendar.spec.ts
+        leave-encashment.spec.ts
         payroll.spec.ts
+        payslips.spec.ts
+        salary-config.spec.ts
         benefits.spec.ts
         training.spec.ts
         performance.spec.ts
         compliance.spec.ts
+        tax-filings.spec.ts
         import-export.spec.ts
         approval.spec.ts
         analytics.spec.ts
@@ -87,17 +107,43 @@ aigonhr/
         loans.spec.ts
         expenses.spec.ts
         onboarding.spec.ts
+        overtime.spec.ts
+        milestones.spec.ts
         disciplinary.spec.ts
         grievance.spec.ts
         policies.spec.ts
         holidays.spec.ts
         directory.spec.ts
+        departments.spec.ts
+        positions.spec.ts
         settings.spec.ts
+        users.spec.ts
         notifications.spec.ts
         reports.spec.ts
         virtual-office.spec.ts
+        file-201.spec.ts
+        final-pay.spec.ts
+        clearance.spec.ts
+        billing.spec.ts
+        referrals.spec.ts
+        agent-hub.spec.ts
+        integrations.spec.ts
+        workflow-rules.spec.ts
+        pulse-surveys.spec.ts
+        hr-requests.spec.ts
+        org-intelligence.spec.ts
+        audit.spec.ts
+        profile.spec.ts
         self-service.spec.ts
-        h5-mobile.spec.ts
+
+      h5/                     # H5 mobile browser tests (separate directory)
+        home.spec.ts
+        attendance.spec.ts
+        leave.spec.ts
+        payslips.spec.ts
+        notifications.spec.ts
+        profile.spec.ts
+        ai-chat.spec.ts
 ```
 
 ---
@@ -106,59 +152,88 @@ aigonhr/
 
 ### Isolation Strategy
 
-Each test run creates an independent test company via `POST /auth/register`. Company name includes timestamp: `E2E-Test-20260327-143022`. All data is scoped to this company via `company_id`. No cleanup needed — test companies don't interfere with production data.
+Each test run creates an independent test company via `POST /auth/cli-register` (bypasses email verification). Company name includes timestamp: `E2E-Test-20260327-143022`. All data is scoped to this company via `company_id`. Login via `POST /auth/cli-login`.
+
+### Rate Limiting Strategy
+
+The production API has a 100 req/min rate limit per user. The factory handles this by:
+- **API client throttle**: Built-in 700ms delay between consecutive admin requests (~85 req/min, under the limit)
+- **Employee tokens**: Attendance seeding distributes calls across 60 employee tokens (each well under 100/min)
+- **Retry with backoff**: On 429 responses, wait `Retry-After` header value + 1s, then retry
 
 ### Execution Order (globalSetup)
 
+Factory modules are split into **dependency modules** (abort on failure) and **leaf modules** (skip on failure).
+
+**Dependency modules** (failure aborts entire run):
 ```
-1.  Register test company → POST /auth/register → admin token
-2.  Create 8 departments → POST /departments
-3.  Create 15 positions → POST /positions
-4.  Create 3 cost centers → POST /cost-centers
-5.  Create 60 employees → POST /employees
+1.  Register test company → POST /auth/cli-register → admin token
+2.  Create 8 departments → POST /api/v1/departments
+3.  Create 15 positions → POST /api/v1/positions
+4.  Create 3 cost centers → POST /api/v1/cost-centers
+5.  Create 60 employees → POST /api/v1/employees
     - Spread across departments, statuses (active/separated/probation), employment types
-6.  Set salary structures → POST /salary (for each employee)
-7.  Create shifts + assignments → POST /shifts, /shift-assignments
-8.  Generate 30 days attendance → POST /clock-in, /clock-out (per employee)
-9.  Create leave types → POST /leave-types
-10. Submit 20 leave requests → POST /leaves (approved, pending, rejected mix)
-11. Create payroll cycle → POST /payroll-cycles
-12. Run payroll calculation → POST /payroll-runs
-13. Create benefit plans + enrollments → POST /benefits, /enrollments
-14. Create training programs + enrollments → POST /training/programs, /enrollments
-15. Create performance reviews → POST /performance/reviews
-16. Create compliance forms → POST /compliance/forms
-17. Create misc data: loans, announcements, knowledge articles, holidays,
-    expenses, policies, approval workflows, recognition, onboarding checklists
+6.  Create user accounts for 10 key employees → POST /api/v1/users/employee-account
+    - Then login each via POST /auth/cli-login → save tokens in state file
+    - 10 employees is enough for permission/role testing; not all 60 need accounts
+```
+
+**Leaf modules** (failure logs error, affected tests skip):
+```
+7.  Create salary structure templates → POST /api/v1/salary/structures
+8.  Create salary components → POST /api/v1/salary/components
+9.  Assign employee salaries → POST /api/v1/employees/:id/salary
+10. Create shifts + assignments → POST /api/v1/shifts, /shift-assignments
+11. Generate 30 days attendance → POST /api/v1/attendance/clock-in, /clock-out
+    - Uses individual employee tokens (distributes rate limit load)
+12. Create leave types → POST /api/v1/leave-types
+13. Submit 20 leave requests → POST /api/v1/leaves (approved, pending, rejected mix)
+14. Create payroll cycle → POST /api/v1/payroll-cycles
+15. Run payroll calculation → POST /api/v1/payroll-runs
+16. Create benefit plans + enrollments → POST /api/v1/benefits, /enrollments
+17. Create training programs + enrollments → POST /api/v1/training/programs, /enrollments
+18. Create performance reviews → POST /api/v1/performance/reviews
+19. Create compliance forms → POST /api/v1/compliance/forms
+20. Create misc data: loans, announcements, knowledge articles, holidays,
+    expenses, policies, approval workflows, recognition, onboarding checklists,
+    overtime requests, milestones, notifications
 ```
 
 ### State File (.test-state.json)
 
-Factory output saved for test consumption:
+Factory output saved for test consumption. All IDs are captured from API responses (not hardcoded):
 
 ```json
 {
   "companyName": "E2E-Test-20260327-143022",
   "adminToken": "jwt...",
-  "adminEmail": "admin-e2e-...@test.halaos.com",
+  "adminEmail": "admin-e2e-1711547422@test.halaos.com",
   "employeeTokens": {
     "emp-001": "jwt...",
     "emp-002": "jwt...",
     "emp-003": "jwt..."
   },
-  "departmentIds": [1, 2, 3, 4, 5, 6, 7, 8],
-  "positionIds": [1, 2, ...],
-  "employeeIds": [10, 11, 12, ...],
-  "leaveTypeIds": [1, 2, 3],
-  "payrollCycleId": 5,
-  "benefitPlanIds": [1, 2],
-  "trainingProgramIds": [1, 2, 3]
+  "departmentIds": [5042, 5043, 5044, 5045, 5046, 5047, 5048, 5049],
+  "positionIds": [3201, 3202, 3203],
+  "employeeIds": [8010, 8011, 8012],
+  "leaveTypeIds": [412, 413, 414],
+  "payrollCycleId": 289,
+  "benefitPlanIds": [150, 151],
+  "trainingProgramIds": [98, 99, 100]
 }
 ```
 
 ### Factory Error Handling
 
-Each factory module is independent. If one fails (e.g., benefits), it logs the error but doesn't stop the run. Subsequent tests for that module will be skipped via `test.skip()` when required state is missing.
+- **Dependency modules** (company, departments, positions, employees, user accounts): Failure throws and aborts `globalSetup` with a clear error message. No point running tests without base data.
+- **Leaf modules** (salary, attendance, leave, payroll, benefits, etc.): Failure logs the error and sets the corresponding state key to `null`. Tests check for required state and `test.skip()` if missing.
+
+### Cleanup
+
+A cleanup script `npm run test:cleanup` is provided to delete test companies older than 7 days:
+- Queries companies with name `LIKE 'E2E-Test-%'`
+- Deletes via admin API or direct SQL (if API doesn't support company deletion)
+- Can be run manually or scheduled
 
 ---
 
@@ -166,7 +241,7 @@ Each factory module is independent. If one fails (e.g., benefits), it logs the e
 
 ### Coverage
 
-All 39 modules, ~500 test cases total. Each module file follows a consistent pattern:
+All 46 modules, ~550 test cases total. Each module file follows a consistent pattern:
 
 ```typescript
 // Example: employees.spec.ts
@@ -194,25 +269,27 @@ test.describe('Employees API', () => {
 })
 ```
 
-### Module List (39 modules)
+### Module List (46 modules)
 
 **Core (5):** auth, employee, attendance, leave, payroll
 
-**HR (7):** benefits, training, performance, onboarding, finalpay, clearance, onboarding_checklist
+**HR (8):** benefits, training, performance, onboarding, onboarding_checklist, finalpay, clearance, overtime
 
 **Management (6):** approval, dashboard, analytics, report, compliance, importexport
 
 **Communication (4):** announcement, recognition, notification, pulse
 
-**Operations (6):** loan, expense, holiday, knowledge, policy, docfile
+**Operations (7):** loan, expense, holiday, knowledge, policy, docfile, milestone
 
 **Employee Relations (3):** disciplinary, grievance, hrrequest
 
 **System (5):** company, audit, workflow, orgintel, self-service
 
-**Integration (2):** integration, virtualoffice
+**Integration (3):** integration (accounting), virtualoffice, billing
 
-**AI (1):** ai (chat, agents)
+**AI (3):** ai (chat, agents), byok, nps
+
+**Business (2):** referral, billing
 
 ### Permission Matrix
 
@@ -227,7 +304,7 @@ Each endpoint tested with correct auth level:
 
 ### Coverage
 
-All 30+ frontend pages, ~200 test cases total. Each page file tests the user-visible workflow:
+All 50+ frontend pages, ~300 test cases total. Each page file tests the user-visible workflow:
 
 ```typescript
 // Example: employees.spec.ts
@@ -242,41 +319,93 @@ test.describe('Employees Page', () => {
 })
 ```
 
+### Auth Fixture for Browser Tests
+
+The `auth.ts` fixture handles:
+1. Login via API → get JWT token
+2. Set `localStorage("access_token", token)` in browser context
+3. Set `localStorage("halaos_setup_done", "true")` to bypass Setup Wizard redirect
+4. Navigate to target page
+
+Without step 3, all browser tests would be redirected to the Setup Wizard instead of the intended page.
+
 ### Page Coverage Table
 
-| Page | Test Focus | Approx Cases |
-|------|-----------|-------------|
-| Login | Login success/failure, redirect | 4 |
-| Dashboard | Widgets load, data correct, checklist | 5 |
-| Employees | List/filter/paginate, add/edit, export | 8 |
-| Employee Detail | Tabs load, edit fields, save | 6 |
-| Attendance | Clock in/out, records, filter, export | 6 |
-| Leave | Apply, approve/reject, balances, types | 7 |
-| Payroll | Cycles, payslips, run calculation, export | 6 |
-| Benefits | Plans, enroll, claims | 5 |
-| Training | Programs, enroll, complete | 5 |
-| Performance | Reviews, goals, ratings | 5 |
-| Compliance | Checks, forms, filings | 5 |
-| Import/Export | CSV upload preview, import, export buttons | 6 |
-| Approval | List, approve/reject | 4 |
-| Analytics | Charts load, risk/health/burnout scores | 4 |
-| Announcements | List, create/edit/delete | 5 |
-| Recognition | List, create | 3 |
-| Knowledge Base | Search, view article | 3 |
-| Loans | Apply, approve, repayments | 5 |
-| Expenses | Submit, approve | 4 |
-| Onboarding | Checklist, complete tasks | 4 |
-| Disciplinary | List, create/view | 3 |
-| Grievance | List, submit | 3 |
-| Policies | List, view | 3 |
-| Holidays | Calendar, add/edit | 4 |
-| Directory | Search, org chart | 3 |
-| Settings | Config items, save | 4 |
-| Notifications | List, mark read | 3 |
-| Reports | Generate, download | 4 |
-| Virtual Office | Map load, seat assign, status | 5 |
-| Self-Service (employee) | Profile, clock, leave, payslip | 5 |
-| H5 Mobile (employee) | Clock, leave, payslip, notifications | 5 |
+| Page | Route | Test Focus | Cases |
+|------|-------|-----------|-------|
+| Login | `/login` | Login success/failure, redirect | 4 |
+| Setup Wizard | `/setup` | First-time company setup flow | 4 |
+| Dashboard | `/` | Widgets load, data, checklist | 5 |
+| Employees | `/employees` | List/filter/paginate, add/edit, export | 8 |
+| Employee Detail | `/employees/:id` | Tabs load, edit, save | 6 |
+| Attendance | `/attendance` | Clock in/out, summary | 5 |
+| Attendance Records | `/attendance/records` | Records list, filter, export | 5 |
+| Attendance Report | `/attendance/report` | Report generation | 3 |
+| DTR | `/dtr` | Daily time record view | 3 |
+| Schedules | `/schedules` | Shift schedules, assignments | 4 |
+| Geofences | `/geofences` | Geofence CRUD, map | 4 |
+| Leave | `/leave` | Apply, approve/reject, balances, types | 7 |
+| Leave Calendar | `/leave-calendar` | Calendar view, filter | 3 |
+| Leave Encashment | `/leave-encashment` | Encashment requests | 3 |
+| Payroll | `/payroll` | Cycles, run calculation, export | 6 |
+| Payslips | `/payslips` | View/download payslips | 4 |
+| Salary Config | `/salary` | Salary structures, components | 4 |
+| Benefits | `/benefits` | Plans, enroll, claims | 5 |
+| Training | `/training` | Programs, enroll, complete | 5 |
+| Performance | `/performance` | Reviews, goals, ratings | 5 |
+| Compliance | `/compliance` | Checks, forms | 5 |
+| Tax Filings | `/tax-filings` | Filing list, create | 4 |
+| Import/Export | `/import-export` | CSV upload/preview, export buttons | 6 |
+| Approval | `/approvals` | List, approve/reject | 4 |
+| Analytics | `/analytics` | Charts, risk/health/burnout scores | 4 |
+| Announcements | `/announcements` | List, create/edit/delete | 5 |
+| Recognition | `/recognition` | List, create | 3 |
+| Knowledge Base | `/knowledge` | Search, view article | 3 |
+| Loans | `/loans` | Apply, approve, repayments | 5 |
+| Expenses | `/expenses` | Submit, approve | 4 |
+| Onboarding | `/onboarding` | Checklist, complete tasks | 4 |
+| Overtime | `/overtime` | Request, approve | 4 |
+| Milestones | `/milestones` | View, acknowledge | 3 |
+| Disciplinary | `/disciplinary` | List, create/view | 3 |
+| Grievance | `/grievance` | List, submit | 3 |
+| Policies | `/policies` | List, view | 3 |
+| Holidays | `/holidays` | Calendar, add/edit | 4 |
+| Directory | `/directory` | Search, org chart | 3 |
+| Departments | `/departments` | CRUD | 4 |
+| Positions | `/positions` | CRUD | 4 |
+| Settings | `/settings` | Config items, save | 4 |
+| Users | `/users` | User account management | 4 |
+| Notifications | `/notifications` | List, mark read | 3 |
+| Reports | `/reports` | Generate, download | 4 |
+| Virtual Office | `/virtual-office` | Map load, seat assign, status | 5 |
+| 201 File | `/201file` | Document management | 3 |
+| Final Pay | `/final-pay` | Separation calculations | 3 |
+| Clearance | `/clearance` | Clearance checklist | 3 |
+| Billing | `/billing` | Balance, transactions, packages | 4 |
+| Referrals | `/referrals` | Referral code, stats | 3 |
+| Agent Hub | `/agent-hub` | AI agents, tasks | 4 |
+| Integrations | `/integrations` | Integration list, config, jobs | 5 |
+| Workflow Rules | `/workflow-rules` | Rules, triggers, analytics | 5 |
+| Pulse Surveys | `/pulse-surveys` | Create, respond, results | 4 |
+| HR Requests | `/hr-requests` | Submit, track | 3 |
+| Org Intelligence | `/org-intelligence` | Org analytics | 3 |
+| Audit | `/audit` | Audit logs, filter | 3 |
+| Profile | `/profile` | Personal info, change password | 4 |
+| Self-Service | (employee view) | Profile, clock, leave, payslip | 5 |
+
+### H5 Mobile Tests
+
+The H5 mobile frontend is a separate Vue app at `https://halaos.com/m/`. It has its own Playwright project with a different `baseURL`.
+
+| Page | Route | Test Focus | Cases |
+|------|-------|-----------|-------|
+| Home | `/m/` | Dashboard, quick actions | 4 |
+| Attendance | `/m/attendance` | Clock in/out | 4 |
+| Leave | `/m/leave` | Apply, view balances | 4 |
+| Payslips | `/m/payslips` | View payslip | 3 |
+| Notifications | `/m/notifications` | List, mark read | 3 |
+| Profile | `/m/profile` | View/edit profile | 3 |
+| AI Chat | `/m/ai-chat` | Chat interaction | 3 |
 
 ### Screenshots
 
@@ -295,26 +424,40 @@ test.describe('Employees Page', () => {
     {
       name: 'api',
       testDir: './tests/api',
-      use: { baseURL: 'https://halaos.com/api' },
+      use: { baseURL: 'https://halaos.com' },
+      timeout: 30_000,
     },
     {
       name: 'browser',
       testDir: './tests/browser',
-      dependencies: ['api'],
       use: {
         baseURL: 'https://halaos.com',
         browserName: 'chromium',
         screenshot: 'only-on-failure',
         trace: 'on-first-retry',
       },
+      timeout: 60_000,
+    },
+    {
+      name: 'h5',
+      testDir: './tests/h5',
+      use: {
+        baseURL: 'https://halaos.com/m',
+        browserName: 'chromium',
+        viewport: { width: 375, height: 812 },
+        screenshot: 'only-on-failure',
+        trace: 'on-first-retry',
+      },
+      timeout: 60_000,
     },
   ],
   retries: 1,
-  timeout: 30_000,        // API tests
   expect: { timeout: 10_000 },
   reporter: [['html'], ['junit', { outputFile: 'test-results/junit.xml' }]],
 }
 ```
+
+**Note:** `browser` and `h5` projects do NOT depend on `api` project. Each can run independently via `npm run test:api`, `npm run test:browser`, or `npm run test:h5`. Only `npm run test:all` runs them sequentially.
 
 ---
 
@@ -323,8 +466,10 @@ test.describe('Employees Page', () => {
 ```bash
 cd e2e
 npm run test:api          # API integration tests only
-npm run test:browser      # Browser E2E only
-npm run test:all          # Full suite: factory → API → browser
+npm run test:browser      # Desktop browser E2E only
+npm run test:h5           # H5 mobile browser E2E only
+npm run test:all          # Full suite: factory → API → browser → h5
+npm run test:cleanup      # Delete test companies older than 7 days
 npx playwright show-report # View HTML report
 ```
 
@@ -343,7 +488,8 @@ New GitHub Actions workflow `e2e.yml`:
 | Metric | Count |
 |--------|-------|
 | Factory data points | ~2000 records across all tables |
-| API test cases | ~500 |
-| Browser test cases | ~200 |
-| Total test files | ~70 |
-| Estimated run time | ~10-15 min (API parallel, browser sequential) |
+| API test cases | ~550 |
+| Browser test cases (desktop) | ~250 |
+| Browser test cases (H5) | ~25 |
+| Total test files | ~110 |
+| Estimated run time | ~15-20 min (API parallel, browser sequential) |
