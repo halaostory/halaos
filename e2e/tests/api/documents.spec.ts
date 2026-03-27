@@ -134,9 +134,7 @@ test.describe('201 File / Document Management API', () => {
   test('document endpoints reject unauthenticated requests', async () => {
     const noAuth = await createApiClient(BASE);
     try {
-      await expect(async () => {
-        await noAuth.get('/api/v1/201file/categories');
-      }).rejects.toThrow();
+      await expect(noAuth.get('/api/v1/201file/categories')).rejects.toThrow(/API error/);
     } finally {
       await noAuth.dispose();
     }

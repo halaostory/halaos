@@ -115,8 +115,9 @@ test.describe('Employees API', () => {
     const api = await createApiClient(BASE, state.adminToken);
 
     try {
-      const ts = Date.now();
-      const empNo = `E2E-NEW-${ts}`;
+      // employee_no is VARCHAR(20); keep prefix short to fit timestamp
+      const ts = Date.now().toString().slice(-10);
+      const empNo = `E2E-N-${ts}`;
 
       // Create employee
       const created = await api.post('/api/v1/employees', {

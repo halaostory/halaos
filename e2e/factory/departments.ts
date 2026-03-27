@@ -2,33 +2,50 @@ import { ApiClient } from '../fixtures/api-client';
 import { updateState } from '../fixtures/state';
 
 const DEPARTMENTS = [
-  'Human Resources', 'Engineering', 'Finance', 'Operations',
-  'Sales', 'Marketing', 'Legal', 'Customer Support',
+  { code: 'HR', name: 'Human Resources' },
+  { code: 'ENG', name: 'Engineering' },
+  { code: 'FIN', name: 'Finance' },
+  { code: 'OPS', name: 'Operations' },
+  { code: 'SAL', name: 'Sales' },
+  { code: 'MKT', name: 'Marketing' },
+  { code: 'LEG', name: 'Legal' },
+  { code: 'SUP', name: 'Customer Support' },
 ];
 
 const POSITIONS = [
-  'Manager', 'Senior Developer', 'Junior Developer', 'Designer',
-  'Accountant', 'HR Specialist', 'Sales Rep', 'Support Agent',
-  'Team Lead', 'Director', 'Analyst', 'Coordinator',
-  'Admin Assistant', 'QA Engineer', 'DevOps Engineer',
+  { code: 'MGR', title: 'Manager' },
+  { code: 'SR-DEV', title: 'Senior Developer' },
+  { code: 'JR-DEV', title: 'Junior Developer' },
+  { code: 'DSG', title: 'Designer' },
+  { code: 'ACCT', title: 'Accountant' },
+  { code: 'HR-SP', title: 'HR Specialist' },
+  { code: 'SALES', title: 'Sales Rep' },
+  { code: 'SUP-AG', title: 'Support Agent' },
+  { code: 'TL', title: 'Team Lead' },
+  { code: 'DIR', title: 'Director' },
+  { code: 'ANL', title: 'Analyst' },
+  { code: 'COORD', title: 'Coordinator' },
+  { code: 'ADMIN', title: 'Admin Assistant' },
+  { code: 'QA', title: 'QA Engineer' },
+  { code: 'DEVOPS', title: 'DevOps Engineer' },
 ];
 
 const COST_CENTERS = ['CC-HQ', 'CC-BRANCH-1', 'CC-REMOTE'];
 
 export async function seedDepartments(api: ApiClient): Promise<void> {
   const departmentIds: number[] = [];
-  for (const name of DEPARTMENTS) {
-    const res = await api.post('/api/v1/company/departments', { name, description: `${name} department` });
+  for (const dept of DEPARTMENTS) {
+    const res = await api.post('/api/v1/company/departments', { code: dept.code, name: dept.name });
     departmentIds.push(res.id);
   }
 
   const positionIds: number[] = [];
-  for (const title of POSITIONS) {
+  for (const pos of POSITIONS) {
     const deptId = departmentIds[Math.floor(Math.random() * departmentIds.length)];
     const res = await api.post('/api/v1/company/positions', {
-      title,
+      code: pos.code,
+      title: pos.title,
       department_id: deptId,
-      description: `${title} role`,
     });
     positionIds.push(res.id);
   }

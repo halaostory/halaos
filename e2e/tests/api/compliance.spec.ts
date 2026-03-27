@@ -111,9 +111,7 @@ test.describe('Compliance & Tax API', () => {
   test('compliance endpoints reject unauthenticated requests', async () => {
     const noAuth = await createApiClient(BASE);
     try {
-      await expect(async () => {
-        await noAuth.get('/api/v1/compliance/sss-table');
-      }).rejects.toThrow();
+      await expect(noAuth.get('/api/v1/compliance/sss-table')).rejects.toThrow(/API error/);
     } finally {
       await noAuth.dispose();
     }

@@ -2,9 +2,9 @@ import { ApiClient } from '../fixtures/api-client';
 import { updateState } from '../fixtures/state';
 
 const PROGRAMS = [
-  { title: 'Onboarding Training', description: 'New hire orientation', type: 'onboarding' },
-  { title: 'Safety Training', description: 'Workplace safety procedures', type: 'compliance' },
-  { title: 'Leadership Workshop', description: 'Management skills development', type: 'development' },
+  { title: 'Onboarding Training', description: 'New hire orientation', training_type: 'onboarding' },
+  { title: 'Safety Training', description: 'Workplace safety procedures', training_type: 'compliance' },
+  { title: 'Leadership Workshop', description: 'Management skills development', training_type: 'development' },
 ];
 
 export async function seedTraining(api: ApiClient): Promise<void> {

@@ -2,9 +2,9 @@ import { ApiClient } from '../fixtures/api-client';
 import { updateState } from '../fixtures/state';
 
 const BENEFIT_PLANS = [
-  { name: 'Health Insurance', type: 'health', description: 'Company health insurance plan' },
-  { name: 'Dental Plan', type: 'dental', description: 'Dental coverage plan' },
-  { name: 'Life Insurance', type: 'life', description: 'Life insurance benefit' },
+  { name: 'Health Insurance', category: 'health', description: 'Company health insurance plan' },
+  { name: 'Dental Plan', category: 'dental', description: 'Dental coverage plan' },
+  { name: 'Life Insurance', category: 'life', description: 'Life insurance benefit' },
 ];
 
 export async function seedBenefits(api: ApiClient): Promise<void> {

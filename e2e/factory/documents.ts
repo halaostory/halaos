@@ -1,9 +1,9 @@
 import { ApiClient } from '../fixtures/api-client';
 
 const CATEGORIES = [
-  { name: 'Employment Contract', description: 'Employment agreements and contracts' },
-  { name: 'Government IDs', description: 'SSS, PhilHealth, Pag-IBIG, TIN documents' },
-  { name: 'Certifications', description: 'Professional certifications and training certificates' },
+  { name: 'Employment Contract', slug: 'employment-contract', description: 'Employment agreements and contracts' },
+  { name: 'Government IDs', slug: 'government-ids', description: 'SSS, PhilHealth, Pag-IBIG, TIN documents' },
+  { name: 'Certifications', slug: 'certifications', description: 'Professional certifications and training certificates' },
 ];
 
 export async function seedDocuments(api: ApiClient): Promise<void> {

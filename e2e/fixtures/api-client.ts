@@ -117,8 +117,8 @@ export class ApiClient {
 
   private async unwrap(res: APIResponse): Promise<any> {
     const body = await res.json();
-    if (body.success === false) {
-      throw new Error(`API error (${res.status()}): ${body.error?.message || JSON.stringify(body.error)}`);
+    if (!res.ok() || body.success === false) {
+      throw new Error(`API error (${res.status()}): ${body.error?.message || JSON.stringify(body.error || body)}`);
     }
     return body.data ?? body;
   }

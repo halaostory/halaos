@@ -32,8 +32,8 @@ test.describe('Company / Department / Position API', () => {
       const name = `E2E-Dept-${ts}`;
 
       const dept = await api.post('/api/v1/company/departments', {
+        code: `E2E-D-${ts}`,
         name,
-        description: `Test department created at ${ts}`,
       });
 
       expect(dept).toBeTruthy();
@@ -94,9 +94,9 @@ test.describe('Company / Department / Position API', () => {
       const deptId = state.departmentIds[0];
 
       const position = await api.post('/api/v1/company/positions', {
+        code: `E2E-P-${ts}`,
         title: `E2E-Position-${ts}`,
         department_id: deptId,
-        description: `Test position created at ${ts}`,
       });
 
       expect(position).toBeTruthy();

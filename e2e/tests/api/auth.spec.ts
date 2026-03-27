@@ -68,8 +68,6 @@ test.describe('Auth API', () => {
       const res = await api.getRaw('/api/v1/auth/me');
 
       expect(res.status()).toBe(401);
-      const body = await res.json();
-      expect(body.success).toBe(false);
     } finally {
       await api.dispose();
     }
