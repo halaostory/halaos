@@ -459,6 +459,30 @@ type BrainOutbox struct {
 	CreatedAt      time.Time          `json:"created_at"`
 }
 
+type BreakLog struct {
+	ID              int64              `json:"id"`
+	CompanyID       int64              `json:"company_id"`
+	EmployeeID      int64              `json:"employee_id"`
+	AttendanceLogID int64              `json:"attendance_log_id"`
+	BreakType       string             `json:"break_type"`
+	StartAt         time.Time          `json:"start_at"`
+	EndAt           pgtype.Timestamptz `json:"end_at"`
+	DurationMinutes *int32             `json:"duration_minutes"`
+	OvertimeMinutes *int32             `json:"overtime_minutes"`
+	Note            *string            `json:"note"`
+	CreatedAt       time.Time          `json:"created_at"`
+}
+
+type BreakPolicy struct {
+	ID         int64     `json:"id"`
+	CompanyID  int64     `json:"company_id"`
+	BreakType  string    `json:"break_type"`
+	MaxMinutes int32     `json:"max_minutes"`
+	IsActive   bool      `json:"is_active"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
 type ByokKey struct {
 	ID            uuid.UUID `json:"id"`
 	CompanyID     int64     `json:"company_id"`
