@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+
+	"github.com/tonypk/aigonhr/internal/bot"
 )
 
 // Sender implements bot.MessageSender for Telegram.
@@ -64,6 +66,28 @@ func (s *Sender) AnswerCallback(ctx context.Context, callbackID string, text str
 	return s.send(ctx, "answerCallbackQuery", map[string]any{
 		"callback_query_id": callbackID,
 		"text":              text,
+	})
+}
+
+func (s *Sender) SendWithKeyboard(ctx context.Context, chatID string, text string, buttons [][]bot.InlineButton) error {
+	var rows [][]InlineKeyboardButton
+	for _, row := range buttons {
+		var kbRow []InlineKeyboardButton
+		for _, btn := range row {
+			kbRow = append(kbRow, InlineKeyboardButton{
+				Text:         btn.Text,
+				CallbackData: btn.CallbackData,
+			})
+		}
+		rows = append(rows, kbRow)
+	}
+
+	keyboard := InlineKeyboardMarkup{InlineKeyboard: rows}
+
+	return s.send(ctx, "sendMessage", map[string]any{
+		"chat_id":      chatID,
+		"text":         text,
+		"reply_markup": keyboard,
 	})
 }
 

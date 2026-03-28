@@ -2,11 +2,18 @@ package bot
 
 import "context"
 
+// InlineButton represents an inline keyboard button (platform-agnostic).
+type InlineButton struct {
+	Text         string
+	CallbackData string
+}
+
 // MessageSender abstracts sending messages to a chat platform (Telegram, WhatsApp, etc.).
 type MessageSender interface {
 	SendText(ctx context.Context, chatID string, text string) error
 	SendMarkdown(ctx context.Context, chatID string, markdown string) error
 	SendDraftConfirmation(ctx context.Context, chatID string, text string, draftID string) error
+	SendWithKeyboard(ctx context.Context, chatID string, text string, buttons [][]InlineButton) error
 	EditMessage(ctx context.Context, chatID string, messageID int, text string) error
 	AnswerCallback(ctx context.Context, callbackID string, text string) error
 }

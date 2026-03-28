@@ -91,6 +91,18 @@ func (d *Dispatcher) HandleCallback(ctx context.Context, cb CallbackQuery, sende
 		return
 	}
 
+	// Handle break callbacks (prefix "bk:")
+	if strings.HasPrefix(data, "bk:") {
+		breakAction := data[3:]
+		if breakAction == "end" {
+			d.handleBreakEndCallback(ctx, cb, identity, sender)
+		} else {
+			// breakAction is the break type (meal, bathroom, rest, leave_post)
+			d.handleBreakTypeCallback(ctx, cb, identity, breakAction, sender)
+		}
+		return
+	}
+
 	action := data[:2]   // "dc" = confirm, "dr" = reject
 	draftIDStr := data[3:] // skip the colon
 
@@ -160,6 +172,9 @@ Your Telegram is now connected to AIGoNHR. Here's what you can do:
 /balance — Check your leave balances
 /payslip — View your latest payslip
 /clock — Clock in or out (share your location for GPS tracking)
+/break — Start a break (meal, bathroom, rest, leave post)
+/break_end — End current break
+/break_status — Check if you're on break
 /leave <reason> — Request leave via AI (e.g. /leave sick leave tomorrow)
 /new — Start a fresh conversation
 /help — Show command list
@@ -194,6 +209,12 @@ func (d *Dispatcher) dispatchCommand(ctx context.Context, msg IncomingMessage, i
 		d.handleClock(ctx, msg, identity, sender)
 	case "leave":
 		d.handleLeaveRequest(ctx, msg, identity, sender)
+	case "break":
+		d.handleBreakStart(ctx, msg, identity, sender)
+	case "break_end":
+		d.handleBreakEnd(ctx, msg, identity, sender)
+	case "break_status":
+		d.handleBreakStatus(ctx, msg, identity, sender)
 	case "new":
 		d.handleNewSession(ctx, msg, identity, sender)
 	default:
@@ -206,6 +227,9 @@ func (d *Dispatcher) handleHelp(ctx context.Context, msg IncomingMessage, sender
 /balance - Check leave balances
 /payslip - View latest payslip
 /clock - Clock in/out (share location)
+/break - Start a break (meal, bathroom, rest, leave post)
+/break_end - End current break
+/break_status - Check active break
 /leave <description> - Request leave via AI
 /new - Start a new conversation
 /help - Show this help
