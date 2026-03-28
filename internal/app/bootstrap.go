@@ -36,6 +36,7 @@ import (
 	"github.com/tonypk/aigonhr/internal/announcement"
 	"github.com/tonypk/aigonhr/internal/approval"
 	"github.com/tonypk/aigonhr/internal/attendance"
+	"github.com/tonypk/aigonhr/internal/breaks"
 	"github.com/tonypk/aigonhr/internal/audit"
 	"github.com/tonypk/aigonhr/internal/auth"
 	"github.com/tonypk/aigonhr/internal/benefits"
@@ -242,6 +243,7 @@ func (a *App) setupRoutes() {
 	companyHandler := company.NewHandler(a.Queries, a.Pool, a.Logger)
 	employeeHandler := employee.NewHandler(a.Queries, a.Pool, a.Logger)
 	attendanceHandler := attendance.NewHandler(a.Queries, a.Pool, a.Logger, a.Redis)
+	breaksHandler := breaks.NewHandler(a.Queries, a.Pool, a.Logger, a.Redis)
 	leaveHandler := leave.NewHandler(a.Queries, a.Pool, a.Logger, a.Email)
 	overtimeHandler := overtime.NewHandler(a.Queries, a.Pool, a.Logger)
 	payrollHandler := payroll.NewHandler(a.Queries, a.Pool, a.Logger)
@@ -362,6 +364,7 @@ func (a *App) setupRoutes() {
 	companyHandler.RegisterRoutes(protected)
 	employeeHandler.RegisterRoutes(protected)
 	attendanceHandler.RegisterRoutes(protected)
+	breaksHandler.RegisterRoutes(protected)
 	leaveHandler.RegisterRoutes(protected)
 	overtimeHandler.RegisterRoutes(protected)
 	payrollHandler.RegisterRoutes(protected)
