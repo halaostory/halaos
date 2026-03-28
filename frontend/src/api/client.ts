@@ -274,6 +274,30 @@ export const attendanceAPI = {
     post(`/v1/attendance/corrections/${id}/reject`, { note }),
 };
 
+// Break Tracking
+export const breakAPI = {
+  startBreak: (data: { break_type: string; note?: string }) =>
+    post("/v1/attendance/breaks/start", data),
+  endBreak: () =>
+    post("/v1/attendance/breaks/end", {}),
+  listBreaks: (params?: Record<string, string>) =>
+    get("/v1/attendance/breaks", params),
+  getActiveBreak: () =>
+    get("/v1/attendance/breaks/active"),
+  listPolicies: () =>
+    get("/v1/attendance/break-policies"),
+  upsertPolicies: (data: { policies: Array<{ break_type: string; max_minutes: number }> }) =>
+    put("/v1/attendance/break-policies", data),
+  downloadMonthlyReport: async (year: number, month: number) => {
+    const baseURL = import.meta.env.VITE_API_URL || "/api";
+    const token = localStorage.getItem("access_token");
+    const resp = await fetch(`${baseURL}/v1/attendance/report/monthly?year=${year}&month=${month}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return resp.blob();
+  },
+};
+
 // Leave
 export const leaveAPI = {
   listTypes: () => get("/v1/leaves/types"),

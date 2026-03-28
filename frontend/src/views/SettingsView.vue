@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { NCard, NForm, NFormItem, NInput, NSelect, NButton, NSpace, NUpload, NAvatar, NSwitch, NTag, NPopconfirm, NEmpty, NAlert, useMessage } from 'naive-ui'
+import { NCard, NForm, NFormItem, NInput, NInputNumber, NSelect, NButton, NSpace, NUpload, NAvatar, NSwitch, NTag, NPopconfirm, NEmpty, NAlert, useMessage } from 'naive-ui'
 import type { UploadFileInfo } from 'naive-ui'
-import { companyAPI, botAPI, byokAPI, apiKeyAPI } from '../api/client'
+import { companyAPI, botAPI, byokAPI, apiKeyAPI, breakAPI } from '../api/client'
 import { useAuthStore } from '../stores/auth'
 
 const { t } = useI18n()
@@ -336,6 +336,57 @@ function copyToClipboard(text: string) {
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString()
 }
+
+// Break Policy Management
+const breakPolicies = ref([
+  { break_type: 'meal', max_minutes: 0 },
+  { break_type: 'bathroom', max_minutes: 0 },
+  { break_type: 'rest', max_minutes: 0 },
+  { break_type: 'leave_post', max_minutes: 0 },
+])
+const breakPolicySaving = ref(false)
+
+const breakTypeLabels: Record<string, string> = {
+  meal: 'break.meal',
+  bathroom: 'break.bathroom',
+  rest: 'break.rest',
+  leave_post: 'break.leavePost',
+}
+
+async function loadBreakPolicies() {
+  try {
+    const res = await breakAPI.listPolicies() as { data?: Array<{ break_type: string; max_minutes: number }> }
+    const data = (res as any)?.data ?? res
+    if (Array.isArray(data) && data.length > 0) {
+      for (const policy of data) {
+        const existing = breakPolicies.value.find(p => p.break_type === policy.break_type)
+        if (existing) {
+          existing.max_minutes = policy.max_minutes
+        }
+      }
+    }
+  } catch {
+    // no policies yet
+  }
+}
+
+async function saveBreakPolicies() {
+  breakPolicySaving.value = true
+  try {
+    await breakAPI.upsertPolicies({ policies: breakPolicies.value })
+    message.success(t('break.policiesSaved'))
+  } catch {
+    message.error(t('settings.saveFailed'))
+  } finally {
+    breakPolicySaving.value = false
+  }
+}
+
+onMounted(() => {
+  if (authStore.user?.role === 'admin' || authStore.user?.role === 'super_admin') {
+    loadBreakPolicies()
+  }
+})
 </script>
 
 <template>
@@ -458,6 +509,19 @@ function formatDate(dateStr: string) {
         <NButton type="primary" :loading="loading" attr-type="submit">{{ t('common.save') }}</NButton>
       </NForm>
     </NCard>
+    <!-- Break Policies (Admin only) -->
+    <NCard v-if="authStore.user?.role === 'admin' || authStore.user?.role === 'super_admin'" :title="t('break.policies')" style="margin-top: 24px;">
+      <NForm @submit.prevent="saveBreakPolicies" label-placement="left" label-width="140">
+        <NFormItem v-for="policy in breakPolicies" :key="policy.break_type" :label="t(breakTypeLabels[policy.break_type] || policy.break_type)">
+          <NInputNumber v-model:value="policy.max_minutes" :min="0" :max="480" style="width: 200px;">
+            <template #suffix>{{ t('break.minutes') }}</template>
+          </NInputNumber>
+          <span style="margin-left: 8px; color: #999; font-size: 12px;">{{ t('break.maxMinutes') }}</span>
+        </NFormItem>
+        <NButton type="primary" :loading="breakPolicySaving" attr-type="submit">{{ t('break.savePolicies') }}</NButton>
+      </NForm>
+    </NCard>
+
     <!-- Bot Configuration -->
     <NCard :title="t('settings.botConfig')" style="margin-top: 24px;">
       <NForm @submit.prevent="saveBotConfig" label-placement="left" label-width="140">

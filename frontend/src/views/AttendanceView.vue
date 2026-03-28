@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { ref, h, onMounted } from 'vue'
+import { ref, h, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import {
   NCard, NButton, NSpace, NTag, NInput, NDescriptions, NDescriptionsItem,
-  NModal, NForm, NFormItem, NDatePicker, NDataTable, NAlert, useMessage,
+  NModal, NForm, NFormItem, NDatePicker, NDataTable, NAlert, NInputNumber, useMessage,
   type DataTableColumns,
 } from 'naive-ui'
-import { attendanceAPI, geofenceAPI } from '../api/client'
+import { attendanceAPI, geofenceAPI, breakAPI } from '../api/client'
 import EmptyState from '../components/EmptyState.vue'
 import { format } from 'date-fns'
 import { useAuthStore } from '../stores/auth'
@@ -75,6 +75,9 @@ onMounted(async () => {
   } catch (e) {
     console.error('Failed to load attendance summary', e)
   }
+  if (clockedIn.value) {
+    loadBreakState()
+  }
   checkGeofenceEnabled()
   loadMyCorrections()
   if (authStore.user?.role === 'admin' || authStore.user?.role === 'manager') {
@@ -99,6 +102,7 @@ async function clockIn() {
     message.success(t('attendance.clockedInSuccess'))
     const res = await attendanceAPI.getSummary() as { data?: Record<string, unknown> }
     summary.value = res.data || res as unknown as Record<string, unknown>
+    loadBreakState()
   } catch (e: unknown) {
     const err = e as { data?: { error?: { message?: string } } }
     message.error(err.data?.error?.message || t('common.saveFailed'))
@@ -263,6 +267,183 @@ const myCorrectionColumns: DataTableColumns<Correction> = [
   },
 ]
 
+// Break Tracking
+interface BreakLog {
+  id: number
+  break_type: string
+  start_time: string
+  end_time: string | null
+  duration_minutes: number | null
+  note: string | null
+}
+
+const breakTypes = ['meal', 'bathroom', 'rest', 'leave_post'] as const
+const breakTypeLabel: Record<string, string> = {
+  meal: 'break.meal',
+  bathroom: 'break.bathroom',
+  rest: 'break.rest',
+  leave_post: 'break.leavePost',
+}
+
+const activeBreak = ref<BreakLog | null>(null)
+const todayBreaks = ref<BreakLog[]>([])
+const breakLoading = ref(false)
+const breakElapsed = ref('')
+let breakInterval: ReturnType<typeof setInterval> | null = null
+
+function updateBreakTimer() {
+  if (!activeBreak.value) {
+    breakElapsed.value = ''
+    return
+  }
+  const start = new Date(activeBreak.value.start_time).getTime()
+  const now = Date.now()
+  const diffSec = Math.floor((now - start) / 1000)
+  const mins = Math.floor(diffSec / 60)
+  const secs = diffSec % 60
+  breakElapsed.value = `${mins}:${secs.toString().padStart(2, '0')}`
+}
+
+function startBreakTimer() {
+  stopBreakTimer()
+  updateBreakTimer()
+  breakInterval = setInterval(updateBreakTimer, 1000)
+}
+
+function stopBreakTimer() {
+  if (breakInterval) {
+    clearInterval(breakInterval)
+    breakInterval = null
+  }
+  breakElapsed.value = ''
+}
+
+onUnmounted(() => {
+  stopBreakTimer()
+})
+
+async function loadBreakState() {
+  try {
+    const res = await breakAPI.getActiveBreak() as { data?: BreakLog | null }
+    const data = (res as any)?.data ?? res
+    activeBreak.value = data && typeof data === 'object' && 'id' in data ? data as BreakLog : null
+    if (activeBreak.value) {
+      startBreakTimer()
+    }
+  } catch {
+    activeBreak.value = null
+  }
+  try {
+    const today = format(new Date(), 'yyyy-MM-dd')
+    const res = await breakAPI.listBreaks({ date: today }) as { data?: BreakLog[] }
+    const data = (res as any)?.data ?? res
+    todayBreaks.value = Array.isArray(data) ? data : []
+  } catch {
+    todayBreaks.value = []
+  }
+}
+
+async function handleStartBreak(breakType: string) {
+  if (!clockedIn.value) {
+    message.warning(t('break.mustClockIn'))
+    return
+  }
+  if (activeBreak.value) {
+    message.warning(t('break.alreadyOnBreak'))
+    return
+  }
+  breakLoading.value = true
+  try {
+    await breakAPI.startBreak({ break_type: breakType })
+    message.success(t('break.breakStarted'))
+    await loadBreakState()
+  } catch (e: unknown) {
+    const err = e as { data?: { error?: { message?: string } } }
+    message.error(err.data?.error?.message || t('common.failed'))
+  } finally {
+    breakLoading.value = false
+  }
+}
+
+async function handleEndBreak() {
+  breakLoading.value = true
+  try {
+    await breakAPI.endBreak()
+    message.success(t('break.breakEnded'))
+    stopBreakTimer()
+    activeBreak.value = null
+    await loadBreakState()
+  } catch (e: unknown) {
+    const err = e as { data?: { error?: { message?: string } } }
+    message.error(err.data?.error?.message || t('common.failed'))
+  } finally {
+    breakLoading.value = false
+  }
+}
+
+function formatBreakDuration(minutes: number | null): string {
+  if (minutes == null) return '-'
+  if (minutes < 60) return `${minutes} ${t('break.minutes')}`
+  const hrs = Math.floor(minutes / 60)
+  const mins = minutes % 60
+  return `${hrs} ${t('break.hours')} ${mins > 0 ? `${mins} ${t('break.minutes')}` : ''}`
+}
+
+const breakColumns: DataTableColumns<BreakLog> = [
+  {
+    title: () => t('break.type'),
+    key: 'break_type',
+    width: 120,
+    render: (row) => h(NTag, { size: 'small' }, { default: () => t(breakTypeLabel[row.break_type] || row.break_type) }),
+  },
+  {
+    title: () => t('break.start'),
+    key: 'start_time',
+    width: 100,
+    render: (row) => fmtTime(row.start_time),
+  },
+  {
+    title: () => t('break.end'),
+    key: 'end_time',
+    width: 100,
+    render: (row) => fmtTime(row.end_time),
+  },
+  {
+    title: () => t('break.duration'),
+    key: 'duration_minutes',
+    width: 120,
+    render: (row) => formatBreakDuration(row.duration_minutes),
+  },
+  {
+    title: () => t('break.note'),
+    key: 'note',
+    ellipsis: { tooltip: true },
+    render: (row) => row.note || '-',
+  },
+]
+
+// Monthly Break Report Download
+const reportYear = ref(new Date().getFullYear())
+const reportMonth = ref(new Date().getMonth() + 1)
+const reportLoading = ref(false)
+
+async function handleDownloadReport() {
+  reportLoading.value = true
+  try {
+    const blob = await breakAPI.downloadMonthlyReport(reportYear.value, reportMonth.value)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `break_report_${reportYear.value}_${String(reportMonth.value).padStart(2, '0')}.xlsx`
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch {
+    message.error(t('common.failed'))
+  } finally {
+    reportLoading.value = false
+  }
+}
+
 const pendingCorrectionColumns: DataTableColumns<Correction> = [
   {
     title: () => t('employee.name'),
@@ -344,6 +525,49 @@ const pendingCorrectionColumns: DataTableColumns<Correction> = [
           </template>
           <NTag v-if="locationStatus === 'acquiring'" size="small">{{ t('attendance.acquiringLocation') }}</NTag>
         </NSpace>
+      </NSpace>
+    </NCard>
+
+    <!-- Break Tracking (visible when clocked in) -->
+    <template v-if="clockedIn">
+      <NCard :title="t('break.title')" style="margin-bottom: 16px;">
+        <!-- Active Break -->
+        <div v-if="activeBreak" style="margin-bottom: 16px;">
+          <NSpace align="center" :size="12">
+            <NTag type="warning" size="large">{{ t('break.activeBreak') }}: {{ t(breakTypeLabel[activeBreak.break_type] || activeBreak.break_type) }}</NTag>
+            <span style="font-size: 24px; font-weight: bold; font-family: monospace;">{{ breakElapsed }}</span>
+            <NButton type="error" :loading="breakLoading" @click="handleEndBreak">{{ t('break.endBreak') }}</NButton>
+          </NSpace>
+        </div>
+
+        <!-- Break Type Selection -->
+        <div v-else>
+          <p style="margin: 0 0 8px 0; color: #666;">{{ t('break.selectType') }}</p>
+          <NSpace>
+            <NButton v-for="bt in breakTypes" :key="bt" :loading="breakLoading" @click="handleStartBreak(bt)">
+              {{ t(breakTypeLabel[bt]) }}
+            </NButton>
+          </NSpace>
+        </div>
+      </NCard>
+
+      <!-- Today's Breaks -->
+      <NCard v-if="todayBreaks.length > 0" :title="t('break.todayBreaks')" style="margin-bottom: 16px;">
+        <NDataTable
+          :columns="breakColumns"
+          :data="todayBreaks"
+          :row-key="(row: any) => row.id"
+          size="small"
+        />
+      </NCard>
+    </template>
+
+    <!-- Monthly Break Report (Manager/Admin) -->
+    <NCard v-if="authStore.isManager" :title="t('break.monthlyReport')" style="margin-bottom: 16px;">
+      <NSpace align="center" :size="12">
+        <NInputNumber v-model:value="reportYear" :min="2020" :max="2099" style="width: 100px;" />
+        <NInputNumber v-model:value="reportMonth" :min="1" :max="12" style="width: 80px;" />
+        <NButton type="primary" :loading="reportLoading" @click="handleDownloadReport">{{ t('break.downloadReport') }}</NButton>
       </NSpace>
     </NCard>
 
