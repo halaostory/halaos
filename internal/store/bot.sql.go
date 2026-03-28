@@ -320,6 +320,44 @@ func (q *Queries) ListBotUserLinks(ctx context.Context, companyID int64) ([]BotU
 	return items, nil
 }
 
+const listBotUserLinksByCompany = `-- name: ListBotUserLinksByCompany :many
+SELECT id, platform, platform_user_id, user_id, company_id, link_code, link_code_exp, verified_at, locale, active_session_id, created_at, updated_at FROM bot_user_links
+WHERE company_id = $1 AND verified_at IS NOT NULL
+`
+
+func (q *Queries) ListBotUserLinksByCompany(ctx context.Context, companyID int64) ([]BotUserLink, error) {
+	rows, err := q.db.Query(ctx, listBotUserLinksByCompany, companyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []BotUserLink{}
+	for rows.Next() {
+		var i BotUserLink
+		if err := rows.Scan(
+			&i.ID,
+			&i.Platform,
+			&i.PlatformUserID,
+			&i.UserID,
+			&i.CompanyID,
+			&i.LinkCode,
+			&i.LinkCodeExp,
+			&i.VerifiedAt,
+			&i.Locale,
+			&i.ActiveSessionID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const regenerateLinkCode = `-- name: RegenerateLinkCode :one
 UPDATE bot_user_links SET
     link_code = $2,

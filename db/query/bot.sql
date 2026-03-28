@@ -86,3 +86,7 @@ RETURNING *;
 SELECT * FROM bot_user_links
 WHERE company_id = $1
 ORDER BY created_at DESC;
+
+-- name: ListBotUserLinksByCompany :many
+SELECT * FROM bot_user_links
+WHERE company_id = $1 AND verified_at IS NOT NULL;
