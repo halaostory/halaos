@@ -14,7 +14,7 @@
             <router-link to="/register" class="btn-primary">Get Started Free</router-link>
             <router-link to="/tools" class="btn-outline">Try Free Calculators</router-link>
           </div>
-          <p class="hero-note">No credit card required &middot; Set up in 2 minutes &middot; Free forever</p>
+          <p class="hero-note">No credit card required &middot; Set up in 2 minutes &middot; Free forever &middot; Web, CLI, MCP &amp; Bots</p>
         </div>
       </div>
     </section>
@@ -358,6 +358,7 @@ const features = [
   { icon: '📅', title: 'Time & Attendance', desc: 'GPS clock-in, geofencing, shift scheduling, overtime tracking, and DTR reports.' },
   { icon: '🧾', title: 'Invoices & Receipts', desc: 'Upload receipts, manage invoices, classify transactions, and track vendor spending.' },
   { icon: '🎯', title: 'Performance & Goals', desc: 'KPI tracking, performance reviews, OKRs, training management, and career development.' },
+  { icon: '🔌', title: 'CLI, MCP & Bots', desc: 'Terminal CLI, MCP for AI tools (Claude Code), plus Lark, Slack & Telegram bots — access HR from anywhere your team works.' },
 ]
 
 const steps = [
@@ -371,8 +372,9 @@ const aiFeatures = [
   'Finance: Auto-classify transactions and map to chart of accounts',
   'HR: Auto-compute 13th month pay, final pay, separation pay',
   'Finance: Generate BIR forms from GL data with one click',
-  'Both: Compliance monitoring & deadline reminders across HR and tax',
-  'Both: AI agents for filing, reconciliation, and journal entries',
+  'CLI: Run payroll, export reports, and manage employees from your terminal',
+  'MCP: Connect AI agents (Claude Code, etc.) directly to your HR data',
+  'Bots: Clock in, check leave, approve requests from Lark, Slack & Telegram',
 ]
 
 const compareRows = [
@@ -386,6 +388,8 @@ const compareRows = [
   { feature: 'AI Features', halaos: 'HR + Finance', sprout: 'No', swingvy: 'No', juantax: 'No' },
   { feature: 'Multi-country', halaos: '5 countries', sprout: 'PH only', swingvy: 'SG/MY', juantax: 'PH only' },
   { feature: 'Employee limit', halaos: 'Unlimited', sprout: 'Plan-based', swingvy: 'Plan-based', juantax: 'N/A' },
+  { feature: 'CLI & MCP', halaos: 'Yes', sprout: 'No', swingvy: 'No', juantax: 'No' },
+  { feature: 'Chat Bots (Lark/Slack/TG)', halaos: 'Yes', sprout: 'No', swingvy: 'Slack only', juantax: 'No' },
 ]
 
 const toolLinks = [
@@ -699,7 +703,7 @@ const toolLinks = [
 .features { padding: 80px 0; }
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 24px;
 }
 .feature-card {

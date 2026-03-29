@@ -83,7 +83,7 @@ import { useHead } from '@unhead/vue'
 useHead({
   title: 'Features - HalaOS',
   meta: [
-    { name: 'description', content: 'Explore HalaOS features: HR management, automated payroll, tax compliance, AI-powered insights, and more. Built for businesses in Southeast Asia and the US.' },
+    { name: 'description', content: 'Explore HalaOS features: HR management, automated payroll, tax compliance, AI-powered insights, CLI, MCP integration, and Lark/Slack/Telegram bots. Built for businesses in Southeast Asia and the US.' },
     { property: 'og:title', content: 'Features - HalaOS' },
     { property: 'og:description', content: 'Every tool you need to manage employees, run payroll, and stay compliant — all in one place.' },
     { property: 'og:url', content: 'https://halaos.com/features' },
@@ -181,6 +181,36 @@ const categories = [
     ],
     mockupLines: [85, 75, 90, 65, 80, 70],
   },
+  {
+    id: 'developer',
+    label: 'Developer Tools',
+    title: 'CLI, MCP & REST API',
+    desc: 'Full developer experience — manage HR from your terminal, connect AI tools via MCP, or build custom integrations with the REST API.',
+    items: [
+      'HalaOS CLI — employees, payroll, leave, tax forms from terminal',
+      'MCP server for Claude Code, Cursor & AI IDEs',
+      'REST API with read-only (Free) or full CRUD (Pro)',
+      'Webhook events for payroll, employee changes',
+      'OpenClaw skill — use as AI HR agent with zero setup',
+      'Go SDK & API key authentication',
+    ],
+    mockupLines: [90, 80, 70, 85, 75, 60],
+  },
+  {
+    id: 'bots',
+    label: 'Messaging Bots',
+    title: 'HR in your team chat',
+    desc: 'Access HalaOS directly from Lark, Slack, or Telegram. Employees can clock in, check leave, and managers can approve requests — all from chat.',
+    items: [
+      'Lark bot — clock in/out, leave requests, announcements',
+      'Slack bot — attendance, approvals, HR queries',
+      'Telegram bot — mobile-friendly HR for field teams',
+      'Automated reminders & compliance alerts in chat',
+      'Natural language HR queries in any channel',
+      'Manager approval workflows without leaving chat',
+    ],
+    mockupLines: [75, 85, 70, 90, 65, 80],
+  },
 ]
 
 const integrations = [
@@ -192,6 +222,10 @@ const integrations = [
   { icon: '🔗', name: 'REST API' },
   { icon: '📱', name: 'Mobile App' },
   { icon: '🧮', name: 'Accounting' },
+  { icon: '⌨️', name: 'CLI' },
+  { icon: '🤖', name: 'MCP (AI Tools)' },
+  { icon: '🐦', name: 'Lark' },
+  { icon: '✈️', name: 'Telegram' },
 ]
 
 const securityFeatures = [
@@ -341,7 +375,7 @@ const securityFeatures = [
 .int-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+  gap: 16px 12px;
 }
 .int-card {
   display: flex;

@@ -175,6 +175,8 @@ const freeTierFeatures = [
   'Leave & attendance management',
   'Digital payslips',
   'Basic AI assistant',
+  'CLI access (read + basic operations)',
+  'Lark, Slack & Telegram bots',
   'CSV/Excel data export',
   'Email support',
   '1-year data history',
@@ -187,7 +189,8 @@ const proTierFeatures = [
   'Advanced workforce reports',
   'Custom approval workflows',
   'White-label PDF exports',
-  'API access (full CRUD)',
+  'Full API access (CRUD) & CLI',
+  'MCP server for Claude Code & AI IDEs',
   'Priority email support',
   '5-year data history',
   'Performance reviews & KPIs',
@@ -202,6 +205,7 @@ const enterpriseTierFeatures = [
   'SLA guarantee (99.9% uptime)',
   'Audit support & compliance consulting',
   'Custom AI agent workflows',
+  'Custom MCP tools & bot workflows',
   'On-premise deployment option',
 ]
 
@@ -218,6 +222,9 @@ const comparisonRows = [
   { feature: 'API Access', free: 'Read-only', pro: 'Full CRUD', enterprise: 'Full + webhooks' },
   { feature: 'Data History', free: '1 year', pro: '5 years', enterprise: 'Unlimited' },
   { feature: 'Integrations', free: 'CSV export', pro: 'Banks, Slack, QB', enterprise: 'Custom' },
+  { feature: 'CLI', free: 'Basic', pro: 'Full', enterprise: 'Full + custom' },
+  { feature: 'MCP (AI Tools)', free: 'Read-only', pro: 'Full access', enterprise: 'Custom tools' },
+  { feature: 'Chat Bots', free: 'Lark, Slack, TG', pro: 'Lark, Slack, TG', enterprise: 'Custom bots' },
 ]
 
 const competitors = [
@@ -259,6 +266,8 @@ const faqs = [
   { q: 'Can I export my data anytime?', a: 'Yes. All plans include data export in Excel, CSV, or PDF format. Your data belongs to you, always.' },
   { q: 'Do you offer discounts for annual billing?', a: 'Yes, annual billing saves 20% on Pro and Enterprise plans.' },
   { q: 'Is HalaOS PSG-approved in Singapore?', a: 'We are currently applying for PSG (Productivity Solutions Grant) approval. Once approved, Singapore SMEs can claim up to 50% co-funding on Pro and Enterprise plans.' },
+  { q: 'What are CLI and MCP?', a: 'The HalaOS CLI lets you manage employees, run payroll, and generate tax forms from your terminal. MCP (Model Context Protocol) lets AI tools like Claude Code and Cursor connect directly to your HR data, so AI can help you manage HR tasks. Both are included in all plans.' },
+  { q: 'Which messaging bots are supported?', a: 'HalaOS integrates with Lark, Slack, and Telegram. Employees can clock in/out, check leave balances, and submit requests directly from chat. Managers can approve requests without leaving their messaging app.' },
 ]
 </script>
 
