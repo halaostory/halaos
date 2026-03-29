@@ -9,8 +9,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/tonypk/aigonhr/internal/notification"
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/notification"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 // generateComplianceAlerts scans all companies for compliance risks and upserts

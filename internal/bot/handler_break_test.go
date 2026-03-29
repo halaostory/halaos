@@ -8,8 +8,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/tonypk/aigonhr/internal/store"
-	"github.com/tonypk/aigonhr/internal/testutil"
+	"github.com/halaostory/halaos/internal/store"
+	"github.com/halaostory/halaos/internal/testutil"
 )
 
 type mockSender struct {
@@ -105,7 +105,7 @@ func TestHandleBreakStart_NotClockedIn(t *testing.T) {
 	msg := IncomingMessage{ChatID: "123", Platform: "telegram"}
 	d.handleBreakStart(context.Background(), msg, identity, sender)
 
-	if len(sender.texts) == 0 || sender.texts[0] != "❌ 请先打卡上班" {
+	if len(sender.texts) == 0 || sender.texts[0] != "❌ Please clock in first" {
 		t.Fatalf("expected not clocked in message, got: %v", sender.texts)
 	}
 }
@@ -181,7 +181,7 @@ func TestHandleBreakEnd_NoActiveBreak(t *testing.T) {
 	msg := IncomingMessage{ChatID: "123", Platform: "telegram"}
 	d.handleBreakEnd(context.Background(), msg, identity, sender)
 
-	if len(sender.texts) == 0 || sender.texts[0] != "❌ 没有进行中的休息" {
+	if len(sender.texts) == 0 || sender.texts[0] != "❌ No active break" {
 		t.Fatalf("expected no active break message, got: %v", sender.texts)
 	}
 }
@@ -216,7 +216,7 @@ func TestHandleBreakStatus_NoBreak(t *testing.T) {
 	msg := IncomingMessage{ChatID: "123", Platform: "telegram"}
 	d.handleBreakStatus(context.Background(), msg, identity, sender)
 
-	if len(sender.texts) == 0 || sender.texts[0] != "✅ 没有进行中的休息" {
+	if len(sender.texts) == 0 || sender.texts[0] != "✅ No active break" {
 		t.Fatalf("expected no break message, got: %v", sender.texts)
 	}
 }
@@ -238,7 +238,7 @@ func TestHandleBreakStatus_ActiveBreak(t *testing.T) {
 	if len(sender.texts) == 0 {
 		t.Fatal("expected status message, got none")
 	}
-	if sender.texts[0] == "✅ 没有进行中的休息" {
+	if sender.texts[0] == "✅ No active break" {
 		t.Fatal("should report active break, not no break")
 	}
 }

@@ -36,7 +36,7 @@ func NewJWTService(secret string, expiry, refreshExpiry time.Duration) *JWTServi
 		secret:        secret,
 		expiry:        expiry,
 		refreshExpiry: refreshExpiry,
-		issuer:        "aigonhr",
+		issuer:        "halaos",
 	}
 }
 

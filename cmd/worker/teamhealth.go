@@ -7,9 +7,9 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/tonypk/aigonhr/internal/analytics/teamhealth"
-	"github.com/tonypk/aigonhr/internal/integration"
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/analytics/teamhealth"
+	"github.com/halaostory/halaos/internal/integration"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 // calculateTeamHealth scores each department's health weekly (Monday only).

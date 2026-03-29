@@ -10,8 +10,8 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/tonypk/aigonhr/internal/integration"
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/integration"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 // snapshotScoreHistory copies current scores into history tables and computes org-level aggregates.

@@ -1,129 +1,111 @@
-# AIGoNHR
+# HalaOS
 
-Go + Vue 3 HR management system for Philippine companies. Covers payroll, attendance, leave, compliance (SSS/PhilHealth/Pag-IBIG/BIR), and 30+ HR modules.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+AI-powered HR Operating System for Southeast Asia.
+
+HalaOS is a full-featured HR platform with payroll processing, attendance tracking, leave management, tax compliance, and 9 specialized AI agents — built for Philippine, Singaporean, and Sri Lankan labor law.
+
+## Features
+
+- **Employee Management** — Profiles, 201 files, org chart, directory
+- **Attendance & Time** — Clock in/out, GPS geofencing, shift scheduling, DTR reports
+- **Leave Management** — Balances, requests, approvals, calendar, carryover, encashment
+- **Payroll** — Multi-frequency cycles, automated computation, payslips, 13th month pay, final pay
+- **Tax Compliance** — PH (SSS, PhilHealth, Pag-IBIG, BIR), SG (CPF, IRAS), LK (EPF/ETF)
+- **Government Forms** — BIR 2316/2550M/2550Q/1601C/1701/1702/0619E/SAWT
+- **Benefits & Loans** — Plan enrollment, claims, amortization, salary deduction
+- **Training & Performance** — Programs, certifications, KPIs, review cycles
+- **Onboarding/Offboarding** — Checklists, clearance workflows, final pay
+- **9 AI Agents** — HR assistant, payroll specialist, compliance officer, leave advisor, and more
+- **Org Intelligence** — Flight risk detection, burnout risk, team health, blind spot analysis
+- **Multi-tenant** — Company isolation with role-based access control
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Go 1.25, Gin, sqlc, pgx v5 |
-| Frontend | Vue 3, TypeScript, Naive UI, Vite |
-| Database | PostgreSQL 16, 31 migrations |
+| Backend | Go 1.25, Gin, sqlc, pgx/v5 |
+| Frontend | Vue 3, TypeScript, NaiveUI |
+| Database | PostgreSQL 16 |
 | Cache | Redis 7 |
-| Auth | JWT (access + refresh tokens) |
-| AI | Claude API (optional) |
-| Deploy | Docker Compose |
-| CI | GitHub Actions |
+| AI | Claude API (Anthropic) |
+| Infra | Docker Compose |
 
 ## Quick Start
 
 ```bash
-# 1. Start databases
+# Clone the repository
+git clone https://github.com/halaostory/halaos.git
+cd halaos
+
+# Start PostgreSQL and Redis
 docker compose up -d
 
-# 2. Copy and edit env
+# Configure environment
 cp .env.example .env
+# Edit .env — set JWT_SECRET and POSTGRES_PASSWORD (required)
 
-# 3. Run migrations
-make migrate-up
+# Run migrations
+go run ./cmd/migrate -cmd up
 
-# 4. Start API server
-make run
+# Start API server
+go run ./cmd/api
 
-# 5. Start frontend (separate terminal)
+# Start worker (separate terminal)
+go run ./cmd/worker
+
+# Start frontend (separate terminal)
 cd frontend && npm install && npm run dev
 ```
 
-API: `http://localhost:8080/api/v1`
-Frontend: `http://localhost:5173`
-
-## Modules
-
-| Module | Description |
-|--------|------------|
-| Auth | Login, JWT, roles (admin/hr/manager/employee) |
-| Employee | CRUD, departments, positions, employment history |
-| Attendance | Clock in/out, shifts, schedules, geofencing |
-| Leave | Types, balances, requests, approvals, carryover |
-| Overtime | Requests, approvals, rate calculation |
-| Payroll | Cycles, computation, payslips, 13th month |
-| Compliance | SSS, PhilHealth, Pag-IBIG, BIR tax tables |
-| Benefits | Enrollment, plans, dependents |
-| Loans | Applications, amortization, deductions |
-| Performance | Reviews, KPIs, goals |
-| Onboarding | Checklists, task tracking |
-| Training | Programs, enrollment, completion |
-| Disciplinary | Cases, hearings, sanctions |
-| Grievance | Filing, investigation, resolution |
-| Expense | Claims, receipts, reimbursement |
-| Documents | Employee files, expiry tracking |
-| Policies | Company policies, acknowledgment |
-| Knowledge | Knowledge base, search |
-| Clearance | Separation clearance workflow |
-| Final Pay | Computation, release |
-| Reports | HR analytics, exports |
-| Dashboard | Stats, charts, summaries |
-| Notifications | In-app notifications |
-| Announcements | Company-wide announcements |
-| Holidays | Holiday calendar management |
-| AI | AI-powered HR assistant (optional) |
-
-## Project Structure
-
-```
-aigonhr/
-├── cmd/
-│   ├── api/          # API server entry point
-│   ├── worker/       # Background worker
-│   └── migrate/      # Migration CLI
-├── internal/
-│   ├── app/          # Bootstrap, routing
-│   ├── auth/         # Auth handlers + middleware
-│   ├── store/        # sqlc generated code
-│   ├── testutil/     # Test infrastructure
-│   └── .../          # 30+ handler packages
-├── db/
-│   ├── migrations/   # 31 SQL migrations
-│   └── query/        # sqlc query files
-├── frontend/         # Vue 3 SPA
-├── pkg/              # Shared utilities
-└── docker-compose.yml
-```
-
-## Development
-
-```bash
-make build          # Build all binaries
-make test           # Run tests (151 tests)
-make test-cover     # Generate coverage report
-make vet            # Run go vet
-make lint           # Run golangci-lint
-make sqlc           # Regenerate sqlc code
-make tidy           # go mod tidy
-```
+The app will be available at http://localhost:5173 (frontend) and http://localhost:8080 (API).
 
 ## Production Deployment
 
 ```bash
-# Build for Linux
-make build-linux
+# Build Go binaries
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/api ./cmd/api
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/worker ./cmd/worker
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/migrate ./cmd/migrate
+
+# Build frontend
+cd frontend && npm ci && npm run build
 
 # Deploy with Docker Compose
-docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.deploy.yml up -d --build
 ```
 
-Services: PostgreSQL, Redis, migrate (init), API, worker, frontend (Nginx).
+## Project Structure
 
-## Environment Variables
+```
+halaos/
+├── cmd/                    # Application entrypoints
+│   ├── api/                # HTTP API server
+│   ├── worker/             # Background worker
+│   ├── migrate/            # Database migration tool
+│   └── mcp/                # MCP server for AI integrations
+├── internal/               # Private application code
+│   ├── auth/               # JWT authentication
+│   ├── config/             # Configuration loading
+│   ├── handler/            # HTTP handlers (per domain)
+│   ├── integration/        # Cross-app integrations
+│   └── ...
+├── pkg/                    # Shared packages
+│   └── response/           # API response helpers
+├── db/
+│   ├── migrations/         # SQL migrations (goose)
+│   └── query/              # sqlc query files
+├── frontend/               # Vue 3 desktop frontend
+├── frontend-mobile/        # Vue 3 mobile (H5) frontend
+├── e2e/                    # End-to-end tests (Playwright)
+└── openclaw-skill/         # OpenClaw skill definition
+```
 
-See [`.env.example`](.env.example) for all configuration options.
+## Contributing
 
-Key variables:
-- `POSTGRES_*` — Database connection
-- `REDIS_*` — Cache connection
-- `JWT_SECRET` — Auth token signing key
-- `ANTHROPIC_API_KEY` — AI features (optional)
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 
 ## License
 
-Private
+[MIT](LICENSE)

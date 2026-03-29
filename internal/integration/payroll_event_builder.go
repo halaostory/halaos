@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 // PayrollEventBuilder constructs accounting events from payroll DB data.

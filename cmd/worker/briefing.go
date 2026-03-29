@@ -5,9 +5,9 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/tonypk/aigonhr/internal/ai/provider"
-	"github.com/tonypk/aigonhr/internal/orgintel"
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/ai/provider"
+	"github.com/halaostory/halaos/internal/orgintel"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 // generateExecutiveBriefings generates weekly AI briefings for all companies.

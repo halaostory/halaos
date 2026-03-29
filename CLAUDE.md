@@ -1,16 +1,33 @@
-# AIGoNHR
+# HalaOS
 
-PH/LK/SG HR system — employees, attendance, leave, payroll, compliance, benefits, training.
+AI-powered HR Operating System for Southeast Asia.
 
 ## Stack
 - Go 1.25, Gin, sqlc (pgx/v5), PostgreSQL, Redis, Docker Compose
 - Frontend: Vue3 + TS + NaiveUI (in `frontend/`)
-- Tests: 258 unit tests, `testutil.MockDBTX` pattern
+- Mobile: Vue3 + TS + NaiveUI (in `frontend-mobile/`)
 
-## Build & Deploy
-- `CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/api ./cmd/api`
-- Server: 3.1.66.212 (`ssh aigonhr`), compose: `docker-compose.deploy.yml`
-- sqlc: `~/go/bin/sqlc generate`
+## Development
+
+```bash
+# Start database and Redis
+docker compose up -d
+
+# Run API
+go run ./cmd/api
+
+# Run worker
+go run ./cmd/worker
+
+# Run tests
+go test ./...
+
+# Generate sqlc
+sqlc generate
+
+# Frontend
+cd frontend && npm install && npm run dev
+```
 
 ## Key Patterns
 - Handler: `struct{queries, pool, logger}` → `RegisterRoutes(protected)`
@@ -25,13 +42,4 @@ PH/LK/SG HR system — employees, attendance, leave, payroll, compliance, benefi
 - **Event types**: `payroll.run.completed`, `payroll.run.reversed`, `employee.upserted`, `employee.terminated`
 - **Event structs**: `internal/integration/accounting_events.go`
 - **Queries**: `db/query/accounting_integration.sql`
-- **AIStarlight endpoint**: POST `/api/v1/webhooks/aigonhr` (HMAC-signed)
-- **Export APIs** (backfill): `/api/v1/integrations/accounting/export/employees`, `/export/payroll-runs`
 - **JWT**: Shared signing secret `INTEGRATION_JWT_SECRET` for cross-app SSO
-
-## gstack
-
-Use the `/browse` skill from gstack for all web browsing. **Never use `mcp__claude-in-chrome__*` tools.**
-
-### Available Skills
-`/office-hours`, `/plan-ceo-review`, `/plan-eng-review`, `/plan-design-review`, `/design-consultation`, `/review`, `/ship`, `/browse`, `/qa`, `/qa-only`, `/design-review`, `/setup-browser-cookies`, `/retro`, `/investigate`, `/document-release`, `/codex`, `/careful`, `/freeze`, `/guard`, `/unfreeze`, `/gstack-upgrade`

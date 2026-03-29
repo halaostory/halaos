@@ -16,81 +16,82 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
-	"github.com/tonypk/aigonhr/internal/ai"
-	"github.com/tonypk/aigonhr/internal/ai/agent"
-	"github.com/tonypk/aigonhr/internal/ai/byok"
-	aicontext "github.com/tonypk/aigonhr/internal/ai/context"
-	"github.com/tonypk/aigonhr/internal/ai/draft"
-	"github.com/tonypk/aigonhr/internal/ai/provider"
-	"github.com/tonypk/aigonhr/internal/billing"
-	"github.com/tonypk/aigonhr/internal/bot"
-	bottelegram "github.com/tonypk/aigonhr/internal/bot/telegram"
-	"github.com/tonypk/aigonhr/internal/integration"
-	"github.com/tonypk/aigonhr/internal/integration/connector"
-	connectorslack "github.com/tonypk/aigonhr/internal/integration/connector/slack"
-	connectorgoogle "github.com/tonypk/aigonhr/internal/integration/connector/google"
-	connectorgithub "github.com/tonypk/aigonhr/internal/integration/connector/github"
-	"github.com/tonypk/aigonhr/internal/integration/crypto"
-	"github.com/tonypk/aigonhr/internal/analytics"
-	"github.com/tonypk/aigonhr/internal/orgintel"
-	"github.com/tonypk/aigonhr/internal/announcement"
-	"github.com/tonypk/aigonhr/internal/approval"
-	"github.com/tonypk/aigonhr/internal/attendance"
-	"github.com/tonypk/aigonhr/internal/breaks"
-	"github.com/tonypk/aigonhr/internal/audit"
-	"github.com/tonypk/aigonhr/internal/auth"
-	"github.com/tonypk/aigonhr/internal/benefits"
-	"github.com/tonypk/aigonhr/internal/clearance"
-	"github.com/tonypk/aigonhr/internal/company"
-	"github.com/tonypk/aigonhr/internal/compliance"
-	"github.com/tonypk/aigonhr/internal/config"
-	"github.com/tonypk/aigonhr/internal/dashboard"
-	"github.com/tonypk/aigonhr/internal/disciplinary"
-	"github.com/tonypk/aigonhr/internal/docfile"
-	"github.com/tonypk/aigonhr/internal/email"
-	"github.com/tonypk/aigonhr/internal/employee"
-	"github.com/tonypk/aigonhr/internal/expense"
-	"github.com/tonypk/aigonhr/internal/finalpay"
-	"github.com/tonypk/aigonhr/internal/grievance"
-	"github.com/tonypk/aigonhr/internal/holiday"
-	"github.com/tonypk/aigonhr/internal/importexport"
-	"github.com/tonypk/aigonhr/internal/knowledge"
-	"github.com/tonypk/aigonhr/internal/leave"
-	"github.com/tonypk/aigonhr/internal/loan"
-	"github.com/tonypk/aigonhr/internal/middleware"
+	"github.com/halaostory/halaos/internal/ai"
+	"github.com/halaostory/halaos/internal/ai/agent"
+	"github.com/halaostory/halaos/internal/ai/byok"
+	aicontext "github.com/halaostory/halaos/internal/ai/context"
+	"github.com/halaostory/halaos/internal/ai/draft"
+	"github.com/halaostory/halaos/internal/ai/provider"
+	"github.com/halaostory/halaos/internal/billing"
+	"github.com/halaostory/halaos/internal/bot"
+	bottelegram "github.com/halaostory/halaos/internal/bot/telegram"
+	"github.com/halaostory/halaos/internal/integration"
+	"github.com/halaostory/halaos/internal/integration/connector"
+	connectorslack "github.com/halaostory/halaos/internal/integration/connector/slack"
+	connectorgoogle "github.com/halaostory/halaos/internal/integration/connector/google"
+	connectorgithub "github.com/halaostory/halaos/internal/integration/connector/github"
+	"github.com/halaostory/halaos/internal/integration/crypto"
+	"github.com/halaostory/halaos/internal/analytics"
+	"github.com/halaostory/halaos/internal/orgintel"
+	"github.com/halaostory/halaos/internal/announcement"
+	"github.com/halaostory/halaos/internal/approval"
+	"github.com/halaostory/halaos/internal/attendance"
+	"github.com/halaostory/halaos/internal/breaks"
+	"github.com/halaostory/halaos/internal/audit"
+	"github.com/halaostory/halaos/internal/auth"
+	"github.com/halaostory/halaos/internal/benefits"
+	"github.com/halaostory/halaos/internal/clearance"
+	"github.com/halaostory/halaos/internal/company"
+	"github.com/halaostory/halaos/internal/compliance"
+	"github.com/halaostory/halaos/internal/config"
+	"github.com/halaostory/halaos/internal/dashboard"
+	"github.com/halaostory/halaos/internal/disciplinary"
+	"github.com/halaostory/halaos/internal/docfile"
+	"github.com/halaostory/halaos/internal/email"
+	"github.com/halaostory/halaos/internal/employee"
+	"github.com/halaostory/halaos/internal/expense"
+	"github.com/halaostory/halaos/internal/finalpay"
+	"github.com/halaostory/halaos/internal/grievance"
+	"github.com/halaostory/halaos/internal/holiday"
+	"github.com/halaostory/halaos/internal/importexport"
+	"github.com/halaostory/halaos/internal/knowledge"
+	"github.com/halaostory/halaos/internal/leave"
+	"github.com/halaostory/halaos/internal/loan"
+	"github.com/halaostory/halaos/internal/middleware"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/tonypk/aigonhr/internal/milestone"
-	"github.com/tonypk/aigonhr/internal/notification"
-	"github.com/tonypk/aigonhr/internal/onboarding"
-	onboardingChecklist "github.com/tonypk/aigonhr/internal/onboarding_checklist"
-	"github.com/tonypk/aigonhr/internal/overtime"
-	"github.com/tonypk/aigonhr/internal/payroll"
-	"github.com/tonypk/aigonhr/internal/performance"
-	"github.com/tonypk/aigonhr/internal/policy"
-	"github.com/tonypk/aigonhr/internal/ratelimit"
-	"github.com/tonypk/aigonhr/internal/report"
-	"github.com/tonypk/aigonhr/internal/selfservice"
-	"github.com/tonypk/aigonhr/internal/store"
-	"github.com/tonypk/aigonhr/internal/training"
-	"github.com/tonypk/aigonhr/internal/pulse"
-	"github.com/tonypk/aigonhr/internal/hrrequest"
-	"github.com/tonypk/aigonhr/internal/recognition"
-	"github.com/tonypk/aigonhr/internal/nps"
-	"github.com/tonypk/aigonhr/internal/referral"
-	"github.com/tonypk/aigonhr/internal/virtualoffice"
-	"github.com/tonypk/aigonhr/internal/workflow"
+	"github.com/halaostory/halaos/internal/milestone"
+	"github.com/halaostory/halaos/internal/notification"
+	"github.com/halaostory/halaos/internal/onboarding"
+	onboardingChecklist "github.com/halaostory/halaos/internal/onboarding_checklist"
+	"github.com/halaostory/halaos/internal/overtime"
+	"github.com/halaostory/halaos/internal/payroll"
+	"github.com/halaostory/halaos/internal/performance"
+	"github.com/halaostory/halaos/internal/policy"
+	"github.com/halaostory/halaos/internal/ratelimit"
+	"github.com/halaostory/halaos/internal/report"
+	"github.com/halaostory/halaos/internal/selfservice"
+	"github.com/halaostory/halaos/internal/store"
+	"github.com/halaostory/halaos/internal/training"
+	"github.com/halaostory/halaos/internal/pulse"
+	"github.com/halaostory/halaos/internal/hrrequest"
+	"github.com/halaostory/halaos/internal/recognition"
+	"github.com/halaostory/halaos/internal/nps"
+	"github.com/halaostory/halaos/internal/referral"
+	"github.com/halaostory/halaos/internal/virtualoffice"
+	"github.com/halaostory/halaos/internal/workflow"
 )
 
 type App struct {
-	Cfg     *config.Config
-	Pool    *pgxpool.Pool
-	Redis   *redis.Client
-	Queries *store.Queries
-	Router  *gin.Engine
-	Logger  *slog.Logger
-	Email   *email.Sender
-	Resend  *email.Service
-	Limiter *ratelimit.Limiter
+	Cfg        *config.Config
+	Pool       *pgxpool.Pool
+	Redis      *redis.Client
+	Queries    *store.Queries
+	Router     *gin.Engine
+	Logger     *slog.Logger
+	Email      *email.Sender
+	Resend     *email.Service
+	Limiter    *ratelimit.Limiter
+	BotManager *bot.BotManager
 }
 
 func New(cfg *config.Config) (*App, error) {
@@ -460,42 +461,25 @@ func (a *App) setupRoutes() {
 
 	// Bot link management (always available for link code generation)
 	botLinker := bot.NewLinker(a.Queries, a.Logger)
-	botLinkHandler := bot.NewLinkHandler(botLinker, a.Queries, a.Logger)
-	botLinkHandler.RegisterRoutes(protected)
 
-	// Telegram bot (optional) — load tokens from database bot_configs
+	// Telegram bot (optional) — managed by BotManager with hot reload
 	if executor != nil {
 		botSessionMgr := bot.NewSessionManager(a.Queries, a.Logger)
 		botRateLimiter := bot.NewRateLimiter(a.Redis, 20, 1*time.Minute)
 		dispatcher := bot.NewDispatcher(botLinker, botSessionMgr, executor, draftSvc, a.Queries, botRateLimiter, a.Logger)
 
-		// Load active telegram bot configs from database
-		activeConfigs, err := a.Queries.ListActiveBotConfigs(context.Background(), "telegram")
-		if err != nil {
-			a.Logger.Warn("failed to load bot configs from database", "error", err)
+		botFactory := func(ctx context.Context, token string) {
+			tgBot := bottelegram.New(token, dispatcher, a.Logger)
+			tgBot.Run(ctx)
 		}
-		for _, cfg := range activeConfigs {
-			if cfg.BotToken == "" {
-				continue
-			}
-			tgBot := bottelegram.New(cfg.BotToken, dispatcher, a.Logger)
-			go tgBot.Run(context.Background())
-			a.Logger.Info("telegram bot started from db config", "company_id", cfg.CompanyID, "username", cfg.BotUsername)
-		}
-
-		// Fallback: env var token (backward compat)
-		if len(activeConfigs) == 0 && a.Cfg.Bot.Enabled && a.Cfg.Bot.TelegramBotToken != "" {
-			tgBot := bottelegram.New(a.Cfg.Bot.TelegramBotToken, dispatcher, a.Logger)
-			go tgBot.Run(context.Background())
-			a.Logger.Info("telegram bot started from env var")
-		}
-
-		if len(activeConfigs) == 0 && (a.Cfg.Bot.TelegramBotToken == "" || !a.Cfg.Bot.Enabled) {
-			a.Logger.Info("telegram bot: no active configs in database and no env var token")
-		}
+		a.BotManager = bot.NewBotManager(botFactory, a.Queries, &a.Cfg.Bot, a.Logger)
+		a.BotManager.StartAll()
 	} else {
 		a.Logger.Info("telegram bot disabled (AI provider not available)")
 	}
+
+	botLinkHandler := bot.NewLinkHandler(botLinker, a.Queries, a.Logger, a.BotManager, &a.Cfg.Bot)
+	botLinkHandler.RegisterRoutes(protected)
 }
 
 func (a *App) Run() error {
@@ -532,6 +516,9 @@ func (a *App) Run() error {
 		return fmt.Errorf("server shutdown: %w", err)
 	}
 
+	if a.BotManager != nil {
+		a.BotManager.StopAll()
+	}
 	a.Pool.Close()
 	a.Redis.Close()
 	a.Logger.Info("server stopped")

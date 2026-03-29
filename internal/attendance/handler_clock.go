@@ -8,10 +8,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/tonypk/aigonhr/internal/auth"
-	"github.com/tonypk/aigonhr/internal/store"
-	"github.com/tonypk/aigonhr/pkg/pagination"
-	"github.com/tonypk/aigonhr/pkg/response"
+	"github.com/halaostory/halaos/internal/auth"
+	"github.com/halaostory/halaos/internal/store"
+	"github.com/halaostory/halaos/pkg/pagination"
+	"github.com/halaostory/halaos/pkg/response"
 )
 
 type clockRequest struct {

@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/tonypk/aigonhr/internal/notification"
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/notification"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 // sendProactiveReminders checks for important HR items and sends notifications.

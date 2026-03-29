@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 var breakTypeLabel = map[string]string{
-	"meal": "吃饭", "bathroom": "上厕所", "rest": "休息", "leave_post": "中途离岗",
+	"meal": "Meal", "bathroom": "Bathroom", "rest": "Rest", "leave_post": "Away",
 }
 
 func (d *Dispatcher) handleBreakStart(ctx context.Context, msg IncomingMessage, identity *UserIdentity, sender MessageSender) {
@@ -25,9 +25,9 @@ func (d *Dispatcher) handleBreakStart(ctx context.Context, msg IncomingMessage, 
 	if err == nil && activeBreak.ID > 0 {
 		label := breakTypeLabel[activeBreak.BreakType]
 		sender.SendWithKeyboard(ctx, msg.ChatID,
-			fmt.Sprintf("⏳ 你正在休息中: %s\n开始时间: %s", label, activeBreak.StartAt.Format("15:04")),
+			fmt.Sprintf("⏳ You are currently on break: %s\nStarted at: %s", label, activeBreak.StartAt.Format("15:04")),
 			[][]InlineButton{
-				{{Text: "结束休息", CallbackData: "bk:end"}},
+				{{Text: "End Break", CallbackData: "bk:end"}},
 			},
 		)
 		return
@@ -39,19 +39,19 @@ func (d *Dispatcher) handleBreakStart(ctx context.Context, msg IncomingMessage, 
 		CompanyID:  identity.CompanyID,
 	})
 	if err != nil {
-		sender.SendText(ctx, msg.ChatID, "❌ 请先打卡上班")
+		sender.SendText(ctx, msg.ChatID, "❌ Please clock in first")
 		return
 	}
 
 	// Show break type selection keyboard
-	sender.SendWithKeyboard(ctx, msg.ChatID, "选择休息类型:", [][]InlineButton{
+	sender.SendWithKeyboard(ctx, msg.ChatID, "Select break type:", [][]InlineButton{
 		{
-			{Text: "🍽 吃饭", CallbackData: "bk:meal"},
-			{Text: "🚻 上厕所", CallbackData: "bk:bathroom"},
+			{Text: "🍽 Meal", CallbackData: "bk:meal"},
+			{Text: "🚻 Bathroom", CallbackData: "bk:bathroom"},
 		},
 		{
-			{Text: "😌 休息", CallbackData: "bk:rest"},
-			{Text: "🚪 中途离岗", CallbackData: "bk:leave_post"},
+			{Text: "😌 Rest", CallbackData: "bk:rest"},
+			{Text: "🚪 Away", CallbackData: "bk:leave_post"},
 		},
 	})
 }
@@ -76,13 +76,13 @@ func (d *Dispatcher) handleBreakStatus(ctx context.Context, msg IncomingMessage,
 		CompanyID:  identity.CompanyID,
 	})
 	if err != nil {
-		sender.SendText(ctx, msg.ChatID, "✅ 没有进行中的休息")
+		sender.SendText(ctx, msg.ChatID, "✅ No active break")
 		return
 	}
 
 	label := breakTypeLabel[activeBreak.BreakType]
 	sender.SendText(ctx, msg.ChatID,
-		fmt.Sprintf("⏳ 当前休息: %s\n开始时间: %s", label, activeBreak.StartAt.Format("15:04")))
+		fmt.Sprintf("⏳ Current break: %s\nStarted at: %s", label, activeBreak.StartAt.Format("15:04")))
 }
 
 func (d *Dispatcher) handleBreakTypeCallback(ctx context.Context, cb CallbackQuery, identity *UserIdentity, breakType string, sender MessageSender) {
@@ -92,7 +92,7 @@ func (d *Dispatcher) handleBreakTypeCallback(ctx context.Context, cb CallbackQue
 		CompanyID:  identity.CompanyID,
 	})
 	if err != nil {
-		sender.AnswerCallback(ctx, cb.ID, "请先打卡上班")
+		sender.AnswerCallback(ctx, cb.ID, "Please clock in first")
 		return
 	}
 
@@ -102,7 +102,7 @@ func (d *Dispatcher) handleBreakTypeCallback(ctx context.Context, cb CallbackQue
 		CompanyID:  identity.CompanyID,
 	})
 	if err == nil && existingBreak.ID > 0 {
-		sender.AnswerCallback(ctx, cb.ID, "已有进行中的休息")
+		sender.AnswerCallback(ctx, cb.ID, "You already have an active break")
 		return
 	}
 
@@ -115,27 +115,27 @@ func (d *Dispatcher) handleBreakTypeCallback(ctx context.Context, cb CallbackQue
 	})
 	if err != nil {
 		d.logger.Error("bot: failed to create break", "error", err)
-		sender.AnswerCallback(ctx, cb.ID, "创建休息记录失败")
+		sender.AnswerCallback(ctx, cb.ID, "Failed to create break record")
 		return
 	}
 
 	label := breakTypeLabel[breakType]
-	sender.AnswerCallback(ctx, cb.ID, "✅ 开始休息")
+	sender.AnswerCallback(ctx, cb.ID, "✅ Break started")
 	sender.EditMessage(ctx, cb.ChatID, cb.MessageID,
-		fmt.Sprintf("✅ 开始休息: %s\n⏰ 开始时间: %s", label, breakLog.StartAt.Format("15:04")))
+		fmt.Sprintf("✅ Break started: %s\n⏰ Started at: %s", label, breakLog.StartAt.Format("15:04")))
 
 	// Send end button
 	sender.SendWithKeyboard(ctx, cb.ChatID,
-		"休息进行中，完成后点击结束:",
+		"Break in progress. Tap to end when done:",
 		[][]InlineButton{
-			{{Text: "结束休息", CallbackData: "bk:end"}},
+			{{Text: "End Break", CallbackData: "bk:end"}},
 		},
 	)
 }
 
 func (d *Dispatcher) handleBreakEndCallback(ctx context.Context, cb CallbackQuery, identity *UserIdentity, sender MessageSender) {
 	d.endActiveBreak(ctx, identity, cb.ChatID, sender)
-	sender.AnswerCallback(ctx, cb.ID, "休息已结束")
+	sender.AnswerCallback(ctx, cb.ID, "Break ended")
 }
 
 func (d *Dispatcher) endActiveBreak(ctx context.Context, identity *UserIdentity, chatID string, sender MessageSender) {
@@ -144,7 +144,7 @@ func (d *Dispatcher) endActiveBreak(ctx context.Context, identity *UserIdentity,
 		CompanyID:  identity.CompanyID,
 	})
 	if err != nil {
-		sender.SendText(ctx, chatID, "❌ 没有进行中的休息")
+		sender.SendText(ctx, chatID, "❌ No active break")
 		return
 	}
 
@@ -164,7 +164,7 @@ func (d *Dispatcher) endActiveBreak(ctx context.Context, identity *UserIdentity,
 	})
 	if err != nil {
 		d.logger.Error("bot: failed to end break", "error", err)
-		sender.SendText(ctx, chatID, "❌ 结束休息失败")
+		sender.SendText(ctx, chatID, "❌ Failed to end break")
 		return
 	}
 
@@ -182,9 +182,9 @@ func (d *Dispatcher) endActiveBreak(ctx context.Context, identity *UserIdentity,
 
 	if otVal > 0 {
 		sender.SendText(ctx, chatID,
-			fmt.Sprintf("⚠️ 休息结束: %s\n⏱ 时长: %d 分钟（超时 %d 分钟）", label, durVal, otVal))
+			fmt.Sprintf("⚠️ Break ended: %s\n⏱ Duration: %d min (overtime %d min)", label, durVal, otVal))
 	} else {
 		sender.SendText(ctx, chatID,
-			fmt.Sprintf("✅ 休息结束: %s\n⏱ 时长: %d 分钟", label, durVal))
+			fmt.Sprintf("✅ Break ended: %s\n⏱ Duration: %d min", label, durVal))
 	}
 }

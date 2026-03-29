@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/tonypk/aigonhr/internal/email"
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/email"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 // sendDripEmails checks for companies eligible for each drip step and sends emails.

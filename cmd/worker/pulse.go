@@ -7,7 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 // distributePulseSurveys creates new rounds for active pulse surveys that need distribution.

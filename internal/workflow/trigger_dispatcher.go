@@ -7,7 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 // TriggerDispatcher routes events to matching triggers and executes actions.

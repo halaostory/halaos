@@ -9,7 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 // ErrInsufficientBalance is returned when a company does not have enough tokens.

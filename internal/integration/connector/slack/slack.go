@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/tonypk/aigonhr/internal/integration/connector"
+	"github.com/halaostory/halaos/internal/integration/connector"
 )
 
 const apiBase = "https://slack.com/api"

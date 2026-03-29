@@ -12,16 +12,16 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
-	"github.com/tonypk/aigonhr/internal/ai"
-	"github.com/tonypk/aigonhr/internal/ai/agent"
-	"github.com/tonypk/aigonhr/internal/ai/provider"
-	"github.com/tonypk/aigonhr/internal/billing"
-	"github.com/tonypk/aigonhr/internal/config"
-	"github.com/tonypk/aigonhr/internal/email"
-	"github.com/tonypk/aigonhr/internal/integration"
-	"github.com/tonypk/aigonhr/internal/payroll"
-	"github.com/tonypk/aigonhr/internal/store"
-	"github.com/tonypk/aigonhr/internal/workflow"
+	"github.com/halaostory/halaos/internal/ai"
+	"github.com/halaostory/halaos/internal/ai/agent"
+	"github.com/halaostory/halaos/internal/ai/provider"
+	"github.com/halaostory/halaos/internal/billing"
+	"github.com/halaostory/halaos/internal/config"
+	"github.com/halaostory/halaos/internal/email"
+	"github.com/halaostory/halaos/internal/integration"
+	"github.com/halaostory/halaos/internal/payroll"
+	"github.com/halaostory/halaos/internal/store"
+	"github.com/halaostory/halaos/internal/workflow"
 )
 
 func main() {

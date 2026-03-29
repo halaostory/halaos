@@ -8,7 +8,7 @@ import (
 
 	"github.com/go-pdf/fpdf"
 
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 // GenerateCOE creates a Certificate of Employment PDF.

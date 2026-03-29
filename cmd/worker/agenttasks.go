@@ -8,13 +8,13 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/tonypk/aigonhr/internal/ai"
-	"github.com/tonypk/aigonhr/internal/ai/agent"
-	"github.com/tonypk/aigonhr/internal/ai/provider"
-	"github.com/tonypk/aigonhr/internal/billing"
-	"github.com/tonypk/aigonhr/internal/config"
-	"github.com/tonypk/aigonhr/internal/notification"
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/ai"
+	"github.com/halaostory/halaos/internal/ai/agent"
+	"github.com/halaostory/halaos/internal/ai/provider"
+	"github.com/halaostory/halaos/internal/billing"
+	"github.com/halaostory/halaos/internal/config"
+	"github.com/halaostory/halaos/internal/notification"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 // processAgentTasks picks up pending agent tasks and executes them via the AI executor.

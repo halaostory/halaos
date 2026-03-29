@@ -74,3 +74,15 @@ WHERE id = $1 AND approver_id = $2 AND status = 'pending';
 
 -- name: GetApprovalWorkflowEntity :one
 SELECT entity_type, entity_id FROM approval_workflows WHERE id = $1;
+
+-- name: InsertApprovalWorkflow :one
+INSERT INTO approval_workflows (company_id, entity_type, entity_id, step, approver_id, status)
+VALUES ($1, $2, $3, 1, $4, 'pending')
+RETURNING *;
+
+-- name: GetFirstAdminEmployeeID :one
+SELECT e.id FROM employees e
+JOIN users u ON u.id = e.user_id
+WHERE e.company_id = $1 AND u.role IN ('super_admin', 'admin') AND e.status = 'active'
+ORDER BY u.role ASC, e.id ASC
+LIMIT 1;

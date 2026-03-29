@@ -12,9 +12,9 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/tonypk/aigonhr/internal/ai/provider"
-	"github.com/tonypk/aigonhr/internal/ai/redact"
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/ai/provider"
+	"github.com/halaostory/halaos/internal/ai/redact"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 const systemPrompt = `You are AigoNHR AI Assistant, an expert in Philippine HR, payroll, and labor compliance.

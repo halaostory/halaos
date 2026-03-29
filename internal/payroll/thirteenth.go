@@ -6,7 +6,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 const taxExemptCap = 90000.0 // First 90K of 13th month is tax-exempt per TRAIN Law

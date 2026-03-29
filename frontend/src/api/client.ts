@@ -1253,10 +1253,13 @@ export const botAPI = {
   getLinkStatus: () => get("/v1/bot/link-status"),
   unlinkPlatform: (platform: string) =>
     api(`/v1/bot/link/${platform}`, { method: "DELETE" }),
+  getBotInfo: () => get("/v1/bot/info"),
   // Admin
   listBotConfigs: () => get("/v1/admin/bot/configs"),
   saveBotConfig: (data: Record<string, unknown>) =>
     post("/v1/admin/bot/configs", data),
+  testBotToken: (bot_token: string) =>
+    post("/v1/admin/bot/test-token", { bot_token }),
 };
 
 export const byokAPI = {

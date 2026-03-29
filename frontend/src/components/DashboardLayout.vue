@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { h, computed, ref, onMounted, onUnmounted, type Component } from 'vue'
+import { h, computed, ref, watch, onMounted, onUnmounted, nextTick, type Component } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
@@ -139,6 +139,7 @@ const features: Record<string, boolean> = {
   'workflow-analytics': true, 'workflow-triggers': true, 'workflow-decisions': true,
   'pulse-surveys': true, recognition: true, 'hr-requests': true,
   'virtual-office': true,
+  'bot-setup': true,
 }
 
 function isEnabled(key: string): boolean {
@@ -161,6 +162,7 @@ const menuOptions = computed<MenuOption[]>(() => {
   pushIf(workspace, 'payslips', 'nav.payslips', ReceiptOutline)
   pushIf(workspace, 'announcements', 'nav.announcements', MegaphoneOutline)
   pushIf(workspace, 'hr-requests', 'nav.hrRequests', FileTrayFullOutline)
+  pushIf(workspace, 'bot-setup', 'nav.botSetup', ChatbubblesOutline)
   if (workspace.length) {
     groups.push({ type: 'group', label: t('nav.groupWorkspace'), key: 'g-workspace', children: workspace })
   }
@@ -275,6 +277,7 @@ const menuOptions = computed<MenuOption[]>(() => {
     pushIf(sysItems, 'audit', 'nav.audit', FileTrayFullOutline)
     pushIf(sysItems, 'billing', 'nav.billing', WalletOutline)
     pushIf(sysItems, 'referrals', 'nav.referrals', GitBranchOutline)
+    pushIf(sysItems, 'bot-setup', 'nav.botSetup', ChatbubblesOutline)
     pushIf(sysItems, 'settings', 'nav.settings', SettingsOutline)
     if (sysItems.length) {
       adminItems.push({ type: 'group', label: t('nav.groupAdminSystem'), key: 'g-admin-sys', children: sysItems })
@@ -321,11 +324,28 @@ async function openAccounting() {
   }
 }
 
+// Preserve sidebar scroll position across route changes
+let siderScrollTop = 0
+function saveSiderScroll() {
+  const el = document.querySelector('.n-layout-sider-scroll-container')
+  if (el) siderScrollTop = el.scrollTop
+}
+watch(() => route.name, () => {
+  // Restore after NMenu re-renders (needs RAF + nextTick to be reliable)
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      const el = document.querySelector('.n-layout-sider-scroll-container')
+      if (el) el.scrollTop = siderScrollTop
+    })
+  })
+})
+
 function handleMenuClick(key: string) {
   if (key === 'accounting') {
     openAccounting()
     return
   }
+  saveSiderScroll()
   router.push({ name: key })
 }
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   NCard, NDescriptions, NDescriptionsItem, NForm, NFormItem,
@@ -120,6 +120,7 @@ const botLinked = ref(false)
 const botUsername = ref('')
 const botLinkCode = ref('')
 const botLoading = ref(false)
+const companyBotUsername = ref('')
 
 async function loadBotStatus() {
   try {
@@ -130,7 +131,20 @@ async function loadBotStatus() {
   } catch {
     // not linked
   }
+  // Also load company bot info for deeplink
+  try {
+    const res = await botAPI.getBotInfo() as { data?: { bot_username: string } }
+    const data = (res as any)?.data ?? res
+    companyBotUsername.value = (data.bot_username || '').replace(/^@/, '')
+  } catch {
+    // ignore
+  }
 }
+
+const deeplinkUrl = computed(() => {
+  if (!companyBotUsername.value || !botLinkCode.value) return ''
+  return `https://t.me/${companyBotUsername.value}?start=${botLinkCode.value}`
+})
 
 async function generateLinkCode() {
   botLoading.value = true
@@ -244,11 +258,21 @@ const roleMap: Record<string, 'success' | 'warning' | 'info' | 'default'> = {
           <div style="font-size: 28px; font-weight: 700; letter-spacing: 4px; font-family: monospace; padding: 12px 0;">
             {{ botLinkCode }}
           </div>
+          <NSpace v-if="deeplinkUrl" :size="12" style="margin-bottom: 8px;">
+            <NButton tag="a" :href="deeplinkUrl" target="_blank" type="primary" size="small">
+              {{ t('botSetup.openInTelegram') }}
+            </NButton>
+          </NSpace>
           <p style="font-size: 12px; color: var(--n-text-color3);">{{ t('profile.telegramCodeHint') }}</p>
         </template>
         <NButton v-else type="primary" :loading="botLoading" @click="generateLinkCode">
           {{ t('profile.telegramGenerate') }}
         </NButton>
+        <div style="margin-top: 12px;">
+          <RouterLink to="/bot-setup" style="font-size: 13px; color: var(--n-color-target);">
+            {{ t('botSetup.wizardLink') }} &rarr;
+          </RouterLink>
+        </div>
       </template>
     </NCard>
 

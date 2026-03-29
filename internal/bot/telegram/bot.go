@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tonypk/aigonhr/internal/bot"
+	"github.com/halaostory/halaos/internal/bot"
 )
 
 // Bot runs the Telegram long-polling loop.

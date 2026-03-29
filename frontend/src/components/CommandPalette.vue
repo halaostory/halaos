@@ -13,7 +13,7 @@ const router = useRouter()
 const { t } = useI18n()
 const auth = useAuthStore()
 
-const STORAGE_KEY = 'aigonhr_recent_commands'
+const STORAGE_KEY = 'halaos_recent_commands'
 const MAX_RECENT = 5
 
 // State

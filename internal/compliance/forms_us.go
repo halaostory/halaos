@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 // W2Data represents the data for a W-2 form.

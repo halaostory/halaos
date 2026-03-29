@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	"github.com/tonypk/aigonhr/internal/app"
-	"github.com/tonypk/aigonhr/internal/config"
+	"github.com/halaostory/halaos/internal/app"
+	"github.com/halaostory/halaos/internal/config"
 )
 
 func main() {

@@ -7,9 +7,9 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/tonypk/aigonhr/internal/ai/provider"
-	"github.com/tonypk/aigonhr/internal/store"
-	"github.com/tonypk/aigonhr/pkg/numericutil"
+	"github.com/halaostory/halaos/internal/ai/provider"
+	"github.com/halaostory/halaos/internal/store"
+	"github.com/halaostory/halaos/pkg/numericutil"
 )
 
 func (r *ToolRegistry) toolQueryMyLoans(ctx context.Context, companyID, userID int64, _ map[string]any) (string, error) {

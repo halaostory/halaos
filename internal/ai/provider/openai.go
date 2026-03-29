@@ -17,7 +17,7 @@ const (
 	openaiAPIURL        = "https://api.openai.com/v1/chat/completions"
 	defaultOpenAIModel  = "gpt-4o"
 	minimaxAPIURL       = "https://api.minimax.io/v1/chat/completions"
-	defaultMiniMaxModel = "MiniMax-M1"
+	defaultMiniMaxModel = "MiniMax-M2.7"
 )
 
 // OpenAI implements Provider for the OpenAI Chat Completions API.

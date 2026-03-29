@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 // clearStaleVOStatuses clears virtual office manual_status fields that were

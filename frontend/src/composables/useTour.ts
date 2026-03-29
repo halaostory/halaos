@@ -12,7 +12,7 @@ export function useTour() {
   // Migrate old key for existing users
   if (localStorage.getItem("aigonhr_tour_done") === "true") {
     localStorage.setItem(TOUR_DONE_KEY, "true");
-    localStorage.removeItem("aigonhr_tour_done");
+    localStorage.removeItem("aigonhr_tour_done"); // cleanup legacy key
   }
 
   function hasDoneTour(): boolean {

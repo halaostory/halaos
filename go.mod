@@ -1,4 +1,4 @@
-module github.com/tonypk/aigonhr
+module github.com/halaostory/halaos
 
 go 1.25.0
 

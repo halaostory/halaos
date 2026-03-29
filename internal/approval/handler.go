@@ -8,10 +8,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/tonypk/aigonhr/internal/ai/provider"
-	"github.com/tonypk/aigonhr/internal/auth"
-	"github.com/tonypk/aigonhr/internal/store"
-	"github.com/tonypk/aigonhr/pkg/response"
+	"github.com/halaostory/halaos/internal/ai/provider"
+	"github.com/halaostory/halaos/internal/auth"
+	"github.com/halaostory/halaos/internal/store"
+	"github.com/halaostory/halaos/pkg/response"
 )
 
 type Handler struct {
@@ -86,6 +86,9 @@ func (h *Handler) Approve(c *gin.Context) {
 		return
 	}
 
+	// Cascade approval to the underlying entity
+	h.cascadeApproval(c.Request.Context(), companyID, emp.ID, id)
+
 	// Record AI decision feedback if applicable
 	h.recordDecisionFeedback(c.Request.Context(), companyID, userID, id, "approved")
 
@@ -130,6 +133,37 @@ func (h *Handler) Reject(c *gin.Context) {
 	h.recordDecisionFeedback(c.Request.Context(), companyID, userID, id, "rejected")
 
 	response.OK(c, gin.H{"message": "Rejected"})
+}
+
+// cascadeApproval applies the approval to the underlying entity (e.g., leave_request).
+func (h *Handler) cascadeApproval(ctx context.Context, companyID, approverEmpID, workflowID int64) {
+	entity, err := h.queries.GetApprovalWorkflowEntity(ctx, workflowID)
+	if err != nil {
+		return
+	}
+
+	switch entity.EntityType {
+	case "leave_request":
+		lr, err := h.queries.ApproveLeaveRequest(ctx, store.ApproveLeaveRequestParams{
+			ID:         entity.EntityID,
+			CompanyID:  companyID,
+			ApproverID: &approverEmpID,
+		})
+		if err != nil {
+			h.logger.Error("cascade: failed to approve leave request", "entity_id", entity.EntityID, "error", err)
+			return
+		}
+		// Deduct leave balance
+		if err := h.queries.DeductLeaveBalance(ctx, store.DeductLeaveBalanceParams{
+			CompanyID:   companyID,
+			EmployeeID:  lr.EmployeeID,
+			LeaveTypeID: lr.LeaveTypeID,
+			Year:        int32(lr.StartDate.Year()),
+			Used:        lr.Days,
+		}); err != nil {
+			h.logger.Error("cascade: failed to deduct leave balance", "leave_id", lr.ID, "error", err)
+		}
+	}
 }
 
 // recordDecisionFeedback checks if there's an AI decision for the entity

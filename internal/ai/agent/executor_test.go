@@ -9,9 +9,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/tonypk/aigonhr/internal/ai/provider"
-	"github.com/tonypk/aigonhr/internal/store"
-	"github.com/tonypk/aigonhr/internal/testutil"
+	"github.com/halaostory/halaos/internal/ai/provider"
+	"github.com/halaostory/halaos/internal/store"
+	"github.com/halaostory/halaos/internal/testutil"
 )
 
 // --- Mock Provider ---

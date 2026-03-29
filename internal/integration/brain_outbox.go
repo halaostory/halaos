@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 // BrainOutbox writes events into brain_outbox for reliable delivery to AI Management Brain.

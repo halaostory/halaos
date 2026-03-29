@@ -8,10 +8,10 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/tonypk/aigonhr/internal/analytics/burnout"
-	"github.com/tonypk/aigonhr/internal/integration"
-	"github.com/tonypk/aigonhr/internal/notification"
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/analytics/burnout"
+	"github.com/halaostory/halaos/internal/integration"
+	"github.com/halaostory/halaos/internal/notification"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 // calculateBurnoutScores scores all employees across all companies for burnout risk.

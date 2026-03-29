@@ -108,6 +108,7 @@ export default {
     virtualOffice: "Virtual Office",
     accounting: "Accounting & Tax",
     settings: "Settings",
+    botSetup: "Bot Setup",
     profile: "My Profile",
     logout: "Logout",
     // Group titles
@@ -840,7 +841,7 @@ export default {
     telegramUnlinked: "Telegram disconnected",
     telegramCodeInstructions:
       "Send this code to the HalaOS bot on Telegram to link your account:",
-    telegramCodeHint: "Code expires in 10 minutes",
+    telegramCodeHint: "Code expires in 15 minutes",
   },
   settings: {
     companyName: "Company Name",
@@ -2597,5 +2598,63 @@ export default {
       payrollConfig: "Salary Config",
       firstPayroll: "Payroll",
     },
+  },
+  botSetup: {
+    title: "Bot Setup",
+    subtitle: "Set up your Telegram bot for team communication",
+    // Admin wizard steps
+    step1Title: "Create Bot",
+    step1Desc: "Create a new bot on Telegram via @BotFather",
+    step2Title: "Enter Token",
+    step2Desc: "Paste the bot token and username",
+    step3Title: "Test Connection",
+    step3Desc: "Verify the token works",
+    step4Title: "Activate",
+    step4Desc: "Enable the bot and save configuration",
+    // BotFather instructions
+    botFatherInstructions: "Follow these steps to create your Telegram bot:",
+    botFatherStep1: "Open Telegram and search for @BotFather",
+    botFatherStep2: "Send /newbot command",
+    botFatherStep3: "Choose a name for your bot (e.g. \"My Company HR Bot\")",
+    botFatherStep4: "Choose a username ending in \"bot\" (e.g. \"mycompany_hr_bot\")",
+    botFatherStep5: "Copy the bot token provided by BotFather",
+    openBotFather: "Open @BotFather",
+    // Token input
+    tokenLabel: "Bot Token",
+    tokenPlaceholder: "Paste your bot token here",
+    tokenHint: "Format: 123456789:ABCdefGHIjklMNOpqrSTUvwxYZ",
+    usernameLabel: "Bot Username",
+    usernamePlaceholder: "@your_bot_username",
+    // Test connection
+    testToken: "Test Token",
+    testSuccess: "Connection successful!",
+    testFailed: "Connection failed. Please check your token.",
+    testBotName: "Bot Name",
+    testBotUsername: "Bot Username",
+    // Activate
+    activateLabel: "Activate Bot",
+    restartWarning: "After saving, the bot will start automatically. No server restart needed.",
+    autoStartMessage: "Saving will automatically start (or restart) the bot. No server restart needed.",
+    saveConfig: "Save Configuration",
+    configSaved: "Bot configuration saved — bot is starting automatically",
+    configSaveFailed: "Failed to save bot configuration",
+    // Shared bot
+    sharedBotExplanation: "Your company uses the shared HalaOS bot (@halaosbot). Link your Telegram account below to get started.",
+    advancedCustomBot: "Advanced: Use Custom Bot",
+    optional: "Optional",
+    // Employee flow
+    employeeTitle: "Connect to Telegram Bot",
+    noBotConfigured: "No Telegram bot has been configured yet. Please contact your administrator.",
+    botAvailable: "Your company bot is available:",
+    generateCode: "Generate Link Code",
+    linkCodeLabel: "Your Link Code",
+    linkCodeInstructions: "Click the button below to open Telegram and link your account:",
+    openInTelegram: "Open in Telegram",
+    codeExpiry: "Code expires in 15 minutes",
+    alreadyLinked: "Your Telegram account is linked",
+    wizardLink: "Bot Setup",
+    // Navigation
+    nextStep: "Next",
+    prevStep: "Back",
   },
 };

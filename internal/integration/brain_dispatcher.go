@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 // BrainDispatcher polls the brain_outbox and delivers webhooks to AI Management Brain.

@@ -148,24 +148,35 @@ func TestLoad_Defaults(t *testing.T) {
 	}
 }
 
-func TestValidate_DevMode(t *testing.T) {
-	// In dev mode (non-release), default secret should be OK
-	os.Unsetenv("GIN_MODE")
-	cfg := Load()
-	if err := cfg.Validate(); err != nil {
-		t.Errorf("validate in dev mode should pass: %v", err)
+func TestValidate_MissingJWTSecret(t *testing.T) {
+	cfg := &Config{
+		JWT:      JWTConfig{Secret: ""},
+		Postgres: PostgresConfig{Password: "somepass"},
+	}
+	err := cfg.Validate()
+	if err == nil {
+		t.Error("validate with empty JWT_SECRET should fail")
 	}
 }
 
-func TestValidate_ProductionNoJWT(t *testing.T) {
-	os.Setenv("GIN_MODE", "release")
-	defer os.Unsetenv("GIN_MODE")
-
-	cfg := Load()
-	// Default JWT secret should fail in production
+func TestValidate_MissingDBPassword(t *testing.T) {
+	cfg := &Config{
+		JWT:      JWTConfig{Secret: "some-secret"},
+		Postgres: PostgresConfig{Password: ""},
+	}
 	err := cfg.Validate()
 	if err == nil {
-		t.Error("validate in production with default JWT secret should fail")
+		t.Error("validate with empty POSTGRES_PASSWORD should fail")
+	}
+}
+
+func TestValidate_AllSet(t *testing.T) {
+	cfg := &Config{
+		JWT:      JWTConfig{Secret: "test-secret-at-least-32-chars!!"},
+		Postgres: PostgresConfig{Password: "testpass"},
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Errorf("validate with all required fields should pass: %v", err)
 	}
 }
 

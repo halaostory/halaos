@@ -10,9 +10,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/tonypk/aigonhr/internal/auth"
-	"github.com/tonypk/aigonhr/internal/store"
-	"github.com/tonypk/aigonhr/pkg/response"
+	"github.com/halaostory/halaos/internal/auth"
+	"github.com/halaostory/halaos/internal/store"
+	"github.com/halaostory/halaos/pkg/response"
 )
 
 // cooldown is the minimum interval between NPS submissions per user.

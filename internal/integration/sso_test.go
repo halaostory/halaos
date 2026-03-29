@@ -42,7 +42,7 @@ func TestValidateFinanceToken_WrongIssuer(t *testing.T) {
 
 	claims := &FinanceToHRClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:    "aigonhr",
+			Issuer:    "halaos",
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(5 * time.Minute)),
 		},
 		Email: "user@test.com",

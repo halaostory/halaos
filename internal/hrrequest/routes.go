@@ -2,7 +2,7 @@ package hrrequest
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/tonypk/aigonhr/internal/auth"
+	"github.com/halaostory/halaos/internal/auth"
 )
 
 // RegisterRoutes registers HR service request routes.

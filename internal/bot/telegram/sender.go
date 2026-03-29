@@ -8,7 +8,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/tonypk/aigonhr/internal/bot"
+	"github.com/halaostory/halaos/internal/bot"
 )
 
 // Sender implements bot.MessageSender for Telegram.

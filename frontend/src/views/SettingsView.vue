@@ -524,6 +524,12 @@ onMounted(() => {
 
     <!-- Bot Configuration -->
     <NCard :title="t('settings.botConfig')" style="margin-top: 24px;">
+      <template #header-extra>
+        <RouterLink to="/bot-setup" style="font-size: 13px; color: var(--n-color-target);">
+          {{ t('botSetup.wizardLink') }} &rarr;
+        </RouterLink>
+      </template>
+      <NAlert type="info" style="margin-bottom: 16px;">{{ t('botSetup.autoStartMessage') }}</NAlert>
       <NForm @submit.prevent="saveBotConfig" label-placement="left" label-width="140">
         <NFormItem :label="t('settings.botPlatform')">
           <NInput :value="botForm.platform" disabled />

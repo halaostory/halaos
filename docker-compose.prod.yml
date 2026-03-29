@@ -3,13 +3,13 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-aigonhr}
+      POSTGRES_USER: ${POSTGRES_USER:-halaos}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB:-aigonhr}
+      POSTGRES_DB: ${POSTGRES_DB:-halaos}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aigonhr}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-halaos}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -38,9 +38,9 @@ services:
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
-      POSTGRES_USER: ${POSTGRES_USER:-aigonhr}
+      POSTGRES_USER: ${POSTGRES_USER:-halaos}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB:-aigonhr}
+      POSTGRES_DB: ${POSTGRES_DB:-halaos}
       POSTGRES_SSLMODE: disable
       JWT_SECRET: ${JWT_SECRET}
       MIGRATIONS_DIR: /migrations
@@ -61,9 +61,9 @@ services:
       SERVER_PORT: "8080"
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
-      POSTGRES_USER: ${POSTGRES_USER:-aigonhr}
+      POSTGRES_USER: ${POSTGRES_USER:-halaos}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB:-aigonhr}
+      POSTGRES_DB: ${POSTGRES_DB:-halaos}
       POSTGRES_SSLMODE: disable
       REDIS_ADDR: redis:6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
@@ -92,9 +92,9 @@ services:
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
-      POSTGRES_USER: ${POSTGRES_USER:-aigonhr}
+      POSTGRES_USER: ${POSTGRES_USER:-halaos}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB:-aigonhr}
+      POSTGRES_DB: ${POSTGRES_DB:-halaos}
       POSTGRES_SSLMODE: disable
       REDIS_ADDR: redis:6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}

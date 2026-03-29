@@ -20,7 +20,7 @@ var (
 func TestMain(m *testing.M) {
 	baseURL = os.Getenv("HALAOS_BASE_URL")
 	if baseURL == "" {
-		baseURL = "http://3.1.66.212"
+		baseURL = "http://localhost:8080"
 	}
 
 	empUserTokens = make(map[int64]string)
@@ -28,9 +28,14 @@ func TestMain(m *testing.M) {
 	posIDs = make(map[string]int64)
 
 	// Login as admin
+	adminPassword := os.Getenv("HALAOS_ADMIN_PASSWORD")
+	if adminPassword == "" {
+		fmt.Fprintf(os.Stderr, "FATAL: HALAOS_ADMIN_PASSWORD env var is required\n")
+		os.Exit(1)
+	}
 	body := map[string]any{
 		"email":    "admin@demo.com",
-		"password": "Admin123abc",
+		"password": adminPassword,
 	}
 	resp, status, err := doPost(baseURL+"/api/v1/auth/login", "", body)
 	if err != nil || status != 200 {

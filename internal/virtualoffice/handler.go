@@ -8,8 +8,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
-	"github.com/tonypk/aigonhr/internal/auth"
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/auth"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 // Handler handles virtual office endpoints.

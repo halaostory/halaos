@@ -425,6 +425,11 @@ const router = createRouter({
           meta: { roles: ["super_admin", "admin"] },
         },
         {
+          path: "bot-setup",
+          name: "bot-setup",
+          component: () => import("../views/BotSetupView.vue"),
+        },
+        {
           path: "profile",
           name: "profile",
           component: () => import("../views/ProfileView.vue"),

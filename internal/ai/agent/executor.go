@@ -10,11 +10,11 @@ import (
 
 	"github.com/google/uuid"
 
-	aicontext "github.com/tonypk/aigonhr/internal/ai/context"
-	"github.com/tonypk/aigonhr/internal/ai/draft"
-	"github.com/tonypk/aigonhr/internal/ai/provider"
-	"github.com/tonypk/aigonhr/internal/ai/redact"
-	"github.com/tonypk/aigonhr/internal/store"
+	aicontext "github.com/halaostory/halaos/internal/ai/context"
+	"github.com/halaostory/halaos/internal/ai/draft"
+	"github.com/halaostory/halaos/internal/ai/provider"
+	"github.com/halaostory/halaos/internal/ai/redact"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 // ToolRegistry is the interface for executing tools.

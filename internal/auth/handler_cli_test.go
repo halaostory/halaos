@@ -9,8 +9,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/tonypk/aigonhr/internal/store"
-	"github.com/tonypk/aigonhr/internal/testutil"
+	"github.com/halaostory/halaos/internal/store"
+	"github.com/halaostory/halaos/internal/testutil"
 )
 
 // cliTestCompany returns scan values for the Company struct in exact Scan order (31 fields).

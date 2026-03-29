@@ -41,3 +41,7 @@ frontend-mobile/dist/
 # Go
 vendor/
 .gstack/
+
+# Claude / MCP
+.claude/
+.mcp.json

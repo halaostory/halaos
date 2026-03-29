@@ -8,9 +8,9 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/tonypk/aigonhr/internal/notification"
-	"github.com/tonypk/aigonhr/internal/store"
-	"github.com/tonypk/aigonhr/internal/workflow"
+	"github.com/halaostory/halaos/internal/notification"
+	"github.com/halaostory/halaos/internal/store"
+	"github.com/halaostory/halaos/internal/workflow"
 )
 
 // processAutoApprovals evaluates pending requests against workflow rules

@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/tonypk/aigonhr/internal/integration/connector"
+	"github.com/halaostory/halaos/internal/integration/connector"
 )
 
 const adminAPIBase = "https://admin.googleapis.com/admin/directory/v1"

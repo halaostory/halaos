@@ -20,9 +20,9 @@ import (
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/tonypk/aigonhr/internal/email"
-	"github.com/tonypk/aigonhr/internal/store"
-	"github.com/tonypk/aigonhr/pkg/response"
+	"github.com/halaostory/halaos/internal/email"
+	"github.com/halaostory/halaos/internal/store"
+	"github.com/halaostory/halaos/pkg/response"
 )
 
 // FinanceSSOValidator validates Finance→HR SSO tokens and extracts the user email.

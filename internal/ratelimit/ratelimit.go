@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 
-	"github.com/tonypk/aigonhr/pkg/response"
+	"github.com/halaostory/halaos/pkg/response"
 )
 
 // Config holds rate limiting configuration.

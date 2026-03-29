@@ -5,7 +5,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 // computePayUS calculates gross pay for US employees.

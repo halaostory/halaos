@@ -8,8 +8,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/tonypk/aigonhr/internal/store"
-	"github.com/tonypk/aigonhr/internal/testutil"
+	"github.com/halaostory/halaos/internal/store"
+	"github.com/halaostory/halaos/internal/testutil"
 )
 
 // --- ListUsers Tests ---

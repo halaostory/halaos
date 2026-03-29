@@ -19,7 +19,7 @@ type CrossAppClaims struct {
 }
 
 // FinanceToHRClaims represents a cross-app SSO token from Finance→HR.
-// Direction is identified by iss="aistarlight" (vs iss="aigonhr" for HR→Finance).
+// Direction is identified by iss="aistarlight" (vs iss="halaos" for HR→Finance).
 type FinanceToHRClaims struct {
 	jwt.RegisteredClaims
 	Email            string `json:"email"`
@@ -46,7 +46,7 @@ func (s *SSOService) GenerateToken(companyID, userID int64, email, role, firstNa
 	now := time.Now()
 	claims := CrossAppClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:    "aigonhr",
+			Issuer:    "halaos",
 			Subject:   fmt.Sprintf("%d", userID),
 			ExpiresAt: jwt.NewNumericDate(now.Add(5 * time.Minute)),
 			IssuedAt:  jwt.NewNumericDate(now),

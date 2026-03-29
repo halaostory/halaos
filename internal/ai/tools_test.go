@@ -5,7 +5,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/tonypk/aigonhr/internal/ai/provider"
+	"github.com/halaostory/halaos/internal/ai/provider"
 )
 
 func TestRound2(t *testing.T) {

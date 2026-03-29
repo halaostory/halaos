@@ -11,12 +11,12 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/tonypk/aigonhr/internal/auth"
-	"github.com/tonypk/aigonhr/internal/email"
-	"github.com/tonypk/aigonhr/internal/notification"
-	"github.com/tonypk/aigonhr/internal/store"
-	"github.com/tonypk/aigonhr/pkg/pagination"
-	"github.com/tonypk/aigonhr/pkg/response"
+	"github.com/halaostory/halaos/internal/auth"
+	"github.com/halaostory/halaos/internal/email"
+	"github.com/halaostory/halaos/internal/notification"
+	"github.com/halaostory/halaos/internal/store"
+	"github.com/halaostory/halaos/pkg/pagination"
+	"github.com/halaostory/halaos/pkg/response"
 )
 
 type Handler struct {
@@ -171,6 +171,28 @@ func (h *Handler) CreateRequest(c *gin.Context) {
 		h.logger.Error("failed to create leave request", "error", err)
 		response.InternalError(c, "Failed to create leave request")
 		return
+	}
+
+	// Create approval workflow entry for the approver
+	var approverID int64
+	if emp.ManagerID != nil && *emp.ManagerID > 0 {
+		approverID = *emp.ManagerID
+	} else {
+		// No manager — assign to first admin employee
+		adminID, err := h.queries.GetFirstAdminEmployeeID(c.Request.Context(), companyID)
+		if err == nil {
+			approverID = adminID
+		}
+	}
+	if approverID > 0 {
+		if _, err := h.queries.InsertApprovalWorkflow(c.Request.Context(), store.InsertApprovalWorkflowParams{
+			CompanyID:  companyID,
+			EntityType: "leave_request",
+			EntityID:   lr.ID,
+			ApproverID: approverID,
+		}); err != nil {
+			h.logger.Error("failed to create approval workflow", "leave_id", lr.ID, "error", err)
+		}
 	}
 
 	// Emit leave.requested event for agentic workflow

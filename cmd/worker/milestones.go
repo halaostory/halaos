@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 func scanContractMilestones(ctx context.Context, queries *store.Queries, logger *slog.Logger) {

@@ -6,7 +6,7 @@ import (
 	"net/smtp"
 	"strings"
 
-	"github.com/tonypk/aigonhr/internal/config"
+	"github.com/halaostory/halaos/internal/config"
 )
 
 // maskEmail masks an email address for safe logging.

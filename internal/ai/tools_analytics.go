@@ -7,8 +7,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/tonypk/aigonhr/internal/ai/provider"
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/ai/provider"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 func (r *ToolRegistry) toolQueryCompanyAnalytics(ctx context.Context, companyID, _ int64, _ map[string]any) (string, error) {

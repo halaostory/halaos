@@ -19,8 +19,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tonypk/aigonhr/internal/store"
-	"github.com/tonypk/aigonhr/internal/testutil"
+	"github.com/halaostory/halaos/internal/store"
+	"github.com/halaostory/halaos/internal/testutil"
 )
 
 func newTestDispatcher(mockDB *testutil.MockDBTX) *BrainDispatcher {

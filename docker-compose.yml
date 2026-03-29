@@ -2,15 +2,15 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: aigonhr
-      POSTGRES_PASSWORD: aigonhr_dev
-      POSTGRES_DB: aigonhr
+      POSTGRES_USER: halaos
+      POSTGRES_PASSWORD: halaos_dev
+      POSTGRES_DB: halaos
     ports:
       - "5434:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U aigonhr"]
+      test: ["CMD-SHELL", "pg_isready -U halaos"]
       interval: 5s
       timeout: 5s
       retries: 5

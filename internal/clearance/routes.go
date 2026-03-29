@@ -2,7 +2,7 @@ package clearance
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/tonypk/aigonhr/internal/auth"
+	"github.com/halaostory/halaos/internal/auth"
 )
 
 // RegisterRoutes registers all clearance and resignation routes.

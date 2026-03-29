@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tonypk/aigonhr/internal/config"
+	"github.com/halaostory/halaos/internal/config"
 )
 
 func TestMaskEmail(t *testing.T) {

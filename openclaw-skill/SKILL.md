@@ -383,4 +383,4 @@ When `HALAOS_API_KEY` is set, prefer using cloud API endpoints for all queries. 
 ## Links
 
 - Website: https://halaos.com
-- GitHub: https://github.com/tonypk/aigonhr
+- GitHub: https://github.com/halaostory/halaos

@@ -9,9 +9,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/tonypk/aigonhr/internal/ai/agent"
-	"github.com/tonypk/aigonhr/internal/auth"
-	"github.com/tonypk/aigonhr/pkg/response"
+	"github.com/halaostory/halaos/internal/ai/agent"
+	"github.com/halaostory/halaos/internal/auth"
+	"github.com/halaostory/halaos/pkg/response"
 )
 
 // commandRequest is the JSON body for the Command Palette endpoint.

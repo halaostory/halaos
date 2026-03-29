@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/tonypk/aigonhr/internal/ai/provider"
-	"github.com/tonypk/aigonhr/internal/payroll"
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/ai/provider"
+	"github.com/halaostory/halaos/internal/payroll"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 func (r *ToolRegistry) toolQueryPayslip(ctx context.Context, companyID, userID int64, input map[string]any) (string, error) {

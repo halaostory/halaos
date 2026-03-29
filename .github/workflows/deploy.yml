@@ -56,7 +56,7 @@ jobs:
           username: ubuntu
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           source: "bin/,db/migrations/,Dockerfile.prebuilt,docker-compose.deploy.yml,frontend/dist/,frontend/mobile-dist/,frontend/nginx.conf,frontend/Dockerfile.prebuilt"
-          target: "~/aigonhr/"
+          target: "~/halaos/"
           overwrite: true
 
       - name: Deploy via SSH
@@ -66,7 +66,7 @@ jobs:
           username: ubuntu
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
-            cd ~/aigonhr
+            cd ~/halaos
 
             # Create .env if not exists
             if [ ! -f .env ]; then

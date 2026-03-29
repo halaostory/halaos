@@ -46,6 +46,21 @@ func (q *Queries) GetApprovalWorkflowEntity(ctx context.Context, id int64) (GetA
 	return i, err
 }
 
+const getFirstAdminEmployeeID = `-- name: GetFirstAdminEmployeeID :one
+SELECT e.id FROM employees e
+JOIN users u ON u.id = e.user_id
+WHERE e.company_id = $1 AND u.role IN ('super_admin', 'admin') AND e.status = 'active'
+ORDER BY u.role ASC, e.id ASC
+LIMIT 1
+`
+
+func (q *Queries) GetFirstAdminEmployeeID(ctx context.Context, companyID int64) (int64, error) {
+	row := q.db.QueryRow(ctx, getFirstAdminEmployeeID, companyID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
 const getPendingEvents = `-- name: GetPendingEvents :many
 SELECT id, company_id, aggregate_type, aggregate_id, event_type, event_version, payload, actor_user_id, idempotency_key, occurred_at, processed_at, retries, status, error_message, created_at FROM hr_events
 WHERE status IN ('pending', 'failed')
@@ -156,6 +171,45 @@ func (q *Queries) InsertAIAuditLog(ctx context.Context, arg InsertAIAuditLogPara
 		&i.RedactedInput,
 		&i.RedactedOutput,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const insertApprovalWorkflow = `-- name: InsertApprovalWorkflow :one
+INSERT INTO approval_workflows (company_id, entity_type, entity_id, step, approver_id, status)
+VALUES ($1, $2, $3, 1, $4, 'pending')
+RETURNING id, company_id, entity_type, entity_id, step, approver_id, status, comments, decided_at, created_at, sla_deadline, escalated_to, escalated_at
+`
+
+type InsertApprovalWorkflowParams struct {
+	CompanyID  int64  `json:"company_id"`
+	EntityType string `json:"entity_type"`
+	EntityID   int64  `json:"entity_id"`
+	ApproverID int64  `json:"approver_id"`
+}
+
+func (q *Queries) InsertApprovalWorkflow(ctx context.Context, arg InsertApprovalWorkflowParams) (ApprovalWorkflow, error) {
+	row := q.db.QueryRow(ctx, insertApprovalWorkflow,
+		arg.CompanyID,
+		arg.EntityType,
+		arg.EntityID,
+		arg.ApproverID,
+	)
+	var i ApprovalWorkflow
+	err := row.Scan(
+		&i.ID,
+		&i.CompanyID,
+		&i.EntityType,
+		&i.EntityID,
+		&i.Step,
+		&i.ApproverID,
+		&i.Status,
+		&i.Comments,
+		&i.DecidedAt,
+		&i.CreatedAt,
+		&i.SlaDeadline,
+		&i.EscalatedTo,
+		&i.EscalatedAt,
 	)
 	return i, err
 }

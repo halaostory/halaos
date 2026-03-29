@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 func seedUSADefaults(ctx context.Context, q *store.Queries, companyID int64) error {

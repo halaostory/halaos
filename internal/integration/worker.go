@@ -9,8 +9,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/tonypk/aigonhr/internal/integration/connector"
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/integration/connector"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 // ProvisioningWorker polls and executes provisioning jobs.

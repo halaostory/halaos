@@ -255,7 +255,8 @@ async function handleBulkSalaryUpdate() {
         :placeholder="t('employee.department')"
         clearable
         filterable
-        style="width: 200px;"
+        style="min-width: 200px; max-width: 320px;"
+        :render-label="(option: any) => h('span', { title: option.label, style: 'display: block; overflow: hidden; text-overflow: ellipsis;' }, option.label)"
       />
       <NSelect
         v-model:value="selectedStatus"

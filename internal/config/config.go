@@ -35,8 +35,9 @@ type ResendConfig struct {
 }
 
 type BotConfig struct {
-	Enabled            bool
-	TelegramBotToken   string // Shared fallback token
+	Enabled              bool
+	TelegramBotToken     string // Shared fallback token
+	TelegramBotUsername  string // Shared bot username for deeplinks
 }
 
 type BillingConfig struct {
@@ -124,9 +125,9 @@ func Load() *Config {
 		Postgres: PostgresConfig{
 			Host:     getEnv("POSTGRES_HOST", "localhost"),
 			Port:     getEnv("POSTGRES_PORT", "5434"),
-			User:     getEnv("POSTGRES_USER", "aigonhr"),
-			Password: getEnv("POSTGRES_PASSWORD", "aigonhr_dev"),
-			DB:       getEnv("POSTGRES_DB", "aigonhr"),
+			User:     getEnv("POSTGRES_USER", "halaos"),
+			Password: getEnv("POSTGRES_PASSWORD", ""),
+			DB:       getEnv("POSTGRES_DB", "halaos"),
 			SSLMode:  getEnv("POSTGRES_SSLMODE", "disable"),
 		},
 		Redis: RedisConfig{
@@ -134,7 +135,7 @@ func Load() *Config {
 			Password: getEnv("REDIS_PASSWORD", ""),
 		},
 		JWT: JWTConfig{
-			Secret:        getEnv("JWT_SECRET", "dev-secret-change-me-in-production"),
+			Secret:        getEnv("JWT_SECRET", ""),
 			Expiry:        getEnvDuration("JWT_EXPIRY", 24*time.Hour),
 			RefreshExpiry: getEnvDuration("JWT_REFRESH_EXPIRY", 720*time.Hour),
 		},
@@ -147,7 +148,7 @@ func Load() *Config {
 			Port:     int(getEnvInt64("SMTP_PORT", 587)),
 			User:     getEnv("SMTP_USER", ""),
 			Password: getEnv("SMTP_PASSWORD", ""),
-			From:     getEnv("SMTP_FROM", "noreply@aigonhr.com"),
+			From:     getEnv("SMTP_FROM", "noreply@halaos.com"),
 			Enabled:  getEnvBool("SMTP_ENABLED", false),
 		},
 		AI: AIConfig{
@@ -182,20 +183,19 @@ func Load() *Config {
 			JWTSecret:     getEnv("INTEGRATION_JWT_SECRET", ""),
 		},
 		Bot: BotConfig{
-			Enabled:          getEnvBool("BOT_ENABLED", false),
-			TelegramBotToken: getEnv("TELEGRAM_BOT_TOKEN", ""),
+			Enabled:             getEnvBool("BOT_ENABLED", false),
+			TelegramBotToken:    getEnv("TELEGRAM_BOT_TOKEN", ""),
+			TelegramBotUsername: getEnv("TELEGRAM_BOT_USERNAME", "halaosbot"),
 		},
 	}
 }
 
 func (c *Config) Validate() error {
-	if c.JWT.Secret == "" || c.JWT.Secret == "dev-secret-change-me-in-production" {
-		if getEnv("GIN_MODE", "") == "release" {
-			return fmt.Errorf("JWT_SECRET must be set in production")
-		}
+	if c.JWT.Secret == "" {
+		return fmt.Errorf("JWT_SECRET must be set (env var JWT_SECRET)")
 	}
-	if c.Postgres.Password == "" && getEnv("GIN_MODE", "") == "release" {
-		return fmt.Errorf("POSTGRES_PASSWORD is required")
+	if c.Postgres.Password == "" {
+		return fmt.Errorf("POSTGRES_PASSWORD must be set (env var POSTGRES_PASSWORD)")
 	}
 	return nil
 }

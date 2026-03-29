@@ -10,7 +10,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 
-	"github.com/tonypk/aigonhr/internal/config"
+	"github.com/halaostory/halaos/internal/config"
 )
 
 func main() {

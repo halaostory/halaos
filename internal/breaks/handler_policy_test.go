@@ -8,7 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/tonypk/aigonhr/internal/testutil"
+	"github.com/halaostory/halaos/internal/testutil"
 )
 
 // breakPolicyScanValues returns mock scan values matching the BreakPolicy scan order (7 fields).

@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 // computePayLK calculates pay using Sri Lanka rates.

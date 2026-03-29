@@ -18,10 +18,10 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/tonypk/aigonhr/internal/auth"
-	"github.com/tonypk/aigonhr/internal/store"
-	"github.com/tonypk/aigonhr/pkg/pagination"
-	"github.com/tonypk/aigonhr/pkg/response"
+	"github.com/halaostory/halaos/internal/auth"
+	"github.com/halaostory/halaos/internal/store"
+	"github.com/halaostory/halaos/pkg/pagination"
+	"github.com/halaostory/halaos/pkg/response"
 )
 
 // AccountingEmitter emits employee lifecycle events to the accounting outbox.

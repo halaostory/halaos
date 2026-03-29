@@ -5,14 +5,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/tonypk/aigonhr/internal/ai/agent"
-	"github.com/tonypk/aigonhr/internal/ai/draft"
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/ai/agent"
+	"github.com/halaostory/halaos/internal/ai/draft"
+	"github.com/halaostory/halaos/internal/store"
 )
+
+var thinkTagRe = regexp.MustCompile(`(?s)<think>.*?</think>\s*`)
 
 // Dispatcher routes incoming bot messages to the appropriate handler.
 type Dispatcher struct {
@@ -274,24 +279,49 @@ func (d *Dispatcher) handleClock(ctx context.Context, msg IncomingMessage, ident
 		return
 	}
 
-	if msg.Location != nil {
-		// Direct clock in/out with location
-		d.handleFreeText(ctx, IncomingMessage{
-			Platform: msg.Platform,
-			ChatID:   msg.ChatID,
-			UserID:   msg.UserID,
-			Text:     fmt.Sprintf("Clock me in/out at location %.6f, %.6f", msg.Location.Latitude, msg.Location.Longitude),
-		}, identity, sender)
+	// Check current attendance status
+	open, err := d.queries.GetOpenAttendance(ctx, store.GetOpenAttendanceParams{
+		EmployeeID: identity.EmployeeID,
+		CompanyID:  identity.CompanyID,
+	})
+
+	if err != nil {
+		// Not clocked in → clock in
+		att, err := d.queries.ClockIn(ctx, store.ClockInParams{
+			CompanyID:     identity.CompanyID,
+			EmployeeID:    identity.EmployeeID,
+			ClockInSource: "bot",
+			ClockInLat:    pgtype.Numeric{Valid: false},
+			ClockInLng:    pgtype.Numeric{Valid: false},
+		})
+		if err != nil {
+			d.logger.Error("bot: clock in failed", "error", err)
+			sender.SendText(ctx, msg.ChatID, "❌ Failed to clock in. Please try again.")
+			return
+		}
+		sender.SendText(ctx, msg.ChatID,
+			fmt.Sprintf("✅ Clocked in!\n⏰ Time: %s", att.ClockInAt.Time.Format(time.DateTime)))
 		return
 	}
 
-	// No location — ask via AI
-	d.handleFreeText(ctx, IncomingMessage{
-		Platform: msg.Platform,
-		ChatID:   msg.ChatID,
-		UserID:   msg.UserID,
-		Text:     "I want to clock in or out. What's my current status?",
-	}, identity, sender)
+	// Already clocked in → clock out
+	source := "bot"
+	att, err := d.queries.ClockOut(ctx, store.ClockOutParams{
+		ID:             open.ID,
+		EmployeeID:     identity.EmployeeID,
+		ClockOutSource: &source,
+		ClockOutLat:    pgtype.Numeric{Valid: false},
+		ClockOutLng:    pgtype.Numeric{Valid: false},
+	})
+	if err != nil {
+		d.logger.Error("bot: clock out failed", "error", err)
+		sender.SendText(ctx, msg.ChatID, "❌ Failed to clock out. Please try again.")
+		return
+	}
+	sender.SendText(ctx, msg.ChatID,
+		fmt.Sprintf("✅ Clocked out!\n⏰ In: %s\n⏰ Out: %s",
+			att.ClockInAt.Time.Format(time.DateTime),
+			att.ClockOutAt.Time.Format(time.DateTime)))
 }
 
 func (d *Dispatcher) handleLeaveRequest(ctx context.Context, msg IncomingMessage, identity *UserIdentity, sender MessageSender) {
@@ -326,8 +356,12 @@ func (d *Dispatcher) handleFreeText(ctx context.Context, msg IncomingMessage, id
 		return
 	}
 
-	// Send AI response
-	sender.SendText(ctx, msg.ChatID, resp.Message)
+	// Strip <think> tags from AI response and send
+	cleaned := strings.TrimSpace(thinkTagRe.ReplaceAllString(resp.Message, ""))
+	if cleaned == "" {
+		cleaned = resp.Message
+	}
+	sender.SendText(ctx, msg.ChatID, cleaned)
 
 	// Check for pending drafts and send confirmation cards
 	pendingDrafts, err := d.draftSvc.ListPending(ctx, identity.CompanyID, identity.UserID)

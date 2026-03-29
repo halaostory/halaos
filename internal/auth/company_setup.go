@@ -7,7 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/tonypk/aigonhr/internal/store"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 // countryDefaults holds country-specific company settings.
@@ -40,16 +40,68 @@ func numericFromFloat(f float64) pgtype.Numeric {
 	return n
 }
 
-// seedCountryDefaults creates country-specific leave types and holidays for a new company.
+func numericFromRate(f float64) pgtype.Numeric {
+	var n pgtype.Numeric
+	_ = n.Scan(strconv.FormatFloat(f, 'f', 4, 64))
+	return n
+}
+
+// seedCountryDefaults creates country-specific leave types, holidays, and loan types for a new company.
 func seedCountryDefaults(ctx context.Context, q *store.Queries, companyID int64, country string) error {
 	switch country {
 	case "LKA":
+		if err := seedLKALoanTypes(ctx, q, companyID); err != nil {
+			return err
+		}
 		return seedLKADefaults(ctx, q, companyID)
 	case "USA":
+		if err := seedUSALoanTypes(ctx, q, companyID); err != nil {
+			return err
+		}
 		return seedUSADefaults(ctx, q, companyID)
 	default:
+		if err := seedPHLLoanTypes(ctx, q, companyID); err != nil {
+			return err
+		}
 		return seedPHLDefaults(ctx, q, companyID)
 	}
+}
+
+func seedLoanTypes(ctx context.Context, q *store.Queries, loanTypes []store.CreateLoanTypeParams) error {
+	for _, lt := range loanTypes {
+		if _, err := q.CreateLoanType(ctx, lt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func seedPHLLoanTypes(ctx context.Context, q *store.Queries, companyID int64) error {
+	return seedLoanTypes(ctx, q, []store.CreateLoanTypeParams{
+		{CompanyID: companyID, Name: "SSS Salary Loan", Code: "sss_salary", Provider: "government", MaxTermMonths: 24, InterestRate: numericFromRate(0.01), MaxAmount: numericFromFloat(50000), RequiresApproval: true, AutoDeduct: true},
+		{CompanyID: companyID, Name: "Pag-IBIG Multi-Purpose", Code: "pagibig_mpl", Provider: "government", MaxTermMonths: 24, InterestRate: numericFromRate(0.0087), MaxAmount: numericFromFloat(80000), RequiresApproval: true, AutoDeduct: true},
+		{CompanyID: companyID, Name: "Company Cash Advance", Code: "cash_advance", Provider: "company", MaxTermMonths: 6, InterestRate: numericFromRate(0), MaxAmount: numericFromFloat(20000), RequiresApproval: true, AutoDeduct: true},
+		{CompanyID: companyID, Name: "Pag-IBIG Housing Loan", Code: "pagibig_hdp", Provider: "government", MaxTermMonths: 240, InterestRate: numericFromRate(0.0058), MaxAmount: numericFromFloat(300000), RequiresApproval: true, AutoDeduct: true},
+		{CompanyID: companyID, Name: "SSS Calamity Loan", Code: "sss_calamity", Provider: "government", MaxTermMonths: 24, InterestRate: numericFromRate(0.01), MaxAmount: numericFromFloat(30000), RequiresApproval: true, AutoDeduct: true},
+	})
+}
+
+func seedLKALoanTypes(ctx context.Context, q *store.Queries, companyID int64) error {
+	return seedLoanTypes(ctx, q, []store.CreateLoanTypeParams{
+		{CompanyID: companyID, Name: "Company Cash Advance", Code: "cash_advance", Provider: "company", MaxTermMonths: 6, InterestRate: numericFromRate(0), MaxAmount: numericFromFloat(500000), RequiresApproval: true, AutoDeduct: true},
+		{CompanyID: companyID, Name: "Salary Advance", Code: "salary_advance", Provider: "company", MaxTermMonths: 1, InterestRate: numericFromRate(0), MaxAmount: numericFromFloat(100000), RequiresApproval: true, AutoDeduct: true},
+		{CompanyID: companyID, Name: "Festival Advance", Code: "festival_advance", Provider: "company", MaxTermMonths: 3, InterestRate: numericFromRate(0), MaxAmount: numericFromFloat(50000), RequiresApproval: true, AutoDeduct: true},
+		{CompanyID: companyID, Name: "Staff Loan", Code: "staff_loan", Provider: "company", MaxTermMonths: 36, InterestRate: numericFromRate(0.01), MaxAmount: numericFromFloat(1000000), RequiresApproval: true, AutoDeduct: true},
+		{CompanyID: companyID, Name: "Housing Loan", Code: "housing_loan", Provider: "company", MaxTermMonths: 60, InterestRate: numericFromRate(0.0075), MaxAmount: numericFromFloat(3000000), RequiresApproval: true, AutoDeduct: true},
+	})
+}
+
+func seedUSALoanTypes(ctx context.Context, q *store.Queries, companyID int64) error {
+	return seedLoanTypes(ctx, q, []store.CreateLoanTypeParams{
+		{CompanyID: companyID, Name: "401(k) Loan", Code: "401k_loan", Provider: "government", MaxTermMonths: 60, InterestRate: numericFromRate(0.0042), MaxAmount: numericFromFloat(50000), RequiresApproval: true, AutoDeduct: true},
+		{CompanyID: companyID, Name: "Company Cash Advance", Code: "cash_advance", Provider: "company", MaxTermMonths: 6, InterestRate: numericFromRate(0), MaxAmount: numericFromFloat(5000), RequiresApproval: true, AutoDeduct: true},
+		{CompanyID: companyID, Name: "Emergency Loan", Code: "emergency_loan", Provider: "company", MaxTermMonths: 12, InterestRate: numericFromRate(0), MaxAmount: numericFromFloat(2500), RequiresApproval: true, AutoDeduct: true},
+	})
 }
 
 func seedLKADefaults(ctx context.Context, q *store.Queries, companyID int64) error {
