@@ -2,9 +2,9 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-AI-powered HR Operating System for Southeast Asia.
+AI-powered HR Operating System for Southeast Asia & the United States.
 
-HalaOS is a full-featured HR platform with payroll processing, attendance tracking, leave management, tax compliance, and 9 specialized AI agents — built for Philippine, Singaporean, and Sri Lankan labor law.
+HalaOS is a full-featured HR platform with payroll processing, attendance tracking, leave management, tax compliance, and 9 specialized AI agents — built for Philippine, Singaporean, Sri Lankan, and US labor law.
 
 ## Features
 
@@ -12,8 +12,8 @@ HalaOS is a full-featured HR platform with payroll processing, attendance tracki
 - **Attendance & Time** — Clock in/out, GPS geofencing, shift scheduling, DTR reports
 - **Leave Management** — Balances, requests, approvals, calendar, carryover, encashment
 - **Payroll** — Multi-frequency cycles, automated computation, payslips, 13th month pay, final pay
-- **Tax Compliance** — PH (SSS, PhilHealth, Pag-IBIG, BIR), SG (CPF, IRAS), LK (EPF/ETF)
-- **Government Forms** — BIR 2316/2550M/2550Q/1601C/1701/1702/0619E/SAWT
+- **Tax Compliance** — PH (SSS, PhilHealth, Pag-IBIG, BIR), SG (CPF, IRAS), LK (EPF/ETF), US (Federal/State withholding, FICA, FUTA)
+- **Government Forms** — PH: BIR 2316/2550M/2550Q/1601C/1701/1702/0619E/SAWT | US: W-4, W-2, 1099
 - **Benefits & Loans** — Plan enrollment, claims, amortization, salary deduction
 - **Training & Performance** — Programs, certifications, KPIs, review cycles
 - **Onboarding/Offboarding** — Checklists, clearance workflows, final pay
