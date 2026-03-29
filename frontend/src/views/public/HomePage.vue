@@ -4,11 +4,11 @@
     <section class="hero">
       <div class="container">
         <div class="hero-content">
-          <div class="hero-badge">Free HR, Payroll, Accounting & Tax for Southeast Asia</div>
+          <div class="hero-badge">Free HR, Payroll, Accounting & Tax for Southeast Asia & the US</div>
           <h1>One platform for <span class="gradient-text">HR &amp; Finance</span></h1>
           <p class="hero-sub">
             HalaOS gives you complete HR management, automated payroll, full accounting,
-            and BIR/IRAS tax compliance — all in one platform, completely free. Built for businesses in the Philippines and Singapore.
+            and tax compliance — all in one platform, completely free. Built for businesses in the Philippines, Singapore, Sri Lanka, and the United States.
           </p>
           <div class="hero-actions">
             <router-link to="/register" class="btn-primary">Get Started Free</router-link>
@@ -92,8 +92,8 @@
     <!-- Countries -->
     <section class="countries-section">
       <div class="container">
-        <h2 class="section-title">Built for Southeast Asian compliance</h2>
-        <p class="section-sub">Pre-configured for local tax rules, statutory deductions, and government filing requirements.</p>
+        <h2 class="section-title">Built for multi-country compliance</h2>
+        <p class="section-sub">Pre-configured for local tax rules, statutory deductions, and government filing requirements across Asia and the US.</p>
         <div class="countries-grid">
           <div v-for="c in countryDetails" :key="c.code" class="country-card">
             <div class="country-flag">{{ c.flag }}</div>
@@ -245,7 +245,7 @@
     <!-- CTA -->
     <section class="cta-section">
       <div class="container">
-        <h2>Join businesses across Southeast Asia</h2>
+        <h2>Join businesses across Southeast Asia &amp; the US</h2>
         <p>Stop overpaying for HR and accounting software. Start with HalaOS for free today.</p>
         <router-link to="/register" class="btn-primary btn-lg">Create Free Account</router-link>
       </div>
@@ -257,20 +257,20 @@
 import { useHead } from '@unhead/vue'
 
 useHead({
-  title: 'HalaOS - Free HR, Payroll, Accounting & Tax Software for Philippines & Singapore',
+  title: 'HalaOS - Free HR, Payroll, Accounting & Tax Software for Southeast Asia & USA',
   meta: [
-    { name: 'description', content: 'Free HR management, payroll, accounting, and BIR/IRAS tax compliance for businesses in the Philippines and Singapore. Two products — HR & Finance — one platform. No credit card, no limits.' },
+    { name: 'description', content: 'Free HR management, payroll, accounting, and tax compliance for businesses in the Philippines, Singapore, Sri Lanka, Indonesia, and the US. Two products — HR & Finance — one platform.' },
     { property: 'og:title', content: 'HalaOS - Free HR, Payroll, Accounting & Tax Software' },
-    { property: 'og:description', content: 'Free HR, payroll, accounting & tax compliance for Southeast Asian businesses. BIR forms, CPF, SSS auto-calculations. Two products, one platform.' },
+    { property: 'og:description', content: 'Free HR, payroll, accounting & tax compliance for Southeast Asian and US businesses. BIR, IRAS, IRS auto-calculations. Open source on GitHub.' },
     { property: 'og:url', content: 'https://halaos.com/' },
-    { name: 'keywords', content: 'free HR software philippines, free payroll software philippines, free accounting software philippines, BIR compliance software, IRAS filing software, CPF calculator, SSS contribution calculator, HR software singapore, payroll philippines free, tax filing software, bookkeeping software free' },
+    { name: 'keywords', content: 'free HR software philippines, free payroll software, free accounting software, BIR compliance software, IRAS filing, IRS W-2 W-4, CPF calculator, SSS contribution calculator, FICA calculator, HR software USA, payroll philippines free, tax filing software, open source HR' },
   ],
 })
 
 const stats = [
-  { num: '4', label: 'Countries Supported' },
+  { num: '5', label: 'Countries Supported' },
   { num: '2', label: 'Products (HR + Finance)' },
-  { num: '50+', label: 'BIR/Tax Forms Automated' },
+  { num: '50+', label: 'Tax Forms Automated' },
   { num: '100%', label: 'Free Core Features' },
 ]
 
@@ -338,6 +338,15 @@ const countryDetails = [
       'UMR/UMK minimum wage compliance',
     ],
   },
+  {
+    code: 'US', flag: '🇺🇸', name: 'United States',
+    items: [
+      'Federal & state income tax withholding',
+      'FICA (Social Security + Medicare)',
+      'FUTA unemployment tax',
+      'W-4, W-2, 1099 form generation',
+    ],
+  },
 ]
 
 const features = [
@@ -375,7 +384,7 @@ const compareRows = [
   { feature: 'Tax Filing (IRAS)', halaos: 'Yes', sprout: 'No', swingvy: 'Yes', juantax: 'No' },
   { feature: 'HR ↔ Accounting Integration', halaos: 'Built-in', sprout: 'No', swingvy: 'No', juantax: 'No' },
   { feature: 'AI Features', halaos: 'HR + Finance', sprout: 'No', swingvy: 'No', juantax: 'No' },
-  { feature: 'Multi-country', halaos: '4 countries', sprout: 'PH only', swingvy: 'SG/MY', juantax: 'PH only' },
+  { feature: 'Multi-country', halaos: '5 countries', sprout: 'PH only', swingvy: 'SG/MY', juantax: 'PH only' },
   { feature: 'Employee limit', halaos: 'Unlimited', sprout: 'Plan-based', swingvy: 'Plan-based', juantax: 'N/A' },
 ]
 
@@ -636,7 +645,7 @@ const toolLinks = [
 }
 .countries-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 24px;
 }
 .country-card {

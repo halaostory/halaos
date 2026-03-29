@@ -115,7 +115,7 @@
     <section class="competitors">
       <div class="container">
         <h2 class="section-title">How HalaOS compares</h2>
-        <p class="section-sub">See why businesses choose HalaOS over other HR platforms in Southeast Asia.</p>
+        <p class="section-sub">See why businesses choose HalaOS over other HR platforms.</p>
         <div class="competitor-grid">
           <div v-for="c in competitors" :key="c.name" class="competitor-card">
             <h4>HalaOS vs {{ c.name }}</h4>
@@ -158,9 +158,9 @@ import { useHead } from '@unhead/vue'
 useHead({
   title: 'Pricing - HalaOS | Free HR & Payroll Software',
   meta: [
-    { name: 'description', content: 'HalaOS is free for core HR & payroll. Pro tier starts at $3/employee/month. Compare plans and find the right fit for your business in the Philippines or Singapore.' },
+    { name: 'description', content: 'HalaOS is free for core HR & payroll. Pro tier starts at $3/employee/month. Compare plans for businesses in the Philippines, Singapore, Sri Lanka, Indonesia, or the US.' },
     { property: 'og:title', content: 'Pricing - HalaOS | Free HR & Payroll Software' },
-    { property: 'og:description', content: 'Free HR, payroll & tax compliance for Southeast Asian businesses. Pro features from $3/employee/month.' },
+    { property: 'og:description', content: 'Free HR, payroll & tax compliance for Southeast Asian and US businesses. Pro features from $3/employee/month.' },
     { property: 'og:url', content: 'https://halaos.com/pricing' },
   ],
 })
@@ -171,7 +171,7 @@ const freeTierFeatures = [
   'Unlimited employees',
   'Full HR management & 201 files',
   'Complete payroll processing',
-  'Auto tax calculations (BIR, CPF, EPF)',
+  'Auto tax calculations (BIR, CPF, EPF, IRS)',
   'Leave & attendance management',
   'Digital payslips',
   'Basic AI assistant',

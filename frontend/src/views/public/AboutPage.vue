@@ -3,10 +3,10 @@
     <!-- Hero -->
     <section class="about-hero">
       <div class="container">
-        <h1>Building the future of HR in Asia</h1>
+        <h1>Building the future of HR</h1>
         <p>
-          HalaOS was born from a simple belief: every company in Southeast Asia deserves
-          world-class HR technology that understands local regulations and culture.
+          HalaOS was born from a simple belief: every company deserves
+          world-class HR technology that understands local regulations and culture — whether in Southeast Asia or the United States.
         </p>
       </div>
     </section>
@@ -18,7 +18,7 @@
           <div class="mission-card">
             <h3>Our Mission</h3>
             <p>
-              To empower businesses across Asia with an intelligent, unified platform
+              To empower businesses across Asia and the US with an intelligent, unified platform
               that makes HR management, payroll processing, and tax compliance effortless —
               so companies can focus on what matters most: their people.
             </p>
@@ -79,9 +79,9 @@
           </p>
           <p>
             Today, HalaOS serves companies across the Philippines, Sri Lanka,
-            Singapore, and Indonesia, with more countries on the way. Our
+            Singapore, Indonesia, and the United States. Our
             AI-powered platform processes thousands of payroll runs monthly
-            and has automated millions of tax calculations.
+            and has automated millions of tax calculations. HalaOS is also fully open source on GitHub.
           </p>
           <p>
             We're backed by a passionate team of engineers, HR experts, and
@@ -129,7 +129,7 @@ import { useHead } from '@unhead/vue'
 useHead({
   title: 'About - HalaOS',
   meta: [
-    { name: 'description', content: 'HalaOS was born from a simple belief: every company in Southeast Asia deserves world-class HR technology that understands local regulations and culture.' },
+    { name: 'description', content: 'HalaOS was born from a simple belief: every company deserves world-class HR technology that understands local regulations and culture. Open source on GitHub.' },
     { property: 'og:title', content: 'About HalaOS' },
     { property: 'og:description', content: 'Building the future of HR in Asia. Learn about our mission, values, and team.' },
     { property: 'og:url', content: 'https://halaos.com/about' },

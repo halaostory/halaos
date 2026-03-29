@@ -83,7 +83,7 @@ import { useHead } from '@unhead/vue'
 useHead({
   title: 'Features - HalaOS',
   meta: [
-    { name: 'description', content: 'Explore HalaOS features: HR management, automated payroll, tax compliance, AI-powered insights, and more. Built for businesses in Southeast Asia.' },
+    { name: 'description', content: 'Explore HalaOS features: HR management, automated payroll, tax compliance, AI-powered insights, and more. Built for businesses in Southeast Asia and the US.' },
     { property: 'og:title', content: 'Features - HalaOS' },
     { property: 'og:description', content: 'Every tool you need to manage employees, run payroll, and stay compliant — all in one place.' },
     { property: 'og:url', content: 'https://halaos.com/features' },
@@ -127,12 +127,12 @@ const categories = [
     title: 'Stay compliant, effortlessly',
     desc: 'Automatically generate and manage tax filings across multiple jurisdictions with built-in compliance checks.',
     items: [
-      'BIR 2316, 1601C, 2550M/Q auto-generation',
-      'EPF/ETF filings for Sri Lanka',
-      'IRAS compliance for Singapore',
+      'BIR 2316, 1601C, 2550M/Q auto-generation (PH)',
+      'EPF/ETF filings (LK), IRAS compliance (SG)',
+      'Federal/state withholding, FICA, W-2/W-4 (US)',
       'Compliance calendar & reminders',
       'Audit trail for all transactions',
-      'Multi-jurisdiction support',
+      'Multi-jurisdiction support (PH, SG, LK, ID, US)',
     ],
     mockupLines: [80, 60, 90, 75, 85, 55],
   },
