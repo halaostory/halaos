@@ -133,6 +133,13 @@ approve, then answer CAPTCHA `K7Q2P` and OTP `246810` in the UI.
   start of the month when HalaOS has no payroll history), PD 851 prorated 13th month, convertible
   leave, Art. 298 separation pay for layoffs (½-year rule), RA 7641 retirement pay, loan
   deductions. Stored as `calculated` with the basis and notes for HR approval.
+- Status flow `calculated → approved → released` is enforced. **Releasing** creates a
+  single-employee off-cycle payroll (`cycle_type = final_pay`: cycle + run + payroll item +
+  payslip, one transaction) left in `computed`, so it goes through normal payroll approval, bank
+  file and accounting sync. Taxable income follows PH rules (unpaid salary taxable; 13th month +
+  leave conversion exempt up to ₱90,000; layoff/death separation pay and RA 7641 retirement pay
+  exempt); withholding on the taxable part is settled in the BIR 2316 annualization unless HR
+  enters it before approval.
 - `internal/devices`: inventory, assignment, MDM actions (lock / unlock / wipe / return) via a
   signed webhook; on termination devices are locked automatically (configurable) and a return is
   requested; wipe always needs a second approval; without an MDM gateway actions become IT tasks.
@@ -148,6 +155,14 @@ Approving a government submission is intentionally not an AI tool.
 
 - Upload layouts for SSS R-3, PhilHealth RF-1, Pag-IBIG and the BIR alphalist follow published
   column orders but must pass each agency's own validator; the pre-flight reminds the reviewer.
-- IRAS AIS direct API (CorpPass flow) and SG/LK data generators are not built yet — use a partner
-  or the manual channel.
-- Off-cycle payroll runs for a single leaver are not implemented; final pay is a reviewed record.
+- IRAS AIS direct API (CorpPass flow) and SG/LK return data are not built: HalaOS has no
+  Singapore payroll engine yet (no CPF computation), so IR8A figures cannot be generated — use a
+  partner or the manual channel.
+
+## Database query check
+
+`internal/store/prepare_test.go` asks a real PostgreSQL to PREPARE every sqlc query against the
+migrated schema (CI job `sql`; locally set `HALAOS_TEST_DATABASE_URL`). It caught 11 queries that
+compiled but failed on every call (e.g. `inconsistent types deduced for parameter` when a status
+parameter is both assigned and compared in a `CASE`): fix such queries by casting the comparison
+(`CASE WHEN $3::varchar = 'paid'`).

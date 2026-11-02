@@ -40,7 +40,7 @@ RETURNING *;
 UPDATE training_participants SET
     status = $3,
     score = $4,
-    completed_at = CASE WHEN $3 = 'completed' THEN NOW() ELSE completed_at END,
+    completed_at = CASE WHEN $3::varchar = 'completed' THEN NOW() ELSE completed_at END,
     feedback = $5
 WHERE id = $1 AND training_id = $2
 RETURNING *;

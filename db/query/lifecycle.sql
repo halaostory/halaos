@@ -235,3 +235,15 @@ WHERE pi.employee_id = sqlc.arg(employee_id) AND pr.company_id = sqlc.arg(compan
 SELECT EXISTS (
     SELECT 1 FROM final_pay WHERE company_id = $1 AND employee_id = $2 AND separation_date = $3
 )::boolean;
+
+-- name: GetFinalPayByID :one
+SELECT * FROM final_pay WHERE id = $1 AND company_id = $2;
+
+-- name: MarkFinalPayReleased :one
+-- Records which off-cycle payroll cycle paid it out.
+UPDATE final_pay SET
+    status = 'released',
+    released_at = NOW(),
+    payload = payload || jsonb_build_object('payroll_cycle_id', sqlc.arg(cycle_id)::bigint, 'payroll_run_id', sqlc.arg(run_id)::bigint)
+WHERE id = sqlc.arg(id) AND company_id = sqlc.arg(company_id) AND status = 'approved'
+RETURNING *;

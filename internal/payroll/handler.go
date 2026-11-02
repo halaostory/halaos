@@ -239,6 +239,9 @@ func (h *Handler) ApproveCycle(c *gin.Context) {
 		if err != nil {
 			return
 		}
+		if cycle.CycleType == "final_pay" {
+			return // single leaver; their payslip is shared through the clearance process
+		}
 		emps, _ := h.queries.ListActiveEmployees(ctx, companyID)
 		entityType := "payroll"
 		for _, e := range emps {

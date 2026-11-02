@@ -1,6 +1,7 @@
 package finalpay
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -134,6 +135,30 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 		return
 	}
 	companyID := auth.GetCompanyID(c)
+	cur, err := h.queries.GetFinalPayByID(c.Request.Context(), store.GetFinalPayByIDParams{ID: id, CompanyID: companyID})
+	if err != nil {
+		response.NotFound(c, "Final pay not found")
+		return
+	}
+	if !CanTransition(cur.Status, req.Status) {
+		response.BadRequest(c, fmt.Sprintf("Cannot change final pay from %s to %s", cur.Status, req.Status))
+		return
+	}
+	if req.Status == "released" {
+		// Releasing pays it out through a single-employee off-cycle payroll.
+		rel, err := Release(c.Request.Context(), h.queries, h.pool, companyID, auth.GetUserID(c), id, time.Now())
+		if err != nil {
+			if errors.Is(err, ErrTransition) {
+				response.BadRequest(c, err.Error())
+				return
+			}
+			h.logger.Error("final pay release failed", "final_pay_id", id, "error", err)
+			response.InternalError(c, "Failed to release final pay")
+			return
+		}
+		response.OK(c, rel)
+		return
+	}
 	fp, err := h.queries.UpdateFinalPayStatus(c.Request.Context(), store.UpdateFinalPayStatusParams{
 		ID: id, CompanyID: companyID, Status: req.Status,
 	})

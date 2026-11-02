@@ -98,7 +98,7 @@ UPDATE payroll_runs SET
     total_net = $5,
     status = $6,
     error_message = $7,
-    completed_at = CASE WHEN $6 IN ('completed', 'failed') THEN NOW() ELSE completed_at END
+    completed_at = CASE WHEN $6::varchar IN ('completed', 'failed') THEN NOW() ELSE completed_at END
 WHERE id = $1;
 
 -- name: CreatePayrollItem :one

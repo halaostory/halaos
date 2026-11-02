@@ -109,10 +109,7 @@ func (calc *Calculator) RunPayroll(ctx context.Context, runID int64, companyID i
 	calc.logger.Info("starting payroll calculation", "run_id", runID, "company_id", companyID)
 
 	// Mark run as running
-	if err := calc.queries.UpdatePayrollRun(ctx, store.UpdatePayrollRunParams{
-		ID:     runID,
-		Status: "running",
-	}); err != nil {
+	if err := calc.setRunStatus(ctx, runID, "running", nil); err != nil {
 		return fmt.Errorf("mark run as running: %w", err)
 	}
 
@@ -636,12 +633,24 @@ func (calc *Calculator) computeWithholdingTax(ctx context.Context, pd *EmployeeP
 
 func (calc *Calculator) failRun(ctx context.Context, runID int64, origErr error) error {
 	msg := origErr.Error()
-	_ = calc.queries.UpdatePayrollRun(ctx, store.UpdatePayrollRunParams{
-		ID:           runID,
-		Status:       "failed",
-		ErrorMessage: &msg,
-	})
+	if err := calc.setRunStatus(ctx, runID, "failed", &msg); err != nil {
+		calc.logger.Error("failed to mark payroll run as failed", "run_id", runID, "error", err)
+	}
 	return origErr
+}
+
+// setRunStatus updates only the status of a run. The totals columns are NOT
+// NULL, so they must be sent as explicit zeros (an unset pgtype.Numeric is
+// NULL and made every status-only update fail).
+func (calc *Calculator) setRunStatus(ctx context.Context, runID int64, status string, msg *string) error {
+	return calc.queries.UpdatePayrollRun(ctx, store.UpdatePayrollRunParams{
+		ID:              runID,
+		Status:          status,
+		ErrorMessage:    msg,
+		TotalGross:      numericFromFloat(0),
+		TotalDeductions: numericFromFloat(0),
+		TotalNet:        numericFromFloat(0),
+	})
 }
 
 func (calc *Calculator) completeRun(ctx context.Context, runID int64, count int32, gross, deductions, net float64) error {

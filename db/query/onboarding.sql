@@ -42,7 +42,7 @@ RETURNING *;
 UPDATE onboarding_tasks SET
     status = $3,
     completed_by = $4,
-    completed_at = CASE WHEN $3 = 'completed' THEN NOW() ELSE completed_at END,
+    completed_at = CASE WHEN $3::varchar = 'completed' THEN NOW() ELSE completed_at END,
     notes = COALESCE($5, notes),
     updated_at = NOW()
 WHERE id = $1 AND company_id = $2

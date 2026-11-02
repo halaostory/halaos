@@ -35,7 +35,7 @@ WHERE di.id = $1 AND di.company_id = $2;
 UPDATE disciplinary_incidents SET
     status = $3,
     resolution_notes = $4,
-    resolved_at = CASE WHEN $3 IN ('resolved', 'dismissed') THEN NOW() ELSE NULL END,
+    resolved_at = CASE WHEN $3::varchar IN ('resolved', 'dismissed') THEN NOW() ELSE NULL END,
     resolved_by = $5,
     updated_at = NOW()
 WHERE id = $1 AND company_id = $2

@@ -47,8 +47,8 @@ SET status = $2,
     output = $3,
     tokens_consumed = $4,
     error_message = $5,
-    started_at = CASE WHEN $2 = 'running' AND started_at IS NULL THEN now() ELSE started_at END,
-    completed_at = CASE WHEN $2 IN ('completed', 'failed') THEN now() ELSE completed_at END
+    started_at = CASE WHEN $2::varchar = 'running' AND started_at IS NULL THEN now() ELSE started_at END,
+    completed_at = CASE WHEN $2::varchar IN ('completed', 'failed') THEN now() ELSE completed_at END
 WHERE id = $1;
 
 -- name: ListAgentTasks :many

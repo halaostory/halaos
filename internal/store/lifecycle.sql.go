@@ -254,6 +254,40 @@ func (q *Queries) GetEmployeePayrollCoverage(ctx context.Context, arg GetEmploye
 	return i, err
 }
 
+const getFinalPayByID = `-- name: GetFinalPayByID :one
+SELECT id, company_id, employee_id, separation_date, separation_reason, unpaid_salary, prorated_13th, unused_leave_conversion, separation_pay, tax_refund, other_deductions, total_final_pay, payload, status, computed_at, released_at, created_at FROM final_pay WHERE id = $1 AND company_id = $2
+`
+
+type GetFinalPayByIDParams struct {
+	ID        int64 `json:"id"`
+	CompanyID int64 `json:"company_id"`
+}
+
+func (q *Queries) GetFinalPayByID(ctx context.Context, arg GetFinalPayByIDParams) (FinalPay, error) {
+	row := q.db.QueryRow(ctx, getFinalPayByID, arg.ID, arg.CompanyID)
+	var i FinalPay
+	err := row.Scan(
+		&i.ID,
+		&i.CompanyID,
+		&i.EmployeeID,
+		&i.SeparationDate,
+		&i.SeparationReason,
+		&i.UnpaidSalary,
+		&i.Prorated13th,
+		&i.UnusedLeaveConversion,
+		&i.SeparationPay,
+		&i.TaxRefund,
+		&i.OtherDeductions,
+		&i.TotalFinalPay,
+		&i.Payload,
+		&i.Status,
+		&i.ComputedAt,
+		&i.ReleasedAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getFinalPayStatusForEmployee = `-- name: GetFinalPayStatusForEmployee :one
 SELECT id, status, total_final_pay, computed_at, released_at
 FROM final_pay
@@ -722,6 +756,53 @@ func (q *Queries) MarkEmployeeSeparated(ctx context.Context, arg MarkEmployeeSep
 	row := q.db.QueryRow(ctx, markEmployeeSeparated, arg.SeparationDate, arg.ID, arg.CompanyID)
 	var i MarkEmployeeSeparatedRow
 	err := row.Scan(&i.ID, &i.Status, &i.SeparationDate)
+	return i, err
+}
+
+const markFinalPayReleased = `-- name: MarkFinalPayReleased :one
+UPDATE final_pay SET
+    status = 'released',
+    released_at = NOW(),
+    payload = payload || jsonb_build_object('payroll_cycle_id', $1::bigint, 'payroll_run_id', $2::bigint)
+WHERE id = $3 AND company_id = $4 AND status = 'approved'
+RETURNING id, company_id, employee_id, separation_date, separation_reason, unpaid_salary, prorated_13th, unused_leave_conversion, separation_pay, tax_refund, other_deductions, total_final_pay, payload, status, computed_at, released_at, created_at
+`
+
+type MarkFinalPayReleasedParams struct {
+	CycleID   int64 `json:"cycle_id"`
+	RunID     int64 `json:"run_id"`
+	ID        int64 `json:"id"`
+	CompanyID int64 `json:"company_id"`
+}
+
+// Records which off-cycle payroll cycle paid it out.
+func (q *Queries) MarkFinalPayReleased(ctx context.Context, arg MarkFinalPayReleasedParams) (FinalPay, error) {
+	row := q.db.QueryRow(ctx, markFinalPayReleased,
+		arg.CycleID,
+		arg.RunID,
+		arg.ID,
+		arg.CompanyID,
+	)
+	var i FinalPay
+	err := row.Scan(
+		&i.ID,
+		&i.CompanyID,
+		&i.EmployeeID,
+		&i.SeparationDate,
+		&i.SeparationReason,
+		&i.UnpaidSalary,
+		&i.Prorated13th,
+		&i.UnusedLeaveConversion,
+		&i.SeparationPay,
+		&i.TaxRefund,
+		&i.OtherDeductions,
+		&i.TotalFinalPay,
+		&i.Payload,
+		&i.Status,
+		&i.ComputedAt,
+		&i.ReleasedAt,
+		&i.CreatedAt,
+	)
 	return i, err
 }
 

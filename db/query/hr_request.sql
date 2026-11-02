@@ -42,7 +42,7 @@ UPDATE hr_requests SET
     assigned_to = $4,
     resolution_note = $5,
     updated_at = NOW(),
-    resolved_at = CASE WHEN $3 IN ('resolved', 'closed') THEN NOW() ELSE resolved_at END
+    resolved_at = CASE WHEN $3::varchar IN ('resolved', 'closed') THEN NOW() ELSE resolved_at END
 WHERE id = $1 AND company_id = $2
 RETURNING *;
 

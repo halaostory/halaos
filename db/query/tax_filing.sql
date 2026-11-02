@@ -19,7 +19,7 @@ SELECT * FROM tax_filings WHERE id = $1 AND company_id = $2;
 -- name: UpdateTaxFilingStatus :one
 UPDATE tax_filings SET
     status = $3,
-    filing_date = CASE WHEN $3 IN ('submitted', 'filed') THEN CURRENT_DATE ELSE filing_date END,
+    filing_date = CASE WHEN $3::varchar IN ('submitted', 'filed') THEN CURRENT_DATE ELSE filing_date END,
     filed_by = $4,
     reference_no = $5,
     notes = $6,

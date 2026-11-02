@@ -32,17 +32,19 @@ GROUP BY created_at::date
 ORDER BY day;
 
 -- name: GetPendingAgeDistribution :many
-SELECT
-    CASE
-        WHEN EXTRACT(EPOCH FROM (NOW() - created_at)) / 3600 < 1 THEN '<1h'
-        WHEN EXTRACT(EPOCH FROM (NOW() - created_at)) / 3600 < 6 THEN '1-6h'
-        WHEN EXTRACT(EPOCH FROM (NOW() - created_at)) / 3600 < 24 THEN '6-24h'
-        WHEN EXTRACT(EPOCH FROM (NOW() - created_at)) / 3600 < 48 THEN '24-48h'
-        ELSE '48h+'
-    END as bucket,
-    COUNT(*) as count
-FROM approval_workflows
-WHERE company_id = $1 AND status = 'pending'
+SELECT bucket, COUNT(*) AS count
+FROM (
+    SELECT
+        CASE
+            WHEN EXTRACT(EPOCH FROM (NOW() - created_at)) / 3600 < 1 THEN '<1h'
+            WHEN EXTRACT(EPOCH FROM (NOW() - created_at)) / 3600 < 6 THEN '1-6h'
+            WHEN EXTRACT(EPOCH FROM (NOW() - created_at)) / 3600 < 24 THEN '6-24h'
+            WHEN EXTRACT(EPOCH FROM (NOW() - created_at)) / 3600 < 48 THEN '24-48h'
+            ELSE '48h+'
+        END::text AS bucket
+    FROM approval_workflows
+    WHERE company_id = $1 AND status = 'pending'
+) b
 GROUP BY bucket
 ORDER BY
     CASE bucket
@@ -50,7 +52,7 @@ ORDER BY
         WHEN '1-6h' THEN 2
         WHEN '6-24h' THEN 3
         WHEN '24-48h' THEN 4
-        WHEN '48h+' THEN 5
+        ELSE 5
     END;
 
 -- name: GetSLAComplianceRate :one

@@ -168,8 +168,10 @@ func New(cfg *config.Config) (*App, error) {
 		APIWindow:   cfg.RateLimit.APIWindow,
 	})
 
-	// Serve uploaded files (logos, etc.)
-	router.Static("/uploads", "./uploads")
+	// Serve only the uploads that are meant to be public (shown in <img> tags).
+	// Employee documents and 201 files live under ./uploads too but are only
+	// downloadable through authenticated, company-scoped handlers.
+	registerPublicUploads(router, "./uploads")
 
 	// Email sender (optional, SMTP for HR notifications)
 	emailSender := email.NewSender(cfg.SMTP, logger)

@@ -471,7 +471,7 @@ const updateBonusAllocationStatus = `-- name: UpdateBonusAllocationStatus :exec
 UPDATE bonus_allocations SET
     status = $2,
     approved_by = $3,
-    approved_at = CASE WHEN $2 = 'approved' THEN NOW() ELSE approved_at END,
+    approved_at = CASE WHEN $2::varchar = 'approved' THEN NOW() ELSE approved_at END,
     updated_at = NOW()
 WHERE id = $1
 `

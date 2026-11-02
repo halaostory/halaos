@@ -29,6 +29,49 @@ jobs:
       - name: Test
         run: go test ./... -count=1 -race
 
+  sql:
+    name: SQL queries vs real PostgreSQL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: halaos
+          POSTGRES_PASSWORD: halaos_ci
+          POSTGRES_DB: halaos
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U halaos"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: halaos
+      POSTGRES_PASSWORD: halaos_ci
+      POSTGRES_DB: halaos
+      JWT_SECRET: ci-only-jwt-secret-not-used-for-anything-0123456789
+      HALAOS_TEST_DATABASE_URL: postgres://halaos:halaos_ci@localhost:5432/halaos?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Apply all migrations
+        run: go run ./cmd/migrate -cmd up
+
+      - name: Roll back and re-apply the latest migrations
+        run: |
+          for i in 1 2 3 4 5; do go run ./cmd/migrate -cmd down; done
+          go run ./cmd/migrate -cmd up
+
+      - name: Prepare every sqlc query against the schema
+        run: go test ./internal/store/ -run TestAllQueriesPrepare -count=1 -v
+
   frontend:
     name: Frontend Build
     runs-on: ubuntu-latest
