@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { edition } from '../edition'
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -97,7 +98,7 @@ async function handleLogin() {
       <div class="brand-header">
         <router-link to="/" class="brand-logo">
           <span class="logo-icon">H</span>
-          <span class="logo-text">HalaOS</span>
+          <span class="logo-text">{{ edition.config.product_name }}</span>
         </router-link>
         <h2>{{ t('auth.loginTitle') }}</h2>
       </div>

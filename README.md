@@ -27,6 +27,14 @@ HalaOS is a full-featured HR platform with payroll processing, attendance tracki
 - **Org Intelligence** — Flight risk detection, burnout risk, team health, blind spot analysis
 - **Multi-tenant** — Company isolation with role-based access control
 
+## Products
+
+This repository builds two products (see [docs/halapeople.md](docs/halapeople.md)):
+
+- **HalaOS** (default, `APP_EDITION=halaos`) — the full AI HR operating system.
+- **HalaPeople** (`APP_EDITION=people`) — Warp-style payroll, compliance and HR for Southeast
+  Asia, deployed separately with `docker-compose.people.yml`.
+
 ## Tech Stack
 
 | Layer | Technology |

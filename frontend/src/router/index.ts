@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "../stores/auth";
+import { loadEdition, featureEnabled, isPeople } from "../edition";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -41,7 +42,7 @@ const router = createRouter({
         {
           path: "",
           name: "home",
-          component: () => import("../views/public/HomePage.vue"),
+          component: () => import("../views/public/LandingPage.vue"),
         },
         {
           path: "features",
@@ -594,6 +595,19 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore();
+  await loadEdition();
+
+  // Pages of modules this product does not ship are not reachable.
+  if (to.name && !featureEnabled(String(to.name))) {
+    return auth.isAuthenticated ? { name: "dashboard" } : { name: "home" };
+  }
+
+  // HalaPeople has no attendance/analytics dashboard: admins land on the HR
+  // inbox, everyone else on self-service (payslips, leave, documents).
+  if (to.name === "dashboard" && isPeople() && auth.isAuthenticated) {
+    if (!auth.user) await auth.fetchMe();
+    return auth.isAdmin ? { name: "inbox" } : { name: "self-service" };
+  }
 
   // Auth required but not logged in
   if (to.meta.requiresAuth && !auth.isAuthenticated) {

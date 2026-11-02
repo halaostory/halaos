@@ -51,6 +51,8 @@ import (
 	"github.com/halaostory/halaos/internal/employee"
 	"github.com/halaostory/halaos/internal/govfiling"
 	"github.com/halaostory/halaos/internal/devices"
+	"github.com/halaostory/halaos/internal/edition"
+	"github.com/halaostory/halaos/pkg/response"
 	"github.com/halaostory/halaos/internal/lifecycle"
 	"github.com/halaostory/halaos/internal/selfonboard"
 	"github.com/halaostory/halaos/internal/expense"
@@ -93,6 +95,8 @@ type App struct {
 	Router     *gin.Engine
 	Logger     *slog.Logger
 	Email      *email.Sender
+	Edition    edition.Config
+	sink       *gin.RouterGroup // routes of modules not shipped in this edition go here (never served)
 	Resend     *email.Service
 	Limiter    *ratelimit.Limiter
 	BotManager *bot.BotManager
@@ -199,7 +203,10 @@ func New(cfg *config.Config) (*App, error) {
 		Email:   emailSender,
 		Resend:  resendSvc,
 		Limiter: limiter,
+		Edition: edition.Load(),
+		sink:    &gin.New().RouterGroup,
 	}
+	logger.Info("product edition", "edition", app.Edition.Edition, "product", app.Edition.ProductName, "modules", app.Edition.Modules)
 
 	app.setupRoutes()
 	return app, nil
@@ -369,58 +376,61 @@ func (a *App) setupRoutes() {
 	protected.Use(a.Limiter.APIMiddleware())
 
 	// Register all routes (login rate limiter applied inside auth routes)
+	// Public product configuration (edition, brand, modules, markets) for the web app.
+	api.GET("/edition", func(c *gin.Context) { response.OK(c, a.Edition) })
+	authHandler.SetEdition(a.Edition)
 	authHandler.RegisterRoutes(api, protected, a.Limiter.LoginMiddleware())
-	companyHandler.RegisterRoutes(protected)
-	employeeHandler.RegisterRoutes(protected)
-	lifecycleHandler.RegisterRoutes(protected)
-	attendanceHandler.RegisterRoutes(protected)
-	breaksHandler.RegisterRoutes(protected)
-	leaveHandler.RegisterRoutes(protected)
-	overtimeHandler.RegisterRoutes(protected)
-	payrollHandler.RegisterRoutes(protected)
-	complianceHandler.RegisterRoutes(protected)
-	onboardingHandler.RegisterRoutes(protected)
-	onboardingChecklistHandler.RegisterRoutes(protected)
-	performanceHandler.RegisterRoutes(protected)
-	selfServiceHandler.RegisterRoutes(protected)
-	analyticsHandler.RegisterRoutes(protected)
-	loanHandler.RegisterRoutes(protected)
-	notificationHandler.RegisterRoutes(protected)
-	knowledgeHandler.RegisterRoutes(protected)
-	auditHandler.RegisterRoutes(protected)
-	importExportHandler.RegisterRoutes(protected)
-	benefitsHandler.RegisterRoutes(protected)
-	docfileHandler.RegisterRoutes(protected)
-	policyHandler.RegisterRoutes(protected)
-	disciplinaryHandler.RegisterRoutes(protected)
-	grievanceHandler.RegisterRoutes(protected)
-	expenseHandler.RegisterRoutes(protected)
-	trainingHandler.RegisterRoutes(protected)
-	clearanceHandler.RegisterRoutes(protected)
-	milestoneHandler.RegisterRoutes(protected)
-	reportHandler.RegisterRoutes(protected)
-	finalpayHandler.RegisterRoutes(protected)
-	approvalHandler.RegisterRoutes(protected)
-	holidayHandler.RegisterRoutes(protected)
-	announcementHandler.RegisterRoutes(protected)
-	dashboardHandler.RegisterRoutes(protected)
-	acctHandler.RegisterRoutes(protected)
-	workflowHandler.RegisterRoutes(protected)
-	pulseHandler.RegisterRoutes(protected)
-	recognitionHandler.RegisterRoutes(protected)
-	hrrequestHandler.RegisterRoutes(protected)
-	virtualOfficeHandler.RegisterRoutes(protected)
+	companyHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
+	employeeHandler.RegisterRoutes(a.mod(edition.ModPeople, protected))
+	lifecycleHandler.RegisterRoutes(a.mod(edition.ModLifecycle, protected))
+	attendanceHandler.RegisterRoutes(a.mod(edition.ModAttendance, protected))
+	breaksHandler.RegisterRoutes(a.mod(edition.ModAttendance, protected))
+	leaveHandler.RegisterRoutes(a.mod(edition.ModTimeOff, protected))
+	overtimeHandler.RegisterRoutes(a.mod(edition.ModTimeOff, protected))
+	payrollHandler.RegisterRoutes(a.mod(edition.ModPayroll, protected))
+	complianceHandler.RegisterRoutes(a.mod(edition.ModCompliance, protected))
+	onboardingHandler.RegisterRoutes(a.mod(edition.ModLifecycle, protected))
+	onboardingChecklistHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
+	performanceHandler.RegisterRoutes(a.mod(edition.ModTalent, protected))
+	selfServiceHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
+	analyticsHandler.RegisterRoutes(a.mod(edition.ModIntelligence, protected))
+	loanHandler.RegisterRoutes(a.mod(edition.ModPayroll, protected))
+	notificationHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
+	knowledgeHandler.RegisterRoutes(a.mod(edition.ModIntelligence, protected))
+	auditHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
+	importExportHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
+	benefitsHandler.RegisterRoutes(a.mod(edition.ModBenefits, protected))
+	docfileHandler.RegisterRoutes(a.mod(edition.ModPeople, protected))
+	policyHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
+	disciplinaryHandler.RegisterRoutes(a.mod(edition.ModTalent, protected))
+	grievanceHandler.RegisterRoutes(a.mod(edition.ModTalent, protected))
+	expenseHandler.RegisterRoutes(a.mod(edition.ModExpenses, protected))
+	trainingHandler.RegisterRoutes(a.mod(edition.ModTalent, protected))
+	clearanceHandler.RegisterRoutes(a.mod(edition.ModLifecycle, protected))
+	milestoneHandler.RegisterRoutes(a.mod(edition.ModLifecycle, protected))
+	reportHandler.RegisterRoutes(a.mod(edition.ModPayroll, protected))
+	finalpayHandler.RegisterRoutes(a.mod(edition.ModPayroll, protected))
+	approvalHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
+	holidayHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
+	announcementHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
+	dashboardHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
+	acctHandler.RegisterRoutes(a.mod(edition.ModPayroll, protected))
+	workflowHandler.RegisterRoutes(a.mod(edition.ModIntelligence, protected))
+	pulseHandler.RegisterRoutes(a.mod(edition.ModEngagement, protected))
+	recognitionHandler.RegisterRoutes(a.mod(edition.ModEngagement, protected))
+	hrrequestHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
+	virtualOfficeHandler.RegisterRoutes(a.mod(edition.ModWorkspace, protected))
 
-	billingHandler.RegisterRoutes(protected)
+	billingHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
 
 	// Government filing agent (prepare → review → approve → submit)
 	govHandler := govfiling.NewHandler(govfiling.NewService(a.Queries, a.Pool, a.Logger, govfiling.ServiceConfigFromEnv(a.Cfg.Integration.EncryptionKey, aiProvider, a.Email, a.Logger)), a.Queries, a.Logger)
-	govHandler.RegisterRoutes(protected)
+	govHandler.RegisterRoutes(a.mod(edition.ModCompliance, protected))
 
 	// New-hire self-onboarding portal + e-signatures (public token routes are rate limited)
 	selfOnboardHandler := selfonboard.NewHandler(selfonboard.NewService(a.Queries, a.Logger, a.Email, aiProvider, a.Cfg.Resend.BaseURL), a.Queries, a.Logger)
-	selfOnboardHandler.RegisterRoutes(protected)
-	selfOnboardHandler.RegisterPublic(api, a.Limiter.APIMiddleware(), a.Limiter.LoginMiddleware())
+	selfOnboardHandler.RegisterRoutes(a.mod(edition.ModESign, protected))
+	selfOnboardHandler.RegisterPublic(a.mod(edition.ModESign, api), a.Limiter.APIMiddleware(), a.Limiter.LoginMiddleware())
 	lifecycleHandler.Service().SetOnboarding(selfOnboardHandler.Service())
 	if aiProvider != nil {
 		lifecycleHandler.SetAI(aiProvider)
@@ -428,14 +438,14 @@ func (a *App) setupRoutes() {
 
 	// Device inventory + MDM actions
 	deviceSvc := devices.NewServiceFromKey(a.Queries, a.Logger, a.Cfg.Integration.EncryptionKey)
-	devices.NewHandler(deviceSvc, a.Queries).RegisterRoutes(protected)
+	devices.NewHandler(deviceSvc, a.Queries).RegisterRoutes(a.mod(edition.ModIT, protected))
 	lifecycleHandler.Service().SetDevices(deviceSvc)
 
 	referralHandler := referral.NewHandler(a.Queries, a.Logger)
-	referralHandler.RegisterRoutes(protected)
+	referralHandler.RegisterRoutes(a.mod(edition.ModEngagement, protected))
 
 	npsHandler := nps.NewHandler(a.Queries, a.Logger)
-	npsHandler.RegisterRoutes(protected)
+	npsHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
 
 	// Org Intelligence
 	var briefGen *orgintel.BriefingGenerator
@@ -443,10 +453,10 @@ func (a *App) setupRoutes() {
 		briefGen = orgintel.NewBriefingGenerator(a.Queries, aiProvider, a.Logger)
 	}
 	orgIntelHandler := orgintel.NewHandler(a.Queries, a.Pool, a.Logger, briefGen)
-	orgIntelHandler.RegisterRoutes(protected)
+	orgIntelHandler.RegisterRoutes(a.mod(edition.ModIntelligence, protected))
 
 	if aiHandler != nil {
-		aiHandler.RegisterRoutes(protected)
+		aiHandler.RegisterRoutes(a.mod(edition.ModAI, protected))
 	}
 
 	// Integration Hub
@@ -469,17 +479,19 @@ func (a *App) setupRoutes() {
 			integrationSvc := integration.NewService(a.Queries, connRegistry, encryptor, a.Logger)
 			provisioningSvc := integration.NewProvisioningService(a.Queries, a.Logger)
 			integrationHandler := integration.NewHandler(integrationSvc, provisioningSvc, a.Queries)
-			integrationHandler.RegisterRoutes(protected)
+			integrationHandler.RegisterRoutes(a.mod(edition.ModIT, protected))
 
 			// Start provisioning worker
-			provWorker := integration.NewProvisioningWorker(a.Queries, integrationSvc, a.Logger)
-			go provWorker.Run(context.Background(), 30*time.Second)
+			if a.Edition.Enabled(edition.ModIT) {
+				provWorker := integration.NewProvisioningWorker(a.Queries, integrationSvc, a.Logger)
+				go provWorker.Run(context.Background(), 30*time.Second)
+			}
 
 			a.Logger.Info("integration hub enabled", "providers", connRegistry.Providers())
 
 			// BYOK key management (shares same encryptor)
 			byokHandler := byok.NewHandler(a.Queries, encryptor)
-			byokHandler.RegisterRoutes(protected)
+			byokHandler.RegisterRoutes(a.mod(edition.ModAI, protected))
 			a.Logger.Info("BYOK key management enabled")
 		}
 	} else {
@@ -490,7 +502,7 @@ func (a *App) setupRoutes() {
 	botLinker := bot.NewLinker(a.Queries, a.Logger)
 
 	// Telegram bot (optional) — managed by BotManager with hot reload
-	if executor != nil {
+	if executor != nil && a.Edition.Enabled(edition.ModAI) {
 		botSessionMgr := bot.NewSessionManager(a.Queries, a.Logger)
 		botRateLimiter := bot.NewRateLimiter(a.Redis, 20, 1*time.Minute)
 		dispatcher := bot.NewDispatcher(botLinker, botSessionMgr, executor, draftSvc, a.Queries, botRateLimiter, a.Logger)
@@ -506,7 +518,7 @@ func (a *App) setupRoutes() {
 	}
 
 	botLinkHandler := bot.NewLinkHandler(botLinker, a.Queries, a.Logger, a.BotManager, &a.Cfg.Bot)
-	botLinkHandler.RegisterRoutes(protected)
+	botLinkHandler.RegisterRoutes(a.mod(edition.ModAI, protected))
 }
 
 func (a *App) Run() error {
@@ -582,4 +594,13 @@ func (a *App) handleContactForm(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Message sent successfully"}})
+}
+
+// mod returns g when the module ships in this edition; otherwise a router
+// group on a detached engine, so the module's routes are never served.
+func (a *App) mod(module string, g *gin.RouterGroup) *gin.RouterGroup {
+	if a.Edition.Enabled(module) {
+		return g
+	}
+	return a.sink
 }

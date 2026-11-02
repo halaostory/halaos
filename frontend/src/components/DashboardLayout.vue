@@ -28,6 +28,7 @@ import ChatPanel from './ChatPanel.vue'
 import CommandPalette from './CommandPalette.vue'
 import NPSModal from './NPSModal.vue'
 import { useTour } from '../composables/useTour'
+import { edition, featureEnabled } from '../edition'
 
 const router = useRouter()
 const route = useRoute()
@@ -145,7 +146,9 @@ const features: Record<string, boolean> = {
 }
 
 function isEnabled(key: string): boolean {
-  return features[key] !== false
+  // HalaPeople's home is the HR inbox / self-service, not the attendance dashboard
+  if (key === 'dashboard' && edition.config.edition === 'people') return false
+  return features[key] !== false && featureEnabled(key)
 }
 
 /** Push item to array if feature is enabled */
@@ -199,7 +202,7 @@ const menuOptions = computed<MenuOption[]>(() => {
     pushIf(timeAtt, 'dtr', 'nav.dtr', ClipboardOutline)
   }
   if (timeAtt.length) {
-    groups.push({ type: 'group', label: t('nav.groupTimeAttendance'), key: 'g-time', children: timeAtt })
+    groups.push({ type: 'group', label: t(featureEnabled('attendance') ? 'nav.groupTimeAttendance' : 'nav.groupTimeOff'), key: 'g-time', children: timeAtt })
   }
 
   // ── 4. Payroll & Compensation ──
@@ -394,7 +397,7 @@ function handleUserAction(key: string) {
       @update:collapsed="(val: boolean) => themeStore.sidebarCollapsed = val"
     >
       <div id="app-logo" style="padding: 16px 20px; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
-        HalaOS
+        {{ edition.config.product_name }}
         <span style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(37, 99, 235, 0.15); color: #3b82f6;">
           {{ auth.user?.company_country || 'PH' }}
         </span>

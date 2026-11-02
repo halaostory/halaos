@@ -56,3 +56,8 @@ cd frontend && npm install && npm run dev
 - `internal/devices`, `internal/finalpay/compute.go`; AI tools in `internal/ai/tools_lifecycle.go` (write tools must be listed in `internal/ai/draft/service.go`).
 - Private files (`GOV_FILES_DIR`, `DOC_FILES_DIR`) must never live under the public `/uploads`.
 - Docs: `docs/hr-lifecycle.md`. Local demo portal: `go run ./cmd/mockgov`.
+
+## Editions (HalaOS / HalaPeople)
+- `internal/edition` + `frontend/src/edition.ts` define modules per product; `APP_EDITION=people` builds HalaPeople.
+- New handlers must be registered via `a.mod(edition.ModX, protected)` in `internal/app/bootstrap.go`; new AI tool groups need a module in `toolGroups` (`internal/ai/tools.go`); new pages need a module in `routeModule` (`frontend/src/edition.ts`).
+- Docs: `docs/halapeople.md`; deploy: `docker-compose.people.yml`.

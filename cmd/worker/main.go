@@ -18,6 +18,7 @@ import (
 	"github.com/halaostory/halaos/internal/billing"
 	"github.com/halaostory/halaos/internal/config"
 	"github.com/halaostory/halaos/internal/devices"
+	"github.com/halaostory/halaos/internal/edition"
 	"github.com/halaostory/halaos/internal/email"
 	"github.com/halaostory/halaos/internal/govfiling"
 	"github.com/halaostory/halaos/internal/integration"
@@ -220,11 +221,16 @@ func dispatchEvent(ctx context.Context, queries *store.Queries, calculator *payr
 	}
 }
 
+// ed is the product edition; jobs of modules the edition does not ship are skipped.
+var ed = edition.Load()
+
 func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.Pool, _ *redis.Client, aiProvider provider.Provider, workflowEngine *workflow.Engine, calculator *payroll.Calculator, emailSvc *email.Service, brainEmitter *integration.BrainEmitter, logger *slog.Logger) {
 	logger.Info("running periodic jobs")
 
 	// Auto-close open attendance records from previous day
-	autoCloseAttendance(ctx, queries, logger)
+	if ed.Enabled(edition.ModAttendance) {
+		autoCloseAttendance(ctx, queries, logger)
+	}
 
 	// Apply scheduled separations whose last working day has arrived
 	// (marks employee separated + enqueues access revocation).
@@ -257,28 +263,44 @@ func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.
 	_ = queries.MarkExpiredDocuments(ctx)
 
 	// Detect no-show employees and send notifications (10 AM only)
-	checkNoShows(ctx, queries, pool, logger)
+	if ed.Enabled(edition.ModAttendance) {
+		checkNoShows(ctx, queries, pool, logger)
+	}
 
 	// Follow up on unresolved absences (3 PM only)
-	checkAbsenceFollowup(ctx, queries, pool, logger)
+	if ed.Enabled(edition.ModAttendance) {
+		checkAbsenceFollowup(ctx, queries, pool, logger)
+	}
 
 	// Calculate flight risk scores (weekly, Monday only)
-	calculateFlightRisk(ctx, queries, pool, brainEmitter, logger)
+	if ed.Enabled(edition.ModIntelligence) {
+		calculateFlightRisk(ctx, queries, pool, brainEmitter, logger)
+	}
 
 	// Calculate team health scores (weekly, Monday only)
-	calculateTeamHealth(ctx, queries, pool, brainEmitter, logger)
+	if ed.Enabled(edition.ModIntelligence) {
+		calculateTeamHealth(ctx, queries, pool, brainEmitter, logger)
+	}
 
 	// Calculate burnout risk scores (weekly, Monday only)
-	calculateBurnoutScores(ctx, queries, pool, brainEmitter, logger)
+	if ed.Enabled(edition.ModIntelligence) {
+		calculateBurnoutScores(ctx, queries, pool, brainEmitter, logger)
+	}
 
 	// Detect manager blind spots (weekly, Monday only, after scorers)
-	detectManagerBlindSpots(ctx, queries, pool, brainEmitter, logger)
+	if ed.Enabled(edition.ModIntelligence) {
+		detectManagerBlindSpots(ctx, queries, pool, brainEmitter, logger)
+	}
 
 	// Snapshot score history + org aggregates (weekly, Monday only, after scorers)
-	snapshotScoreHistory(ctx, queries, pool, brainEmitter, logger)
+	if ed.Enabled(edition.ModIntelligence) {
+		snapshotScoreHistory(ctx, queries, pool, brainEmitter, logger)
+	}
 
 	// Generate executive briefings (weekly, Monday only, after snapshots)
-	generateExecutiveBriefings(ctx, queries, aiProvider, logger)
+	if ed.Enabled(edition.ModIntelligence) {
+		generateExecutiveBriefings(ctx, queries, aiProvider, logger)
+	}
 
 	// Generate compliance alerts (daily)
 	generateComplianceAlerts(ctx, queries, pool, logger)
@@ -287,13 +309,19 @@ func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.
 	autoRegularize(ctx, queries, pool, logger)
 
 	// Distribute pulse surveys (9 AM, frequency-gated)
-	distributePulseSurveys(ctx, queries, pool, logger)
+	if ed.Enabled(edition.ModEngagement) {
+		distributePulseSurveys(ctx, queries, pool, logger)
+	}
 
 	// Close expired pulse rounds (>7 days old)
-	closeExpiredPulseRounds(ctx, queries, pool, logger)
+	if ed.Enabled(edition.ModEngagement) {
+		closeExpiredPulseRounds(ctx, queries, pool, logger)
+	}
 
 	// Process workflow auto-approvals
-	processAutoApprovals(ctx, queries, pool, workflowEngine, logger)
+	if ed.Enabled(edition.ModIntelligence) {
+		processAutoApprovals(ctx, queries, pool, workflowEngine, logger)
+	}
 
 	// Check approval SLAs (reminders, escalations, auto-actions)
 	checkApprovalSLAs(ctx, queries, pool, logger)
@@ -311,7 +339,9 @@ func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.
 	sendDripEmails(ctx, queries, emailSvc, logger)
 
 	// Clear stale virtual office manual statuses (daily, idempotent)
-	clearStaleVOStatuses(ctx, queries, logger)
+	if ed.Enabled(edition.ModWorkspace) {
+		clearStaleVOStatuses(ctx, queries, logger)
+	}
 }
 
 func autoCloseAttendance(ctx context.Context, queries *store.Queries, logger *slog.Logger) {

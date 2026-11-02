@@ -120,6 +120,7 @@ export default {
     // Group titles
     groupWorkspace: "My Workspace",
     groupPeople: "People",
+    groupTimeOff: "Time Off",
     groupTimeAttendance: "Time & Attendance",
     groupPayroll: "Payroll & Compensation",
     groupTalent: "Talent & Development",
@@ -189,6 +190,8 @@ export default {
     settings: "System configuration",
   },
   auth: {
+    comingSoon: "Coming soon",
+    countryComingSoon: "{country} is coming soon — join the waitlist and we will let you know.",
     login: "Login",
     register: "Register",
     email: "Email",

@@ -20,6 +20,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/halaostory/halaos/internal/edition"
 	"github.com/halaostory/halaos/internal/email"
 	"github.com/halaostory/halaos/internal/store"
 	"github.com/halaostory/halaos/pkg/response"
@@ -45,6 +46,25 @@ type Handler struct {
 	logger  *slog.Logger
 	redis   *redis.Client
 	sso     FinanceSSOValidator
+	edition *edition.Config
+}
+
+// SetEdition restricts sign-up to the markets the product supports.
+func (h *Handler) SetEdition(e edition.Config) { h.edition = &e }
+
+// countryAllowed rejects sign-ups for markets the product does not serve yet.
+func (h *Handler) countryAllowed(c *gin.Context, country string) bool {
+	if h.edition == nil || h.edition.CountryLive(country) {
+		return true
+	}
+	for _, k := range h.edition.Countries {
+		if k.Code == country {
+			response.BadRequest(c, h.edition.ProductName+" is coming soon to "+k.Name+". Join the waitlist on our website and we will let you know when it launches.")
+			return false
+		}
+	}
+	response.BadRequest(c, h.edition.ProductName+" is not available in this country")
+	return false
 }
 
 func NewHandler(queries *store.Queries, pool *pgxpool.Pool, jwt *JWTService, emailSvc *email.Service, logger *slog.Logger, rdb *redis.Client, sso FinanceSSOValidator) *Handler {
@@ -166,6 +186,9 @@ func (h *Handler) Register(c *gin.Context) {
 	country := req.Country
 	if country == "" {
 		country = "PHL"
+	}
+	if !h.countryAllowed(c, country) {
+		return
 	}
 	cc := countryConfig(country)
 
@@ -348,6 +371,9 @@ func (h *Handler) CLIRegister(c *gin.Context) {
 	country := req.Country
 	if country == "" {
 		country = "PHL"
+	}
+	if !h.countryAllowed(c, country) {
+		return
 	}
 
 	// Hash password

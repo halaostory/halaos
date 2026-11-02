@@ -120,6 +120,7 @@ export default {
     // Group titles
     groupWorkspace: "我的工作台",
     groupPeople: "人员管理",
+    groupTimeOff: "假期与加班",
     groupTimeAttendance: "考勤管理",
     groupPayroll: "薪酬福利",
     groupTalent: "人才发展",
@@ -189,6 +190,8 @@ export default {
     settings: "系统配置",
   },
   auth: {
+    comingSoon: "即将推出",
+    countryComingSoon: "{country} 即将上线——加入候补名单，上线时我们会通知您。",
     login: "登录",
     register: "注册",
     email: "邮箱",

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { edition, isPeople } from '../edition'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { NInput, NButton, NSpace, NResult, useMessage } from 'naive-ui'
@@ -16,20 +17,31 @@ const emailInput = ref('')
 const loading = ref(false)
 const emailSent = ref(false)
 const resending = ref(false)
-const selectedJurisdiction = ref('PH')
+const selectedJurisdiction = ref('PHL')
 
-const jurisdictions = [
-  { code: 'PH', name: 'Philippines' },
-  { code: 'SG', name: 'Singapore' },
-  { code: 'LK', name: 'Sri Lanka' },
+// Markets come from the product edition (HalaPeople: PH live, rest coming soon).
+const fallbackJurisdictions = [
+  { code: 'PHL', name: 'Philippines', status: 'live' },
+  { code: 'SGP', name: 'Singapore', status: 'live' },
+  { code: 'LKA', name: 'Sri Lanka', status: 'live' },
 ]
+const jurisdictions = computed(() =>
+  edition.config.countries.length ? edition.config.countries : fallbackJurisdictions,
+)
+const legacy: Record<string, string> = { PH: 'PHL', SG: 'SGP', LK: 'LKA' }
 
 onMounted(() => {
-  const saved = localStorage.getItem('halaos_jurisdiction')
-  if (saved) selectedJurisdiction.value = saved
+  const saved = localStorage.getItem('halaos_jurisdiction') || ''
+  const code = legacy[saved] || saved
+  if (jurisdictions.value.some((j) => j.code === code && j.status === 'live')) selectedJurisdiction.value = code
 })
 
 function selectJurisdiction(code: string) {
+  const j = jurisdictions.value.find((x) => x.code === code)
+  if (j?.status !== 'live') {
+    message.info(t('auth.countryComingSoon', { country: j?.name || code }))
+    return
+  }
   selectedJurisdiction.value = code
   localStorage.setItem('halaos_jurisdiction', code)
 }
@@ -54,6 +66,8 @@ async function handleRegister() {
       first_name: '',
       last_name: '',
       referral_code: referralCode,
+      // The API reads `country` (ISO alpha-3); the old `jurisdiction` field was ignored.
+      country: selectedJurisdiction.value,
       jurisdiction: selectedJurisdiction.value,
     })
     if (result.emailSent) {
@@ -94,7 +108,7 @@ function handleKeydown(e: KeyboardEvent) {
       <div class="brand-header">
         <router-link to="/" class="brand-logo">
           <span class="logo-icon">H</span>
-          <span class="logo-text">HalaOS</span>
+          <span class="logo-text">{{ edition.config.product_name }}</span>
         </router-link>
       </div>
       <NResult :status="'success'" :title="t('auth.checkEmail')" :description="t('auth.verificationSent')">
@@ -117,9 +131,9 @@ function handleKeydown(e: KeyboardEvent) {
       <div class="brand-header">
         <router-link to="/" class="brand-logo">
           <span class="logo-icon">H</span>
-          <span class="logo-text">HalaOS</span>
+          <span class="logo-text">{{ edition.config.product_name }}</span>
         </router-link>
-        <h2>Free HR, Payroll &amp; Tax Compliance</h2>
+        <h2>{{ isPeople() ? edition.config.tagline : 'Free HR, Payroll & Tax Compliance' }}</h2>
         <p class="subtitle">Get started in 10 seconds. No credit card required.</p>
       </div>
       <div class="jurisdiction-selector">
@@ -130,12 +144,13 @@ function handleKeydown(e: KeyboardEvent) {
             :key="j.code"
             type="button"
             class="jurisdiction-btn"
-            :class="{ active: selectedJurisdiction === j.code }"
+            :class="{ active: selectedJurisdiction === j.code, soon: j.status !== 'live' }"
             @click="selectJurisdiction(j.code)"
             :data-testid="'jurisdiction-' + j.code.toLowerCase()"
           >
             <span class="flag">{{ j.code }}</span>
             <span class="country-name">{{ j.name }}</span>
+            <span v-if="j.status !== 'live'" class="soon-tag">{{ t('auth.comingSoon') }}</span>
           </button>
         </div>
       </div>
@@ -189,5 +204,7 @@ function handleKeydown(e: KeyboardEvent) {
 .jurisdiction-btn:hover { border-color: #93c5fd; background: #eff6ff; }
 .jurisdiction-btn.active { border-color: #2563eb; background: #eff6ff; box-shadow: 0 0 0 1px #2563eb; }
 .jurisdiction-btn .flag { font-size: 24px; font-weight: 700; color: #1e3a5f; margin-bottom: 4px; }
+.jurisdiction-btn.soon { opacity: 0.55; }
+.jurisdiction-btn .soon-tag { font-size: 10px; color: #b45309; }
 .jurisdiction-btn .country-name { font-size: 12px; color: var(--text-secondary, #555); }
 </style>

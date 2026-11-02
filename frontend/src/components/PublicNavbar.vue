@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { edition } from '../edition'
 import { ref, onMounted, onUnmounted } from 'vue'
 
 const scrolled = ref(false)
@@ -17,7 +18,7 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll))
     <div class="pub-nav-inner">
       <router-link to="/" class="pub-logo">
         <span class="logo-icon">H</span>
-        <span class="logo-text">HalaOS</span>
+        <span class="logo-text">{{ edition.config.product_name }}</span>
       </router-link>
 
       <nav class="pub-links" :class="{ open: mobileOpen }">
