@@ -14,6 +14,17 @@ const router = createRouter({
       component: () => import("../views/SetupWizardView.vue"),
       meta: { requiresAuth: true, roles: ["super_admin", "admin"] },
     },
+    // Public token pages for new hires / signers (no login)
+    {
+      path: "/onboard/:token",
+      name: "onboard-portal",
+      component: () => import("../views/public/OnboardPortalView.vue"),
+    },
+    {
+      path: "/sign/:token",
+      name: "sign-document",
+      component: () => import("../views/public/SignDocumentView.vue"),
+    },
     // Virtual Office (standalone, no sidebar)
     {
       path: "/virtual-office",
@@ -147,6 +158,24 @@ const router = createRouter({
           name: "employees",
           component: () => import("../views/EmployeesView.vue"),
           meta: { roles: ["super_admin", "admin", "manager"] },
+        },
+        {
+          path: "gov-filings",
+          name: "gov-filings",
+          component: () => import("../views/GovFilingsView.vue"),
+          meta: { roles: ["super_admin", "admin"] },
+        },
+        {
+          path: "documents",
+          name: "documents",
+          component: () => import("../views/DocumentsView.vue"),
+          meta: { roles: ["super_admin", "admin"] },
+        },
+        {
+          path: "devices",
+          name: "devices",
+          component: () => import("../views/DevicesView.vue"),
+          meta: { roles: ["super_admin", "admin"] },
         },
         {
           path: "hire",

@@ -610,6 +610,23 @@ type Company struct {
 	ReferralRewardClaimed bool      `json:"referral_reward_claimed"`
 }
 
+type CompanyDevice struct {
+	ID                 int64              `json:"id"`
+	CompanyID          int64              `json:"company_id"`
+	AssetTag           string             `json:"asset_tag"`
+	Kind               string             `json:"kind"`
+	MakeModel          string             `json:"make_model"`
+	SerialNo           string             `json:"serial_no"`
+	Os                 string             `json:"os"`
+	MdmDeviceID        *string            `json:"mdm_device_id"`
+	AssignedEmployeeID *int64             `json:"assigned_employee_id"`
+	AssignedAt         pgtype.Timestamptz `json:"assigned_at"`
+	Status             string             `json:"status"`
+	Notes              *string            `json:"notes"`
+	CreatedAt          time.Time          `json:"created_at"`
+	UpdatedAt          time.Time          `json:"updated_at"`
+}
+
 type CompanyPolicy struct {
 	ID                     int64     `json:"id"`
 	CompanyID              int64     `json:"company_id"`
@@ -722,6 +739,23 @@ type Department struct {
 	UpdatedAt      time.Time `json:"updated_at"`
 }
 
+type DeviceAction struct {
+	ID           int64              `json:"id"`
+	CompanyID    int64              `json:"company_id"`
+	DeviceID     int64              `json:"device_id"`
+	EmployeeID   *int64             `json:"employee_id"`
+	Action       string             `json:"action"`
+	Status       string             `json:"status"`
+	Trigger      string             `json:"trigger"`
+	RequestedBy  *int64             `json:"requested_by"`
+	ApprovedBy   *int64             `json:"approved_by"`
+	Result       *string            `json:"result"`
+	ErrorMessage *string            `json:"error_message"`
+	Attempts     int32              `json:"attempts"`
+	CreatedAt    time.Time          `json:"created_at"`
+	CompletedAt  pgtype.Timestamptz `json:"completed_at"`
+}
+
 type DisciplinaryAction struct {
 	ID                   int64              `json:"id"`
 	CompanyID            int64              `json:"company_id"`
@@ -786,6 +820,18 @@ type DocumentRequirement struct {
 	AppliesTo    string    `json:"applies_to"`
 	ExpiryMonths *int32    `json:"expiry_months"`
 	CreatedAt    time.Time `json:"created_at"`
+}
+
+type DocumentTemplate struct {
+	ID        int64     `json:"id"`
+	CompanyID int64     `json:"company_id"`
+	Kind      string    `json:"kind"`
+	Name      string    `json:"name"`
+	Body      string    `json:"body"`
+	IsActive  bool      `json:"is_active"`
+	CreatedBy *int64    `json:"created_by"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type DripEmail struct {
@@ -1096,6 +1142,93 @@ type Goal struct {
 	ManagerRating *int32             `json:"manager_rating"`
 	CreatedAt     time.Time          `json:"created_at"`
 	UpdatedAt     time.Time          `json:"updated_at"`
+}
+
+type GovHumanRequest struct {
+	ID             int64              `json:"id"`
+	SubmissionID   int64              `json:"submission_id"`
+	CompanyID      int64              `json:"company_id"`
+	Name           string             `json:"name"`
+	Prompt         string             `json:"prompt"`
+	ScreenshotPath *string            `json:"screenshot_path"`
+	AnswerEnc      *string            `json:"answer_enc"`
+	Status         string             `json:"status"`
+	AnsweredBy     *int64             `json:"answered_by"`
+	AnsweredAt     pgtype.Timestamptz `json:"answered_at"`
+	ExpiresAt      time.Time          `json:"expires_at"`
+	CreatedAt      time.Time          `json:"created_at"`
+}
+
+type GovPlaybook struct {
+	ID          int64              `json:"id"`
+	CompanyID   *int64             `json:"company_id"`
+	PlaybookKey string             `json:"playbook_key"`
+	FormCode    string             `json:"form_code"`
+	Definition  json.RawMessage    `json:"definition"`
+	Verified    bool               `json:"verified"`
+	VerifiedBy  *int64             `json:"verified_by"`
+	VerifiedAt  pgtype.Timestamptz `json:"verified_at"`
+	CreatedBy   *int64             `json:"created_by"`
+	CreatedAt   time.Time          `json:"created_at"`
+	UpdatedAt   time.Time          `json:"updated_at"`
+}
+
+type GovPortalAccount struct {
+	ID             int64              `json:"id"`
+	CompanyID      int64              `json:"company_id"`
+	Agency         string             `json:"agency"`
+	Portal         string             `json:"portal"`
+	Label          string             `json:"label"`
+	Username       string             `json:"username"`
+	CredentialsEnc string             `json:"credentials_enc"`
+	OtpChannel     string             `json:"otp_channel"`
+	Status         string             `json:"status"`
+	LastUsedAt     pgtype.Timestamptz `json:"last_used_at"`
+	LastError      *string            `json:"last_error"`
+	CreatedBy      *int64             `json:"created_by"`
+	CreatedAt      time.Time          `json:"created_at"`
+	UpdatedAt      time.Time          `json:"updated_at"`
+}
+
+type GovSubmission struct {
+	ID              int64              `json:"id"`
+	CompanyID       int64              `json:"company_id"`
+	Agency          string             `json:"agency"`
+	FormCode        string             `json:"form_code"`
+	Period          string             `json:"period"`
+	TaxFilingID     *int64             `json:"tax_filing_id"`
+	Channel         string             `json:"channel"`
+	PlaybookID      *string            `json:"playbook_id"`
+	PortalAccountID *int64             `json:"portal_account_id"`
+	Status          string             `json:"status"`
+	FileName        *string            `json:"file_name"`
+	FilePath        *string            `json:"file_path"`
+	FileSha256      *string            `json:"file_sha256"`
+	Data            json.RawMessage    `json:"data"`
+	Preflight       json.RawMessage    `json:"preflight"`
+	Instructions    *string            `json:"instructions"`
+	DueDate         pgtype.Date        `json:"due_date"`
+	ApprovedBy      *int64             `json:"approved_by"`
+	ApprovedAt      pgtype.Timestamptz `json:"approved_at"`
+	SubmittedAt     pgtype.Timestamptz `json:"submitted_at"`
+	ReferenceNo     *string            `json:"reference_no"`
+	Outputs         json.RawMessage    `json:"outputs"`
+	ErrorMessage    *string            `json:"error_message"`
+	Attempts        int32              `json:"attempts"`
+	CreatedBy       *int64             `json:"created_by"`
+	CreatedAt       time.Time          `json:"created_at"`
+	UpdatedAt       time.Time          `json:"updated_at"`
+	DryRun          bool               `json:"dry_run"`
+}
+
+type GovSubmissionEvent struct {
+	ID           int64           `json:"id"`
+	SubmissionID int64           `json:"submission_id"`
+	Kind         string          `json:"kind"`
+	Message      string          `json:"message"`
+	Data         json.RawMessage `json:"data"`
+	ActorUserID  *int64          `json:"actor_user_id"`
+	CreatedAt    time.Time       `json:"created_at"`
 }
 
 type GovernmentForm struct {
@@ -1434,6 +1567,15 @@ type ManagerBlindSpot struct {
 	CreatedAt   time.Time          `json:"created_at"`
 }
 
+type MdmConnection struct {
+	CompanyID             int64     `json:"company_id"`
+	Provider              string    `json:"provider"`
+	Url                   string    `json:"url"`
+	SecretEnc             string    `json:"secret_enc"`
+	AutoLockOnTermination bool      `json:"auto_lock_on_termination"`
+	UpdatedAt             time.Time `json:"updated_at"`
+}
+
 type Notification struct {
 	ID         int64              `json:"id"`
 	CompanyID  int64              `json:"company_id"`
@@ -1456,6 +1598,20 @@ type NpsFeedback struct {
 	Score     int16     `json:"score"`
 	Comment   string    `json:"comment"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+type OnboardingInvite struct {
+	ID          int64              `json:"id"`
+	CompanyID   int64              `json:"company_id"`
+	EmployeeID  int64              `json:"employee_id"`
+	TokenHash   string             `json:"token_hash"`
+	Email       *string            `json:"email"`
+	Status      string             `json:"status"`
+	OpenedAt    pgtype.Timestamptz `json:"opened_at"`
+	SubmittedAt pgtype.Timestamptz `json:"submitted_at"`
+	ExpiresAt   time.Time          `json:"expires_at"`
+	CreatedBy   *int64             `json:"created_by"`
+	CreatedAt   time.Time          `json:"created_at"`
 }
 
 type OnboardingProgress struct {
@@ -1933,6 +2089,33 @@ type Shift struct {
 	IsActive     bool        `json:"is_active"`
 	CreatedAt    time.Time   `json:"created_at"`
 	UpdatedAt    time.Time   `json:"updated_at"`
+}
+
+type SignatureRequest struct {
+	ID              int64              `json:"id"`
+	CompanyID       int64              `json:"company_id"`
+	EmployeeID      int64              `json:"employee_id"`
+	TemplateID      *int64             `json:"template_id"`
+	Kind            string             `json:"kind"`
+	Title           string             `json:"title"`
+	Body            string             `json:"body"`
+	BodySha256      string             `json:"body_sha256"`
+	SignerName      string             `json:"signer_name"`
+	SignerEmail     *string            `json:"signer_email"`
+	TokenHash       string             `json:"token_hash"`
+	Status          string             `json:"status"`
+	SignedName      *string            `json:"signed_name"`
+	SignatureImage  *string            `json:"signature_image"`
+	SignedAt        pgtype.Timestamptz `json:"signed_at"`
+	SignedIp        *string            `json:"signed_ip"`
+	SignedUserAgent *string            `json:"signed_user_agent"`
+	DeclinedReason  *string            `json:"declined_reason"`
+	SignedPdfPath   *string            `json:"signed_pdf_path"`
+	SignedPdfSha256 *string            `json:"signed_pdf_sha256"`
+	ViewedAt        pgtype.Timestamptz `json:"viewed_at"`
+	ExpiresAt       time.Time          `json:"expires_at"`
+	CreatedBy       *int64             `json:"created_by"`
+	CreatedAt       time.Time          `json:"created_at"`
 }
 
 type SssContributionTable struct {

@@ -17,7 +17,9 @@ import (
 	"github.com/halaostory/halaos/internal/ai/provider"
 	"github.com/halaostory/halaos/internal/billing"
 	"github.com/halaostory/halaos/internal/config"
+	"github.com/halaostory/halaos/internal/devices"
 	"github.com/halaostory/halaos/internal/email"
+	"github.com/halaostory/halaos/internal/govfiling"
 	"github.com/halaostory/halaos/internal/integration"
 	"github.com/halaostory/halaos/internal/lifecycle"
 	"github.com/halaostory/halaos/internal/payroll"
@@ -104,6 +106,34 @@ func main() {
 		}
 	}()
 
+	// Government filing agent: runs approved submissions (API / e-mail / browser).
+	govSvc := govfiling.NewService(queries, pool, logger,
+		govfiling.ServiceConfigFromEnv(cfg.Integration.EncryptionKey, aiProvider, email.NewSender(cfg.SMTP, logger), logger))
+	deviceSvc := devices.NewServiceFromKey(queries, logger, cfg.Integration.EncryptionKey)
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		var lastAutopilot time.Time
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if time.Since(lastAutopilot) >= time.Hour {
+					lastAutopilot = time.Now()
+					r := govSvc.Autopilot(ctx)
+					logger.Info("gov filing autopilot", "prepared", r.Prepared, "failed", r.Failed, "state_registrations", r.Registrations)
+				}
+				if n := govSvc.ProcessQueue(ctx); n > 0 {
+					logger.Info("gov filing runs started", "count", n)
+				}
+				if n := deviceSvc.ProcessQueue(ctx); n > 0 {
+					logger.Info("device actions processed", "count", n)
+				}
+			}
+		}
+	}()
+
 	// Periodic jobs
 	go func() {
 		ticker := time.NewTicker(1 * time.Hour)
@@ -172,6 +202,10 @@ func dispatchEvent(ctx context.Context, queries *store.Queries, calculator *payr
 	case "overtime.requested":
 		return dispatcher.DispatchForEvent(ctx, ev.CompanyID, "on_created", "overtime_request", ev.AggregateID)
 
+	case "employee.self_onboarded":
+		logger.Info("new hire completed self-onboarding", "employee_id", ev.AggregateID)
+		return nil
+
 	case "leave.approved", "leave.cancelled":
 		logger.Info("leave event processed", "type", ev.EventType)
 		return nil
@@ -196,6 +230,7 @@ func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.
 	// (marks employee separated + enqueues access revocation).
 	lifecycleSvc := lifecycle.NewService(queries, pool, logger)
 	lifecycleSvc.SetAccountingEmitter(integration.NewAccountingEmitter(queries, logger))
+	lifecycleSvc.SetDevices(devices.NewServiceFromKey(queries, logger, os.Getenv("INTEGRATION_ENCRYPTION_KEY")))
 	if n := lifecycleSvc.ProcessDueSeparations(ctx); n > 0 {
 		logger.Info("applied scheduled separations", "count", n)
 	}

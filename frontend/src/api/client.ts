@@ -1356,6 +1356,7 @@ export const lifecycleAPI = {
   cancelTermination: (employeeId: number) =>
     del(`/v1/lifecycle/employees/${employeeId}/terminate`),
   inbox: (params?: Record<string, string>) => get("/v1/inbox", params),
+  inboxBrief: () => get("/v1/inbox/brief"),
   listCustomFields: (params?: Record<string, string>) =>
     get("/v1/custom-fields", params),
   createCustomField: (data: Record<string, unknown>) =>
@@ -1366,4 +1367,79 @@ export const lifecycleAPI = {
     get(`/v1/employees/${employeeId}/custom-fields`),
   updateEmployeeCustomFields: (employeeId: number, values: Record<string, string>) =>
     put(`/v1/employees/${employeeId}/custom-fields`, { values }),
+};
+
+// Government filing agent
+export const govAPI = {
+  forms: (country?: string) => get("/v1/gov/forms", country ? { country } : undefined),
+  accounts: () => get("/v1/gov/accounts"),
+  saveAccount: (data: Record<string, unknown>) => post("/v1/gov/accounts", data),
+  deleteAccount: (id: number) => del(`/v1/gov/accounts/${id}`),
+  submissions: (params?: Record<string, string>) => get("/v1/gov/submissions", params),
+  prepare: (data: Record<string, unknown>) => post("/v1/gov/submissions", data),
+  submission: (id: number) => get(`/v1/gov/submissions/${id}`),
+  approve: (id: number) => post(`/v1/gov/submissions/${id}/approve`),
+  dryRun: (id: number) => post(`/v1/gov/submissions/${id}/dry-run`),
+  cancel: (id: number) => post(`/v1/gov/submissions/${id}/cancel`),
+  record: (id: number, reference_no: string, note?: string) =>
+    post(`/v1/gov/submissions/${id}/record`, { reference_no, note }),
+  fileBlob: (id: number) => api(`/v1/gov/submissions/${id}/file`, { responseType: "blob" }),
+  evidenceBlob: (id: number, file: string) =>
+    api(`/v1/gov/submissions/${id}/evidence`, { params: { file }, responseType: "blob" }),
+  humanRequests: () => get("/v1/gov/human-requests"),
+  answer: (id: number, answer: string) => post(`/v1/gov/human-requests/${id}/answer`, { answer }),
+  humanScreenshotBlob: (id: number) =>
+    api(`/v1/gov/human-requests/${id}/screenshot`, { responseType: "blob" }),
+  playbooks: () => get("/v1/gov/playbooks"),
+  savePlaybook: (data: Record<string, unknown>) => post("/v1/gov/playbooks", data),
+  verifyPlaybook: (id: number, verified: boolean) =>
+    post(`/v1/gov/playbooks/${id}/verify`, { verified }),
+  deletePlaybook: (id: number) => del(`/v1/gov/playbooks/${id}`),
+};
+
+// Documents & e-signature, self-onboarding invites
+export const documentsAPI = {
+  templates: () => get("/v1/documents/templates"),
+  createTemplate: (data: Record<string, unknown>) => post("/v1/documents/templates", data),
+  updateTemplate: (id: number, data: Record<string, unknown>) =>
+    put(`/v1/documents/templates/${id}`, data),
+  aiDraft: (kind: string, instructions: string) =>
+    post("/v1/documents/templates/ai-draft", { kind, instructions }),
+  mergeFields: () => get("/v1/documents/merge-fields"),
+  requests: (params?: Record<string, string>) => get("/v1/documents/signature-requests", params),
+  createRequest: (data: Record<string, unknown>) => post("/v1/documents/signature-requests", data),
+  voidRequest: (id: number) => post(`/v1/documents/signature-requests/${id}/void`),
+  pdfBlob: (id: number) =>
+    api(`/v1/documents/signature-requests/${id}/pdf`, { responseType: "blob" }),
+  createInvite: (employeeId: number, data: Record<string, unknown>) =>
+    post(`/v1/lifecycle/employees/${employeeId}/onboarding-invite`, data),
+  getInvite: (employeeId: number) => get(`/v1/lifecycle/employees/${employeeId}/onboarding-invite`),
+};
+
+// Public (token) endpoints for new hires / signers — no login
+export const publicAPI = {
+  portal: (token: string) => get(`/v1/public/onboarding/${token}`),
+  saveProfile: (token: string, data: Record<string, unknown>) =>
+    post(`/v1/public/onboarding/${token}/profile`, data),
+  portalDoc: (token: string, id: number) => get(`/v1/public/onboarding/${token}/documents/${id}`),
+  portalSign: (token: string, id: number, data: Record<string, unknown>) =>
+    post(`/v1/public/onboarding/${token}/documents/${id}/sign`, data),
+  doc: (token: string) => get(`/v1/public/sign/${token}`),
+  sign: (token: string, data: Record<string, unknown>) => post(`/v1/public/sign/${token}`, data),
+};
+
+// Devices & MDM
+export const devicesAPI = {
+  list: (params?: Record<string, string>) => get("/v1/devices", params),
+  create: (data: Record<string, unknown>) => post("/v1/devices", data),
+  update: (id: number, data: Record<string, unknown>) => put(`/v1/devices/${id}`, data),
+  assign: (id: number, employee_id: number) => post(`/v1/devices/${id}/assign`, { employee_id }),
+  unassign: (id: number) => post(`/v1/devices/${id}/unassign`),
+  action: (id: number, action: string) => post(`/v1/devices/${id}/actions`, { action }),
+  actions: (params?: Record<string, string>) => get("/v1/devices/actions", params),
+  approveAction: (id: number) => post(`/v1/devices/actions/${id}/approve`),
+  cancelAction: (id: number) => post(`/v1/devices/actions/${id}/cancel`),
+  completeAction: (id: number, note: string) => post(`/v1/devices/actions/${id}/complete`, { note }),
+  mdm: () => get("/v1/devices/mdm"),
+  saveMdm: (data: Record<string, unknown>) => put("/v1/devices/mdm", data),
 };

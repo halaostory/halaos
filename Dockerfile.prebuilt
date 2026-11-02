@@ -1,7 +1,13 @@
 FROM alpine:3.21
 
 RUN apk add --no-cache ca-certificates tzdata wget
+# Headless Chromium for the government filing agent's browser channel
+# (only the worker uses it; chromedp finds chromium on PATH, or set CHROME_PATH).
+RUN apk add --no-cache chromium nss freetype harfbuzz ttf-freefont
 RUN adduser -D -u 1000 appuser
+# Private (non-public) files: prepared returns, portal evidence, signed PDFs
+RUN mkdir -p /data/private && chown appuser /data/private
+ENV GOV_FILES_DIR=/data/private/gov DOC_FILES_DIR=/data/private/documents
 
 COPY bin/api /bin/api
 COPY bin/worker /bin/worker

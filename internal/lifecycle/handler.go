@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/halaostory/halaos/internal/ai/provider"
 	"github.com/halaostory/halaos/internal/auth"
 	"github.com/halaostory/halaos/internal/store"
 	"github.com/halaostory/halaos/pkg/response"
@@ -22,6 +23,7 @@ type Handler struct {
 	pool    *pgxpool.Pool
 	logger  *slog.Logger
 	svc     *Service
+	ai      provider.Provider
 }
 
 // NewHandler creates a lifecycle handler.

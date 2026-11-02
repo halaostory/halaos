@@ -3,6 +3,7 @@ package ai
 import (
 	"context"
 	"fmt"
+	"github.com/halaostory/halaos/internal/finalpay"
 	"time"
 
 	"github.com/halaostory/halaos/internal/ai/provider"
@@ -212,46 +213,34 @@ func (r *ToolRegistry) toolCreateFinalPay(ctx context.Context, companyID, userID
 	if err := r.requireRole(ctx, userID, companyID, "admin"); err != nil {
 		return "", err
 	}
-
 	employeeID, ok := input["employee_id"].(float64)
 	if !ok || employeeID <= 0 {
 		return "", fmt.Errorf("employee_id is required")
 	}
-
-	amount, ok := input["amount"].(float64)
-	if !ok || amount <= 0 {
-		return "", fmt.Errorf("amount is required")
+	sepDateStr, _ := input["separation_date"].(string)
+	if sepDateStr == "" {
+		sepDateStr = time.Now().Format("2006-01-02")
 	}
-
-	// Create a final_pay payroll cycle
-	var notes *string
-	if n, ok := input["notes"].(string); ok && n != "" {
-		notes = &n
-	}
-
-	notesStr := "Final pay created via AI assistant"
-	if notes != nil {
-		notesStr = *notes
-	}
-
-	var cycleID int64
-	err := r.pool.QueryRow(ctx, `
-		INSERT INTO payroll_cycles (company_id, name, cycle_type, start_date, end_date, pay_date, status, notes, created_by)
-		VALUES ($1, $2, 'final_pay', $3, $4, $5, 'draft', $6, $7)
-		RETURNING id
-	`, companyID,
-		fmt.Sprintf("Final Pay - Employee %d", int64(employeeID)),
-		time.Now(), time.Now(), time.Now(),
-		notesStr, userID).Scan(&cycleID)
+	sepDate, err := time.Parse("2006-01-02", sepDateStr)
 	if err != nil {
-		return "", fmt.Errorf("create final pay cycle: %w", err)
+		return "", fmt.Errorf("invalid separation_date format")
 	}
-
+	reason, _ := input["separation_reason"].(string)
+	if reason == "" {
+		reason = "resignation"
+	}
+	fp, res, err := finalpay.ComputeAndStore(ctx, r.queries, companyID, int64(employeeID), sepDate, reason)
+	if err != nil {
+		return "", fmt.Errorf("compute final pay: %w", err)
+	}
+	if fp == nil {
+		return toJSON(map[string]any{"success": false, "message": "A final pay record already exists for this separation date."})
+	}
 	return toJSON(map[string]any{
-		"success":  true,
-		"cycle_id": cycleID,
-		"amount":   amount,
-		"message":  "Final pay record created as draft. Please review and approve via the Payroll page.",
+		"success":      true,
+		"final_pay_id": fp.ID,
+		"breakdown":    res,
+		"message":      "Final pay computed and saved as 'calculated'. Review and approve it on the Final Pay page before release.",
 	})
 }
 
@@ -342,15 +331,15 @@ func clearanceDefs() []provider.ToolDefinition {
 		},
 		{
 			Name:        "create_final_pay",
-			Description: "Create a final pay payroll record for a separated employee. Admin only. Always confirm with the user before calling this tool.",
+			Description: "Compute and save the final pay (unpaid salary, prorated 13th month, leave conversion, statutory separation/retirement pay, loan deductions) for a separated employee as a 'calculated' record awaiting approval. Admin only.",
 			Parameters: jsonSchema(map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"employee_id": map[string]any{"type": "integer", "description": "Employee ID."},
-					"amount":      map[string]any{"type": "number", "description": "Total final pay amount in PHP."},
-					"notes":       map[string]any{"type": "string", "description": "Optional notes about the final pay."},
+					"employee_id":       map[string]any{"type": "integer", "description": "Employee ID."},
+					"separation_date":   map[string]any{"type": "string", "description": "Last working day YYYY-MM-DD (default today)."},
+					"separation_reason": map[string]any{"type": "string", "enum": []string{"resignation", "termination", "end_of_contract", "retirement", "layoff", "death", "other"}},
 				},
-				"required": []string{"employee_id", "amount"},
+				"required": []string{"employee_id"},
 			}),
 		},
 		{

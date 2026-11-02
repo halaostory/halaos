@@ -20,6 +20,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/halaostory/halaos/internal/clearance"
+	"github.com/halaostory/halaos/internal/devices"
+	"github.com/halaostory/halaos/internal/finalpay"
+	"github.com/halaostory/halaos/internal/selfonboard"
 	"github.com/halaostory/halaos/internal/store"
 )
 
@@ -35,8 +38,16 @@ type Service struct {
 	pool       *pgxpool.Pool
 	logger     *slog.Logger
 	accounting AccountingEmitter
+	onboarding *selfonboard.Service
+	devices    *devices.Service
 	now        func() time.Time
 }
+
+// SetDevices wires device management so terminations lock and recall devices.
+func (s *Service) SetDevices(d *devices.Service) { s.devices = d }
+
+// SetOnboarding wires the self-onboarding portal / e-signature service (optional).
+func (s *Service) SetOnboarding(o *selfonboard.Service) { s.onboarding = o }
 
 // NewService builds a lifecycle service.
 func NewService(queries *store.Queries, pool *pgxpool.Pool, logger *slog.Logger) *Service {
@@ -94,13 +105,21 @@ type HireInput struct {
 	CustomFields   map[string]string `json:"custom_fields"`
 	// SkipOnboarding disables generating the onboarding checklist.
 	SkipOnboarding bool `json:"skip_onboarding"`
+	// SendInvite issues a self-onboarding link (new hire enters IDs, bank, etc.).
+	SendInvite bool `json:"send_invite"`
+	// OfferTemplateID sends this document template (e.g. offer letter) for e-signature.
+	OfferTemplateID *int64 `json:"offer_template_id"`
+	// EmailLinks e-mails the invite / signing links (requires SMTP); links are always returned.
+	EmailLinks bool `json:"email_links"`
 }
 
 // HireResult is returned by Hire.
 type HireResult struct {
-	Employee store.Employee `json:"employee"`
-	Stage    string         `json:"stage"`
-	Steps    []Step         `json:"steps"`
+	Employee     store.Employee `json:"employee"`
+	Stage        string         `json:"stage"`
+	Steps        []Step         `json:"steps"`
+	InviteURL    string         `json:"invite_url,omitempty"`
+	SignatureURL string         `json:"signature_url,omitempty"`
 }
 
 // Hire creates an employee and runs every downstream step in one transaction.
@@ -269,13 +288,16 @@ func (s *Service) Hire(ctx context.Context, companyID, userID int64, in HireInpu
 		steps = append(steps, Step{Key: "accounting_sync", Status: "scheduled"})
 	}
 
-	stage := ComputeStage(StageInput{
+	res := &HireResult{Employee: emp, Steps: steps}
+	s.afterHireDocuments(ctx, companyID, userID, emp.ID, in, res)
+
+	res.Stage = ComputeStage(StageInput{
 		Status:              emp.Status,
 		HireDate:            hireDate,
 		OnboardingRemaining: int64(onboardingTasks),
 		Today:               s.now(),
 	})
-	return &HireResult{Employee: emp, Stage: stage, Steps: steps}, nil
+	return res, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -407,7 +429,7 @@ func (s *Service) Terminate(ctx context.Context, companyID, userID, employeeID i
 		if revoke {
 			steps = append(steps, Step{Key: "access_revocation", Status: "scheduled", Detail: "employee.terminated"})
 		}
-		steps = append(steps, Step{Key: "final_pay", Status: "scheduled", Detail: "ready to compute"})
+
 	} else {
 		steps = append(steps, Step{Key: "status_separated", Status: "scheduled", Detail: in.LastWorkingDay})
 		if revoke {
@@ -421,6 +443,10 @@ func (s *Service) Terminate(ctx context.Context, companyID, userID, employeeID i
 
 	if effective {
 		s.emitAccountingTerminated(companyID, sep)
+		steps = append(steps, s.autoFinalPay(ctx, sep))
+		if st, ok := s.deviceRecall(ctx, sep); ok {
+			steps = append(steps, st)
+		}
 	}
 
 	stage := StageOffboarding
@@ -476,6 +502,10 @@ func (s *Service) ProcessDueSeparations(ctx context.Context) int {
 		}
 		applied++
 		s.emitAccountingTerminated(sep.CompanyID, sep)
+		if st := s.autoFinalPay(ctx, sep); st.Status != "done" {
+			s.logger.Warn("lifecycle: final pay not computed", "employee_id", sep.EmployeeID, "detail", st.Detail)
+		}
+		s.deviceRecall(ctx, sep)
 	}
 	return applied
 }
@@ -707,4 +737,70 @@ func emitEvent(ctx context.Context, q *store.Queries, companyID, employeeID, use
 		return fmt.Errorf("emit %s: %w", eventType, err)
 	}
 	return nil
+}
+
+// afterHireDocuments sends the offer letter for e-signature and the
+// self-onboarding invite. Failures are reported as steps, not errors: the
+// employee already exists and HR can resend from the profile.
+func (s *Service) afterHireDocuments(ctx context.Context, companyID, userID, employeeID int64, in HireInput, res *HireResult) {
+	if s.onboarding == nil {
+		return
+	}
+	if in.OfferTemplateID != nil {
+		out, err := s.onboarding.CreateRequest(ctx, companyID, userID, selfonboard.RequestInput{
+			EmployeeID: employeeID, TemplateID: in.OfferTemplateID, SendEmail: in.EmailLinks,
+		})
+		if err != nil {
+			res.Steps = append(res.Steps, Step{Key: "offer_letter_sent", Status: "skipped", Detail: err.Error()})
+		} else {
+			res.SignatureURL = out.Link.URL
+			res.Steps = append(res.Steps, Step{Key: "offer_letter_sent", Status: "done", Detail: out.Request.Title})
+		}
+	}
+	if in.SendInvite {
+		email := ""
+		if in.Email != nil {
+			email = *in.Email
+		}
+		l, err := s.onboarding.CreateInvite(ctx, companyID, userID, employeeID, email, in.EmailLinks)
+		if err != nil {
+			res.Steps = append(res.Steps, Step{Key: "self_onboarding_invite", Status: "skipped", Detail: err.Error()})
+			return
+		}
+		res.InviteURL = l.URL
+		detail := "link created"
+		if l.Emailed {
+			detail = "e-mailed to " + email
+		}
+		res.Steps = append(res.Steps, Step{Key: "self_onboarding_invite", Status: "done", Detail: detail})
+	}
+}
+
+// autoFinalPay computes the final pay for HR review once a separation is
+// effective (Warp closes out final payroll as part of termination).
+func (s *Service) autoFinalPay(ctx context.Context, sep store.EmployeeSeparation) Step {
+	fp, res, err := finalpay.ComputeAndStore(ctx, s.queries, sep.CompanyID, sep.EmployeeID, sep.LastWorkingDay, sep.SeparationType)
+	if err != nil {
+		return Step{Key: "final_pay", Status: "skipped", Detail: err.Error()}
+	}
+	if fp == nil {
+		return Step{Key: "final_pay", Status: "done", Detail: "already computed"}
+	}
+	return Step{Key: "final_pay", Status: "done", Detail: fmt.Sprintf("computed %.2f — awaiting approval", res.Total)}
+}
+
+// deviceRecall locks the leaver's devices and requests their return.
+func (s *Service) deviceRecall(ctx context.Context, sep store.EmployeeSeparation) (Step, bool) {
+	if s.devices == nil || !sep.RevokeAccess {
+		return Step{}, false
+	}
+	n, err := s.devices.OnTermination(ctx, sep.CompanyID, sep.EmployeeID, sep.CreatedBy)
+	if err != nil {
+		s.logger.Error("lifecycle: device recall", "employee_id", sep.EmployeeID, "error", err)
+		return Step{Key: "device_recall", Status: "skipped", Detail: err.Error()}, true
+	}
+	if n == 0 {
+		return Step{}, false
+	}
+	return Step{Key: "device_recall", Status: "scheduled", Detail: fmt.Sprintf("%d device(s): lock + return", n)}, true
 }

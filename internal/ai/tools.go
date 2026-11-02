@@ -75,6 +75,7 @@ func (r *ToolRegistry) Definitions() []provider.ToolDefinition {
 	defs = append(defs, pulseDefs()...)
 	defs = append(defs, recognitionDefs()...)
 	defs = append(defs, hrrequestDefs()...)
+	defs = append(defs, lifecycleDefs()...)
 	return defs
 }
 
@@ -110,4 +111,5 @@ func (r *ToolRegistry) registerTools() {
 	r.registerPulseTools()
 	r.registerRecognitionTools()
 	r.registerHRRequestTools()
+	r.registerLifecycleTools()
 }

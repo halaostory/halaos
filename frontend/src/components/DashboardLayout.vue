@@ -19,7 +19,7 @@ import {
   MegaphoneOutline, DocumentTextOutline, SchoolOutline, AlertCircleOutline, MedkitOutline, FolderOpenOutline, ChatbubblesOutline, LocationOutline,
   LinkOutline, PulseOutline, GitBranchOutline, TrendingUpOutline,
   FlashOutline, BulbOutline, HappyOutline, StarOutline, OpenOutline,
-  MailUnreadOutline, PersonAddOutline, OptionsOutline,
+  MailUnreadOutline, PersonAddOutline, OptionsOutline, BuildOutline, CreateOutline, LaptopOutline,
 } from '@vicons/ionicons5'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
@@ -141,7 +141,7 @@ const features: Record<string, boolean> = {
   'pulse-surveys': true, recognition: true, 'hr-requests': true,
   'virtual-office': true,
   'bot-setup': true,
-  inbox: true, hire: true, 'custom-fields': true,
+  inbox: true, hire: true, 'custom-fields': true, 'gov-filings': true, documents: true, devices: true,
 }
 
 function isEnabled(key: string): boolean {
@@ -174,6 +174,8 @@ const menuOptions = computed<MenuOption[]>(() => {
   const people: MenuOption[] = []
   if (isAdminOrManager) pushIf(people, 'employees', 'nav.employees', PeopleOutline)
   if (auth.isAdmin) pushIf(people, 'hire', 'nav.hire', PersonAddOutline)
+  if (auth.isAdmin) pushIf(people, 'documents', 'nav.documents', CreateOutline)
+  if (auth.isAdmin) pushIf(people, 'devices', 'nav.devices', LaptopOutline)
   pushIf(people, 'directory', 'nav.directory', BookOutline)
   if (isAdminOrManager) {
     pushIf(people, 'onboarding', 'nav.onboarding', ClipboardOutline)
@@ -267,6 +269,7 @@ const menuOptions = computed<MenuOption[]>(() => {
     pushIf(companyItems, 'salary', 'nav.salary', CashOutline)
     pushIf(companyItems, 'holidays', 'nav.holidays', TodayOutline)
     pushIf(companyItems, 'compliance', 'nav.compliance', ShieldCheckmarkOutline)
+    pushIf(companyItems, 'gov-filings', 'nav.govFilings', BuildOutline)
     pushIf(companyItems, 'tax-filings', 'nav.taxFilings', DocumentTextOutline)
     if (companyItems.length) {
       adminItems.push({ type: 'group', label: t('nav.groupAdminCompany'), key: 'g-admin-company', children: companyItems })

@@ -128,6 +128,42 @@ FROM (
            'normal', pj.created_at
     FROM provisioning_jobs pj JOIN employees e ON e.id = pj.employee_id
     WHERE pj.company_id = @company_id AND pj.status IN ('requires_approval', 'failed', 'dead')
+    UNION ALL
+    SELECT CASE gs.status WHEN 'ready' THEN 'gov_filing_approval' WHEN 'draft' THEN 'gov_filing_blocked'
+                          WHEN 'approved' THEN 'gov_filing_manual' ELSE 'gov_filing_failed' END,
+           gs.id, 0::bigint, ''::text, (gs.agency || ' ' || gs.form_code || ' ' || gs.period)::text, gs.due_date,
+           CASE WHEN gs.status = 'failed' OR (gs.due_date IS NOT NULL AND gs.due_date <= CURRENT_DATE + 3) THEN 'high' ELSE 'normal' END,
+           gs.updated_at
+    FROM gov_submissions gs
+    WHERE gs.company_id = @company_id
+      AND (gs.status IN ('ready', 'draft', 'failed') OR (gs.status = 'approved' AND gs.channel = 'manual'))
+    UNION ALL
+    SELECT 'gov_human_input', hr.id, 0::bigint, ''::text, (gs.agency || ' ' || gs.form_code || ': ' || hr.name)::text,
+           hr.expires_at::date, 'high', hr.created_at
+    FROM gov_human_requests hr JOIN gov_submissions gs ON gs.id = hr.submission_id
+    WHERE hr.company_id = @company_id AND hr.status = 'open' AND hr.expires_at > NOW()
+      AND gs.status IN ('running', 'needs_human')
+    UNION ALL
+    SELECT 'self_onboarding_review', oi.id, oi.employee_id, e.first_name || ' ' || e.last_name,
+           'New hire submitted onboarding details'::text, e.hire_date, 'normal', oi.submitted_at
+    FROM onboarding_invites oi JOIN employees e ON e.id = oi.employee_id
+    WHERE oi.company_id = @company_id AND oi.status = 'submitted' AND oi.submitted_at > NOW() - INTERVAL '7 days'
+    UNION ALL
+    SELECT 'signature_declined', sr.id, sr.employee_id, e.first_name || ' ' || e.last_name, sr.title::text,
+           NULL::date, 'high', sr.created_at
+    FROM signature_requests sr JOIN employees e ON e.id = sr.employee_id
+    WHERE sr.company_id = @company_id AND sr.status = 'declined' AND sr.created_at > NOW() - INTERVAL '30 days'
+    UNION ALL
+    SELECT 'device_action', da.id, COALESCE(da.employee_id, 0), COALESCE(e.first_name || ' ' || e.last_name, '')::text,
+           (da.action || ' ' || d.asset_tag)::text, NULL::date,
+           CASE WHEN da.status IN ('requires_approval', 'failed') THEN 'high' ELSE 'normal' END, da.created_at
+    FROM device_actions da JOIN company_devices d ON d.id = da.device_id LEFT JOIN employees e ON e.id = da.employee_id
+    WHERE da.company_id = @company_id AND da.status IN ('requires_approval', 'manual', 'failed')
+    UNION ALL
+    SELECT 'final_pay_approval', fp.id, fp.employee_id, e.first_name || ' ' || e.last_name,
+           'Final pay ready for review'::text, fp.separation_date, 'normal', fp.created_at
+    FROM final_pay fp JOIN employees e ON e.id = fp.employee_id
+    WHERE fp.company_id = @company_id AND fp.status = 'calculated'
 ) inbox
 ORDER BY (inbox.priority = 'high') DESC, inbox.due_date NULLS LAST, inbox.created_at DESC
 LIMIT @lim;
@@ -185,3 +221,17 @@ UPDATE onboarding_tasks SET
     updated_at = NOW()
 WHERE employee_id = $1 AND company_id = $2 AND workflow_type = $3
   AND status IN ('pending', 'in_progress');
+
+-- name: GetEmployeePayrollCoverage :one
+-- Last day already covered by a completed payroll run, and basic pay paid this year.
+SELECT COALESCE(MAX(pc.period_end), '0001-01-01'::date)::date AS last_paid_through,
+       COALESCE(SUM(pi.basic_pay) FILTER (WHERE pc.period_start >= make_date(sqlc.arg(year)::int, 1, 1)), 0)::float8 AS ytd_basic
+FROM payroll_items pi
+JOIN payroll_runs pr ON pr.id = pi.run_id
+JOIN payroll_cycles pc ON pc.id = pr.cycle_id
+WHERE pi.employee_id = sqlc.arg(employee_id) AND pr.company_id = sqlc.arg(company_id) AND pr.status = 'completed';
+
+-- name: FinalPayExistsForSeparation :one
+SELECT EXISTS (
+    SELECT 1 FROM final_pay WHERE company_id = $1 AND employee_id = $2 AND separation_date = $3
+)::boolean;

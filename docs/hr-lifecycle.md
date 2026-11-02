@@ -16,7 +16,12 @@ inbox shows only what still needs a human.**
 | Scheduled offboarding on last day | Worker applies due separations daily (`ProcessDueSeparations`) | — |
 | Employee profiles with custom fields | `employee_custom_fields` + **Custom Fields** admin page + card on employee page | — |
 | Lifecycle status per person | `GET /lifecycle/employees/:id` (stage: pre_start / onboarding / active / offboarding / separated) | — |
-| "Everything that needs you" task list | `GET /inbox` + **Inbox** page | Approvals, onboarding, compliance alerts, expiring docs, milestones on separate pages |
+| "Everything that needs you" task list | `GET /inbox` (+ `GET /inbox/brief` AI brief) + **Inbox** page | Approvals, onboarding, compliance alerts, expiring docs, milestones on separate pages |
+| Self-service onboarding portal (new hire done in ~10 min) | Public `/onboard/:token` portal: personal info, gov IDs (validated), bank, emergency contact, documents | HR typed everything |
+| Offer letters & documents with e-signature | Templates with merge fields + AI drafting, `/sign/:token`, signed PDF with audit trail filed to the 201 file | — |
+| Device management (lock / wipe on termination) | Device inventory, MDM gateway (signed webhook), auto-lock + return request on termination; wipe needs approval | — |
+| Closes out final payroll on termination | Final pay auto-computed when the separation becomes effective (PH Labor Code / PD 851 / RA 7641) | Hand-entered totals |
+| Compliance autopilot (filings & registrations handled for you) | Government filing agent: prepare → rules + AI pre-flight → approve → submit via API / e-mail / browser agent / guided manual; hourly autopilot; US state-registration tasks | Forms as JSON only |
 
 ## Hire (`POST /api/v1/lifecycle/hire`, admin)
 
@@ -77,10 +82,72 @@ counts; `?kind=` filters items.
 - Frontend: `views/HireWizardView.vue`, `views/InboxView.vue`, `views/CustomFieldsView.vue`,
   `components/lifecycle/EmployeeLifecycleCard.vue`
 
-## Possible next steps (further Warp parity)
+## Government filing agent (`internal/govfiling`)
 
-- Employee self-onboarding portal (new hire fills personal/tax/bank info and e-signs documents before day 1)
-- Offer letters with e-signature as step 0 of hire
-- Device management events (lock/wipe) as provisioning actions
-- Auto-compute final pay when the separation becomes effective
-- Off-cycle / final payroll run triggered from terminate
+Pipeline per return: **prepare** (file built from payroll) → **pre-flight** (deterministic
+rules + optional AI review that only sees aggregates) → **human approval** → **submit** through
+the agency's channel → reference number stored, `tax_filings` row marked filed.
+
+| Channel | How | Used for |
+|---|---|---|
+| `api` | Signed (HMAC-SHA256) webhook to a licensed e-file partner / gateway; must return a reference number | IRS 941, US state registrations, IRAS via partner |
+| `email` | MIME e-mail with the file attached (`GOV_EMAIL_OVERRIDE_TO` for staging) | BIR 1604-C alphalist via eSubmission |
+| `browser` | Headless Chromium (chromedp) running a declarative **playbook** | eFPS, My.SSS, PhilHealth EPRS, Pag-IBIG eSRS… |
+| `manual` | File + step-by-step instructions; HR records the reference | Anything else (eBIRForms, CPF EZPay, EPF/ETF) |
+
+Safety rules built into the agent:
+
+- Nothing is sent without an explicit approval; blocking pre-flight issues prevent approval.
+- CAPTCHA, OTP and similar steps are `human_input`: the run pauses, a screenshot is shown in
+  HalaOS (inbox + filing drawer) and resumes with the human's answer. The agent never solves
+  CAPTCHAs. Answers are encrypted and wiped after use.
+- Real-portal playbooks are **per company and must be verified**: a dry run executes every step
+  except the one marked `final` and stores screenshots; only then can an admin mark the playbook
+  verified and approve real runs. HalaOS ships no guessed selectors for real portals.
+- Portal credentials are AES-256-GCM encrypted (`INTEGRATION_ENCRYPTION_KEY`), never returned by
+  the API, and passwords / OTPs are masked in run logs.
+- Cancelling stops a running session before its next step; the prepared file is checksummed and
+  re-verified before upload; prepared files and screenshots live in a private directory
+  (`GOV_FILES_DIR`), not the public `/uploads`.
+- The **autopilot** (worker, hourly) keeps the PH filing calendar, prepares returns due within
+  10 days (and up to 45 days overdue) so HR only approves, and opens US state-registration tasks.
+
+Try it locally: `go run ./cmd/mockgov`, set `GOV_MOCK_PORTAL_URL=http://127.0.0.1:8091`, add a
+portal account for agency `MOCK` / portal `mock` (employer01 / s3cret!), prepare "Demo return",
+approve, then answer CAPTCHA `K7Q2P` and OTP `246810` in the UI.
+
+## Self-onboarding & e-signature (`internal/selfonboard`)
+
+- `POST /lifecycle/employees/:id/onboarding-invite` → single-use link (SHA-256 hashed token, 14 days).
+- Public `GET/POST /public/onboarding/:token/...` and `/public/sign/:token` (rate limited).
+- Templates use merge fields (`{{employee.full_name}}`, `{{employee.basic_salary}}`, …); unknown or
+  empty fields block sending. `POST /documents/templates/ai-draft` drafts a template with AI.
+- Signing requires consent + typed name containing the signer's last name; optional drawn signature.
+  A PDF with an audit page (document SHA-256, sent/viewed/signed times, IP, user agent) is stored
+  privately (`DOC_FILES_DIR`) and filed to the employee's documents.
+- Hire can send the offer letter and the portal link in the same step.
+
+## Final pay & devices
+
+- `internal/finalpay/compute.go`: unpaid salary since the last completed payroll (or since the
+  start of the month when HalaOS has no payroll history), PD 851 prorated 13th month, convertible
+  leave, Art. 298 separation pay for layoffs (½-year rule), RA 7641 retirement pay, loan
+  deductions. Stored as `calculated` with the basis and notes for HR approval.
+- `internal/devices`: inventory, assignment, MDM actions (lock / unlock / wipe / return) via a
+  signed webhook; on termination devices are locked automatically (configurable) and a return is
+  requested; wipe always needs a second approval; without an MDM gateway actions become IT tasks.
+
+## AI tools (agents)
+
+`get_hr_inbox`, `get_employee_lifecycle`, `hire_employee`, `terminate_employee`,
+`send_onboarding_invite`, `send_document_for_signature`, `list_gov_filings`,
+`prepare_gov_filing`, `lock_device`. Write tools go through action drafts (user confirmation).
+Approving a government submission is intentionally not an AI tool.
+
+## Known limits
+
+- Upload layouts for SSS R-3, PhilHealth RF-1, Pag-IBIG and the BIR alphalist follow published
+  column orders but must pass each agency's own validator; the pre-flight reminds the reviewer.
+- IRAS AIS direct API (CorpPass flow) and SG/LK data generators are not built yet — use a partner
+  or the manual channel.
+- Off-cycle payroll runs for a single leaver are not implemented; final pay is a reviewed record.

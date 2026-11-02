@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { NCard, NSpace, NTag, NButton, NSpin, NEmpty, NList, NListItem, NThing, useMessage } from 'naive-ui'
+import { NCard, NSpace, NTag, NButton, NSpin, NEmpty, NList, NListItem, NThing, NAlert, useMessage } from 'naive-ui'
 import { lifecycleAPI } from '../api/client'
 
 interface InboxItem {
@@ -28,6 +28,19 @@ const message = useMessage()
 const loading = ref(false)
 const data = ref<InboxData>({ items: [], counts: {}, total: 0, high: 0 })
 const filter = ref<string>('')
+const brief = ref<{ summary: string; actions: string[]; generated_by: string } | null>(null)
+const briefLoading = ref(false)
+
+async function loadBrief() {
+  briefLoading.value = true
+  try {
+    brief.value = ((await lifecycleAPI.inboxBrief()) as { data: typeof brief.value }).data
+  } catch {
+    brief.value = null
+  } finally {
+    briefLoading.value = false
+  }
+}
 
 // Where each kind of item gets resolved.
 const kindRoute: Record<string, string> = {
@@ -40,6 +53,14 @@ const kindRoute: Record<string, string> = {
   compliance_alert: 'compliance',
   contract_milestone: 'milestones',
   provisioning_approval: 'provisioning-jobs',
+  gov_filing_approval: 'gov-filings',
+  gov_filing_blocked: 'gov-filings',
+  gov_filing_failed: 'gov-filings',
+  gov_filing_manual: 'gov-filings',
+  gov_human_input: 'gov-filings',
+  signature_declined: 'documents',
+  device_action: 'devices',
+  final_pay_approval: 'final-pay',
 }
 
 const kinds = computed(() =>
@@ -65,7 +86,7 @@ async function load() {
 }
 
 function open(item: InboxItem) {
-  if (item.kind === 'document_expiring' && item.employee_id) {
+  if (['document_expiring', 'self_onboarding_review'].includes(item.kind) && item.employee_id) {
     router.push({ name: 'employee-detail', params: { id: String(item.employee_id) } })
     return
   }
@@ -73,7 +94,7 @@ function open(item: InboxItem) {
   if (name) router.push({ name })
 }
 
-onMounted(load)
+onMounted(() => { load(); loadBrief() })
 </script>
 
 <template>
@@ -82,6 +103,15 @@ onMounted(load)
       <h2 style="margin: 0">{{ t('lifecycle.inbox') }}</h2>
       <div style="opacity: 0.7">{{ t('lifecycle.inboxSubtitle') }}</div>
     </div>
+
+    <NSpin :show="briefLoading">
+      <NAlert v-if="brief" type="info" :title="brief.generated_by === 'ai' ? '✨ ' + t('lifecycle.aiBrief') : t('lifecycle.brief')">
+        <div>{{ brief.summary }}</div>
+        <ol v-if="brief.actions.length" style="margin: 6px 0 0; padding-left: 18px">
+          <li v-for="(a, i) in brief.actions" :key="i">{{ a }}</li>
+        </ol>
+      </NAlert>
+    </NSpin>
 
     <NSpace>
       <NButton size="small" :type="filter === '' ? 'primary' : 'default'" @click="filter = ''">

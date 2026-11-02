@@ -7,7 +7,7 @@ import {
   useMessage, useDialog,
 } from 'naive-ui'
 import { format } from 'date-fns'
-import { lifecycleAPI } from '../../api/client'
+import { lifecycleAPI, documentsAPI } from '../../api/client'
 
 const props = defineProps<{ employeeId: number; employeeName: string; isAdmin: boolean }>()
 const emit = defineEmits<{ (e: 'changed'): void }>()
@@ -71,6 +71,25 @@ async function load() {
     fields.value = (f as { data: CustomFieldValue[] }).data || []
   } catch {
     /* card is supplementary; stay silent */
+  }
+}
+
+// --- self-onboarding invite ---------------------------------------------
+const invite = ref<{ status: string; expires_at: string } | null>(null)
+const inviteLink = ref('')
+async function loadInvite() {
+  try {
+    invite.value = ((await documentsAPI.getInvite(props.employeeId)) as { data: typeof invite.value }).data
+  } catch { invite.value = null }
+}
+async function sendInvite() {
+  try {
+    const l = ((await documentsAPI.createInvite(props.employeeId, { send_email: true })) as { data: { url: string; emailed: boolean } }).data
+    inviteLink.value = l.url
+    message.success(l.emailed ? t('docs.emailed') : t('docs.linkReady'))
+    await loadInvite()
+  } catch {
+    message.error(t('common.saveFailed'))
   }
 }
 
@@ -164,8 +183,8 @@ function cancelTermination() {
   })
 }
 
-watch(() => props.employeeId, load)
-onMounted(load)
+watch(() => props.employeeId, () => { load(); loadInvite() })
+onMounted(() => { load(); loadInvite() })
 </script>
 
 <template>
@@ -193,6 +212,14 @@ onMounted(load)
       <NDescriptionsItem v-if="ov.clearance" :label="t('lifecycle.clearance')">{{ ov.clearance.status }}</NDescriptionsItem>
       <NDescriptionsItem v-if="ov.final_pay" :label="t('lifecycle.finalPay')">
         {{ ov.final_pay.status }} · {{ ov.final_pay.total_final_pay }}
+      </NDescriptionsItem>
+      <NDescriptionsItem :label="t('lifecycle.selfOnboarding')">
+        <NSpace align="center" :size="6">
+          <NTag v-if="invite" size="small" :type="invite.status === 'submitted' ? 'success' : 'info'">{{ t('lifecycle.invite_' + invite.status) }}</NTag>
+          <span v-else style="opacity: 0.6">—</span>
+          <NButton v-if="isAdmin && ov.stage !== 'separated'" size="tiny" @click="sendInvite">{{ invite ? t('lifecycle.resendInvite') : t('lifecycle.sendInviteShort') }}</NButton>
+        </NSpace>
+        <div v-if="inviteLink" style="font-size: 12px; word-break: break-all; margin-top: 4px"><code>{{ inviteLink }}</code></div>
       </NDescriptionsItem>
       <NDescriptionsItem :label="t('lifecycle.provisioning')">
         <span v-if="ov.provisioning.length === 0" style="opacity: 0.6">{{ t('lifecycle.noProvisioning') }}</span>

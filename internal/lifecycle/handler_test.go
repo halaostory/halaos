@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -165,4 +166,23 @@ func TestRoutesRegisterAlongsideEmployeeRoutes(t *testing.T) {
 	g := r.Group("/api/v1")
 	employee.NewHandler(nil, nil, nil).RegisterRoutes(g)
 	newTestHandler(testutil.NewMockDBTX()).RegisterRoutes(g)
+}
+
+func TestRulesBrief_PrioritisesGovernmentAndUrgent(t *testing.T) {
+	now := time.Now()
+	b := rulesBrief([]store.ListHRInboxItemsRow{
+		{Kind: "onboarding_task", Priority: "normal", CreatedAt: now},
+		{Kind: "onboarding_task", Priority: "normal", CreatedAt: now},
+		{Kind: "leave_approval", Priority: "normal", CreatedAt: now},
+		{Kind: "gov_human_input", Priority: "high", CreatedAt: now},
+	})
+	if b.Generated != "rules" || len(b.Actions) != 3 || !strings.Contains(b.Actions[0], "CAPTCHA/OTP") {
+		t.Errorf("%+v", b)
+	}
+	if !strings.Contains(b.Summary, "4 items") || !strings.Contains(b.Summary, "1 of them urgent") {
+		t.Errorf("summary %q", b.Summary)
+	}
+	if e := rulesBrief(nil); !strings.Contains(e.Summary, "Nothing") {
+		t.Error("empty inbox brief")
+	}
 }

@@ -17,7 +17,10 @@ HalaOS is a full-featured HR platform with payroll processing, attendance tracki
 - **Benefits & Loans** — Plan enrollment, claims, amortization, salary deduction
 - **Training & Performance** — Programs, certifications, KPIs, review cycles
 - **Employee Lifecycle** — One-step hire & terminate that fan out to pay, time off, checklists, app provisioning/deprovisioning and accounting ([docs](docs/hr-lifecycle.md))
-- **HR Inbox** — Every pending approval, task, expiring document and compliance alert in one list
+- **HR Inbox** — Every pending approval, task, expiring document and compliance alert in one list, with an AI brief
+- **Government Filing Agent** — Prepares statutory returns from payroll, reviews them (rules + AI), and after approval submits via API, e-mail or a supervised browser agent (CAPTCHA/OTP handed to a human)
+- **Self-onboarding & e-Signature** — New-hire portal for IDs/bank/documents; offer letters and contracts signed online with an audit trail
+- **Devices & Final Pay** — Devices locked and recalled on termination; final pay computed automatically for review
 - **Custom Fields** — Company-defined employee profile fields
 - **Onboarding/Offboarding** — Checklists, clearance workflows, final pay
 - **9 AI Agents** — HR assistant, payroll specialist, compliance officer, leave advisor, and more

@@ -7,7 +7,7 @@ import {
   NButton, NSpace, NCheckbox, NResult, NList, NListItem, NTag, NEmpty, useMessage,
 } from 'naive-ui'
 import { format } from 'date-fns'
-import { lifecycleAPI, companyAPI, employeeAPI } from '../api/client'
+import { lifecycleAPI, companyAPI, employeeAPI, documentsAPI } from '../api/client'
 
 interface CustomField {
   id: number
@@ -25,7 +25,12 @@ const message = useMessage()
 
 const current = ref(1)
 const submitting = ref(false)
-const result = ref<{ employee: { id: number; first_name: string; last_name: string }; steps: Step[] } | null>(null)
+const result = ref<{ employee: { id: number; first_name: string; last_name: string }; steps: Step[]; invite_url?: string; signature_url?: string } | null>(null)
+const offerTemplates = ref<{ label: string; value: number }[]>([])
+function copy(s: string) {
+  navigator.clipboard?.writeText(s)
+  message.success(t('docs.copied'))
+}
 
 const form = ref({
   first_name: '',
@@ -40,6 +45,9 @@ const form = ref({
   manager_id: null as number | null,
   basic_salary: null as number | null,
   skip_onboarding: false,
+  send_invite: true,
+  offer_template_id: null as number | null,
+  email_links: false,
 })
 const custom = ref<Record<string, string>>({})
 const customFields = ref<CustomField[]>([])
@@ -59,6 +67,8 @@ const plannedSteps = computed(() => {
   if (form.value.basic_salary) s.splice(1, 0, 'compensation_set')
   if (Object.values(custom.value).some((v) => v)) s.push('custom_fields_saved')
   if (!form.value.skip_onboarding) s.push('onboarding_checklist')
+  if (form.value.offer_template_id) s.push('offer_letter_sent')
+  if (form.value.send_invite) s.push('self_onboarding_invite')
   return s
 })
 
@@ -78,6 +88,8 @@ async function loadLookups() {
     positions.value = (unwrap<{ id: number; title?: string; name?: string }[]>(p) || []).map((x) => ({ label: x.title || x.name || String(x.id), value: x.id }))
     managers.value = (unwrap<{ id: number; first_name: string; last_name: string }[]>(e) || []).map((x) => ({ label: `${x.first_name} ${x.last_name}`, value: x.id }))
     customFields.value = unwrap<CustomField[]>(f) || []
+    const tpls = unwrap<{ id: number; name: string; kind: string; is_active: boolean }[]>(await documentsAPI.templates()) || []
+    offerTemplates.value = tpls.filter((x) => x.is_active).map((x) => ({ label: x.name, value: x.id }))
   } catch {
     message.error(t('common.loadFailed'))
   }
@@ -118,6 +130,8 @@ async function submit() {
       hire_date: format(new Date(f.hire_date as number), 'yyyy-MM-dd'),
       employment_type: f.employment_type,
       skip_onboarding: f.skip_onboarding,
+      send_invite: f.send_invite,
+      email_links: f.email_links,
       custom_fields: Object.fromEntries(Object.entries(custom.value).filter(([, v]) => v !== '')),
     }
     if (f.email) payload.email = f.email
@@ -127,6 +141,7 @@ async function submit() {
     if (f.position_id) payload.position_id = f.position_id
     if (f.manager_id) payload.manager_id = f.manager_id
     if (f.basic_salary) payload.basic_salary = f.basic_salary
+    if (f.offer_template_id) payload.offer_template_id = f.offer_template_id
     const res = await lifecycleAPI.hire(payload)
     result.value = unwrap(res)
   } catch (e: unknown) {
@@ -176,6 +191,10 @@ onMounted(loadLookups)
                 </NSpace>
               </NListItem>
             </NList>
+            <NSpace vertical style="margin-top: 12px">
+              <div v-if="result.invite_url"><b>{{ t('lifecycle.inviteLink') }}</b><br /><code style="word-break: break-all">{{ result.invite_url }}</code> <NButton size="tiny" @click="copy(result.invite_url)">{{ t('docs.copy') }}</NButton></div>
+              <div v-if="result.signature_url"><b>{{ t('lifecycle.offerLink') }}</b><br /><code style="word-break: break-all">{{ result.signature_url }}</code> <NButton size="tiny" @click="copy(result.signature_url)">{{ t('docs.copy') }}</NButton></div>
+            </NSpace>
           </div>
         </template>
         <template #footer>
@@ -261,7 +280,15 @@ onMounted(loadLookups)
               :placeholder="f.field_type === 'date' ? 'YYYY-MM-DD' : ''"
             />
           </NFormItem>
-          <NCheckbox v-model:checked="form.skip_onboarding">{{ t('lifecycle.skipOnboarding') }}</NCheckbox>
+          <h4 style="margin: 16px 0 8px">{{ t('lifecycle.newHireExperience') }}</h4>
+          <NFormItem :label="t('lifecycle.offerLetter')">
+            <NSelect v-model:value="form.offer_template_id" clearable :options="offerTemplates" :placeholder="t('lifecycle.offerNone')" />
+          </NFormItem>
+          <NSpace vertical>
+            <NCheckbox v-model:checked="form.send_invite">{{ t('lifecycle.sendInvite') }}</NCheckbox>
+            <NCheckbox v-model:checked="form.email_links">{{ t('lifecycle.emailLinks') }}</NCheckbox>
+            <NCheckbox v-model:checked="form.skip_onboarding">{{ t('lifecycle.skipOnboarding') }}</NCheckbox>
+          </NSpace>
         </template>
 
         <template v-else>

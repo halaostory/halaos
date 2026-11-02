@@ -49,3 +49,10 @@ cd frontend && npm install && npm run dev
 - **Routes**: `POST /lifecycle/hire`, `GET /lifecycle/employees/:id`, `POST|DELETE /lifecycle/employees/:id/terminate`, `GET /inbox`, `/custom-fields`, `/employees/:id/custom-fields`
 - **Scheduled separations**: `employee_separations` (status scheduled → completed by worker on last working day)
 - **Docs**: `docs/hr-lifecycle.md`
+
+## Government filing agent / e-sign / devices
+- `internal/govfiling`: catalog (forms × channels), dataset+file builders, pre-flight rules + AI review, service (prepare/approve/execute), browser engine `browser/` (chromedp playbooks, human_input hand-off, dry runs), autopilot. Never submit without approval; never auto-solve CAPTCHA.
+- `internal/selfonboard`: onboarding invites + e-signature (public routes under `/api/v1/public`, token hashed).
+- `internal/devices`, `internal/finalpay/compute.go`; AI tools in `internal/ai/tools_lifecycle.go` (write tools must be listed in `internal/ai/draft/service.go`).
+- Private files (`GOV_FILES_DIR`, `DOC_FILES_DIR`) must never live under the public `/uploads`.
+- Docs: `docs/hr-lifecycle.md`. Local demo portal: `go run ./cmd/mockgov`.

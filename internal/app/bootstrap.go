@@ -49,7 +49,10 @@ import (
 	"github.com/halaostory/halaos/internal/docfile"
 	"github.com/halaostory/halaos/internal/email"
 	"github.com/halaostory/halaos/internal/employee"
+	"github.com/halaostory/halaos/internal/govfiling"
+	"github.com/halaostory/halaos/internal/devices"
 	"github.com/halaostory/halaos/internal/lifecycle"
+	"github.com/halaostory/halaos/internal/selfonboard"
 	"github.com/halaostory/halaos/internal/expense"
 	"github.com/halaostory/halaos/internal/finalpay"
 	"github.com/halaostory/halaos/internal/grievance"
@@ -407,6 +410,24 @@ func (a *App) setupRoutes() {
 	virtualOfficeHandler.RegisterRoutes(protected)
 
 	billingHandler.RegisterRoutes(protected)
+
+	// Government filing agent (prepare → review → approve → submit)
+	govHandler := govfiling.NewHandler(govfiling.NewService(a.Queries, a.Pool, a.Logger, govfiling.ServiceConfigFromEnv(a.Cfg.Integration.EncryptionKey, aiProvider, a.Email, a.Logger)), a.Queries, a.Logger)
+	govHandler.RegisterRoutes(protected)
+
+	// New-hire self-onboarding portal + e-signatures (public token routes are rate limited)
+	selfOnboardHandler := selfonboard.NewHandler(selfonboard.NewService(a.Queries, a.Logger, a.Email, aiProvider, a.Cfg.Resend.BaseURL), a.Queries, a.Logger)
+	selfOnboardHandler.RegisterRoutes(protected)
+	selfOnboardHandler.RegisterPublic(api, a.Limiter.APIMiddleware(), a.Limiter.LoginMiddleware())
+	lifecycleHandler.Service().SetOnboarding(selfOnboardHandler.Service())
+	if aiProvider != nil {
+		lifecycleHandler.SetAI(aiProvider)
+	}
+
+	// Device inventory + MDM actions
+	deviceSvc := devices.NewServiceFromKey(a.Queries, a.Logger, a.Cfg.Integration.EncryptionKey)
+	devices.NewHandler(deviceSvc, a.Queries).RegisterRoutes(protected)
+	lifecycleHandler.Service().SetDevices(deviceSvc)
 
 	referralHandler := referral.NewHandler(a.Queries, a.Logger)
 	referralHandler.RegisterRoutes(protected)

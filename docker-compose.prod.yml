@@ -78,6 +78,7 @@ services:
         condition: service_completed_successfully
     volumes:
       - uploads:/data/uploads
+      - private:/data/private
     networks:
       - internal
     expose:
@@ -89,6 +90,8 @@ services:
       dockerfile: Dockerfile.prebuilt
     restart: unless-stopped
     command: ["/bin/worker"]
+    volumes:
+      - private:/data/private
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
@@ -99,6 +102,15 @@ services:
       REDIS_ADDR: redis:6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
+      MINIMAX_API_KEY: ${MINIMAX_API_KEY:-}
+      INTEGRATION_ENCRYPTION_KEY: ${INTEGRATION_ENCRYPTION_KEY:-}
+      APP_BASE_URL: ${APP_BASE_URL:-https://halaos.com}
+      SMTP_ENABLED: ${SMTP_ENABLED:-false}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -123,6 +135,7 @@ volumes:
   pgdata:
   redisdata:
   uploads:
+  private:
 
 networks:
   internal:

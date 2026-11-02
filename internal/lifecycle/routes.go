@@ -14,6 +14,7 @@ func (h *Handler) RegisterRoutes(protected *gin.RouterGroup) {
 	protected.DELETE("/lifecycle/employees/:id/terminate", auth.AdminOnly(), h.CancelTermination)
 
 	protected.GET("/inbox", auth.AdminOnly(), h.GetInbox)
+	protected.GET("/inbox/brief", auth.AdminOnly(), h.GetInboxBrief)
 
 	protected.GET("/custom-fields", auth.ManagerOrAbove(), h.ListCustomFields)
 	protected.POST("/custom-fields", auth.AdminOnly(), h.CreateCustomField)
