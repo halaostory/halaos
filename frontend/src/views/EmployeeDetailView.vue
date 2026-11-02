@@ -30,6 +30,7 @@ import {
 import { h } from "vue";
 import { employeeAPI, salaryAPI, companyAPI, integrationAPI, userAPI } from "../api/client";
 import BenefitDeductionConfig from "../components/payroll/BenefitDeductionConfig.vue";
+import EmployeeLifecycleCard from "../components/lifecycle/EmployeeLifecycleCard.vue";
 import { format } from "date-fns";
 import { useCurrency } from "../composables/useCurrency";
 
@@ -81,6 +82,13 @@ const salaryForm = ref({
   remarks: "",
 });
 const structureOptions = ref<{ label: string; value: number }[]>([]);
+
+async function reloadEmployee() {
+  try {
+    const res = await employeeAPI.get(Number(route.params.id)) as { data: Record<string, unknown> };
+    employee.value = res.data || (res as unknown as Record<string, unknown>);
+  } catch { /* keep current */ }
+}
 
 onMounted(async () => {
   try {
@@ -660,6 +668,14 @@ async function handleAssignSalary() {
           }}</NDescriptionsItem>
         </NDescriptions>
       </NCard>
+
+      <EmployeeLifecycleCard
+        v-if="authStore.isAdmin || authStore.isManager"
+        :employee-id="Number(route.params.id)"
+        :employee-name="`${employee.first_name} ${employee.last_name}`"
+        :is-admin="authStore.isAdmin"
+        @changed="reloadEmployee"
+      />
 
       <NCard :title="t('employee.govIds')" v-if="profile">
         <NDescriptions label-placement="left" :column="2" bordered>

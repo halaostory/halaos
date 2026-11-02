@@ -1346,3 +1346,24 @@ export const virtualOfficeAPI = {
   updateMyAvatar: (data: { avatar_type: string; avatar_color: string }) =>
     put("/v1/virtual-office/my-avatar", data),
 }
+
+// Employee lifecycle (Warp-style one-step hire / terminate), HR inbox, custom fields
+export const lifecycleAPI = {
+  hire: (data: Record<string, unknown>) => post("/v1/lifecycle/hire", data),
+  overview: (employeeId: number) => get(`/v1/lifecycle/employees/${employeeId}`),
+  terminate: (employeeId: number, data: Record<string, unknown>) =>
+    post(`/v1/lifecycle/employees/${employeeId}/terminate`, data),
+  cancelTermination: (employeeId: number) =>
+    del(`/v1/lifecycle/employees/${employeeId}/terminate`),
+  inbox: (params?: Record<string, string>) => get("/v1/inbox", params),
+  listCustomFields: (params?: Record<string, string>) =>
+    get("/v1/custom-fields", params),
+  createCustomField: (data: Record<string, unknown>) =>
+    post("/v1/custom-fields", data),
+  updateCustomField: (id: number, data: Record<string, unknown>) =>
+    put(`/v1/custom-fields/${id}`, data),
+  getEmployeeCustomFields: (employeeId: number) =>
+    get(`/v1/employees/${employeeId}/custom-fields`),
+  updateEmployeeCustomFields: (employeeId: number, values: Record<string, string>) =>
+    put(`/v1/employees/${employeeId}/custom-fields`, { values }),
+};

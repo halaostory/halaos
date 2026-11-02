@@ -19,6 +19,7 @@ import {
   MegaphoneOutline, DocumentTextOutline, SchoolOutline, AlertCircleOutline, MedkitOutline, FolderOpenOutline, ChatbubblesOutline, LocationOutline,
   LinkOutline, PulseOutline, GitBranchOutline, TrendingUpOutline,
   FlashOutline, BulbOutline, HappyOutline, StarOutline, OpenOutline,
+  MailUnreadOutline, PersonAddOutline, OptionsOutline,
 } from '@vicons/ionicons5'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
@@ -140,6 +141,7 @@ const features: Record<string, boolean> = {
   'pulse-surveys': true, recognition: true, 'hr-requests': true,
   'virtual-office': true,
   'bot-setup': true,
+  inbox: true, hire: true, 'custom-fields': true,
 }
 
 function isEnabled(key: string): boolean {
@@ -158,6 +160,7 @@ const menuOptions = computed<MenuOption[]>(() => {
   // ── 1. My Workspace (all users) ──
   const workspace: MenuOption[] = []
   pushIf(workspace, 'dashboard', 'nav.dashboard', HomeOutline)
+  if (auth.isAdmin) pushIf(workspace, 'inbox', 'nav.inbox', MailUnreadOutline)
   pushIf(workspace, 'self-service', 'nav.selfService', PersonCircleOutline)
   pushIf(workspace, 'payslips', 'nav.payslips', ReceiptOutline)
   pushIf(workspace, 'announcements', 'nav.announcements', MegaphoneOutline)
@@ -170,6 +173,7 @@ const menuOptions = computed<MenuOption[]>(() => {
   // ── 2. People (Manager+, Directory visible to all) ──
   const people: MenuOption[] = []
   if (isAdminOrManager) pushIf(people, 'employees', 'nav.employees', PeopleOutline)
+  if (auth.isAdmin) pushIf(people, 'hire', 'nav.hire', PersonAddOutline)
   pushIf(people, 'directory', 'nav.directory', BookOutline)
   if (isAdminOrManager) {
     pushIf(people, 'onboarding', 'nav.onboarding', ClipboardOutline)
@@ -259,6 +263,7 @@ const menuOptions = computed<MenuOption[]>(() => {
     const companyItems: MenuOption[] = []
     pushIf(companyItems, 'departments', 'nav.departments', BusinessOutline)
     pushIf(companyItems, 'positions', 'nav.positions', BriefcaseOutline)
+    pushIf(companyItems, 'custom-fields', 'nav.customFields', OptionsOutline)
     pushIf(companyItems, 'salary', 'nav.salary', CashOutline)
     pushIf(companyItems, 'holidays', 'nav.holidays', TodayOutline)
     pushIf(companyItems, 'compliance', 'nav.compliance', ShieldCheckmarkOutline)

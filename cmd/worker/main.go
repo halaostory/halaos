@@ -19,6 +19,7 @@ import (
 	"github.com/halaostory/halaos/internal/config"
 	"github.com/halaostory/halaos/internal/email"
 	"github.com/halaostory/halaos/internal/integration"
+	"github.com/halaostory/halaos/internal/lifecycle"
 	"github.com/halaostory/halaos/internal/payroll"
 	"github.com/halaostory/halaos/internal/store"
 	"github.com/halaostory/halaos/internal/workflow"
@@ -190,6 +191,14 @@ func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.
 
 	// Auto-close open attendance records from previous day
 	autoCloseAttendance(ctx, queries, logger)
+
+	// Apply scheduled separations whose last working day has arrived
+	// (marks employee separated + enqueues access revocation).
+	lifecycleSvc := lifecycle.NewService(queries, pool, logger)
+	lifecycleSvc.SetAccountingEmitter(integration.NewAccountingEmitter(queries, logger))
+	if n := lifecycleSvc.ProcessDueSeparations(ctx); n > 0 {
+		logger.Info("applied scheduled separations", "count", n)
+	}
 
 	// Check for overdue leave accruals (monthly)
 	accrueLeaveBalances(ctx, queries, logger)

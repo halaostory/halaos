@@ -848,6 +848,30 @@ type EmployeeBurnoutScore struct {
 	CalculatedAt time.Time       `json:"calculated_at"`
 }
 
+type EmployeeCustomField struct {
+	ID          int64     `json:"id"`
+	CompanyID   int64     `json:"company_id"`
+	FieldKey    string    `json:"field_key"`
+	Label       string    `json:"label"`
+	FieldType   string    `json:"field_type"`
+	Options     []string  `json:"options"`
+	IsRequired  bool      `json:"is_required"`
+	IsSensitive bool      `json:"is_sensitive"`
+	SortOrder   int32     `json:"sort_order"`
+	IsActive    bool      `json:"is_active"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type EmployeeCustomFieldValue struct {
+	CompanyID  int64     `json:"company_id"`
+	EmployeeID int64     `json:"employee_id"`
+	FieldID    int64     `json:"field_id"`
+	Value      string    `json:"value"`
+	UpdatedBy  *int64    `json:"updated_by"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
 type EmployeeDocument struct {
 	ID         uuid.UUID          `json:"id"`
 	CompanyID  int64              `json:"company_id"`
@@ -940,6 +964,23 @@ type EmployeeScheduleAssignment struct {
 	EffectiveFrom time.Time   `json:"effective_from"`
 	EffectiveTo   pgtype.Date `json:"effective_to"`
 	CreatedAt     time.Time   `json:"created_at"`
+}
+
+type EmployeeSeparation struct {
+	ID             int64              `json:"id"`
+	CompanyID      int64              `json:"company_id"`
+	EmployeeID     int64              `json:"employee_id"`
+	SeparationType string             `json:"separation_type"`
+	Reason         *string            `json:"reason"`
+	NoticeDate     time.Time          `json:"notice_date"`
+	LastWorkingDay time.Time          `json:"last_working_day"`
+	RehireEligible bool               `json:"rehire_eligible"`
+	ClearanceID    *int64             `json:"clearance_id"`
+	RevokeAccess   bool               `json:"revoke_access"`
+	Status         string             `json:"status"`
+	CompletedAt    pgtype.Timestamptz `json:"completed_at"`
+	CreatedBy      *int64             `json:"created_by"`
+	CreatedAt      time.Time          `json:"created_at"`
 }
 
 type EmploymentHistory struct {

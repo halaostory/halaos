@@ -149,6 +149,24 @@ const router = createRouter({
           meta: { roles: ["super_admin", "admin", "manager"] },
         },
         {
+          path: "hire",
+          name: "hire",
+          component: () => import("../views/HireWizardView.vue"),
+          meta: { roles: ["super_admin", "admin"] },
+        },
+        {
+          path: "inbox",
+          name: "inbox",
+          component: () => import("../views/InboxView.vue"),
+          meta: { roles: ["super_admin", "admin"] },
+        },
+        {
+          path: "custom-fields",
+          name: "custom-fields",
+          component: () => import("../views/CustomFieldsView.vue"),
+          meta: { roles: ["super_admin", "admin"] },
+        },
+        {
           path: "employees/new",
           name: "employee-new",
           component: () => import("../views/EmployeeFormView.vue"),

@@ -243,8 +243,11 @@ async function handleBulkSalaryUpdate() {
         <NButton v-if="authStore.isAdmin" @click="showBulkSalary = true">
           {{ t('employee.bulkSalaryUpdate') }}
         </NButton>
-        <NButton type="primary" @click="router.push({ name: 'employee-new' })">
+        <NButton v-if="authStore.isAdmin" @click="router.push({ name: 'employee-new' })">
           {{ t('employee.addNew') }}
+        </NButton>
+        <NButton v-if="authStore.isAdmin" type="primary" @click="router.push({ name: 'hire' })">
+          {{ t('lifecycle.hireTitle') }}
         </NButton>
       </NSpace>
     </NSpace>

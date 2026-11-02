@@ -16,6 +16,9 @@ HalaOS is a full-featured HR platform with payroll processing, attendance tracki
 - **Government Forms** — PH: BIR 2316/2550M/2550Q/1601C/1701/1702/0619E/SAWT | US: W-4, W-2, 1099
 - **Benefits & Loans** — Plan enrollment, claims, amortization, salary deduction
 - **Training & Performance** — Programs, certifications, KPIs, review cycles
+- **Employee Lifecycle** — One-step hire & terminate that fan out to pay, time off, checklists, app provisioning/deprovisioning and accounting ([docs](docs/hr-lifecycle.md))
+- **HR Inbox** — Every pending approval, task, expiring document and compliance alert in one list
+- **Custom Fields** — Company-defined employee profile fields
 - **Onboarding/Offboarding** — Checklists, clearance workflows, final pay
 - **9 AI Agents** — HR assistant, payroll specialist, compliance officer, leave advisor, and more
 - **Org Intelligence** — Flight risk detection, burnout risk, team health, blind spot analysis

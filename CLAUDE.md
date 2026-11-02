@@ -43,3 +43,9 @@ cd frontend && npm install && npm run dev
 - **Event structs**: `internal/integration/accounting_events.go`
 - **Queries**: `db/query/accounting_integration.sql`
 - **JWT**: Shared signing secret `INTEGRATION_JWT_SECRET` for cross-app SSO
+
+## Employee Lifecycle (Warp-style)
+- **Package**: `internal/lifecycle` — `Service.Hire` / `Service.Terminate` run all downstream steps in one tx; use these instead of chaining employee/salary/onboarding/clearance calls
+- **Routes**: `POST /lifecycle/hire`, `GET /lifecycle/employees/:id`, `POST|DELETE /lifecycle/employees/:id/terminate`, `GET /inbox`, `/custom-fields`, `/employees/:id/custom-fields`
+- **Scheduled separations**: `employee_separations` (status scheduled → completed by worker on last working day)
+- **Docs**: `docs/hr-lifecycle.md`

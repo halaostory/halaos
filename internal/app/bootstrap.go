@@ -49,6 +49,7 @@ import (
 	"github.com/halaostory/halaos/internal/docfile"
 	"github.com/halaostory/halaos/internal/email"
 	"github.com/halaostory/halaos/internal/employee"
+	"github.com/halaostory/halaos/internal/lifecycle"
 	"github.com/halaostory/halaos/internal/expense"
 	"github.com/halaostory/halaos/internal/finalpay"
 	"github.com/halaostory/halaos/internal/grievance"
@@ -253,6 +254,8 @@ func (a *App) setupRoutes() {
 	acctEmitter := integration.NewAccountingEmitter(a.Queries, a.Logger)
 	payrollHandler.SetAccountingEmitter(acctEmitter)
 	employeeHandler.SetAccountingEmitter(acctEmitter)
+	lifecycleHandler := lifecycle.NewHandler(a.Queries, a.Pool, a.Logger)
+	lifecycleHandler.Service().SetAccountingEmitter(acctEmitter)
 	acctDispatcher := integration.NewAccountingDispatcher(a.Queries, a.Logger)
 	go acctDispatcher.Run(context.Background())
 
@@ -364,6 +367,7 @@ func (a *App) setupRoutes() {
 	authHandler.RegisterRoutes(api, protected, a.Limiter.LoginMiddleware())
 	companyHandler.RegisterRoutes(protected)
 	employeeHandler.RegisterRoutes(protected)
+	lifecycleHandler.RegisterRoutes(protected)
 	attendanceHandler.RegisterRoutes(protected)
 	breaksHandler.RegisterRoutes(protected)
 	leaveHandler.RegisterRoutes(protected)
