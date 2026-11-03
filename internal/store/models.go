@@ -760,6 +760,27 @@ type ContractorPayoutAccount struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
+type ContractorTaxForm struct {
+	ID              int64              `json:"id"`
+	CompanyID       int64              `json:"company_id"`
+	ContractorID    int64              `json:"contractor_id"`
+	TokenHash       string             `json:"token_hash"`
+	Status          string             `json:"status"`
+	ExpiresAt       time.Time          `json:"expires_at"`
+	TaxCountry      string             `json:"tax_country"`
+	EntityType      string             `json:"entity_type"`
+	Tin             string             `json:"tin"`
+	Address         string             `json:"address"`
+	IsVatRegistered bool               `json:"is_vat_registered"`
+	Declaration     string             `json:"declaration"`
+	SignerName      string             `json:"signer_name"`
+	SignerIp        string             `json:"signer_ip"`
+	SignerAgent     string             `json:"signer_agent"`
+	SubmittedAt     pgtype.Timestamptz `json:"submitted_at"`
+	CreatedBy       *int64             `json:"created_by"`
+	CreatedAt       time.Time          `json:"created_at"`
+}
+
 type ContractorWiseTransfer struct {
 	PaymentID      int64          `json:"payment_id"`
 	CompanyID      int64          `json:"company_id"`

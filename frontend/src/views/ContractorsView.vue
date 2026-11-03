@@ -130,16 +130,46 @@ async function cert(c: Contractor) {
   }
 }
 
+// Tax information form: send the contractor a one-time link; see what
+// they signed.
+interface TaxForm { status: string; tax_country: string; entity_type: string; tin: string; signer_name: string; submitted_at: string | null; expires_at: string; declaration: string }
+const taxOpen = ref(false)
+const taxFor = ref<Contractor | null>(null)
+const taxForm = ref<TaxForm | null>(null)
+const taxLink = ref('')
+const taxBusy = ref(false)
+async function openTaxForm(r: Contractor) {
+  taxFor.value = r
+  taxLink.value = ''
+  taxForm.value = null
+  taxOpen.value = true
+  try { taxForm.value = ((await contractorsAPI.taxForm(r.id)) as { data: TaxForm | null }).data } catch { taxForm.value = null }
+}
+async function newTaxLink() {
+  if (!taxFor.value) return
+  taxBusy.value = true
+  try {
+    taxLink.value = ((await contractorsAPI.createTaxForm(taxFor.value.id)) as { data: { url: string } }).data.url
+    try { await navigator.clipboard.writeText(taxLink.value); message.success(t('taxForm.copied')) } catch { /* clipboard blocked */ }
+    taxForm.value = ((await contractorsAPI.taxForm(taxFor.value.id)) as { data: TaxForm | null }).data
+  } catch {
+    message.error(t('common.failed'))
+  } finally {
+    taxBusy.value = false
+  }
+}
+
 const stType: Record<string, 'default' | 'info' | 'success' | 'warning' | 'error'> = { draft: 'default', approved: 'info', paid: 'success', void: 'error' }
 const cCols = computed<DataTableColumns<Contractor>>(() => [
   { title: t('contractors.name'), key: 'name', render: (r) => h('div', [h('b', r.name), h('div', { style: 'opacity:.6;font-size:12px' }, `${t('contractors.kind_' + r.kind)} · TIN ${r.tin || '—'}`)]) },
   { title: 'ATC', key: 'atc_code', width: 150, render: (r) => `${r.atc_code} · ${(Number(r.ewt_rate) * 100).toFixed(0)}%${r.is_vat_registered ? ' · VAT' : ''}` },
   { title: t('contractors.ytdPaid'), key: 'ytd_paid', width: 140, render: (r) => '₱' + peso(r.ytd_paid) },
   { title: t('common.status'), key: 'status', width: 100, render: (r) => h(NTag, { size: 'small', type: r.status === 'active' ? 'success' : 'default' }, () => r.status) },
-  { title: '', key: 'a', width: 200, render: (r) => h(NSpace, { size: 4 }, () => [
+  { title: '', key: 'a', width: 300, render: (r) => h(NSpace, { size: 4 }, () => [
     h(NButton, { size: 'small', onClick: () => editC(r) }, () => t('common.edit')),
     h(NButton, { size: 'small', onClick: () => cert(r) }, () => `2307 ${quarter.value}`),
     h(NButton, { size: 'small', quaternary: true, onClick: () => linkWise(r) }, () => t('wise.link')),
+    h(NButton, { size: 'small', quaternary: true, onClick: () => openTaxForm(r) }, () => t('taxForm.button')),
   ]) },
 ])
 const pCols = computed<DataTableColumns<Payment>>(() => [
@@ -249,4 +279,16 @@ onMounted(async () => {
       <NSpace justify="end" style="margin-top: 12px"><NButton @click="showP = false">{{ t('common.cancel') }}</NButton><NButton type="primary" :disabled="!pf.contractor_id || !pf.gross_amount" @click="saveP">{{ t('common.save') }}</NButton></NSpace>
     </NModal>
   </NSpace>
+  <NModal v-model:show="taxOpen" preset="card" :title="t('taxForm.adminTitle', { name: taxFor?.name || '' })" style="max-width: 560px; width: 95vw">
+    <p style="margin-top: 0; opacity: .75">{{ t('taxForm.adminHelp') }}</p>
+    <template v-if="taxForm && taxForm.status === 'submitted'">
+      <NAlert type="success" :title="t('taxForm.signedBy', { name: taxForm.signer_name, date: (taxForm.submitted_at || '').slice(0, 10) })">
+        {{ taxForm.tax_country }} · {{ t('taxForm.' + taxForm.entity_type) }} · TIN {{ taxForm.tin || '—' }}
+      </NAlert>
+      <p style="font-size: 12px; opacity: .7">{{ taxForm.declaration }}</p>
+    </template>
+    <NAlert v-else-if="taxForm && taxForm.status === 'pending'" type="info">{{ t('taxForm.pending', { date: taxForm.expires_at.slice(0, 10) }) }}</NAlert>
+    <NInput v-if="taxLink" :value="taxLink" readonly style="margin: 12px 0" />
+    <NButton type="primary" :loading="taxBusy" style="margin-top: 12px" @click="newTaxLink">{{ taxForm ? t('taxForm.newLink') : t('taxForm.createLink') }}</NButton>
+  </NModal>
 </template>

@@ -22,6 +22,11 @@ const router = createRouter({
       component: () => import("../views/public/OnboardPortalView.vue"),
     },
     {
+      path: "/contractor-form/:token",
+      name: "contractor-form",
+      component: () => import("../views/public/ContractorTaxFormView.vue"),
+    },
+    {
       path: "/sign/:token",
       name: "sign-document",
       component: () => import("../views/public/SignDocumentView.vue"),

@@ -504,6 +504,8 @@ func (a *App) setupRoutes() {
 	contractorsHandler := contractors.NewHandler(a.Queries, a.Logger, a.Edition.ProductName)
 	contractorsHandler.SetWise(contractors.WiseFromEnv())
 	contractorsHandler.RegisterRoutes(a.mod(edition.ModContractors, protected))
+	contractorsHandler.SetAppURL(a.Cfg.Resend.BaseURL)
+	contractorsHandler.RegisterTaxFormRoutes(a.mod(edition.ModContractors, protected), a.mod(edition.ModContractors, api), a.Limiter.APIMiddleware(), a.Limiter.LoginMiddleware())
 
 	// Org Intelligence
 	var briefGen *orgintel.BriefingGenerator

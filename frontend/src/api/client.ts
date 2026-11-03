@@ -1483,6 +1483,8 @@ export const documentsAPI = {
 
 // Public (token) endpoints for new hires / signers — no login
 export const publicAPI = {
+  taxForm: (token: string) => get(`/v1/public/contractor-form/${token}`),
+  submitTaxForm: (token: string, data: Record<string, unknown>) => post(`/v1/public/contractor-form/${token}`, data),
   portal: (token: string) => get(`/v1/public/onboarding/${token}`),
   saveProfile: (token: string, data: Record<string, unknown>) =>
     post(`/v1/public/onboarding/${token}/profile`, data),
@@ -1511,6 +1513,8 @@ export const devicesAPI = {
 
 // Contractors & freelancer payments (EWT, BIR 2307)
 export const contractorsAPI = {
+  createTaxForm: (id: number) => post(`/v1/contractors/${id}/tax-form`, {}),
+  taxForm: (id: number) => get(`/v1/contractors/${id}/tax-form`),
   atcs: () => get("/v1/contractors/atcs"),
   list: () => get("/v1/contractors"),
   create: (data: Record<string, unknown>) => post("/v1/contractors", data),

@@ -24,6 +24,7 @@ type Handler struct {
 	logger  *slog.Logger
 	product string
 	wise    *Wise
+	appURL  string
 }
 
 // NewHandler creates the handler; product is the brand printed on generated documents.
