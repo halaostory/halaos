@@ -27,6 +27,7 @@ const kindRoute: Record<string, string> = {
   gov_filing_failed: "gov-filings",
   gov_filing_manual: "gov-filings",
   gov_human_input: "gov-filings",
+  gov_notice: "notices",
   signature_declined: "documents",
   device_action: "devices",
   final_pay_approval: "final-pay",

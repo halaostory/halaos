@@ -24,7 +24,7 @@ const routeModule: Record<string, string> = {
   directory: "people", "201file": "people", "custom-fields": "people",
   hire: "lifecycle", inbox: "lifecycle", onboarding: "lifecycle", clearance: "lifecycle", milestones: "lifecycle",
   payroll: "payroll", payslips: "payroll", loans: "payroll", "final-pay": "payroll", salary: "payroll", accounting: "payroll",
-  compliance: "compliance", "tax-filings": "compliance", "gov-filings": "compliance",
+  compliance: "compliance", "tax-filings": "compliance", "gov-filings": "compliance", notices: "compliance",
   leaves: "time_off", "leave-calendar": "time_off", "leave-encashment": "time_off", overtime: "time_off",
   benefits: "benefits",
   expenses: "expenses",

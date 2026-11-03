@@ -652,6 +652,12 @@ FROM (
     WHERE gs.company_id = $1
       AND (gs.status IN ('ready', 'draft', 'failed') OR (gs.status = 'approved' AND gs.channel = 'manual'))
     UNION ALL
+    SELECT 'gov_notice', gn.id, 0::bigint, ''::text,
+           (CASE WHEN gn.agency = '' THEN 'Government' ELSE gn.agency END || ' notice: ' || COALESCE(NULLIF(gn.title, ''), gn.notice_type))::text,
+           gn.respond_by, CASE WHEN gn.respond_by <= CURRENT_DATE + 7 OR gn.notice_type IN ('assessment', 'audit') THEN 'high' ELSE 'normal' END, gn.created_at
+    FROM gov_notices gn
+    WHERE gn.company_id = $1 AND gn.status IN ('open', 'awaiting_approval', 'escalated')
+    UNION ALL
     SELECT 'gov_human_input', hr.id, 0::bigint, ''::text, (gs.agency || ' ' || gs.form_code || ': ' || hr.name)::text,
            hr.expires_at::date, 'high', hr.created_at
     FROM gov_human_requests hr JOIN gov_submissions gs ON gs.id = hr.submission_id

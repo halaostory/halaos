@@ -3,6 +3,7 @@ package govfiling
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"path/filepath"
@@ -53,6 +54,13 @@ func (h *Handler) RegisterRoutes(protected *gin.RouterGroup) {
 	g.POST("/playbooks", h.SavePlaybook)
 	g.POST("/playbooks/:id/verify", h.VerifyPlaybook)
 	g.DELETE("/playbooks/:id", h.DeletePlaybook)
+	g.GET("/notices", h.ListNotices)
+	g.POST("/notices", h.CreateNotice)
+	g.GET("/notices/:id", h.GetNotice)
+	g.PUT("/notices/:id", h.UpdateNotice)
+	g.POST("/notices/:id/retriage", h.RetriageNotice)
+	g.POST("/notices/:id/prepare", h.PrepareFromNotice)
+	g.GET("/notices/:id/file", h.NoticeFile)
 }
 
 func (h *Handler) fail(c *gin.Context, err error) {
@@ -399,4 +407,200 @@ func (h *Handler) DeletePlaybook(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// ---------------------------------------------------------------------------
+// Government notices
+// ---------------------------------------------------------------------------
+
+// ListNotices handles GET /gov/notices?status=.
+func (h *Handler) ListNotices(c *gin.Context) {
+	ctx := c.Request.Context()
+	companyID := auth.GetCompanyID(c)
+	rows, err := h.q.ListGovNotices(ctx, store.ListGovNoticesParams{CompanyID: companyID, Status: c.Query("status")})
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
+	if rows == nil {
+		rows = []store.GovNotice{}
+	}
+	counts := map[string]int{}
+	if cs, err := h.q.CountGovNoticesByStatus(ctx, companyID); err == nil {
+		for _, r := range cs {
+			counts[r.Status] = int(r.N)
+		}
+	}
+	response.OK(c, gin.H{"notices": rows, "counts": counts})
+}
+
+// CreateNotice handles POST /gov/notices (multipart: text, file) or JSON {text}.
+func (h *Handler) CreateNotice(c *gin.Context) {
+	ctx := c.Request.Context()
+	companyID := auth.GetCompanyID(c)
+	uid := auth.GetUserID(c)
+	var text string
+	var fileName, filePath *string
+	if strings.HasPrefix(c.ContentType(), "multipart/") {
+		text = c.PostForm("text")
+		if fh, err := c.FormFile("file"); err == nil {
+			f, err := fh.Open()
+			if err != nil {
+				response.BadRequest(c, "Could not read the file")
+				return
+			}
+			data, err := io.ReadAll(io.LimitReader(f, maxNoticeFile+1))
+			f.Close()
+			if err != nil {
+				response.BadRequest(c, "Could not read the file")
+				return
+			}
+			rel, err := h.svc.StoreNoticeFile(companyID, fh.Filename, data)
+			if err != nil {
+				h.fail(c, err)
+				return
+			}
+			name := filepath.Base(fh.Filename)
+			fileName, filePath = &name, &rel
+			if text == "" && (strings.HasSuffix(strings.ToLower(name), ".txt") || strings.HasSuffix(strings.ToLower(name), ".eml")) {
+				text = string(data)
+			}
+		}
+	} else {
+		var req struct {
+			Text string `json:"text"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response.BadRequest(c, "Invalid request")
+			return
+		}
+		text = req.Text
+	}
+	n, err := h.svc.IntakeNotice(ctx, companyID, &uid, text, fileName, filePath)
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
+	response.Created(c, n)
+}
+
+// GetNotice handles GET /gov/notices/:id (with the matched submission).
+func (h *Handler) GetNotice(c *gin.Context) {
+	v, ok := id(c)
+	if !ok {
+		return
+	}
+	ctx := c.Request.Context()
+	companyID := auth.GetCompanyID(c)
+	n, err := h.q.GetGovNotice(ctx, store.GetGovNoticeParams{ID: v, CompanyID: companyID})
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
+	out := gin.H{"notice": n}
+	if n.MatchedSubmissionID != nil {
+		if sub, err := h.svc.get(ctx, companyID, *n.MatchedSubmissionID); err == nil {
+			out["submission"] = sub
+		}
+	}
+	response.OK(c, out)
+}
+
+// UpdateNotice handles PUT /gov/notices/:id {status, draft_response, resolution_note}.
+func (h *Handler) UpdateNotice(c *gin.Context) {
+	v, ok := id(c)
+	if !ok {
+		return
+	}
+	var req struct {
+		Status         string  `json:"status" binding:"required"`
+		DraftResponse  *string `json:"draft_response"`
+		ResolutionNote *string `json:"resolution_note"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "status is required")
+		return
+	}
+	switch req.Status {
+	case "open", "awaiting_approval", "escalated", "resolved":
+	default:
+		response.BadRequest(c, "invalid status")
+		return
+	}
+	uid := auth.GetUserID(c)
+	n, err := h.q.SetGovNoticeStatus(c.Request.Context(), store.SetGovNoticeStatusParams{
+		Status: req.Status, DraftResponse: req.DraftResponse, ResolutionNote: req.ResolutionNote,
+		UserID: &uid, ID: v, CompanyID: auth.GetCompanyID(c),
+	})
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
+	response.OK(c, n)
+}
+
+// RetriageNotice handles POST /gov/notices/:id/retriage.
+func (h *Handler) RetriageNotice(c *gin.Context) {
+	v, ok := id(c)
+	if !ok {
+		return
+	}
+	n, err := h.svc.RetriageNotice(c.Request.Context(), auth.GetCompanyID(c), v)
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
+	response.OK(c, n)
+}
+
+// PrepareFromNotice handles POST /gov/notices/:id/prepare: prepares the
+// return a "missing filing" notice is about, then re-triages the notice.
+func (h *Handler) PrepareFromNotice(c *gin.Context) {
+	v, ok := id(c)
+	if !ok {
+		return
+	}
+	ctx := c.Request.Context()
+	companyID := auth.GetCompanyID(c)
+	n, err := h.q.GetGovNotice(ctx, store.GetGovNoticeParams{ID: v, CompanyID: companyID})
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
+	if n.FormCode == "" || n.Period == "" {
+		response.BadRequest(c, "The notice has no form and period to prepare")
+		return
+	}
+	uid := auth.GetUserID(c)
+	p, err := h.svc.Prepare(ctx, companyID, &uid, PrepareInput{FormCode: n.FormCode, Period: n.Period})
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
+	updated, err := h.svc.RetriageNotice(ctx, companyID, v)
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
+	response.OK(c, gin.H{"notice": updated, "submission": p.Submission})
+}
+
+// NoticeFile handles GET /gov/notices/:id/file.
+func (h *Handler) NoticeFile(c *gin.Context) {
+	v, ok := id(c)
+	if !ok {
+		return
+	}
+	companyID := auth.GetCompanyID(c)
+	n, err := h.q.GetGovNotice(c.Request.Context(), store.GetGovNoticeParams{ID: v, CompanyID: companyID})
+	if err != nil || n.FilePath == nil {
+		response.NotFound(c, "File not found")
+		return
+	}
+	full, err := h.svc.FilePath(companyID, *n.FilePath)
+	if err != nil {
+		response.NotFound(c, "File not found")
+		return
+	}
+	c.FileAttachment(full, deref(n.FileName))
 }

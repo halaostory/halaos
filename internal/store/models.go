@@ -1196,6 +1196,36 @@ type GovHumanRequest struct {
 	CreatedAt      time.Time          `json:"created_at"`
 }
 
+type GovNotice struct {
+	ID                  int64              `json:"id"`
+	CompanyID           int64              `json:"company_id"`
+	Agency              string             `json:"agency"`
+	NoticeType          string             `json:"notice_type"`
+	FormCode            string             `json:"form_code"`
+	Period              string             `json:"period"`
+	ReferenceNo         string             `json:"reference_no"`
+	Amount              pgtype.Numeric     `json:"amount"`
+	RespondBy           pgtype.Date        `json:"respond_by"`
+	Title               string             `json:"title"`
+	Summary             string             `json:"summary"`
+	Recommendation      string             `json:"recommendation"`
+	ResolutionPath      string             `json:"resolution_path"`
+	DraftResponse       string             `json:"draft_response"`
+	MatchedSubmissionID *int64             `json:"matched_submission_id"`
+	Status              string             `json:"status"`
+	AutoResolvable      bool               `json:"auto_resolvable"`
+	TriagedBy           string             `json:"triaged_by"`
+	SourceText          string             `json:"source_text"`
+	FileName            *string            `json:"file_name"`
+	FilePath            *string            `json:"file_path"`
+	ResolutionNote      string             `json:"resolution_note"`
+	ResolvedBy          *int64             `json:"resolved_by"`
+	ResolvedAt          pgtype.Timestamptz `json:"resolved_at"`
+	CreatedBy           *int64             `json:"created_by"`
+	CreatedAt           time.Time          `json:"created_at"`
+	UpdatedAt           time.Time          `json:"updated_at"`
+}
+
 type GovPlaybook struct {
 	ID          int64              `json:"id"`
 	CompanyID   *int64             `json:"company_id"`

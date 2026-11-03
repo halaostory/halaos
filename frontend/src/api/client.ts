@@ -1373,6 +1373,14 @@ export const govAPI = {
   record: (id: number, reference_no: string, note?: string) =>
     post(`/v1/gov/submissions/${id}/record`, { reference_no, note }),
   fileBlob: (id: number) => api(`/v1/gov/submissions/${id}/file`, { responseType: "blob" }),
+  notices: (status?: string) => get("/v1/gov/notices", status ? { status } : undefined),
+  notice: (id: number) => get(`/v1/gov/notices/${id}`),
+  createNotice: (form: FormData) => api("/v1/gov/notices", { method: "POST", body: form, headers: {} }),
+  updateNotice: (id: number, data: { status: string; draft_response?: string; resolution_note?: string }) =>
+    put(`/v1/gov/notices/${id}`, data),
+  retriageNotice: (id: number) => post(`/v1/gov/notices/${id}/retriage`, {}),
+  prepareFromNotice: (id: number) => post(`/v1/gov/notices/${id}/prepare`, {}),
+  noticeFileBlob: (id: number) => api(`/v1/gov/notices/${id}/file`, { responseType: "blob" }),
   evidenceBlob: (id: number, file: string) =>
     api(`/v1/gov/submissions/${id}/evidence`, { params: { file }, responseType: "blob" }),
   humanRequests: () => get("/v1/gov/human-requests"),

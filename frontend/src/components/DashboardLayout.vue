@@ -20,7 +20,7 @@ import {
   LinkOutline, PulseOutline, GitBranchOutline, TrendingUpOutline,
   FlashOutline, BulbOutline, HappyOutline, StarOutline, OpenOutline,
   MailUnreadOutline, PersonAddOutline, OptionsOutline, BuildOutline, CreateOutline, LaptopOutline,
-  SparklesOutline, RepeatOutline, SpeedometerOutline,
+  SparklesOutline, RepeatOutline, SpeedometerOutline, MailOpenOutline,
 } from '@vicons/ionicons5'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
@@ -142,7 +142,7 @@ const features: Record<string, boolean> = {
   'pulse-surveys': true, recognition: true, 'hr-requests': true,
   'bot-setup': true,
   inbox: true, hire: true, 'custom-fields': true, 'gov-filings': true, documents: true, devices: true, contractors: true,
-  routines: true, insights: true,
+  routines: true, insights: true, notices: true,
 }
 
 function isEnabled(key: string): boolean {
@@ -227,6 +227,7 @@ const menuOptions = computed<MenuOption[]>(() => {
   if (auth.isAdmin) {
     const comp: MenuOption[] = []
     pushIf(comp, 'gov-filings', 'nav.govFilings', BuildOutline)
+    pushIf(comp, 'notices', 'nav.notices', MailOpenOutline)
     pushIf(comp, 'tax-filings', 'nav.taxFilings', DocumentTextOutline)
     pushIf(comp, 'compliance', 'nav.compliance', ShieldCheckmarkOutline)
     if (comp.length) {
