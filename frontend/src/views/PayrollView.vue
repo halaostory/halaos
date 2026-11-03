@@ -87,9 +87,23 @@ const showItemsModal = ref(false);
 const itemsLoading = ref(false);
 const payrollItems = ref<Record<string, unknown>[]>([]);
 const itemsTitle = ref("");
+// When set, the items modal is the review step before approval.
+const reviewCycle = ref<Record<string, unknown> | null>(null);
+const approving = ref(false);
 
 // Anomaly Modal
 const showAnomalyModal = ref(false);
+const flaggedCount = computed(() => payrollItems.value.filter((r: Record<string, unknown>) => r.needs_attention).length);
+function renderVariance(r: Record<string, unknown>) {
+  if (r.first_payroll) return h(NTag, { size: 'small', bordered: false, type: 'info' }, () => t('payroll.firstPayroll'));
+  const pct = r.net_change_pct as number | null | undefined;
+  if (pct === null || pct === undefined) return h('span', { style: 'opacity:.5' }, '—');
+  const sign = pct > 0 ? '+' : '';
+  return h('div', [
+    h('span', { style: r.needs_attention ? 'color: var(--n-error-color, #d03050); font-weight: 600' : '' }, `${sign}${pct}%`),
+    h('div', { style: 'font-size: 11px; opacity: .6' }, t('payroll.lastNet', { amt: formatCurrency(r.prev_net_pay) })),
+  ]);
+}
 const anomalyLoading = ref(false);
 const anomalyReport = ref<AnomalyReport | null>(null);
 const anomalyTitle = ref("");
@@ -391,8 +405,11 @@ async function handleViewItems(row: Record<string, unknown>) {
     const res = (await payrollAPI.listCycleItems(
       row.id as number
     )) as { data?: Record<string, unknown>[] };
-    payrollItems.value = (res.data ||
-      (Array.isArray(res) ? res : [])) as Record<string, unknown>[];
+    payrollItems.value = ((res.data ||
+      (Array.isArray(res) ? res : [])) as Record<string, unknown>[]).map((r) => ({
+      ...r,
+      employee_name: r.employee_name || [r.first_name, r.last_name].filter(Boolean).join(" "),
+    }));
   } catch {
     payrollItems.value = [];
   } finally {
@@ -502,24 +519,27 @@ const severityTagType: Record<
 };
 
 async function handleApprove(row: Record<string, unknown>) {
-  dialog.info({
-    title: t("common.approve"),
-    content: t("payroll.approveConfirm", { name: row.name }),
-    positiveText: t("common.approve"),
-    negativeText: t("common.cancel"),
-    onPositiveClick: async () => {
-      try {
-        await payrollAPI.approveCycle(row.id as number);
-        message.success(t("payroll.cycleApproved"));
-        await fetchCycles();
-      } catch (e: unknown) {
-        const err = e as { data?: { error?: { message?: string } } };
-        message.error(
-          err.data?.error?.message || t("payroll.approveFailed")
-        );
-      }
-    },
-  });
+  // Review first: show every line with its change since the last run.
+  reviewCycle.value = row;
+  await handleViewItems(row);
+}
+
+async function confirmApprove() {
+  const row = reviewCycle.value;
+  if (!row) return;
+  approving.value = true;
+  try {
+    await payrollAPI.approveCycle(row.id as number);
+    message.success(t("payroll.cycleApproved"));
+    showItemsModal.value = false;
+    reviewCycle.value = null;
+    await fetchCycles();
+  } catch (e: unknown) {
+    const err = e as { data?: { error?: { message?: string } } };
+    message.error(err.data?.error?.message || t("payroll.approveFailed"));
+  } finally {
+    approving.value = false;
+  }
 }
 
 // --- 13th Month Pay ---
@@ -1393,16 +1413,30 @@ function formatRatingMap(rm: Record<string, number>): string {
     <NModal
       v-model:show="showItemsModal"
       preset="card"
-      :title="t('payroll.viewItems') + ' - ' + itemsTitle"
-      style="width: 900px"
+      :title="(reviewCycle ? t('payroll.reviewTitle') : t('payroll.viewItems')) + ' - ' + itemsTitle"
+      @after-leave="reviewCycle = null"
+      style="width: min(1240px, 96vw)"
     >
       <NDataTable
         :columns="[
-          { title: t('employee.name'), key: 'employee_name' },
+          { title: t('employee.name'), key: 'employee_name', width: 170, fixed: 'left' },
           {
             title: t('employee.employeeNo'),
             key: 'employee_no',
             width: 100,
+          },
+          {
+            title: t('payroll.netPay'),
+            key: 'net_pay',
+            width: 120,
+            render: (r: Record<string, unknown>) => h('strong', formatCurrency(r.net_pay)),
+          },
+          {
+            title: t('payroll.vsLastRun'),
+            key: 'net_change_pct',
+            width: 130,
+            sorter: (a: Record<string, unknown>, b: Record<string, unknown>) => Math.abs(Number(a.net_change_pct ?? 0)) - Math.abs(Number(b.net_change_pct ?? 0)),
+            render: renderVariance,
           },
           {
             title: t('payroll.basicPay'),
@@ -1450,17 +1484,21 @@ function formatRatingMap(rm: Record<string, number>): string {
             render: (r: Record<string, unknown>) =>
               formatCurrency(r.withholding_tax),
           },
-          {
-            title: t('payroll.netPay'),
-            key: 'net_pay',
-            width: 110,
-            render: (r: Record<string, unknown>) => formatCurrency(r.net_pay),
-          },
         ]"
         :data="payrollItems"
         :loading="itemsLoading"
+        :row-class-name="(r: Record<string, unknown>) => (r.needs_attention ? 'row-attention' : '')"
+        :scroll-x="1350"
         size="small"
       />
+      <p v-if="flaggedCount > 0" class="variance-note">{{ t('payroll.varianceNote', { n: flaggedCount }, flaggedCount) }}</p>
+      <template v-if="reviewCycle" #footer>
+        <NSpace justify="end" align="center">
+          <span class="variance-note">{{ t('payroll.reviewSummary', { n: payrollItems.length, flagged: flaggedCount }, payrollItems.length) }}</span>
+          <NButton @click="showItemsModal = false">{{ t('common.cancel') }}</NButton>
+          <NButton type="primary" :loading="approving" :disabled="itemsLoading || !payrollItems.length" @click="confirmApprove">{{ t('payroll.approvePayroll') }}</NButton>
+        </NSpace>
+      </template>
     </NModal>
   </div>
   <PayoutModal v-model:show="payoutOpen" :cycle-id="payoutCycle" />
@@ -1468,6 +1506,8 @@ function formatRatingMap(rm: Record<string, number>): string {
 </template>
 
 <style scoped>
+.variance-note { margin-top: 8px; font-size: 12px; opacity: .75; }
+:deep(.row-attention td) { background: rgba(208, 48, 80, .06) !important; }
 .pr-hero { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; border: 1px solid rgba(128,128,128,.18); border-radius: 12px; padding: 20px; margin: 4px 0 20px; background: linear-gradient(135deg, rgba(32,128,240,.06), rgba(24,160,88,.05)); }
 .pr-eyebrow { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; opacity: .6; }
 .pr-hero-title { font-size: 22px; font-weight: 650; margin: 2px 0; }

@@ -24,6 +24,14 @@ func handlePayrollRunRequested(ctx context.Context, queries *store.Queries, calc
 	if err := calculator.RunPayroll(ctx, runID, companyID); err != nil {
 		return err
 	}
+	// The cycle moves to "computed" so the Payroll page offers the review
+	// step (every line with its change since the last run) before approval.
+	if _, err := pool.Exec(ctx,
+		`UPDATE payroll_cycles SET status = 'computed', updated_at = now()
+		 WHERE id = (SELECT cycle_id FROM payroll_runs WHERE id = $1 AND company_id = $2) AND status = 'draft'`,
+		runID, companyID); err != nil {
+		logger.Error("failed to mark payroll cycle computed", "run_id", runID, "error", err)
+	}
 
 	// Step 2: Run anomaly detection as automatic pre-check
 	logger.Info("running automatic anomaly pre-check", "run_id", runID, "company_id", companyID)

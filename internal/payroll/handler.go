@@ -211,7 +211,7 @@ func (h *Handler) ListPayrollItems(c *gin.Context) {
 		response.InternalError(c, "Failed to list payroll items")
 		return
 	}
-	response.OK(c, items)
+	response.OK(c, WithPrevious(c.Request.Context(), h.queries, companyID, runID, items))
 }
 
 func (h *Handler) ApproveCycle(c *gin.Context) {

@@ -203,7 +203,7 @@ func autoApproveForCompany(
 		 JOIN payroll_cycles pc ON pc.id = pr.cycle_id
 		 WHERE pr.company_id = $1
 		   AND pr.status = 'ready_for_approval'
-		   AND pc.status = 'draft'`,
+		   AND pc.status IN ('draft', 'computed')`,
 		cfg.CompanyID,
 	)
 	if err != nil {

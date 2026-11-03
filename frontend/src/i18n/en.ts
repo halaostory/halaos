@@ -591,6 +591,13 @@ export default {
     remaining: "Remaining",
   },
   payroll: {
+    reviewTitle: "Review before approving",
+    reviewSummary: "1 person · {flagged} flagged | {n} people · {flagged} flagged",
+    approvePayroll: "Approve payroll",
+    vsLastRun: "vs last run",
+    firstPayroll: "First payroll",
+    lastNet: "Last: {amt}",
+    varianceNote: "1 person’s net pay changed by 20% or more since their last payroll — check it before approving. | {n} people’s net pay changed by 20% or more since their last payroll — check these before approving.",
     more: "More",
     reviewApprove: "Review & approve",
     nextRun: "Next pay run",

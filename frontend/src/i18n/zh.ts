@@ -588,6 +588,13 @@ export default {
     remaining: "剩余",
   },
   payroll: {
+    reviewTitle: "审批前核对",
+    reviewSummary: "{n} 人 · {flagged} 人需关注",
+    approvePayroll: "批准发薪",
+    vsLastRun: "与上期相比",
+    firstPayroll: "首次发薪",
+    lastNet: "上期：{amt}",
+    varianceNote: "有 {n} 人的实发工资与上期相比变化 20% 以上，请在审批前核对。",
     more: "更多",
     reviewApprove: "审核并批准",
     nextRun: "下一次发薪",

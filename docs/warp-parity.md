@@ -21,7 +21,7 @@ Legend: ✅ shipped · 🟡 partial · ⬜ not yet · — not applicable
 | Run log: trigger, what it did, what it left for a person | Run log with trigger, actions (done / for you / recommended / waiting / failed), rationale and links | ✅ | Routines → run log; Home → Agent activity |
 | Same permission model as people; hard limits on payroll/payments | Admin-only routines. Submissions, payroll approval and final pay always need a person | ✅ | |
 | Rollback per agent action | One-click Undo in the run log for reversible actions (prepared government returns are cancelled, manager notifications retracted); who undid it is recorded | ✅ | Routines → run log |
-| Pre-payroll variance / anomaly check | Rule-based anomaly detection on every calculated run (gross/net variance, zero contributions/tax, negative net, OT, duplicates), logged as a routine run | ✅ | `internal/payroll/anomaly.go` |
+| Pre-payroll variance / anomaly check | Rule-based anomaly detection on every calculated run (gross/net variance, zero contributions/tax, negative net, OT, duplicates), logged as a routine run. "Review & approve" opens a review step listing every line with net pay vs the employee's last regular/imported run; changes of 20%+ are highlighted before the Approve button | ✅ | `internal/payroll/anomaly.go`, `internal/payroll/variance.go` |
 | MCP access to the agent | MCP server | ✅ | `cmd/mcp` |
 
 ## Home and navigation

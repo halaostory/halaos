@@ -220,3 +220,16 @@ JOIN payroll_cycles pc ON pc.id = pr.cycle_id
 WHERE pr.company_id = $1 AND pr.status = 'completed'
 ORDER BY pc.period_start DESC
 LIMIT $2 OFFSET $3;
+
+-- name: PreviousPayForRun :many
+-- Each employee's pay in their latest earlier regular (or imported) run, for
+-- the "vs last run" column when reviewing a payroll.
+SELECT DISTINCT ON (pi.employee_id) pi.employee_id, pi.gross_pay::float8 AS gross_pay, pi.net_pay::float8 AS net_pay, c.pay_date
+FROM payroll_items pi
+JOIN payroll_runs r ON r.id = pi.run_id
+JOIN payroll_cycles c ON c.id = r.cycle_id
+WHERE r.company_id = @company_id AND r.status IN ('completed', 'ready_for_approval') AND r.id <> @run_id
+  AND c.cycle_type IN ('regular', 'imported') AND c.status IN ('approved', 'paid')
+  AND c.pay_date < (SELECT c2.pay_date FROM payroll_runs r2 JOIN payroll_cycles c2 ON c2.id = r2.cycle_id WHERE r2.id = @run_id AND r2.company_id = @company_id)
+  AND pi.employee_id IN (SELECT employee_id FROM payroll_items WHERE run_id = @run_id)
+ORDER BY pi.employee_id, c.pay_date DESC, r.id DESC;

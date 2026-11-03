@@ -1568,6 +1568,57 @@ func (q *Queries) LockPayrollCycle(ctx context.Context, arg LockPayrollCyclePara
 	return err
 }
 
+const previousPayForRun = `-- name: PreviousPayForRun :many
+SELECT DISTINCT ON (pi.employee_id) pi.employee_id, pi.gross_pay::float8 AS gross_pay, pi.net_pay::float8 AS net_pay, c.pay_date
+FROM payroll_items pi
+JOIN payroll_runs r ON r.id = pi.run_id
+JOIN payroll_cycles c ON c.id = r.cycle_id
+WHERE r.company_id = $1 AND r.status IN ('completed', 'ready_for_approval') AND r.id <> $2
+  AND c.cycle_type IN ('regular', 'imported') AND c.status IN ('approved', 'paid')
+  AND c.pay_date < (SELECT c2.pay_date FROM payroll_runs r2 JOIN payroll_cycles c2 ON c2.id = r2.cycle_id WHERE r2.id = $2 AND r2.company_id = $1)
+  AND pi.employee_id IN (SELECT employee_id FROM payroll_items WHERE run_id = $2)
+ORDER BY pi.employee_id, c.pay_date DESC, r.id DESC
+`
+
+type PreviousPayForRunParams struct {
+	CompanyID int64 `json:"company_id"`
+	RunID     int64 `json:"run_id"`
+}
+
+type PreviousPayForRunRow struct {
+	EmployeeID int64     `json:"employee_id"`
+	GrossPay   float64   `json:"gross_pay"`
+	NetPay     float64   `json:"net_pay"`
+	PayDate    time.Time `json:"pay_date"`
+}
+
+// Each employee's pay in their latest earlier regular (or imported) run, for
+// the "vs last run" column when reviewing a payroll.
+func (q *Queries) PreviousPayForRun(ctx context.Context, arg PreviousPayForRunParams) ([]PreviousPayForRunRow, error) {
+	rows, err := q.db.Query(ctx, previousPayForRun, arg.CompanyID, arg.RunID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PreviousPayForRunRow{}
+	for rows.Next() {
+		var i PreviousPayForRunRow
+		if err := rows.Scan(
+			&i.EmployeeID,
+			&i.GrossPay,
+			&i.NetPay,
+			&i.PayDate,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const unlockPayrollCycle = `-- name: UnlockPayrollCycle :exec
 UPDATE payroll_cycles SET
     is_locked = false,
