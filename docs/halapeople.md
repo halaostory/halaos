@@ -5,7 +5,8 @@ small and growing companies in Southeast Asia. It is built from this repository 
 **edition** — own domain, database, brand and deployment — while sharing the code (payroll
 engines, filing agent, auth) with HalaOS, so fixes land in both products at once.
 
-> Working name. Set `PRODUCT_NAME` to rebrand; the UI and API pick it up at runtime.
+> **HalaPeople** is the product name (default for `APP_EDITION=people`). `PRODUCT_NAME` can still
+> override it, e.g. for a white-label deployment; the UI and API pick it up at runtime.
 
 ## Positioning
 
@@ -89,7 +90,7 @@ AIStarlight integration pattern (signed JWT SSO + event outbox → signed webhoo
 
 ## Open decisions
 
-- Final product name, domain and pricing (current `/pricing` page is HalaOS's).
+- Domain and pricing (current `/pricing` page is HalaOS's; `halapeople.com` in the compose file is a placeholder).
 - Whether to move HalaPeople into its own repository later (the edition split keeps that
   possible: copy the shipped modules + `internal/edition`).
 - Which SEA market follows the Philippines.
