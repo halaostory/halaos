@@ -20,6 +20,13 @@ func (h *Handler) RegisterRoutes(protected *gin.RouterGroup) {
 	protected.POST("/payroll/cycles/:id/lock", auth.AdminOnly(), h.LockCycle)
 	protected.POST("/payroll/cycles/:id/unlock", auth.AdminOnly(), h.UnlockCycle)
 	protected.GET("/payroll/runs/:id/anomalies", auth.AdminOnly(), h.GetRunAnomalies)
+	protected.GET("/payroll/runs/:id/journal", auth.AdminOnly(), h.GetRunJournal)
+	protected.GET("/payroll/cycles/:id/journal", auth.AdminOnly(), func(c *gin.Context) {
+		c.Params = append(c.Params, gin.Param{Key: "cycle", Value: "1"})
+		h.GetRunJournal(c)
+	})
+	protected.GET("/payroll/gl-accounts", auth.AdminOnly(), h.GetGLMapping)
+	protected.PUT("/payroll/gl-accounts", auth.AdminOnly(), h.UpdateGLMapping)
 	protected.GET("/payroll/cycles/:id/anomalies", auth.AdminOnly(), h.GetCycleAnomalies)
 	protected.GET("/payroll/payslips", h.ListPayslips)
 	protected.GET("/payroll/payslips/:id", h.GetPayslip)

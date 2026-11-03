@@ -46,7 +46,7 @@ Legend: ✅ shipped · 🟡 partial · ⬜ not yet · — not applicable
 | Unlimited off-cycle runs; termination payroll created automatically | Off-cycle runs; final pay computed on termination and released as an off-cycle run after approval | ✅ |
 | Money movement (ACH/wire funding, direct deposit) | Bank files only; no money movement | ⬜ |
 | Payroll history import on migration | CSV import of employees; no payroll-history import | 🟡 |
-| GL journal entries to QuickBooks / Xero / NetSuite | Accounting sync via signed webhook (AIStarlight) | 🟡 |
+| GL journal entries to QuickBooks / Xero / NetSuite | Balanced journal per payroll run (wages, employer contributions, statutory payables, withholding, other deductions, net pay) mapped to your chart of accounts; QuickBooks / Xero CSV import files; webhook sync for AIStarlight. No direct API push yet | 🟡 |
 
 ## Tax and compliance
 
@@ -106,7 +106,7 @@ Legend: ✅ shipped · 🟡 partial · ⬜ not yet · — not applicable
 
 ## Next up
 
-1. GL journal export (QuickBooks / Xero CSV) after each payroll.
+1. Push journals to QuickBooks / Xero through their APIs (CSV import ships today).
 2. Rule-based policy assignment (leave and time policies by location, tenure, department).
 3. Slack alerts for to-dos, filings due and notices.
 4. MFA.

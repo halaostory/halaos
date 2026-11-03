@@ -1161,6 +1161,13 @@ type GeofenceLocation struct {
 	UpdatedAt         time.Time      `json:"updated_at"`
 }
 
+type GlAccountMapping struct {
+	CompanyID int64           `json:"company_id"`
+	Accounts  json.RawMessage `json:"accounts"`
+	UpdatedBy *int64          `json:"updated_by"`
+	UpdatedAt time.Time       `json:"updated_at"`
+}
+
 type Goal struct {
 	ID            int64              `json:"id"`
 	CompanyID     int64              `json:"company_id"`

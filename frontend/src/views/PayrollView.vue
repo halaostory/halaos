@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import JournalEntryModal from "../components/payroll/JournalEntryModal.vue";
 import PaySchedulesPanel from "../components/payroll/PaySchedulesPanel.vue";
 import { ref, h, computed, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
@@ -239,6 +240,13 @@ const columns: DataTableColumns = [
             () => t("payroll.aiScan")
           )
         );
+        btns.push(
+          h(
+            NButton,
+            { size: "small", onClick: () => { journalCycle.value = row; journalOpen.value = true } },
+            () => t("journal.button")
+          )
+        );
       }
       if (row.status === "draft" || row.status === "computed") {
         btns.push(
@@ -475,6 +483,9 @@ function handleExportCSV(row: Record<string, unknown>) {
     })
     .catch(() => message.error(t("common.failed")));
 }
+
+const journalOpen = ref(false);
+const journalCycle = ref<Record<string, unknown> | null>(null);
 
 async function handleScanAnomalies(row: Record<string, unknown>) {
   anomalyTitle.value = String(row.name || "");
@@ -1440,4 +1451,5 @@ function formatRatingMap(rm: Record<string, number>): string {
       />
     </NModal>
   </div>
+  <JournalEntryModal v-model:show="journalOpen" :cycle-id="journalCycle ? Number(journalCycle.id) : null" :title="String(journalCycle?.name || '')" />
 </template>

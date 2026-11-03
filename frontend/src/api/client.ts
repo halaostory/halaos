@@ -351,6 +351,11 @@ export const overtimeAPI = {
 
 // Payroll
 export const payrollAPI = {
+  cycleJournal: (cycleId: number) => get(`/v1/payroll/cycles/${cycleId}/journal`),
+  cycleJournalCSV: (cycleId: number, format: string) =>
+    api(`/v1/payroll/cycles/${cycleId}/journal`, { params: { format }, responseType: "blob" }),
+  glAccounts: () => get("/v1/payroll/gl-accounts"),
+  saveGlAccounts: (data: Record<string, { code: string; name: string }>) => put("/v1/payroll/gl-accounts", data),
   listSchedules: () => get("/v1/payroll/schedules"),
   createSchedule: (data: Record<string, unknown>) => post("/v1/payroll/schedules", data),
   updateSchedule: (id: number, data: Record<string, unknown>) => put(`/v1/payroll/schedules/${id}`, data),
