@@ -17,12 +17,12 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/halaostory/halaos/internal/ai"
-	"github.com/halaostory/halaos/internal/alerts"
 	"github.com/halaostory/halaos/internal/ai/agent"
 	"github.com/halaostory/halaos/internal/ai/byok"
 	aicontext "github.com/halaostory/halaos/internal/ai/context"
 	"github.com/halaostory/halaos/internal/ai/draft"
 	"github.com/halaostory/halaos/internal/ai/provider"
+	"github.com/halaostory/halaos/internal/alerts"
 	"github.com/halaostory/halaos/internal/analytics"
 	"github.com/halaostory/halaos/internal/announcement"
 	"github.com/halaostory/halaos/internal/approval"
