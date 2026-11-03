@@ -433,6 +433,9 @@ func (a *App) setupRoutes() {
 		Calculator: payroll.NewCalculator(a.Queries, a.Pool, a.Logger),
 		Enabled:    a.Edition.Enabled,
 	}
+	if aiProvider != nil {
+		routineEngine.AI = aiProvider
+	}
 	govSvc.SetPolicy(routineEngine.Policy)
 	lifecycleHandler.Service().SetRoutines(routineEngine)
 

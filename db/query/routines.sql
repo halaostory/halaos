@@ -67,3 +67,9 @@ RETURNING *;
 
 -- name: RetractNotification :exec
 DELETE FROM notifications WHERE id = $1 AND company_id = $2;
+
+-- name: DeleteOnboardingTaskByID :exec
+DELETE FROM onboarding_tasks WHERE id = $1 AND company_id = $2 AND status <> 'completed';
+
+-- name: RetractNotifications :exec
+DELETE FROM notifications WHERE company_id = $1 AND id = ANY(sqlc.arg(ids)::bigint[]);

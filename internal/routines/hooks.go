@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/halaostory/halaos/internal/ai/provider"
 	"github.com/halaostory/halaos/internal/govfiling"
 	"github.com/halaostory/halaos/internal/lifecycle"
 	"github.com/halaostory/halaos/internal/payroll"
@@ -19,6 +20,8 @@ type Engine struct {
 	*Service
 	Gov        *govfiling.Service
 	Calculator *payroll.Calculator
+	// AI reads plain-language routine steps (optional; rules otherwise).
+	AI provider.Provider
 	// Enabled reports whether an edition module ships (nil: all modules).
 	Enabled func(module string) bool
 }
@@ -163,7 +166,8 @@ func (e *Engine) AfterHire(ctx context.Context, companyID, _ int64, emp store.Em
 	}
 
 	run.Actions = append(fromSteps(steps, map[string]bool{"gov_registration": handledGov}), extra...)
-	run.Actions = append(run.Actions, customSteps(set.Instructions, name)...)
+	run.Actions = append(run.Actions, e.planSteps(ctx, stepContext{companyID: companyID, employee: &emp, workflow: "onboarding",
+		ref: emp.HireDate, routine: "New hire", autonomy: set.Autonomy}, set.Instructions, name)...)
 	_, _ = e.Record(ctx, companyID, KeyNewHire, set.Autonomy, run)
 }
 
@@ -174,8 +178,10 @@ func (e *Engine) AfterTerminate(ctx context.Context, companyID, _ int64, sep sto
 		return
 	}
 	name := fmt.Sprintf("Employee #%d", sep.EmployeeID)
+	var empPtr *store.Employee
 	if emp, err := e.q.GetEmployeeByID(ctx, store.GetEmployeeByIDParams{ID: sep.EmployeeID, CompanyID: companyID}); err == nil {
 		name = employeeName(emp)
+		empPtr = &emp
 	}
 	run := Run{
 		Trigger:     fmt.Sprintf("%s was terminated (%s, last day %s)", name, strings.ReplaceAll(sep.SeparationType, "_", " "), sep.LastWorkingDay.Format("Jan 2, 2006")),
@@ -192,7 +198,8 @@ func (e *Engine) AfterTerminate(ctx context.Context, companyID, _ int64, sep sto
 		run.Actions = append(run.Actions, Action{Key: "final_pay", Title: "Compute final pay on the last working day", Status: ActWaiting,
 			Rationale: "Final pay, device recall and access revocation run when the separation takes effect.", Link: "/final-pay"})
 	}
-	run.Actions = append(run.Actions, customSteps(set.Instructions, name)...)
+	run.Actions = append(run.Actions, e.planSteps(ctx, stepContext{companyID: companyID, employee: empPtr, workflow: "offboarding",
+		ref: sep.LastWorkingDay, routine: "Offboarding", autonomy: set.Autonomy}, set.Instructions, name)...)
 	_, _ = e.Record(ctx, companyID, KeyOffboarding, set.Autonomy, run)
 }
 
@@ -325,7 +332,15 @@ func (e *Engine) UndoAction(ctx context.Context, companyID, userID, runID int64,
 			return nil, fmt.Errorf("%w: %v", ErrNotUndoable, err)
 		}
 	case UndoRetractNotification:
-		if err := e.q.RetractNotification(ctx, store.RetractNotificationParams{ID: u.ID, CompanyID: companyID}); err != nil {
+		ids := u.IDs
+		if len(ids) == 0 {
+			ids = []int64{u.ID}
+		}
+		if err := e.q.RetractNotifications(ctx, store.RetractNotificationsParams{CompanyID: companyID, Ids: ids}); err != nil {
+			return nil, err
+		}
+	case UndoDeleteTask:
+		if err := e.q.DeleteOnboardingTaskByID(ctx, store.DeleteOnboardingTaskByIDParams{ID: u.ID, CompanyID: companyID}); err != nil {
 			return nil, err
 		}
 	default:

@@ -2677,7 +2677,7 @@ export default {
     levelHelp_autonomous: "Also carries out reversible steps on its own. Hard limits still apply.",
     capped: "Not available for this routine — it always waits for a person.",
     instructions: "Your steps",
-    instructionsHelp: "One per line. Each becomes a checklist item in every run.",
+    instructionsHelp: "One step per line, in plain language. At Autonomous the agent does them (adds checklist tasks, notifies the manager, employee or HR — each undoable); otherwise they are left for you.",
     saved: "Routine updated",
     neverRan: "Hasn't run yet",
     runs30: "{n} runs / 30d",

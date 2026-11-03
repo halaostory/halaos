@@ -17,7 +17,7 @@ Legend: ✅ shipped · 🟡 partial · ⬜ not yet · — not applicable
 | Warp Agent chat in the sidebar; answers policy/employee questions and acts | AI assistant with HR tools. Write tools create confirm-before-act drafts | ✅ | `internal/ai`, Agent page |
 | Routines: event/schedule triggered jobs the agent owns | New hire, Offboarding, Pre-payroll check, Filing autopilot | ✅ | `internal/routines`, Routines page |
 | Per-routine autonomy (recommend / act after approval / autonomous) | Recommend / Ask first / Autonomous. Filings and payroll are capped at "ask first" | ✅ | Routines page |
-| Routines written in plain language | Plain-language extra steps per routine. Each becomes a checklist item in every run | 🟡 | The agent does not yet execute arbitrary free-text steps |
+| Routines written in plain language | Plain-language steps per routine. At Autonomous the agent reads each one (AI, or rules without a model) and does it — adds a checklist task or notifies the manager, employee or HR — with undo; at lower levels they are left for a person | 🟡 | Steps that need other tools (Slack messages, purchasing) become tracked tasks rather than being executed |
 | Run log: trigger, what it did, what it left for a person | Run log with trigger, actions (done / for you / recommended / waiting / failed), rationale and links | ✅ | Routines → run log; Home → Agent activity |
 | Same permission model as people; hard limits on payroll/payments | Admin-only routines. Submissions, payroll approval and final pay always need a person | ✅ | |
 | Rollback per agent action | One-click Undo in the run log for reversible actions (prepared government returns are cancelled, manager notifications retracted); who undid it is recorded | ✅ | Routines → run log |

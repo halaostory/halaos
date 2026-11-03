@@ -145,12 +145,14 @@ const (
 const (
 	UndoCancelSubmission    = "cancel_gov_submission"
 	UndoRetractNotification = "retract_notification"
+	UndoDeleteTask          = "delete_checklist_task"
 )
 
 // Undo describes how to roll an action back.
 type Undo struct {
-	Kind string `json:"kind"`
-	ID   int64  `json:"id"`
+	Kind string  `json:"kind"`
+	ID   int64   `json:"id"`
+	IDs  []int64 `json:"ids,omitempty"` // several notifications (e.g. every HR admin)
 }
 
 // Action is one line of a run log.

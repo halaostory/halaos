@@ -2644,7 +2644,7 @@ export default {
     levelHelp_autonomous: "可自行完成可撤销的步骤，硬性限制依然有效。",
     capped: "此例程不可用——它始终需要人工确认。",
     instructions: "自定义步骤",
-    instructionsHelp: "每行一条，每次运行都会成为一项待办。",
+    instructionsHelp: "每行一个步骤，用自然语言描述。在「自主执行」下 AI 助手会直接完成（添加清单任务、通知经理/员工/HR，均可撤销）；否则留给你处理。",
     saved: "例程已更新",
     neverRan: "尚未运行",
     runs30: "30 天内 {n} 次",

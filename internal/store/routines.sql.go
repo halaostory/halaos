@@ -48,6 +48,20 @@ func (q *Queries) CountAgentRoutineRunsSince(ctx context.Context, arg CountAgent
 	return items, nil
 }
 
+const deleteOnboardingTaskByID = `-- name: DeleteOnboardingTaskByID :exec
+DELETE FROM onboarding_tasks WHERE id = $1 AND company_id = $2 AND status <> 'completed'
+`
+
+type DeleteOnboardingTaskByIDParams struct {
+	ID        int64 `json:"id"`
+	CompanyID int64 `json:"company_id"`
+}
+
+func (q *Queries) DeleteOnboardingTaskByID(ctx context.Context, arg DeleteOnboardingTaskByIDParams) error {
+	_, err := q.db.Exec(ctx, deleteOnboardingTaskByID, arg.ID, arg.CompanyID)
+	return err
+}
+
 const getAgentRoutineRun = `-- name: GetAgentRoutineRun :one
 SELECT id, company_id, routine_key, trigger, subject_type, subject_id, subject_name, autonomy, status, summary, actions, created_at FROM agent_routine_runs WHERE id = $1 AND company_id = $2
 `
@@ -362,6 +376,20 @@ type RetractNotificationParams struct {
 
 func (q *Queries) RetractNotification(ctx context.Context, arg RetractNotificationParams) error {
 	_, err := q.db.Exec(ctx, retractNotification, arg.ID, arg.CompanyID)
+	return err
+}
+
+const retractNotifications = `-- name: RetractNotifications :exec
+DELETE FROM notifications WHERE company_id = $1 AND id = ANY($2::bigint[])
+`
+
+type RetractNotificationsParams struct {
+	CompanyID int64   `json:"company_id"`
+	Ids       []int64 `json:"ids"`
+}
+
+func (q *Queries) RetractNotifications(ctx context.Context, arg RetractNotificationsParams) error {
+	_, err := q.db.Exec(ctx, retractNotifications, arg.CompanyID, arg.Ids)
 	return err
 }
 
