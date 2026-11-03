@@ -72,7 +72,7 @@ Legend: ✅ shipped · 🟡 partial · ⬜ not yet · — not applicable
 | Policy assignment by location / tenure / department | Time off → Policies: entitlement rules by department, employment type, gender and tenure band with priorities; applied at hire, re-applied daily (tenure upgrades), preview before apply; rules can also target workplaces | ✅ |
 | Time tracking add-on (clock in/out, geofence, shifts, timesheets → payroll) | Suite edition: attendance, geofences, schedules, DTR, overtime → payroll | ✅ |
 | Roles & permissions, MFA, SSO | Roles (super admin / admin / manager / employee); two-factor sign-in (TOTP + recovery codes); single sign-on with any OpenID Connect provider (Google Workspace, Okta, Entra ID) per company e-mail domain. No SAML | ✅ |
-| Mobile app for employees | `frontend-mobile` (mobile web): edition-aware tabs (Home, Clock in suite, Leave, Pay, Expenses, Me), expense claims, leave balances, payslips, two-factor sign-in. No native store app | 🟡 |
+| Mobile app for employees | `frontend-mobile` (mobile web): edition-aware tabs (Home, Clock in suite, Leave, Pay, Expenses, Me), expense claims, leave balances, payslips, two-factor sign-in; installable as an app (PWA: home-screen icon, standalone window, opens offline). Not in the app stores | 🟡 |
 
 ## Contractors
 

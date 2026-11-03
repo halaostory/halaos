@@ -21,3 +21,10 @@ app.use(createPinia());
 app.use(router);
 app.use(i18n);
 loadEdition().finally(() => app.mount("#app"));
+
+// Installable app: register the service worker in production builds.
+if ("serviceWorker" in navigator && import.meta.env.PROD) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/m/sw.js", { scope: "/m/" }).catch(() => undefined);
+  });
+}
