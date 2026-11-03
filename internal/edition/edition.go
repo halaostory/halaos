@@ -35,6 +35,7 @@ const (
 	ModTimeOff      = "time_off"     // leave, leave calendar, encashment, overtime requests (payroll input)
 	ModBenefits     = "benefits"     // benefit plans & claims
 	ModExpenses     = "expenses"     // expense claims & reimbursements
+	ModContractors  = "contractors"  // freelancers/contractors: invoices, EWT, BIR 2307, 0619-E/1601-EQ
 	ModESign        = "esign"        // self-onboarding portal, document templates, e-signature
 	ModIT           = "it"           // devices/MDM, app provisioning (integration hub)
 	ModAI           = "ai"           // AI assistant, agents, drafts, messaging bot
@@ -47,13 +48,13 @@ const (
 
 // All lists every module.
 var All = []string{
-	ModCore, ModPeople, ModLifecycle, ModPayroll, ModCompliance, ModTimeOff, ModBenefits, ModExpenses,
+	ModCore, ModPeople, ModLifecycle, ModPayroll, ModCompliance, ModTimeOff, ModBenefits, ModExpenses, ModContractors,
 	ModESign, ModIT, ModAI, ModAttendance, ModTalent, ModEngagement, ModIntelligence, ModWorkspace,
 }
 
 var membership = map[Edition][]string{
 	HalaOS: All,
-	People: {ModCore, ModPeople, ModLifecycle, ModPayroll, ModCompliance, ModTimeOff, ModBenefits, ModExpenses, ModESign, ModIT, ModAI},
+	People: {ModCore, ModPeople, ModLifecycle, ModPayroll, ModCompliance, ModTimeOff, ModBenefits, ModExpenses, ModContractors, ModESign, ModIT, ModAI},
 }
 
 // Country is a market the product can be sold in.

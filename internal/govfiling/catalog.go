@@ -132,6 +132,29 @@ var catalog = map[string]FormSpec{
 			"Record the Pag-IBIG reference number in HalaOS.",
 		},
 	},
+	// Expanded withholding on contractor / freelancer payments.
+	"bir_0619e": {
+		Code: "bir_0619e", Country: "PHL", Agency: "BIR", Frequency: "monthly",
+		Name:     "BIR 0619-E Monthly Remittance of Creditable Income Taxes Withheld (Expanded)",
+		Channels: []Channel{ChannelBrowser, ChannelManual}, Portal: "efps", PortalURL: "https://efps.bir.gov.ph",
+		PlaybookID: "bir.efps.0619e", FileFormat: "summary (CSV)",
+		Steps: []string{
+			"Filed for the 1st and 2nd month of each quarter (the 3rd month is covered by 1601-EQ).",
+			"Log in to eFPS (or eBIRForms), open 0619-E, enter the total tax withheld from the attached summary, submit and pay by the 10th of the following month.",
+			"Record the filing reference in HalaPeople.",
+		},
+	},
+	"bir_1601eq": {
+		Code: "bir_1601eq", Country: "PHL", Agency: "BIR", Frequency: "quarterly",
+		Name:     "BIR 1601-EQ Quarterly Remittance Return of Creditable Income Taxes Withheld (Expanded) + QAP",
+		Channels: []Channel{ChannelEmail, ChannelManual}, Portal: "esubmission", EmailTo: "esubmission@bir.gov.ph",
+		FileFormat: "Quarterly Alphalist of Payees (CSV)",
+		Steps: []string{
+			"File 1601-EQ in eFPS/eBIRForms by the last day of the month after the quarter, crediting the 0619-E remittances of the first two months.",
+			"Submit the Quarterly Alphalist of Payees (QAP) — validated with the BIR Alphalist Data Entry module — to esubmission@bir.gov.ph.",
+			"Issue BIR 2307 certificates to each payee (Contractors → 2307).",
+		},
+	},
 	// New-hire registrations (Warp-style "register for you"): batched per hire month.
 	"sss_r1a": {
 		Code: "sss_r1a", Country: "PHL", Agency: "SSS", Frequency: "hire_month", Registration: true, DueDaysAfterHire: 30,

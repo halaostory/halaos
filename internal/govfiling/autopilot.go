@@ -38,6 +38,7 @@ func (s *Service) Autopilot(ctx context.Context) AutopilotResult {
 				s.logger.Warn("govfiling autopilot: annual calendar", "company_id", c.ID, "error", err)
 			}
 			res.NewHireForms += s.prepareNewHireRegistrations(ctx, c.ID)
+			res.Prepared += s.prepareExpandedWithholding(ctx, c.ID)
 		case "USA":
 			states, err := s.q.ListUnregisteredWorkStates(ctx, c.ID)
 			if err != nil {
@@ -120,6 +121,44 @@ func (s *Service) prepareNewHireRegistrations(ctx context.Context, companyID int
 			}
 			n++
 		}
+	}
+	return n
+}
+
+// prepareExpandedWithholding prepares 0619-E for the month that just ended
+// (1st/2nd month of a quarter) and 1601-EQ + QAP for the quarter that just
+// ended, when the company paid contractors with withholding in that period.
+func (s *Service) prepareExpandedWithholding(ctx context.Context, companyID int64) int {
+	now := s.now()
+	prev := now.AddDate(0, -1, 0)
+	type job struct {
+		code   string
+		period string
+		p      Period
+	}
+	var jobs []job
+	if m := int(prev.Month()); (m-1)%3 != 2 { // not the quarter's last month
+		jobs = append(jobs, job{"bir_0619e", fmt.Sprintf("%04d-%02d", prev.Year(), m), Period{Year: prev.Year(), Month: m}})
+	}
+	if int(now.Month())%3 == 1 { // first month after a quarter
+		q := (int(prev.Month())-1)/3 + 1
+		jobs = append(jobs, job{"bir_1601eq", fmt.Sprintf("%04d-Q%d", prev.Year(), q), Period{Year: prev.Year(), Quarter: q}})
+	}
+	n := 0
+	for _, j := range jobs {
+		spec, _ := Lookup(j.code)
+		if _, err := s.q.GetLiveGovSubmission(ctx, store.GetLiveGovSubmissionParams{CompanyID: companyID, Agency: spec.Agency, FormCode: j.code, Period: j.period}); err == nil {
+			continue
+		}
+		ds, err := BuildDataset(ctx, s.q, companyID, spec, j.p)
+		if err != nil || len(ds.Lines) == 0 {
+			continue
+		}
+		if _, err := s.Prepare(ctx, companyID, nil, PrepareInput{FormCode: j.code, Period: j.period}); err != nil {
+			s.logger.Warn("govfiling autopilot: expanded withholding", "company_id", companyID, "form", j.code, "error", err)
+			continue
+		}
+		n++
 	}
 	return n
 }

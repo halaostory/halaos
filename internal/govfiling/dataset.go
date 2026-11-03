@@ -209,6 +209,44 @@ func BuildDataset(ctx context.Context, q *store.Queries, companyID int64, spec F
 			"line5a_ss_wages": f.SSWages, "line5c_medicare_wages": f.MedicareWages, "line10_total_taxes": f.TotalTaxes,
 		}
 		return ds, nil
+	case "bir_0619e", "bir_1601eq":
+		var start, end time.Time
+		if spec.Code == "bir_0619e" {
+			ds.Period = fmt.Sprintf("%04d-%02d", p.Year, p.Month)
+			start = time.Date(p.Year, time.Month(p.Month), 1, 0, 0, 0, 0, time.UTC)
+			end = start.AddDate(0, 1, -1)
+		} else {
+			ds.Period = fmt.Sprintf("%04d-Q%d", p.Year, p.Quarter)
+			start = time.Date(p.Year, time.Month((p.Quarter-1)*3+1), 1, 0, 0, 0, 0, time.UTC)
+			end = start.AddDate(0, 3, -1)
+		}
+		rows, err := q.ContractorWithholdingByPayee(ctx, store.ContractorWithholdingByPayeeParams{CompanyID: companyID, StartDate: start, EndDate: end})
+		if err != nil {
+			return nil, err
+		}
+		ds.MemberIDLabel, ds.Columns, ds.FieldColumns = "TIN", []string{"income_payment", "tax_withheld"}, []string{"atc"}
+		agg := map[string]*Line{}
+		var order []string
+		for _, r := range rows {
+			k := fmt.Sprintf("%d|%s", r.ContractorID, r.AtcCode)
+			l, ok := agg[k]
+			if !ok {
+				l = &Line{Name: r.Name, MemberID: r.Tin, Amounts: map[string]float64{}, Fields: map[string]string{"atc": r.AtcCode}}
+				agg[k] = l
+				order = append(order, k)
+			}
+			l.Amounts["income_payment"] = r2(l.Amounts["income_payment"] + r.Base)
+			l.Amounts["tax_withheld"] = r2(l.Amounts["tax_withheld"] + r.Ewt)
+		}
+		for _, k := range order {
+			ds.Lines = append(ds.Lines, *agg[k])
+		}
+		// Due: 0619-E on the 10th of the next month; 1601-EQ on the last day of the month after the quarter.
+		due := end.AddDate(0, 0, 10)
+		if spec.Code == "bir_1601eq" {
+			due = end.AddDate(0, 0, 1).AddDate(0, 1, -1)
+		}
+		ds.DueDate = &due
 	case "sss_r1a", "philhealth_er2", "pagibig_registration", "bir_1902":
 		ds.Period = fmt.Sprintf("%04d-%02d", p.Year, p.Month)
 		if err := buildRegistration(ctx, q, companyID, spec, p, ds); err != nil {
@@ -343,7 +381,8 @@ func RenderFile(spec FormSpec, ds *Dataset) (name, contentType string, data []by
 		}
 		w.Flush()
 		prefix := map[string]string{"bir_1601c": "1601C", "bir_1604c": "1604C_ALPHALIST", "philhealth_rf1": "RF1", "mock_return": "MOCK",
-			"philhealth_er2": "ER2", "pagibig_registration": "PAGIBIG_NEW_MEMBERS", "bir_1902": "BIR1902_NO_TIN"}[spec.Code]
+			"philhealth_er2": "ER2", "pagibig_registration": "PAGIBIG_NEW_MEMBERS", "bir_1902": "BIR1902_NO_TIN",
+			"bir_0619e": "0619E", "bir_1601eq": "1601EQ_QAP"}[spec.Code]
 		if prefix == "" {
 			prefix = strings.ToUpper(spec.Code)
 		}

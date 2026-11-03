@@ -59,6 +59,8 @@ var employerIDFor = map[string][2]string{
 	"philhealth_er2":       {"philhealth_er_no", "PhilHealth employer number"},
 	"pagibig_registration": {"pagibig_er_no", "Pag-IBIG employer ID"},
 	"bir_1902":             {"tin", "company TIN"},
+	"bir_0619e":            {"tin", "company TIN"},
+	"bir_1601eq":           {"tin", "company TIN"},
 }
 
 // expected digit counts for member IDs (min, max)
@@ -71,6 +73,8 @@ var memberIDDigits = map[string][2]int{
 	"sss_r1a":              {10, 10},
 	"philhealth_er2":       {12, 12},
 	"pagibig_registration": {12, 12},
+	"bir_0619e":            {9, 14},
+	"bir_1601eq":           {9, 14},
 }
 
 // RunRules performs the deterministic pre-flight checks.
@@ -93,7 +97,11 @@ func RunRules(in RuleInput) *Preflight {
 			if in.Spec.Registration {
 				p.add("error", "no_data", "No new employees to report for this hire month.")
 			} else {
-				p.add("error", "no_data", "No payroll data for this period. Run and approve payroll first.")
+				if in.Spec.Code == "bir_0619e" || in.Spec.Code == "bir_1601eq" {
+					p.add("error", "no_data", "No paid contractor payments with withholding in this period.")
+				} else {
+					p.add("error", "no_data", "No payroll data for this period. Run and approve payroll first.")
+				}
 			}
 		}
 		var missing []string

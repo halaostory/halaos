@@ -1443,3 +1443,19 @@ export const devicesAPI = {
   mdm: () => get("/v1/devices/mdm"),
   saveMdm: (data: Record<string, unknown>) => put("/v1/devices/mdm", data),
 };
+
+// Contractors & freelancer payments (EWT, BIR 2307)
+export const contractorsAPI = {
+  atcs: () => get("/v1/contractors/atcs"),
+  list: () => get("/v1/contractors"),
+  create: (data: Record<string, unknown>) => post("/v1/contractors", data),
+  update: (id: number, data: Record<string, unknown>) => put(`/v1/contractors/${id}`, data),
+  payments: (params?: Record<string, string>) => get("/v1/contractors/payments", params),
+  createPayment: (data: Record<string, unknown>) => post("/v1/contractors/payments", data),
+  approve: (id: number) => post(`/v1/contractors/payments/${id}/approve`),
+  pay: (id: number, data: Record<string, unknown>) => post(`/v1/contractors/payments/${id}/pay`, data),
+  void: (id: number) => post(`/v1/contractors/payments/${id}/void`),
+  bankFileBlob: () => api("/v1/contractors/bank-file", { responseType: "blob" }),
+  certificateBlob: (id: number, quarter: string) =>
+    api(`/v1/contractors/${id}/2307`, { params: { quarter }, responseType: "blob" }),
+};

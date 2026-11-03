@@ -50,6 +50,7 @@ import (
 	"github.com/halaostory/halaos/internal/email"
 	"github.com/halaostory/halaos/internal/employee"
 	"github.com/halaostory/halaos/internal/govfiling"
+	"github.com/halaostory/halaos/internal/contractors"
 	"github.com/halaostory/halaos/internal/devices"
 	"github.com/halaostory/halaos/internal/edition"
 	"github.com/halaostory/halaos/pkg/response"
@@ -440,6 +441,9 @@ func (a *App) setupRoutes() {
 	deviceSvc := devices.NewServiceFromKey(a.Queries, a.Logger, a.Cfg.Integration.EncryptionKey)
 	devices.NewHandler(deviceSvc, a.Queries).RegisterRoutes(a.mod(edition.ModIT, protected))
 	lifecycleHandler.Service().SetDevices(deviceSvc)
+
+	// Contractors & freelancer payments (EWT, BIR 2307)
+	contractors.NewHandler(a.Queries, a.Logger, a.Edition.ProductName).RegisterRoutes(a.mod(edition.ModContractors, protected))
 
 	referralHandler := referral.NewHandler(a.Queries, a.Logger)
 	referralHandler.RegisterRoutes(a.mod(edition.ModEngagement, protected))

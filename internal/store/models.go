@@ -682,6 +682,50 @@ type ContractMilestone struct {
 	UpdatedAt      time.Time          `json:"updated_at"`
 }
 
+type Contractor struct {
+	ID              int64          `json:"id"`
+	CompanyID       int64          `json:"company_id"`
+	Kind            string         `json:"kind"`
+	Name            string         `json:"name"`
+	Email           *string        `json:"email"`
+	Tin             string         `json:"tin"`
+	Address         string         `json:"address"`
+	IsVatRegistered bool           `json:"is_vat_registered"`
+	EwtRate         pgtype.Numeric `json:"ewt_rate"`
+	AtcCode         string         `json:"atc_code"`
+	BankName        *string        `json:"bank_name"`
+	BankAccountNo   *string        `json:"bank_account_no"`
+	BankAccountName *string        `json:"bank_account_name"`
+	Status          string         `json:"status"`
+	Notes           *string        `json:"notes"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+}
+
+type ContractorPayment struct {
+	ID            int64              `json:"id"`
+	CompanyID     int64              `json:"company_id"`
+	ContractorID  int64              `json:"contractor_id"`
+	InvoiceNo     string             `json:"invoice_no"`
+	Description   string             `json:"description"`
+	ServiceDate   time.Time          `json:"service_date"`
+	GrossAmount   pgtype.Numeric     `json:"gross_amount"`
+	VatAmount     pgtype.Numeric     `json:"vat_amount"`
+	EwtBase       pgtype.Numeric     `json:"ewt_base"`
+	EwtRate       pgtype.Numeric     `json:"ewt_rate"`
+	EwtAmount     pgtype.Numeric     `json:"ewt_amount"`
+	NetAmount     pgtype.Numeric     `json:"net_amount"`
+	AtcCode       string             `json:"atc_code"`
+	Status        string             `json:"status"`
+	ApprovedBy    *int64             `json:"approved_by"`
+	ApprovedAt    pgtype.Timestamptz `json:"approved_at"`
+	PaidAt        pgtype.Date        `json:"paid_at"`
+	PaidReference *string            `json:"paid_reference"`
+	CreatedBy     *int64             `json:"created_by"`
+	CreatedAt     time.Time          `json:"created_at"`
+	UpdatedAt     time.Time          `json:"updated_at"`
+}
+
 type CostCenter struct {
 	ID        int64     `json:"id"`
 	CompanyID int64     `json:"company_id"`

@@ -142,7 +142,7 @@ const features: Record<string, boolean> = {
   'pulse-surveys': true, recognition: true, 'hr-requests': true,
   'virtual-office': true,
   'bot-setup': true,
-  inbox: true, hire: true, 'custom-fields': true, 'gov-filings': true, documents: true, devices: true,
+  inbox: true, hire: true, 'custom-fields': true, 'gov-filings': true, documents: true, devices: true, contractors: true,
 }
 
 function isEnabled(key: string): boolean {
@@ -212,6 +212,7 @@ const menuOptions = computed<MenuOption[]>(() => {
   pushIf(payComp, 'expenses', 'nav.expenses', ReceiptOutline)
   pushIf(payComp, 'benefits', 'nav.benefits', MedkitOutline)
   if (auth.isAdmin) pushIf(payComp, 'final-pay', 'nav.finalPay', WalletOutline)
+  if (auth.isAdmin) pushIf(payComp, 'contractors', 'nav.contractors', BriefcaseOutline)
   if (auth.isAdmin) pushIf(payComp, 'accounting', 'nav.accounting', OpenOutline)
   if (payComp.length) {
     groups.push({ type: 'group', label: t('nav.groupPayroll'), key: 'g-payroll', children: payComp })

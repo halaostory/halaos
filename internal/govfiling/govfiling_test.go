@@ -262,3 +262,20 @@ func TestRenderRegistrationFiles(t *testing.T) {
 		t.Errorf("ER2 %s:\n%s", name, data)
 	}
 }
+
+func TestExpandedWithholdingDueDates(t *testing.T) {
+	// mirrors the due-date rules in BuildDataset
+	end := time.Date(2026, 9, 30, 0, 0, 0, 0, time.UTC)
+	if d := end.AddDate(0, 0, 1).AddDate(0, 1, -1); d.Format("2006-01-02") != "2026-10-31" {
+		t.Errorf("1601-EQ Q3 due %s", d.Format("2006-01-02"))
+	}
+	jan := time.Date(2026, 1, 31, 0, 0, 0, 0, time.UTC)
+	if d := jan.AddDate(0, 0, 10); d.Format("2006-01-02") != "2026-02-10" {
+		t.Errorf("0619-E Jan due %s", d.Format("2006-01-02"))
+	}
+	for _, c := range []string{"bir_0619e", "bir_1601eq"} {
+		if f, ok := Lookup(c); !ok || f.Agency != "BIR" {
+			t.Errorf("%s missing", c)
+		}
+	}
+}

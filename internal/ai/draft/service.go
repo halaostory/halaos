@@ -14,6 +14,7 @@ import (
 
 // WriteTools is the set of tool names that require user confirmation before execution.
 var WriteTools = map[string]bool{
+	"create_contractor_payment":    true,
 	"hire_employee":                true,
 	"terminate_employee":           true,
 	"send_onboarding_invite":       true,
@@ -46,6 +47,7 @@ var WriteTools = map[string]bool{
 
 // RiskLevel categorizes the potential impact of an action.
 var toolRisk = map[string]string{
+	"create_contractor_payment":    "medium",
 	"hire_employee":                "high",
 	"terminate_employee":           "high",
 	"send_onboarding_invite":       "low",

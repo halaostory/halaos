@@ -27,6 +27,7 @@ const routeModule: Record<string, string> = {
   leaves: "time_off", "leave-calendar": "time_off", "leave-encashment": "time_off", overtime: "time_off",
   benefits: "benefits",
   expenses: "expenses",
+  contractors: "contractors",
   documents: "esign", "onboard-portal": "esign", "sign-document": "esign",
   devices: "it", integrations: "it", "provisioning-jobs": "it", "integration-detail": "it",
   "agent-hub": "ai", "bot-setup": "ai",

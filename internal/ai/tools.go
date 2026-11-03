@@ -84,6 +84,7 @@ var toolGroups = []struct {
 	{edition.ModEngagement, recognitionDefs},
 	{edition.ModCore, hrrequestDefs},
 	{edition.ModLifecycle, lifecycleDefs},
+	{edition.ModContractors, contractorDefs},
 }
 
 // Definitions returns tool definitions for the LLM (only modules shipped in
@@ -146,4 +147,5 @@ func (r *ToolRegistry) registerTools() {
 	r.registerRecognitionTools()
 	r.registerHRRequestTools()
 	r.registerLifecycleTools()
+	r.registerContractorTools()
 }
