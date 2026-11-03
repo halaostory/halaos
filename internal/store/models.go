@@ -1872,6 +1872,35 @@ type PaySchedule struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type PayoutBatch struct {
+	ID         int64          `json:"id"`
+	CompanyID  int64          `json:"company_id"`
+	CycleID    int64          `json:"cycle_id"`
+	RunID      int64          `json:"run_id"`
+	Provider   string         `json:"provider"`
+	ExternalID string         `json:"external_id"`
+	Status     string         `json:"status"`
+	Total      pgtype.Numeric `json:"total"`
+	ItemCount  int32          `json:"item_count"`
+	CreatedBy  *int64         `json:"created_by"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
+}
+
+type PayoutItem struct {
+	ID          int64          `json:"id"`
+	BatchID     int64          `json:"batch_id"`
+	EmployeeID  int64          `json:"employee_id"`
+	ExternalID  string         `json:"external_id"`
+	Amount      pgtype.Numeric `json:"amount"`
+	BankCode    string         `json:"bank_code"`
+	AccountNo   string         `json:"account_no"`
+	AccountName string         `json:"account_name"`
+	Status      string         `json:"status"`
+	FailureCode string         `json:"failure_code"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+}
+
 type PayrollAutoConfig struct {
 	ID                   int64          `json:"id"`
 	CompanyID            int64          `json:"company_id"`

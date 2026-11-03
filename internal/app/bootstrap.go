@@ -74,6 +74,7 @@ import (
 	onboardingChecklist "github.com/halaostory/halaos/internal/onboarding_checklist"
 	"github.com/halaostory/halaos/internal/orgintel"
 	"github.com/halaostory/halaos/internal/overtime"
+	"github.com/halaostory/halaos/internal/payouts"
 	"github.com/halaostory/halaos/internal/payroll"
 	"github.com/halaostory/halaos/internal/performance"
 	"github.com/halaostory/halaos/internal/policy"
@@ -447,6 +448,9 @@ func (a *App) setupRoutes() {
 	// Direct journal push to Xero / QuickBooks Online
 	glsync.NewFromEnv(a.Queries, a.Cfg.Integration.EncryptionKey, a.Cfg.Resend.BaseURL, a.Logger).
 		RegisterRoutes(a.mod(edition.ModPayroll, protected), a.mod(edition.ModPayroll, api))
+
+	// Net pay disbursement through a licensed payout partner (Xendit)
+	payouts.NewFromEnv(a.Queries, a.Pool, a.Logger).RegisterRoutes(a.mod(edition.ModPayroll, protected), a.mod(edition.ModPayroll, api))
 
 	// Rule-based time-off policies (by department, employment type, gender, tenure)
 	leavepolicy.NewService(a.Queries, a.Logger).RegisterRoutes(a.mod(edition.ModTimeOff, protected))

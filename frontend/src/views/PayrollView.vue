@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import JournalEntryModal from "../components/payroll/JournalEntryModal.vue";
 import PayrollHistoryPanel from "../components/payroll/PayrollHistoryPanel.vue";
+import PayoutModal from "../components/payroll/PayoutModal.vue";
 import PaySchedulesPanel from "../components/payroll/PaySchedulesPanel.vue";
 import { ref, h, computed, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
@@ -205,6 +206,7 @@ const columns: DataTableColumns = [
       if (done || locked) {
         more.push({ label: t("payroll.viewItems"), key: "items" });
         more.push({ label: t("journal.button"), key: "journal" });
+        if (status === "approved") more.push({ label: t("payout.menu"), key: "payout" });
         more.push({ label: t("payroll.bankFile"), key: "bank" });
         more.push({ label: "CSV", key: "csv" });
         more.push({ label: t("payroll.aiScan"), key: "scan" });
@@ -215,6 +217,7 @@ const columns: DataTableColumns = [
       const onSelect = (k: string) => {
         if (k === "items") handleViewItems(row);
         else if (k === "journal") { journalCycle.value = row; journalOpen.value = true; }
+        else if (k === "payout") { payoutCycle.value = Number(row.id); payoutOpen.value = true; }
         else if (k === "bank") handleExportBankFile(row);
         else if (k === "csv") handleExportCSV(row);
         else if (k === "scan") handleScanAnomalies(row);
@@ -466,6 +469,8 @@ function handleExportCSV(row: Record<string, unknown>) {
     .catch(() => message.error(t("common.failed")));
 }
 
+const payoutOpen = ref(false);
+const payoutCycle = ref<number | null>(null);
 const journalOpen = ref(false);
 const journalCycle = ref<Record<string, unknown> | null>(null);
 
@@ -1458,6 +1463,7 @@ function formatRatingMap(rm: Record<string, number>): string {
       />
     </NModal>
   </div>
+  <PayoutModal v-model:show="payoutOpen" :cycle-id="payoutCycle" />
   <JournalEntryModal v-model:show="journalOpen" :cycle-id="journalCycle ? Number(journalCycle.id) : null" :title="String(journalCycle?.name || '')" />
 </template>
 

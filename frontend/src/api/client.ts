@@ -378,6 +378,12 @@ export const overtimeAPI = {
 };
 
 // Payroll
+export const payoutsAPI = {
+  list: () => get("/v1/payouts"),
+  preview: (cycleId: number) => get("/v1/payouts/preview", { cycle_id: String(cycleId) }),
+  send: (cycleId: number, total: number) => post("/v1/payouts", { cycle_id: cycleId, confirm: true, total }),
+};
+
 export const glAPI = {
   connections: () => get("/v1/gl/connections"),
   connect: (provider: string) => post(`/v1/gl/${provider}/connect`, {}),
