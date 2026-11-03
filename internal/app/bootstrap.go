@@ -161,7 +161,14 @@ func New(cfg *config.Config) (*App, error) {
 	for i := range origins {
 		origins[i] = strings.TrimSpace(origins[i])
 	}
+	// The native employee app (Capacitor) calls the API from fixed local
+	// origins. Auth is a bearer token (no cookies), so allowing them does
+	// not expose sessions. NATIVE_APP_ORIGINS=off disables it.
+	if os.Getenv("NATIVE_APP_ORIGINS") != "off" {
+		origins = append(origins, "capacitor://localhost", "https://localhost", "http://localhost")
+	}
 	router.Use(cors.New(cors.Config{
+		CustomSchemas:    []string{"capacitor"},
 		AllowOrigins:     origins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},

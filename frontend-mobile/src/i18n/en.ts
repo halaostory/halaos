@@ -45,6 +45,11 @@ export default {
     status_rejected: "Rejected",
   },
   login: {
+    server: "Server",
+    serverHelp: "Enter your company’s HalaPeople address (ask HR if you are not sure).",
+    serverSave: "Continue",
+    serverChange: "Use another server",
+    serverCurrent: "Server: {url}",
     chooseCompany: "Your email is used at more than one company. Which one do you want to open?",
     back: "Back",
     title: "HalaPeople",

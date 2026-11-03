@@ -1,3 +1,4 @@
+import { apiBase } from "./platform";
 // Product edition (modules) for the mobile app. Mirrors internal/edition.
 import { reactive } from "vue";
 
@@ -13,7 +14,7 @@ let loading: Promise<void> | null = null;
 
 export function loadEdition(): Promise<void> {
   if (!loading) {
-    loading = fetch((import.meta.env.VITE_API_URL || "/api") + "/v1/edition", { signal: AbortSignal.timeout(4000) })
+    loading = fetch(apiBase() + "/v1/edition", { signal: AbortSignal.timeout(4000) })
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => {
         if (j?.data) {

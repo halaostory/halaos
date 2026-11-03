@@ -25,3 +25,20 @@ SELECT public_key, private_key FROM push_vapid_keys WHERE id = 1;
 -- name: InsertVapidKeys :exec
 INSERT INTO push_vapid_keys (id, public_key, private_key) VALUES (1, @public_key, @private_key)
 ON CONFLICT (id) DO NOTHING;
+
+-- name: UpsertNativePushToken :exec
+INSERT INTO native_push_tokens (company_id, user_id, token, platform)
+VALUES (@company_id, @user_id, @token, @platform)
+ON CONFLICT (token) DO UPDATE SET company_id = EXCLUDED.company_id, user_id = EXCLUDED.user_id, platform = EXCLUDED.platform;
+
+-- name: DeleteNativePushToken :exec
+DELETE FROM native_push_tokens WHERE token = @token AND user_id = @user_id;
+
+-- name: DeleteNativePushTokenAny :exec
+DELETE FROM native_push_tokens WHERE token = @token;
+
+-- name: ListNativePushTokens :many
+SELECT * FROM native_push_tokens WHERE user_id = @user_id AND company_id = @company_id;
+
+-- name: TouchNativePushToken :exec
+UPDATE native_push_tokens SET last_used_at = now() WHERE id = @id;

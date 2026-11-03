@@ -1,9 +1,11 @@
-import { createRouter, createWebHistory } from "vue-router";
+import { createRouter, createWebHistory, createWebHashHistory } from "vue-router";
+import { isNative } from "../platform";
 import { useAuthStore } from "../stores/auth";
 import { hasModule, loadEdition } from "../edition";
 
 const router = createRouter({
-  history: createWebHistory("/m/"),
+  // The native app loads pages from inside the app bundle: hash routing.
+  history: isNative ? createWebHashHistory() : createWebHistory("/m/"),
   routes: [
     {
       path: "/login",

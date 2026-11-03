@@ -4,6 +4,7 @@ import { useRouter, useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { Form, Field, Button, CellGroup, Cell, showToast } from "vant";
 import { useAuthStore } from "../stores/auth";
+import { isNative, serverURL, setServerURL } from "../platform";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -16,6 +17,15 @@ const loading = ref(false);
 
 const mfaToken = ref("");
 const companies = ref<{ id: number; name: string }[]>([]);
+
+// Native app: which HalaPeople server to sign in to (cloud by default, or
+// the company's own server when self-hosted).
+const showServer = ref(isNative && !import.meta.env.VITE_API_URL && !serverURL());
+const server = ref(serverURL());
+function saveServer() {
+  setServerURL(server.value);
+  window.location.reload(); // API client picks up the new server
+}
 const mfaCode = ref("");
 
 async function onMfa() {
@@ -78,6 +88,15 @@ async function onSubmit(companyId?: number) {
         <Button round block plain size="large" @click="companies = []">{{ t("login.back") }}</Button>
       </div>
     </div>
+    <Form v-else-if="showServer" @submit="saveServer" class="login-form">
+      <p class="mfa-help">{{ t("login.serverHelp") }}</p>
+      <CellGroup inset>
+        <Field v-model="server" name="server" :label="t('login.server')" placeholder="people.yourcompany.com" type="url" autocomplete="url" :rules="[{ required: true }]" />
+      </CellGroup>
+      <div class="login-actions">
+        <Button round block type="primary" native-type="submit" size="large">{{ t("login.serverSave") }}</Button>
+      </div>
+    </Form>
     <Form v-else @submit="onSubmit()" class="login-form">
       <CellGroup inset>
         <Field
@@ -110,6 +129,9 @@ async function onSubmit(companyId?: number) {
           size="large"
         >
           {{ t("login.submit") }}
+        </Button>
+        <Button v-if="isNative" round block plain size="small" style="margin-top: 12px" @click="showServer = true">
+          {{ serverURL() ? t("login.serverCurrent", { url: serverURL() }) : t("login.serverChange") }}
         </Button>
       </div>
     </Form>

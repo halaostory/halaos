@@ -30,6 +30,8 @@ type Service struct {
 	private string
 	subject string
 	HTTP    *http.Client
+	// FCM delivers to the native iOS/Android app; nil when not configured.
+	FCM *FCM
 }
 
 // New loads VAPID keys from VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY, or from
@@ -42,6 +44,11 @@ func New(ctx context.Context, q *store.Queries, logger *slog.Logger, appURL stri
 		if s.subject == "" {
 			s.subject = "mailto:admin@localhost"
 		}
+	}
+	if fcm, err := FCMFromEnv(); err != nil {
+		logger.Warn("push: native app push disabled", "error", err)
+	} else {
+		s.FCM = fcm
 	}
 	if s.public != "" && s.private != "" {
 		return s, nil
@@ -73,6 +80,40 @@ func (s *Service) RegisterRoutes(protected *gin.RouterGroup) {
 	})
 	g.POST("/subscribe", s.subscribe)
 	g.POST("/unsubscribe", s.unsubscribe)
+	g.POST("/native", s.registerNative)
+	g.POST("/native/remove", s.removeNative)
+}
+
+// registerNative stores the FCM token of the native app on this device.
+func (s *Service) registerNative(c *gin.Context) {
+	var req struct {
+		Token    string `json:"token" binding:"required"`
+		Platform string `json:"platform"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || len(req.Token) > 4096 {
+		response.BadRequest(c, "token is required")
+		return
+	}
+	if req.Platform != "ios" {
+		req.Platform = "android"
+	}
+	if err := s.q.UpsertNativePushToken(c.Request.Context(), store.UpsertNativePushTokenParams{CompanyID: auth.GetCompanyID(c), UserID: auth.GetUserID(c), Token: req.Token, Platform: req.Platform}); err != nil {
+		response.InternalError(c, "Could not save the device")
+		return
+	}
+	response.OK(c, gin.H{"registered": true, "delivery": s.FCM != nil})
+}
+
+func (s *Service) removeNative(c *gin.Context) {
+	var req struct {
+		Token string `json:"token" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "token is required")
+		return
+	}
+	_ = s.q.DeleteNativePushToken(c.Request.Context(), store.DeleteNativePushTokenParams{Token: req.Token, UserID: auth.GetUserID(c)})
+	response.OK(c, gin.H{"registered": false})
 }
 
 type subscription struct {
@@ -138,12 +179,12 @@ func LinkFor(category string) string {
 // Send pushes m to every device of the user; expired subscriptions are
 // removed. It returns how many devices accepted it.
 func (s *Service) Send(ctx context.Context, companyID, userID int64, m Message) int {
+	sent := s.sendNative(ctx, companyID, userID, m)
 	subs, err := s.q.ListPushSubscriptions(ctx, store.ListPushSubscriptionsParams{UserID: userID, CompanyID: companyID})
 	if err != nil || len(subs) == 0 {
-		return 0
+		return sent
 	}
 	body, _ := json.Marshal(m)
-	sent := 0
 	for _, sub := range subs {
 		res, err := webpush.SendNotificationWithContext(ctx, body, &webpush.Subscription{Endpoint: sub.Endpoint, Keys: webpush.Keys{P256dh: sub.P256dh, Auth: sub.Auth}}, &webpush.Options{
 			HTTPClient: s.HTTP, Subscriber: s.subject, VAPIDPublicKey: s.public, VAPIDPrivateKey: s.private, TTL: 86400, Urgency: webpush.UrgencyNormal, Topic: m.Tag,
@@ -161,6 +202,30 @@ func (s *Service) Send(ctx context.Context, companyID, userID int64, m Message) 
 			_ = s.q.TouchPushSubscription(ctx, sub.ID)
 		default:
 			s.logger.Warn("push: rejected", "user_id", userID, "status", res.StatusCode)
+		}
+	}
+	return sent
+}
+
+// sendNative delivers to the person's native-app devices through FCM.
+func (s *Service) sendNative(ctx context.Context, companyID, userID int64, m Message) int {
+	if s.FCM == nil {
+		return 0
+	}
+	toks, err := s.q.ListNativePushTokens(ctx, store.ListNativePushTokensParams{UserID: userID, CompanyID: companyID})
+	if err != nil {
+		return 0
+	}
+	sent := 0
+	for _, t := range toks {
+		switch err := s.FCM.Send(ctx, t.Token, m); {
+		case err == nil:
+			sent++
+			_ = s.q.TouchNativePushToken(ctx, t.ID)
+		case errors.Is(err, ErrUnregistered):
+			_ = s.q.DeleteNativePushTokenAny(ctx, t.Token)
+		default:
+			s.logger.Warn("push: fcm send failed", "user_id", userID, "error", err)
 		}
 	}
 	return sent

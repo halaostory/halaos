@@ -1,3 +1,4 @@
+import { apiBase } from "../platform";
 import { ofetch } from "ofetch";
 
 let isRefreshing = false;
@@ -10,7 +11,7 @@ async function tryRefreshToken(): Promise<boolean> {
   try {
     const res = await ofetch<{
       data?: { token: string; refresh_token: string };
-    }>((import.meta.env.VITE_API_URL || "/api") + "/v1/auth/refresh", {
+    }>(apiBase() + "/v1/auth/refresh", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: { refresh_token: refreshToken },
@@ -30,7 +31,7 @@ async function tryRefreshToken(): Promise<boolean> {
 }
 
 const api = ofetch.create({
-  baseURL: import.meta.env.VITE_API_URL || "/api",
+  baseURL: apiBase(),
   headers: { "Content-Type": "application/json" },
   onRequest({ options }) {
     const token = localStorage.getItem("token");
@@ -147,7 +148,7 @@ export const payrollAPI = {
     get("/v1/payroll/payslips", params),
   getPayslip: (id: string) => get(`/v1/payroll/payslips/${id}`),
   payslipPdfUrl: (id: string) =>
-    `${import.meta.env.VITE_API_URL || "/api"}/v1/payroll/payslips/${id}/pdf`,
+    `${apiBase()}/v1/payroll/payslips/${id}/pdf`,
 };
 
 // Self-Service
@@ -179,7 +180,7 @@ export const geofenceAPI = {
 
 // AI Chat
 function getBaseURL() {
-  return import.meta.env.VITE_API_URL || "/api";
+  return apiBase();
 }
 
 function getToken() {
@@ -346,4 +347,6 @@ export const pushAPI = {
   key: () => get("/v1/push/key"),
   subscribe: (sub: Record<string, unknown>) => post("/v1/push/subscribe", sub),
   unsubscribe: (endpoint: string) => post("/v1/push/unsubscribe", { endpoint }),
+  registerNative: (token: string, platform: string) => post("/v1/push/native", { token, platform }),
+  removeNative: (token: string) => post("/v1/push/native/remove", { token }),
 };

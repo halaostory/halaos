@@ -20,6 +20,29 @@ func (q *Queries) CountPushSubscriptions(ctx context.Context, userID int64) (int
 	return column_1, err
 }
 
+const deleteNativePushToken = `-- name: DeleteNativePushToken :exec
+DELETE FROM native_push_tokens WHERE token = $1 AND user_id = $2
+`
+
+type DeleteNativePushTokenParams struct {
+	Token  string `json:"token"`
+	UserID int64  `json:"user_id"`
+}
+
+func (q *Queries) DeleteNativePushToken(ctx context.Context, arg DeleteNativePushTokenParams) error {
+	_, err := q.db.Exec(ctx, deleteNativePushToken, arg.Token, arg.UserID)
+	return err
+}
+
+const deleteNativePushTokenAny = `-- name: DeleteNativePushTokenAny :exec
+DELETE FROM native_push_tokens WHERE token = $1
+`
+
+func (q *Queries) DeleteNativePushTokenAny(ctx context.Context, token string) error {
+	_, err := q.db.Exec(ctx, deleteNativePushTokenAny, token)
+	return err
+}
+
 const deletePushSubscription = `-- name: DeletePushSubscription :exec
 DELETE FROM push_subscriptions WHERE endpoint = $1 AND user_id = $2
 `
@@ -74,6 +97,43 @@ func (q *Queries) InsertVapidKeys(ctx context.Context, arg InsertVapidKeysParams
 	return err
 }
 
+const listNativePushTokens = `-- name: ListNativePushTokens :many
+SELECT id, company_id, user_id, token, platform, created_at, last_used_at FROM native_push_tokens WHERE user_id = $1 AND company_id = $2
+`
+
+type ListNativePushTokensParams struct {
+	UserID    int64 `json:"user_id"`
+	CompanyID int64 `json:"company_id"`
+}
+
+func (q *Queries) ListNativePushTokens(ctx context.Context, arg ListNativePushTokensParams) ([]NativePushToken, error) {
+	rows, err := q.db.Query(ctx, listNativePushTokens, arg.UserID, arg.CompanyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []NativePushToken{}
+	for rows.Next() {
+		var i NativePushToken
+		if err := rows.Scan(
+			&i.ID,
+			&i.CompanyID,
+			&i.UserID,
+			&i.Token,
+			&i.Platform,
+			&i.CreatedAt,
+			&i.LastUsedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPushSubscriptions = `-- name: ListPushSubscriptions :many
 SELECT id, company_id, user_id, endpoint, p256dh, auth, user_agent, created_at, last_used_at FROM push_subscriptions WHERE user_id = $1 AND company_id = $2
 `
@@ -113,12 +173,44 @@ func (q *Queries) ListPushSubscriptions(ctx context.Context, arg ListPushSubscri
 	return items, nil
 }
 
+const touchNativePushToken = `-- name: TouchNativePushToken :exec
+UPDATE native_push_tokens SET last_used_at = now() WHERE id = $1
+`
+
+func (q *Queries) TouchNativePushToken(ctx context.Context, id int64) error {
+	_, err := q.db.Exec(ctx, touchNativePushToken, id)
+	return err
+}
+
 const touchPushSubscription = `-- name: TouchPushSubscription :exec
 UPDATE push_subscriptions SET last_used_at = now() WHERE id = $1
 `
 
 func (q *Queries) TouchPushSubscription(ctx context.Context, id int64) error {
 	_, err := q.db.Exec(ctx, touchPushSubscription, id)
+	return err
+}
+
+const upsertNativePushToken = `-- name: UpsertNativePushToken :exec
+INSERT INTO native_push_tokens (company_id, user_id, token, platform)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (token) DO UPDATE SET company_id = EXCLUDED.company_id, user_id = EXCLUDED.user_id, platform = EXCLUDED.platform
+`
+
+type UpsertNativePushTokenParams struct {
+	CompanyID int64  `json:"company_id"`
+	UserID    int64  `json:"user_id"`
+	Token     string `json:"token"`
+	Platform  string `json:"platform"`
+}
+
+func (q *Queries) UpsertNativePushToken(ctx context.Context, arg UpsertNativePushTokenParams) error {
+	_, err := q.db.Exec(ctx, upsertNativePushToken,
+		arg.CompanyID,
+		arg.UserID,
+		arg.Token,
+		arg.Platform,
+	)
 	return err
 }
 

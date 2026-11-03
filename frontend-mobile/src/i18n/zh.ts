@@ -45,6 +45,11 @@ export default {
     status_rejected: "已驳回",
   },
   login: {
+    server: "服务器",
+    serverHelp: "请输入你公司的 HalaPeople 地址（不清楚可以问 HR）。",
+    serverSave: "继续",
+    serverChange: "使用其他服务器",
+    serverCurrent: "服务器：{url}",
     chooseCompany: "你的邮箱在多家公司都有账号，要进入哪一家？",
     back: "返回",
     title: "HalaPeople",
