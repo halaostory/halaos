@@ -91,3 +91,45 @@ func interfaceToInt64(v interface{}) int64 {
 func pgTimestamptz(t time.Time) pgtype.Timestamptz {
 	return pgtype.Timestamptz{Time: t, Valid: true}
 }
+
+// periodFraction is the share of a monthly salary paid in one period.
+func periodFraction(frequency string) float64 {
+	switch frequency {
+	case "semi_monthly":
+		return 0.5
+	case "bi_weekly":
+		return 12.0 / 26.0
+	case "weekly":
+		return 12.0 / 52.0
+	default:
+		return 1
+	}
+}
+
+// periodTax computes withholding for a period with a monthly table: the
+// period's taxable income is converted to a monthly equivalent, taxed, and the
+// tax scaled back (the BIR semi-monthly table is exactly half the monthly one).
+func periodTax(taxable, frac float64, monthlyTax func(monthlyTaxable float64) float64) float64 {
+	if taxable <= 0 || frac <= 0 {
+		return 0
+	}
+	return round2(monthlyTax(taxable/frac) * frac)
+}
+
+// scheduleScope decides which employees a cycle pays and at what frequency.
+type scheduleScope struct {
+	Frequency  string
+	ScheduleID int64 // 0 = no schedules configured: pay every active employee
+	IsDefault  bool  // unassigned employees belong to the default schedule
+}
+
+// includes reports whether an employee (assigned schedule, 0 = none) is paid in this scope.
+func (s scheduleScope) includes(assigned int64) bool {
+	if s.ScheduleID == 0 {
+		return true
+	}
+	if assigned == 0 {
+		return s.IsDefault
+	}
+	return assigned == s.ScheduleID
+}

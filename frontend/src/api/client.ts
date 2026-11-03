@@ -352,6 +352,11 @@ export const overtimeAPI = {
 
 // Payroll
 export const payrollAPI = {
+  listSchedules: () => get("/v1/payroll/schedules"),
+  createSchedule: (data: Record<string, unknown>) => post("/v1/payroll/schedules", data),
+  updateSchedule: (id: number, data: Record<string, unknown>) => put(`/v1/payroll/schedules/${id}`, data),
+  assignSchedule: (id: number, employee_ids: number[]) =>
+    post(`/v1/payroll/schedules/${id}/assign`, { employee_ids }),
   listCycles: (params?: Record<string, string>) =>
     get("/v1/payroll/cycles", params),
   createCycle: (data: Record<string, unknown>) =>

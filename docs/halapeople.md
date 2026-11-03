@@ -16,6 +16,9 @@ engines, filing agent, auth) with HalaOS, so fixes land in both products at once
 | Statutory filings | State tax registrations & filings | BIR, SSS, PhilHealth, Pag-IBIG (PH live); IRAS/CPF, LHDN/KWSP, DJP/BPJS next |
 | Government interaction | APIs / e-file | Agent: official API → e-mail submission → supervised browser on the agency portal (CAPTCHA/OTP handed to a human) → guided manual |
 | HR | Onboarding, PTO, documents, e-sign | Same + 201 file, 13th month, final pay (Labor Code), clearance |
+| Registrations | State tax registrations for new hires/states | New-hire SSS R-1A, PhilHealth ER2, Pag-IBIG and BIR 1902 prepared automatically per hire month |
+| Contractors | Contractor payments, 1099s | Freelancer invoices with expanded withholding (EWT), bank file, BIR 2307, 0619-E / 1601-EQ + QAP |
+| Pay schedules | Multiple pay schedules | Several schedules per company (monthly, semi-monthly, bi-weekly, weekly) with prorated pay, contributions and tax |
 | IT | Device management, app provisioning | Same (MDM gateway, Google/Slack/GitHub provisioning) |
 | AI | — | Assistant with confirm-before-act tools, inbox brief, pre-flight review of filings |
 
@@ -32,6 +35,7 @@ Modules are defined in `internal/edition` (backend) and `frontend/src/edition.ts
 | compliance — government forms, tax filings, filing agent & autopilot | ✓ | ✓ |
 | time_off — leave, encashment, overtime requests | ✓ | ✓ |
 | benefits, expenses | ✓ | ✓ |
+| contractors — freelancers, EWT, BIR 2307, 0619-E/1601-EQ | ✓ | ✓ |
 | esign — self-onboarding portal, templates, e-signature | ✓ | ✓ |
 | it — devices/MDM, app provisioning | ✓ | ✓ |
 | ai — assistant, agents, messaging bot (tools filtered to the edition) | ✓ | ✓ |
@@ -87,6 +91,15 @@ AIStarlight integration pattern (signed JWT SSO + event outbox → signed webhoo
 2. HalaPeople is the system of record for employees, org structure and pay; it emits
    `employee.upserted`, `employee.terminated`, `payroll.run.completed`.
 3. HalaOS sends attendance/overtime summaries back as payroll inputs.
+
+## Still missing vs Warp
+
+- **Money movement**: payroll and contractor payments produce bank files; HalaPeople does not
+  move money itself yet. Needs a licensed payout partner (e.g. PayMongo / Xendit disbursements).
+- **Integrations**: Okta / Microsoft 365 provisioning, Xero / QuickBooks / NetSuite.
+- **MDM agent**: device actions go through an MDM gateway; no own enrollment agent.
+- **Insurance marketplace**: benefits are administered, not brokered (no HMO integrations).
+- **Mobile**: `frontend-mobile` is not yet adapted to the HalaPeople edition.
 
 ## Open decisions
 

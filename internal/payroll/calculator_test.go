@@ -155,7 +155,7 @@ func TestComputePay(t *testing.T) {
 				UnpaidLeaveDays:  tt.unpaidLeaveDays,
 			}
 
-			calc.computePay(&pd, tt.workingDays)
+			calc.computePay(&pd, tt.workingDays, 1)
 
 			if math.Abs(pd.BasicPay-tt.expectedBasicPay) > 0.02 {
 				t.Errorf("BasicPay = %.2f, want %.2f", pd.BasicPay, tt.expectedBasicPay)

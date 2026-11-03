@@ -166,3 +166,19 @@ migrated schema (CI job `sql`; locally set `HALAOS_TEST_DATABASE_URL`). It caugh
 compiled but failed on every call (e.g. `inconsistent types deduced for parameter` when a status
 parameter is both assigned and compared in a `CASE`): fix such queries by casting the comparison
 (`CASE WHEN $3::varchar = 'paid'`).
+
+## New-hire registrations, contractors and pay schedules
+
+- **Registrations** (`sss_r1a`, `philhealth_er2`, `pagibig_registration`, `bir_1902`): batched per
+  hire month (period `YYYY-MM`), due 30 days (BIR 1902: 10 days) after the earliest hire. The
+  autopilot prepares them for this and last month's hires, skips empty months and refreshes
+  drafts blocked by missing IDs once a day.
+- **Contractors** (`internal/contractors`): ATC-based EWT (VAT-registered payees withheld net of
+  12% VAT), approve → bank file → mark paid, BIR 2307 per quarter, `bir_0619e` / `bir_1601eq`
+  prepared by the autopilot from paid amounts.
+- **Pay schedules** (`pay_schedules`, `employee_pay_schedules`, `payroll_cycle_schedules`): a cycle
+  pays only its schedule's employees (unassigned → default schedule; no schedules → everyone at
+  `companies.pay_frequency`). PH pay is prorated by frequency (semi-monthly ½ …): basic pay,
+  contributions and withholding (monthly table on the monthly equivalent, scaled back).
+- Fixed along the way: semi-monthly cycles used to pay a full month's salary per cutoff, and
+  late/undertime/unpaid-leave deductions were subtracted twice from net pay (PH, LK, US).

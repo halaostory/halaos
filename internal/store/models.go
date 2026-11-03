@@ -986,6 +986,12 @@ type EmployeeDocument struct {
 	UpdatedAt  time.Time          `json:"updated_at"`
 }
 
+type EmployeePaySchedule struct {
+	EmployeeID    int64     `json:"employee_id"`
+	PayScheduleID int64     `json:"pay_schedule_id"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
 type EmployeeProfile struct {
 	EmployeeID              int64          `json:"employee_id"`
 	AddressLine1            *string        `json:"address_line1"`
@@ -1751,6 +1757,15 @@ type PagibigContributionTable struct {
 	MaxEr         pgtype.Numeric `json:"max_er"`
 }
 
+type PaySchedule struct {
+	ID        int64     `json:"id"`
+	CompanyID int64     `json:"company_id"`
+	Name      string    `json:"name"`
+	Frequency string    `json:"frequency"`
+	IsDefault bool      `json:"is_default"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 type PayrollAutoConfig struct {
 	ID                   int64          `json:"id"`
 	CompanyID            int64          `json:"company_id"`
@@ -1790,6 +1805,11 @@ type PayrollCycle struct {
 	IsLocked    bool               `json:"is_locked"`
 	LockedAt    pgtype.Timestamptz `json:"locked_at"`
 	LockedBy    *int64             `json:"locked_by"`
+}
+
+type PayrollCycleSchedule struct {
+	CycleID       int64 `json:"cycle_id"`
+	PayScheduleID int64 `json:"pay_schedule_id"`
 }
 
 type PayrollItem struct {

@@ -135,10 +135,30 @@ func (calc *Calculator) RunPayroll(ctx context.Context, runID int64, companyID i
 	effectiveDate := periodEnd
 
 	// Get active employees
-	employees, err := calc.queries.ListActiveEmployees(ctx, companyID)
+	allEmployees, err := calc.queries.ListActiveEmployees(ctx, companyID)
 	if err != nil {
 		return calc.failRun(ctx, runID, fmt.Errorf("list active employees: %w", err))
 	}
+	company0, err := calc.queries.GetCompanyByID(ctx, companyID)
+	if err != nil {
+		return calc.failRun(ctx, runID, fmt.Errorf("get company: %w", err))
+	}
+	scope := calc.resolveScope(ctx, companyID, run.CycleID, company0.PayFrequency)
+	assigned := map[int64]int64{}
+	if scope.ScheduleID != 0 {
+		if rows, err := calc.queries.ListEmployeePayScheduleMap(ctx, companyID); err == nil {
+			for _, r := range rows {
+				assigned[r.EmployeeID] = r.PayScheduleID
+			}
+		}
+	}
+	employees := allEmployees[:0:0]
+	for _, e := range allEmployees {
+		if scope.includes(assigned[e.ID]) {
+			employees = append(employees, e)
+		}
+	}
+	calc.logger.Info("payroll scope", "run_id", runID, "frequency", scope.Frequency, "pay_schedule_id", scope.ScheduleID, "employees", len(employees))
 
 	if len(employees) == 0 {
 		calc.logger.Warn("no active employees found", "company_id", companyID)
@@ -264,8 +284,8 @@ func (calc *Calculator) RunPayroll(ctx context.Context, runID int64, companyID i
 			calc.computeContributionsLK(ctx, &pd, effectiveDate)
 			calc.computeWithholdingTaxLK(ctx, &pd, effectiveDate)
 
-			pd.TotalDeductions = pd.EPFEE + pd.WithholdingTax +
-				pd.LateDeduction + pd.UndertimeDeduction + pd.LeaveDeduction
+			// Late/undertime/unpaid-leave are already netted out of GrossPay.
+			pd.TotalDeductions = pd.EPFEE + pd.WithholdingTax
 
 			pd.Breakdown["epf_ee"] = pd.EPFEE
 			pd.Breakdown["epf_er"] = pd.EPFER
@@ -302,7 +322,7 @@ func (calc *Calculator) RunPayroll(ctx context.Context, runID int64, companyID i
 				}
 			}
 
-			switch company.PayFrequency {
+			switch scope.Frequency {
 			case "weekly":
 				payPeriodsPerYear = 52
 			case "bi_weekly":
@@ -332,9 +352,10 @@ func (calc *Calculator) RunPayroll(ctx context.Context, runID int64, companyID i
 			calc.computeContributionsUS(ctx, &pd, effectiveDate, companyID, state)
 			calc.computeWithholdingTaxUS(ctx, &pd, effectiveDate, payPeriodsPerYear, filingStatus, state)
 
+			// Late/undertime/unpaid-leave are already netted out of GrossPay.
 			pd.TotalDeductions = pd.FederalTax + pd.StateTax + pd.SocialSecurityEE +
 				pd.MedicareEE + pd.AdditionalMedicare + pd.StateDisability +
-				pd.PreTaxDeductions + pd.LateDeduction + pd.UndertimeDeduction + pd.LeaveDeduction
+				pd.PreTaxDeductions
 
 			pd.Breakdown["federal_tax"] = pd.FederalTax
 			pd.Breakdown["social_security_ee"] = pd.SocialSecurityEE
@@ -351,12 +372,18 @@ func (calc *Calculator) RunPayroll(ctx context.Context, runID int64, companyID i
 			pd.Breakdown["filing_status"] = filingStatus
 
 		default: // PHL and others — existing PH logic
-			calc.computePay(&pd, workingDaysInPeriod)
+			frac := periodFraction(scope.Frequency)
+			calc.computePay(&pd, workingDaysInPeriod, frac)
 			calc.computeContributions(ctx, &pd, effectiveDate)
-			calc.computeWithholdingTax(ctx, &pd, effectiveDate)
+			// Monthly contributions are spread evenly over the month's pay periods.
+			pd.SSSEE, pd.SSSER, pd.SSSEC = round2(pd.SSSEE*frac), round2(pd.SSSER*frac), round2(pd.SSSEC*frac)
+			pd.PhilHealthEE, pd.PhilHealthER = round2(pd.PhilHealthEE*frac), round2(pd.PhilHealthER*frac)
+			pd.PagIBIGEE, pd.PagIBIGER = round2(pd.PagIBIGEE*frac), round2(pd.PagIBIGER*frac)
+			calc.computeWithholdingTax(ctx, &pd, effectiveDate, frac)
 
-			pd.TotalDeductions = pd.SSSEE + pd.PhilHealthEE + pd.PagIBIGEE +
-				pd.WithholdingTax + pd.LateDeduction + pd.UndertimeDeduction + pd.LeaveDeduction
+			// Late/undertime/unpaid-leave are already netted out of GrossPay.
+			pd.TotalDeductions = pd.SSSEE + pd.PhilHealthEE + pd.PagIBIGEE + pd.WithholdingTax
+			pd.Breakdown["pay_frequency"] = scope.Frequency
 
 			pd.Breakdown["sss_ee"] = pd.SSSEE
 			pd.Breakdown["sss_er"] = pd.SSSER
@@ -475,8 +502,13 @@ func (calc *Calculator) RunPayroll(ctx context.Context, runID int64, companyID i
 }
 
 // computePay calculates basic pay, overtime, night diff, holiday premium, and deductions.
-func (calc *Calculator) computePay(pd *EmployeePayData, workingDaysInPeriod int) {
-	dailyRate := pd.BasicSalary / float64(workingDaysInPeriod)
+func (calc *Calculator) computePay(pd *EmployeePayData, workingDaysInPeriod int, frac float64) {
+	// The period's share of the monthly salary (½ for semi-monthly, …),
+	// spread over the working days of the period.
+	if frac <= 0 {
+		frac = 1
+	}
+	dailyRate := pd.BasicSalary * frac / float64(workingDaysInPeriod)
 	hourlyRate := dailyRate / 8.0
 
 	// Basic pay = daily rate * days worked
@@ -600,33 +632,32 @@ func (calc *Calculator) computeContributions(ctx context.Context, pd *EmployeePa
 }
 
 // computeWithholdingTax calculates BIR withholding tax using TRAIN Law brackets.
-func (calc *Calculator) computeWithholdingTax(ctx context.Context, pd *EmployeePayData, effectiveDate time.Time) {
+func (calc *Calculator) computeWithholdingTax(ctx context.Context, pd *EmployeePayData, effectiveDate time.Time, frac float64) {
 	// Taxable income = gross pay - employee contributions (SSS + PhilHealth + PagIBIG)
 	pd.TaxableIncome = round2(pd.GrossPay - pd.SSSEE - pd.PhilHealthEE - pd.PagIBIGEE)
 	if pd.TaxableIncome <= 0 {
 		pd.WithholdingTax = 0
 		return
 	}
-
-	bracket, err := calc.queries.GetBIRTaxBracket(ctx, store.GetBIRTaxBracketParams{
-		Frequency:     "monthly",
-		BracketMin:    numericFromFloat(pd.TaxableIncome),
-		EffectiveFrom: effectiveDate,
+	if frac <= 0 {
+		frac = 1
+	}
+	pd.WithholdingTax = periodTax(pd.TaxableIncome, frac, func(monthlyTaxable float64) float64 {
+		bracket, err := calc.queries.GetBIRTaxBracket(ctx, store.GetBIRTaxBracketParams{
+			Frequency:     "monthly",
+			BracketMin:    numericFromFloat(monthlyTaxable),
+			EffectiveFrom: effectiveDate,
+		})
+		if err != nil {
+			calc.logger.Warn("BIR tax bracket lookup failed", "taxable_income", monthlyTaxable, "error", err)
+			return 0
+		}
+		tax := numericToFloat(bracket.FixedTax) + (monthlyTaxable-numericToFloat(bracket.ExcessOver))*numericToFloat(bracket.Rate)
+		if tax < 0 {
+			return 0
+		}
+		return tax
 	})
-	if err != nil {
-		calc.logger.Warn("BIR tax bracket lookup failed", "taxable_income", pd.TaxableIncome, "error", err)
-		pd.WithholdingTax = 0
-		return
-	}
-
-	fixedTax := numericToFloat(bracket.FixedTax)
-	rate := numericToFloat(bracket.Rate)
-	excessOver := numericToFloat(bracket.ExcessOver)
-
-	pd.WithholdingTax = round2(fixedTax + (pd.TaxableIncome-excessOver)*rate)
-	if pd.WithholdingTax < 0 {
-		pd.WithholdingTax = 0
-	}
 }
 
 // --- Run status helpers ---
@@ -662,4 +693,16 @@ func (calc *Calculator) completeRun(ctx context.Context, runID int64, count int3
 		TotalNet:        numericFromFloat(net),
 		Status:          "completed",
 	})
+}
+
+// resolveScope finds the pay schedule of a cycle: the cycle's own schedule,
+// else the company default, else every employee at companies.pay_frequency.
+func (calc *Calculator) resolveScope(ctx context.Context, companyID, cycleID int64, companyFrequency string) scheduleScope {
+	if s, err := calc.queries.GetCycleSchedule(ctx, cycleID); err == nil {
+		return scheduleScope{Frequency: s.Frequency, ScheduleID: s.ID, IsDefault: s.IsDefault}
+	}
+	if s, err := calc.queries.GetDefaultPaySchedule(ctx, companyID); err == nil {
+		return scheduleScope{Frequency: s.Frequency, ScheduleID: s.ID, IsDefault: true}
+	}
+	return scheduleScope{Frequency: companyFrequency}
 }

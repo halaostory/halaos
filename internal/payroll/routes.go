@@ -8,6 +8,11 @@ import (
 func (h *Handler) RegisterRoutes(protected *gin.RouterGroup) {
 	protected.GET("/payroll/cycles", auth.AdminOnly(), h.ListCycles)
 	protected.POST("/payroll/cycles", auth.AdminOnly(), h.CreateCycle)
+	protected.GET("/payroll/schedules", auth.AdminOnly(), h.ListPaySchedules)
+	protected.POST("/payroll/schedules", auth.AdminOnly(), h.CreatePaySchedule)
+	protected.PUT("/payroll/schedules/:id", auth.AdminOnly(), h.UpdatePaySchedule)
+	protected.POST("/payroll/schedules/:id/assign", auth.AdminOnly(), h.AssignPaySchedule)
+	protected.GET("/payroll/schedules/assignments", auth.AdminOnly(), h.EmployeePaySchedules)
 	protected.POST("/payroll/runs", auth.AdminOnly(), h.RunPayroll)
 	protected.GET("/payroll/runs/:id/items", auth.AdminOnly(), h.ListPayrollItems)
 	protected.GET("/payroll/cycles/:id/items", auth.AdminOnly(), h.ListCycleItems)

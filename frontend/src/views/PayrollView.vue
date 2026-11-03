@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PaySchedulesPanel from "../components/payroll/PaySchedulesPanel.vue";
 import { ref, h, computed, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import {
@@ -98,7 +99,15 @@ const cycleForm = ref({
   period_end: null as number | null,
   pay_date: null as number | null,
   cycle_type: "regular",
+  pay_schedule_id: null as number | null,
 });
+const scheduleOptions = ref<{ label: string; value: number }[]>([]);
+async function loadScheduleOptions() {
+  try {
+    const res = (await payrollAPI.listSchedules()) as { data?: { id: number; name: string; is_default: boolean }[] };
+    scheduleOptions.value = (res.data || []).map((s) => ({ label: s.name + (s.is_default ? " ★" : ""), value: s.id }));
+  } catch { scheduleOptions.value = []; }
+}
 
 const cycleTypeOptions = computed(() => {
   const opts = [
@@ -339,6 +348,7 @@ async function handleCreateCycle() {
       ),
       pay_date: format(new Date(cycleForm.value.pay_date), "yyyy-MM-dd"),
       cycle_type: cycleForm.value.cycle_type,
+      pay_schedule_id: cycleForm.value.pay_schedule_id ?? undefined,
     });
     showCreateModal.value = false;
     cycleForm.value = {
@@ -347,6 +357,7 @@ async function handleCreateCycle() {
       period_end: null,
       pay_date: null,
       cycle_type: "regular",
+      pay_schedule_id: null,
     };
     message.success(t("payroll.cycleCreated"));
     await fetchCycles();
@@ -911,11 +922,15 @@ function formatRatingMap(rm: Record<string, number>): string {
       <NTabPane name="cycles" :tab="t('payroll.title')">
         <NSpace justify="space-between" style="margin-bottom: 16px">
           <h2>{{ t("payroll.title") }}</h2>
-          <NButton type="primary" @click="showCreateModal = true">{{
+          <NButton type="primary" @click="loadScheduleOptions(); showCreateModal = true">{{
             t("payroll.createCycle")
           }}</NButton>
         </NSpace>
         <NDataTable :columns="columns" :data="data" :loading="loading" />
+      </NTabPane>
+
+      <NTabPane name="schedules" :tab="t('paySchedules.title')">
+        <PaySchedulesPanel />
       </NTabPane>
 
       <!-- Tab 2: 13th Month Pay (PHL only) -->
@@ -1247,6 +1262,14 @@ function formatRatingMap(rm: Record<string, number>): string {
           <NSelect
             v-model:value="cycleForm.cycle_type"
             :options="cycleTypeOptions"
+          />
+        </NFormItem>
+        <NFormItem v-if="scheduleOptions.length" :label="t('paySchedules.title')">
+          <NSelect
+            v-model:value="cycleForm.pay_schedule_id"
+            clearable
+            :placeholder="t('paySchedules.defaultSchedule')"
+            :options="scheduleOptions"
           />
         </NFormItem>
         <NFormItem>

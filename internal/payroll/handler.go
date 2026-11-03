@@ -67,6 +67,9 @@ func (h *Handler) CreateCycle(c *gin.Context) {
 		PeriodEnd   string `json:"period_end" binding:"required"`
 		PayDate     string `json:"pay_date" binding:"required"`
 		CycleType   string `json:"cycle_type"`
+		// PayScheduleID limits the cycle to employees on that schedule
+		// (default: the company's default schedule, if any).
+		PayScheduleID *int64 `json:"pay_schedule_id"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, err.Error())
@@ -95,6 +98,12 @@ func (h *Handler) CreateCycle(c *gin.Context) {
 	if cycleType == "" {
 		cycleType = "regular"
 	}
+	if req.PayScheduleID != nil {
+		if _, err := h.queries.GetPaySchedule(c.Request.Context(), store.GetPayScheduleParams{ID: *req.PayScheduleID, CompanyID: companyID}); err != nil {
+			response.BadRequest(c, "Pay schedule not found")
+			return
+		}
+	}
 
 	cycle, err := h.queries.CreatePayrollCycle(c.Request.Context(), store.CreatePayrollCycleParams{
 		CompanyID:   companyID,
@@ -108,6 +117,11 @@ func (h *Handler) CreateCycle(c *gin.Context) {
 	if err != nil {
 		response.InternalError(c, "Failed to create payroll cycle")
 		return
+	}
+	if req.PayScheduleID != nil {
+		if err := h.queries.SetCycleSchedule(c.Request.Context(), store.SetCycleScheduleParams{CycleID: cycle.ID, PayScheduleID: *req.PayScheduleID}); err != nil {
+			h.logger.Error("failed to link cycle to pay schedule", "cycle_id", cycle.ID, "error", err)
+		}
 	}
 	response.Created(c, cycle)
 }
