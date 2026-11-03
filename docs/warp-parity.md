@@ -107,5 +107,4 @@ Legend: ✅ shipped · 🟡 partial · ⬜ not yet · — not applicable
 
 ## Next up
 
-1. Money movement through a licensed payout partner (PH: InstaPay/PESONet via a partner).
-2. Singapore (CPF, IRAS AIS) and Malaysia (EPF, SOCSO, EIS, PCB) payroll and filings.
+1. Singapore (CPF, IRAS AIS) and Malaysia (EPF, SOCSO, EIS, PCB) payroll and filings.
