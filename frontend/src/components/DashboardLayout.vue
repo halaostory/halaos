@@ -18,7 +18,7 @@ import {
   GridOutline, FileTrayFullOutline, CloudDownloadOutline, BookOutline, CalendarNumberOutline,
   MegaphoneOutline, DocumentTextOutline, SchoolOutline, AlertCircleOutline, MedkitOutline, FolderOpenOutline, ChatbubblesOutline, LocationOutline,
   LinkOutline, PulseOutline, GitBranchOutline, TrendingUpOutline,
-  FlashOutline, BulbOutline, HappyOutline, StarOutline, OpenOutline,
+  FlashOutline, BulbOutline, HappyOutline, StarOutline,
   MailUnreadOutline, PersonAddOutline, OptionsOutline, BuildOutline, CreateOutline, LaptopOutline,
   SparklesOutline, RepeatOutline, SpeedometerOutline, MailOpenOutline,
 } from '@vicons/ionicons5'
@@ -137,7 +137,7 @@ const features: Record<string, boolean> = {
   expenses: true, disciplinary: true, grievance: true, clearance: true,
   'final-pay': true, '201file': true, milestones: true, geofences: true,
   'import-export': true, audit: true, policies: true, 'self-service': true,
-  holidays: true, 'org-intelligence': true, 'workflow-rules': true, accounting: true,
+  holidays: true, 'org-intelligence': true, 'workflow-rules': true,
   'workflow-analytics': true, 'workflow-triggers': true, 'workflow-decisions': true,
   'pulse-surveys': true, recognition: true, 'hr-requests': true,
   'bot-setup': true,
@@ -218,7 +218,6 @@ const rawGroups = computed<MenuOption[]>(() => {
   pushIf(payComp, 'benefits', 'nav.benefits', MedkitOutline)
   if (auth.isAdmin) pushIf(payComp, 'final-pay', 'nav.finalPay', WalletOutline)
   if (auth.isAdmin) pushIf(payComp, 'contractors', 'nav.contractors', BriefcaseOutline)
-  if (auth.isAdmin) pushIf(payComp, 'accounting', 'nav.accounting', OpenOutline)
   if (payComp.length) {
     groups.push({ type: 'group', label: t('nav.groupPayroll'), key: 'g-payroll', children: payComp })
   }
@@ -369,27 +368,6 @@ async function handleSwitchCompany(companyId: number) {
   console.log('Switch company to', companyId)
 }
 
-const accountingLoading = ref(false)
-
-async function openAccounting() {
-  if (accountingLoading.value) return
-  accountingLoading.value = true
-  try {
-    const res = await integrationAPI.getAccountingSSOToken()
-    const data = (res as any)?.data ?? res
-    const ssoToken = data?.sso_token
-    const targetUrl = data?.target_url || 'https://finance.halaos.com'
-    if (ssoToken) {
-      window.open(`${targetUrl}/sso?token=${encodeURIComponent(ssoToken)}`, '_blank')
-    }
-  } catch {
-    // If no accounting link configured, open AIStarlight login directly
-    window.open('https://finance.halaos.com', '_blank')
-  } finally {
-    accountingLoading.value = false
-  }
-}
-
 // Preserve sidebar scroll position across route changes
 let siderScrollTop = 0
 function saveSiderScroll() {
@@ -407,10 +385,6 @@ watch(() => route.name, () => {
 })
 
 function handleMenuClick(key: string) {
-  if (key === 'accounting') {
-    openAccounting()
-    return
-  }
   saveSiderScroll()
   router.push({ name: key })
 }
