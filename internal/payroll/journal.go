@@ -78,7 +78,6 @@ type Journal struct {
 	TotalCredit float64       `json:"total_credit"`
 }
 
-
 // BuildJournal turns run totals into a balanced journal entry.
 func BuildJournal(t store.GetPayrollRunJournalTotalsRow, accounts map[string]GLAccount, currency string) Journal {
 	acct := func(role string) GLAccount {
