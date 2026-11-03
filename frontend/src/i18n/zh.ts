@@ -2903,6 +2903,14 @@ export default {
     workplace: "工作地点",
     none: "未指定",
   },
+  apiScopes: {
+    access: "权限",
+    full: "完全访问",
+    read: "只读",
+    custom: "指定资源",
+    resources: "资源",
+    canWrite: "允许修改",
+  },
   lifecycle: {
     step_gov_registration: "政府登记已排队",
     step_offer_letter_sent: "录用通知书已发送电子签署",

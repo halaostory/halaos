@@ -2936,6 +2936,14 @@ export default {
     workplace: "Workplace",
     none: "Not assigned",
   },
+  apiScopes: {
+    access: "Access",
+    full: "Full access",
+    read: "Read-only",
+    custom: "Chosen resources",
+    resources: "Resources",
+    canWrite: "Allow changes",
+  },
   lifecycle: {
     step_gov_registration: "Government registration queued",
     step_offer_letter_sent: "Offer letter sent for e-signature",

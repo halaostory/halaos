@@ -13,17 +13,18 @@ import (
 )
 
 const createAPIKey = `-- name: CreateAPIKey :one
-INSERT INTO api_keys (user_id, company_id, prefix, key_hash, name)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, prefix, name, is_active, last_used_at, created_at
+INSERT INTO api_keys (user_id, company_id, prefix, key_hash, name, scopes)
+VALUES ($1, $2, $3, $4, $5, COALESCE($6::text[], '{}'))
+RETURNING id, prefix, name, is_active, last_used_at, created_at, scopes
 `
 
 type CreateAPIKeyParams struct {
-	UserID    int64  `json:"user_id"`
-	CompanyID int64  `json:"company_id"`
-	Prefix    string `json:"prefix"`
-	KeyHash   string `json:"key_hash"`
-	Name      string `json:"name"`
+	UserID    int64    `json:"user_id"`
+	CompanyID int64    `json:"company_id"`
+	Prefix    string   `json:"prefix"`
+	KeyHash   string   `json:"key_hash"`
+	Name      string   `json:"name"`
+	Scopes    []string `json:"scopes"`
 }
 
 type CreateAPIKeyRow struct {
@@ -33,6 +34,7 @@ type CreateAPIKeyRow struct {
 	IsActive   bool               `json:"is_active"`
 	LastUsedAt pgtype.Timestamptz `json:"last_used_at"`
 	CreatedAt  time.Time          `json:"created_at"`
+	Scopes     []string           `json:"scopes"`
 }
 
 func (q *Queries) CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) (CreateAPIKeyRow, error) {
@@ -42,6 +44,7 @@ func (q *Queries) CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) (Cre
 		arg.Prefix,
 		arg.KeyHash,
 		arg.Name,
+		arg.Scopes,
 	)
 	var i CreateAPIKeyRow
 	err := row.Scan(
@@ -51,13 +54,14 @@ func (q *Queries) CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) (Cre
 		&i.IsActive,
 		&i.LastUsedAt,
 		&i.CreatedAt,
+		&i.Scopes,
 	)
 	return i, err
 }
 
 const getAPIKeyByHash = `-- name: GetAPIKeyByHash :one
 SELECT ak.id, ak.user_id, ak.company_id, ak.prefix, ak.name,
-       ak.is_active, ak.last_used_at, ak.created_at, u.role, u.email
+       ak.is_active, ak.last_used_at, ak.created_at, u.role, u.email, ak.scopes
 FROM api_keys ak
 JOIN users u ON u.id = ak.user_id
 WHERE ak.key_hash = $1 AND ak.is_active = true
@@ -74,6 +78,7 @@ type GetAPIKeyByHashRow struct {
 	CreatedAt  time.Time          `json:"created_at"`
 	Role       string             `json:"role"`
 	Email      string             `json:"email"`
+	Scopes     []string           `json:"scopes"`
 }
 
 func (q *Queries) GetAPIKeyByHash(ctx context.Context, keyHash string) (GetAPIKeyByHashRow, error) {
@@ -90,12 +95,13 @@ func (q *Queries) GetAPIKeyByHash(ctx context.Context, keyHash string) (GetAPIKe
 		&i.CreatedAt,
 		&i.Role,
 		&i.Email,
+		&i.Scopes,
 	)
 	return i, err
 }
 
 const listAPIKeysByUser = `-- name: ListAPIKeysByUser :many
-SELECT id, prefix, name, is_active, last_used_at, created_at
+SELECT id, prefix, name, is_active, last_used_at, created_at, scopes
 FROM api_keys
 WHERE user_id = $1 AND is_active = true
 ORDER BY created_at DESC
@@ -108,6 +114,7 @@ type ListAPIKeysByUserRow struct {
 	IsActive   bool               `json:"is_active"`
 	LastUsedAt pgtype.Timestamptz `json:"last_used_at"`
 	CreatedAt  time.Time          `json:"created_at"`
+	Scopes     []string           `json:"scopes"`
 }
 
 func (q *Queries) ListAPIKeysByUser(ctx context.Context, userID int64) ([]ListAPIKeysByUserRow, error) {
@@ -126,6 +133,7 @@ func (q *Queries) ListAPIKeysByUser(ctx context.Context, userID int64) ([]ListAP
 			&i.IsActive,
 			&i.LastUsedAt,
 			&i.CreatedAt,
+			&i.Scopes,
 		); err != nil {
 			return nil, err
 		}

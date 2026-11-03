@@ -1323,7 +1323,7 @@ export const byokAPI = {
 // API Keys
 export const apiKeyAPI = {
   listKeys: () => get("/v1/api-keys"),
-  createKey: (data: { name: string }) => post("/v1/api-keys", data),
+  createKey: (data: { name: string; scopes?: string[] }) => post("/v1/api-keys", data),
   revokeKey: (id: number) => del(`/v1/api-keys/${id}`),
 }
 

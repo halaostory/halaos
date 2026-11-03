@@ -59,6 +59,7 @@ func cliTestAPIKeyRow() []interface{} {
 		true,                 // is_active
 		pgtype.Timestamptz{}, // last_used_at
 		time.Now(),           // created_at
+		[]string{},           // scopes
 	}
 }
 

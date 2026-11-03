@@ -1,17 +1,17 @@
 -- name: CreateAPIKey :one
-INSERT INTO api_keys (user_id, company_id, prefix, key_hash, name)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, prefix, name, is_active, last_used_at, created_at;
+INSERT INTO api_keys (user_id, company_id, prefix, key_hash, name, scopes)
+VALUES ($1, $2, $3, $4, $5, COALESCE(sqlc.narg(scopes)::text[], '{}'))
+RETURNING id, prefix, name, is_active, last_used_at, created_at, scopes;
 
 -- name: GetAPIKeyByHash :one
 SELECT ak.id, ak.user_id, ak.company_id, ak.prefix, ak.name,
-       ak.is_active, ak.last_used_at, ak.created_at, u.role, u.email
+       ak.is_active, ak.last_used_at, ak.created_at, u.role, u.email, ak.scopes
 FROM api_keys ak
 JOIN users u ON u.id = ak.user_id
 WHERE ak.key_hash = $1 AND ak.is_active = true;
 
 -- name: ListAPIKeysByUser :many
-SELECT id, prefix, name, is_active, last_used_at, created_at
+SELECT id, prefix, name, is_active, last_used_at, created_at, scopes
 FROM api_keys
 WHERE user_id = $1 AND is_active = true
 ORDER BY created_at DESC;

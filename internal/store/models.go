@@ -205,6 +205,7 @@ type ApiKey struct {
 	IsActive   bool               `json:"is_active"`
 	LastUsedAt pgtype.Timestamptz `json:"last_used_at"`
 	CreatedAt  time.Time          `json:"created_at"`
+	Scopes     []string           `json:"scopes"`
 }
 
 type Applicant struct {

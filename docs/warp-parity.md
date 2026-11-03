@@ -102,7 +102,7 @@ Legend: ✅ shipped · 🟡 partial · ⬜ not yet · — not applicable
 | Warp | HalaPeople | Status |
 |---|---|:-:|
 | Slack payroll/tax alerts | Slack alerts via incoming webhook: agent hand-offs, new notices, daily filings-due digest, payroll ready (Routines → Slack alerts) | ✅ |
-| Public REST API | REST API (the web app's API) + MCP server | ✅ |
+| Public REST API with scoped keys | REST API (the web app's API) with scoped API keys (full, read-only, or per-resource read/write) + MCP server | ✅ |
 | Merge / Unified connectors | — | ⬜ |
 
 ## Next up

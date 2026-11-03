@@ -90,6 +90,7 @@ func TestAPIKeyMiddleware_ValidKey(t *testing.T) {
 		time.Now(),           // ak.created_at (time.Time, not pgtype)
 		"admin",              // u.role
 		"admin@test.com",     // u.email
+		[]string{},           // ak.scopes
 	))
 	// Mock TouchAPIKeyLastUsed :exec — async, best-effort
 	mockDB.OnExec(pgconn.NewCommandTag("UPDATE 1"), nil)
@@ -187,6 +188,7 @@ func TestCreateAPIKey_Success(t *testing.T) {
 		true,                 // is_active
 		pgtype.Timestamptz{}, // last_used_at
 		time.Now(),           // created_at (time.Time)
+		[]string{},           // scopes
 	))
 
 	c, w := testutil.NewGinContext("POST", "/api-keys", map[string]string{"name": "My Key"}, adminAuth)
@@ -215,6 +217,7 @@ func TestCreateAPIKey_MissingName(t *testing.T) {
 		true,                 // is_active
 		pgtype.Timestamptz{}, // last_used_at
 		time.Now(),           // created_at
+		[]string{},           // scopes
 	))
 
 	c, w := testutil.NewGinContext("POST", "/api-keys", map[string]string{}, adminAuth)
@@ -231,7 +234,7 @@ func TestListAPIKeys_Success(t *testing.T) {
 
 	// Mock ListAPIKeysByUser :many — return 1 row
 	mockDB.OnQuery(testutil.NewRows([][]interface{}{
-		{int64(1), "halaos_a1b2c3", "Key 1", true, pgtype.Timestamptz{}, time.Now()},
+		{int64(1), "halaos_a1b2c3", "Key 1", true, pgtype.Timestamptz{}, time.Now(), []string{}},
 	}), nil)
 
 	c, w := testutil.NewGinContext("GET", "/api-keys", nil, adminAuth)
@@ -268,5 +271,36 @@ func TestRevokeAPIKey_InvalidID(t *testing.T) {
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestScopeAllows(t *testing.T) {
+	cases := []struct {
+		scopes []string
+		method string
+		path   string
+		want   bool
+	}{
+		{nil, "DELETE", "/api/v1/employees/1", true},
+		{[]string{"read"}, "GET", "/api/v1/payroll/cycles", true},
+		{[]string{"read"}, "POST", "/api/v1/payroll/runs", false},
+		{[]string{"employees:read"}, "GET", "/api/v1/employees/7", true},
+		{[]string{"employees:read"}, "PUT", "/api/v1/employees/7", false},
+		{[]string{"employees:read"}, "GET", "/api/v1/payroll/cycles", false},
+		{[]string{"leaves:write"}, "POST", "/api/v1/leaves/requests", true},
+		{[]string{"leaves:write"}, "GET", "/api/v1/leaves/balances", true},
+		{[]string{"read"}, "GET", "/api/v1/api-keys", false},
+		{[]string{"auth:write"}, "PUT", "/api/v1/auth/password", false},
+	}
+	for _, c := range cases {
+		if got := ScopeAllows(c.scopes, c.method, c.path); got != c.want {
+			t.Errorf("%v %s %s = %v", c.scopes, c.method, c.path, got)
+		}
+	}
+	if _, err := cleanScopes([]string{"employees:delete"}); err == nil {
+		t.Error("bad scope accepted")
+	}
+	if s, err := cleanScopes([]string{" Read ", "employees:READ", ""}); err != nil || len(s) != 2 || s[1] != "employees:read" {
+		t.Errorf("%v %v", s, err)
 	}
 }
