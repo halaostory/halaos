@@ -8,7 +8,173 @@ package store
 import (
 	"context"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const agencyLastFiled = `-- name: AgencyLastFiled :many
+SELECT DISTINCT ON (upper(agency)) upper(agency)::text AS agency, form_code, period, submitted_at, COALESCE(reference_no, '')::text AS reference_no
+FROM gov_submissions
+WHERE company_id = $1 AND status = 'submitted' AND dry_run = false AND submitted_at IS NOT NULL
+ORDER BY upper(agency), submitted_at DESC
+`
+
+type AgencyLastFiledRow struct {
+	Agency      string             `json:"agency"`
+	FormCode    string             `json:"form_code"`
+	Period      string             `json:"period"`
+	SubmittedAt pgtype.Timestamptz `json:"submitted_at"`
+	ReferenceNo string             `json:"reference_no"`
+}
+
+// The latest real submission per agency (Warp: "last filed").
+func (q *Queries) AgencyLastFiled(ctx context.Context, companyID int64) ([]AgencyLastFiledRow, error) {
+	rows, err := q.db.Query(ctx, agencyLastFiled, companyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AgencyLastFiledRow{}
+	for rows.Next() {
+		var i AgencyLastFiledRow
+		if err := rows.Scan(
+			&i.Agency,
+			&i.FormCode,
+			&i.Period,
+			&i.SubmittedAt,
+			&i.ReferenceNo,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const agencyLatestActivity = `-- name: AgencyLatestActivity :many
+SELECT DISTINCT ON (x.agency) x.agency::text AS agency, x.kind::text AS kind, x.title::text AS title, x.status::text AS status, x.at::timestamptz AS at, x.ref_id::bigint AS ref_id
+FROM (
+    SELECT upper(s.agency) AS agency, 'filing' AS kind, s.form_code || ' ' || s.period AS title, s.status, s.updated_at AS at, s.id AS ref_id
+    FROM gov_submissions s WHERE s.company_id = $1 AND s.dry_run = false AND s.status <> 'cancelled'
+    UNION ALL
+    SELECT upper(n.agency), 'notice', COALESCE(NULLIF(n.title, ''), n.notice_type), n.status, n.updated_at, n.id
+    FROM gov_notices n WHERE n.company_id = $1 AND n.agency <> ''
+) x
+ORDER BY x.agency, x.at DESC
+`
+
+type AgencyLatestActivityRow struct {
+	Agency string    `json:"agency"`
+	Kind   string    `json:"kind"`
+	Title  string    `json:"title"`
+	Status string    `json:"status"`
+	At     time.Time `json:"at"`
+	RefID  int64     `json:"ref_id"`
+}
+
+// The most recent thing the agent did per agency: a filing or a notice.
+func (q *Queries) AgencyLatestActivity(ctx context.Context, companyID int64) ([]AgencyLatestActivityRow, error) {
+	rows, err := q.db.Query(ctx, agencyLatestActivity, companyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AgencyLatestActivityRow{}
+	for rows.Next() {
+		var i AgencyLatestActivityRow
+		if err := rows.Scan(
+			&i.Agency,
+			&i.Kind,
+			&i.Title,
+			&i.Status,
+			&i.At,
+			&i.RefID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const agencyNextDue = `-- name: AgencyNextDue :many
+SELECT DISTINCT ON (upper(split_part(filing_type, '_', 1))) upper(split_part(filing_type, '_', 1))::text AS agency,
+       filing_type, due_date, (due_date < CURRENT_DATE)::bool AS overdue
+FROM tax_filings
+WHERE company_id = $1 AND status IN ('pending', 'generated') AND due_date >= CURRENT_DATE - 90
+ORDER BY upper(split_part(filing_type, '_', 1)), due_date
+`
+
+type AgencyNextDueRow struct {
+	Agency     string    `json:"agency"`
+	FilingType string    `json:"filing_type"`
+	DueDate    time.Time `json:"due_date"`
+	Overdue    bool      `json:"overdue"`
+}
+
+// The earliest open return per agency (tax_filings.filing_type is "<agency>_<form>").
+func (q *Queries) AgencyNextDue(ctx context.Context, companyID int64) ([]AgencyNextDueRow, error) {
+	rows, err := q.db.Query(ctx, agencyNextDue, companyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AgencyNextDueRow{}
+	for rows.Next() {
+		var i AgencyNextDueRow
+		if err := rows.Scan(
+			&i.Agency,
+			&i.FilingType,
+			&i.DueDate,
+			&i.Overdue,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const agencyOpenNotices = `-- name: AgencyOpenNotices :many
+SELECT upper(agency)::text AS agency, COUNT(*)::int AS n
+FROM gov_notices
+WHERE company_id = $1 AND status <> 'resolved' AND agency <> ''
+GROUP BY upper(agency)
+`
+
+type AgencyOpenNoticesRow struct {
+	Agency string `json:"agency"`
+	N      int32  `json:"n"`
+}
+
+func (q *Queries) AgencyOpenNotices(ctx context.Context, companyID int64) ([]AgencyOpenNoticesRow, error) {
+	rows, err := q.db.Query(ctx, agencyOpenNotices, companyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AgencyOpenNoticesRow{}
+	for rows.Next() {
+		var i AgencyOpenNoticesRow
+		if err := rows.Scan(&i.Agency, &i.N); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
 
 const homeEmployeeIDCoverage = `-- name: HomeEmployeeIDCoverage :one
 SELECT

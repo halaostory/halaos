@@ -87,3 +87,36 @@ SELECT
     (SELECT COUNT(*) FROM payroll_cycles c WHERE c.company_id = $1 AND c.cycle_type = 'imported')::int AS imported_periods,
     (SELECT COUNT(*) FROM payroll_runs r JOIN payroll_cycles c ON c.id = r.cycle_id
         WHERE r.company_id = $1 AND r.status IN ('completed', 'ready_for_approval') AND c.cycle_type <> 'imported')::int AS payroll_runs;
+
+-- name: AgencyLastFiled :many
+-- The latest real submission per agency (Warp: "last filed").
+SELECT DISTINCT ON (upper(agency)) upper(agency)::text AS agency, form_code, period, submitted_at, COALESCE(reference_no, '')::text AS reference_no
+FROM gov_submissions
+WHERE company_id = $1 AND status = 'submitted' AND dry_run = false AND submitted_at IS NOT NULL
+ORDER BY upper(agency), submitted_at DESC;
+
+-- name: AgencyNextDue :many
+-- The earliest open return per agency (tax_filings.filing_type is "<agency>_<form>").
+SELECT DISTINCT ON (upper(split_part(filing_type, '_', 1))) upper(split_part(filing_type, '_', 1))::text AS agency,
+       filing_type, due_date, (due_date < CURRENT_DATE)::bool AS overdue
+FROM tax_filings
+WHERE company_id = $1 AND status IN ('pending', 'generated') AND due_date >= CURRENT_DATE - 90
+ORDER BY upper(split_part(filing_type, '_', 1)), due_date;
+
+-- name: AgencyOpenNotices :many
+SELECT upper(agency)::text AS agency, COUNT(*)::int AS n
+FROM gov_notices
+WHERE company_id = $1 AND status <> 'resolved' AND agency <> ''
+GROUP BY upper(agency);
+
+-- name: AgencyLatestActivity :many
+-- The most recent thing the agent did per agency: a filing or a notice.
+SELECT DISTINCT ON (x.agency) x.agency::text AS agency, x.kind::text AS kind, x.title::text AS title, x.status::text AS status, x.at::timestamptz AS at, x.ref_id::bigint AS ref_id
+FROM (
+    SELECT upper(s.agency) AS agency, 'filing' AS kind, s.form_code || ' ' || s.period AS title, s.status, s.updated_at AS at, s.id AS ref_id
+    FROM gov_submissions s WHERE s.company_id = $1 AND s.dry_run = false AND s.status <> 'cancelled'
+    UNION ALL
+    SELECT upper(n.agency), 'notice', COALESCE(NULLIF(n.title, ''), n.notice_type), n.status, n.updated_at, n.id
+    FROM gov_notices n WHERE n.company_id = $1 AND n.agency <> ''
+) x
+ORDER BY x.agency, x.at DESC;

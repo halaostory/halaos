@@ -1377,6 +1377,7 @@ export const companyRegistrationAPI = {
 // Home dashboard
 export const homeAPI = {
   get: () => get("/v1/home"),
+  agencies: () => get("/v1/home/agencies"),
 };
 
 // Slack alerts

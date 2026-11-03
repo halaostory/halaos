@@ -228,7 +228,7 @@ const rawGroups = computed<MenuOption[]>(() => {
     pushIf(comp, 'gov-filings', 'nav.govFilings', BuildOutline)
     pushIf(comp, 'notices', 'nav.notices', MailOpenOutline)
     pushIf(comp, 'tax-filings', 'nav.taxFilings', DocumentTextOutline)
-    pushIf(comp, 'compliance', 'nav.compliance', ShieldCheckmarkOutline)
+    pushIf(comp, 'compliance', 'nav.agencies', ShieldCheckmarkOutline)
     if (comp.length) {
       groups.push({ type: 'group', label: t('nav.groupCompliance'), key: 'g-compliance', children: comp })
     }

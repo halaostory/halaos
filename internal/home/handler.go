@@ -33,6 +33,7 @@ func NewHandler(q *store.Queries, logger *slog.Logger, enabled func(string) bool
 // RegisterRoutes registers the home route (admins and managers).
 func (h *Handler) RegisterRoutes(protected *gin.RouterGroup) {
 	protected.GET("/home", auth.ManagerOrAbove(), h.Get)
+	protected.GET("/home/agencies", auth.AdminOnly(), h.Agencies)
 }
 
 func (h *Handler) module(m string) bool { return h.enabled == nil || h.enabled(m) }

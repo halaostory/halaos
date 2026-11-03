@@ -55,7 +55,7 @@ Legend: ✅ shipped · 🟡 partial · ⬜ not yet · — not applicable
 | Automatic registration when you hire in a new state | New-hire SSS R-1A, PhilHealth ER2, Pag-IBIG and BIR 1902 prepared on hire (New hire routine). US: state registration task per new work state | ✅ |
 | Quarterly / annual filings and payments done automatically | Filing calendar + autopilot prepares and pre-flights every return. Submission after approval via API / e-mail / supervised browser agent | ✅ |
 | Notice handling: AI triages, researches and drafts/files a response; ~80% auto-resolved | Notices: AI or rules read the notice and match it to your filings. Proof-of-filing reply is drafted, missing return prepared in one click, audits escalated. The share the agent can resolve is shown | ✅ |
-| "Tax & Compliance" dashboard with a log of what was automated | Government filings page + Home registrations panel + routine run logs | ✅ |
+| "Tax & Compliance" dashboard with a log of what was automated | Compliance → Agencies: one row per agency with employer number, status, last filed (form · period · reference no.), next due (overdue in red), open notices and the agent's latest filing/notice activity; attention-first sort, click-through. Plus the Government filings page, Home registrations panel and routine run logs | ✅ |
 | Compliance team that takes responsibility for errors | — (open-source software; no service team) | — |
 
 ## HRIS and lifecycle

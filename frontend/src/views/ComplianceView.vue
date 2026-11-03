@@ -7,6 +7,7 @@ import {
 } from "naive-ui";
 import { complianceAPI, reportsAPI } from "../api/client";
 import { format } from "date-fns";
+import AgenciesPanel from "../components/compliance/AgenciesPanel.vue";
 
 const { t } = useI18n();
 const message = useMessage();
@@ -234,8 +235,11 @@ onMounted(async () => {
 
 <template>
   <div>
-    <h2 style="margin-bottom: 16px">{{ t("compliance.title") }}</h2>
-    <NTabs type="line">
+    <h2 style="margin-bottom: 16px">{{ t("agencies.title") }}</h2>
+    <NTabs type="line" default-value="Agencies">
+      <NTabPane name="Agencies" :tab="t('agencies.tab')">
+        <AgenciesPanel />
+      </NTabPane>
       <NTabPane name="SSS" :tab="t('compliance.sss')">
         <NDataTable :columns="sssColumns" :data="sssData" :loading="loading" size="small" :max-height="500" />
       </NTabPane>
