@@ -1623,6 +1623,10 @@ export default {
     ai_reminder: "AI Reminder",
   },
   leaveCalendar: {
+    revokeTitle: "Cancel approved leave",
+    revokeConfirm: "Cancel the approved leave of {name}? The days go back to their balance and they are notified.",
+    revoke: "Cancel leave",
+    revoked: "Leave cancelled; days returned",
     title: "Leave Calendar",
     noLeaves: "No approved leaves in this period",
     today: "Today",

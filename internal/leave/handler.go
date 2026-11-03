@@ -505,3 +505,45 @@ func numF(n pgtype.Numeric) float64 {
 	}
 	return f.Float64
 }
+
+// RevokeRequest handles POST /leaves/requests/:id/revoke: HR cancels an
+// approved leave and its days go back to the balance, in one transaction.
+func (h *Handler) RevokeRequest(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid request ID")
+		return
+	}
+	ctx := c.Request.Context()
+	companyID := auth.GetCompanyID(c)
+	tx, err := h.pool.Begin(ctx)
+	if err != nil {
+		h.logger.Error("revoke leave: begin", "error", err)
+		response.InternalError(c, "Failed to revoke leave")
+		return
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+	qt := h.queries.WithTx(tx)
+	lr, err := qt.RevokeApprovedLeave(ctx, store.RevokeApprovedLeaveParams{ID: id, CompanyID: companyID})
+	if err != nil {
+		response.NotFound(c, "Approved leave request not found")
+		return
+	}
+	if err := qt.RestoreLeaveBalance(ctx, store.RestoreLeaveBalanceParams{CompanyID: companyID, EmployeeID: lr.EmployeeID, LeaveTypeID: lr.LeaveTypeID, Year: int32(lr.StartDate.Year()), Used: lr.Days}); err != nil {
+		h.logger.Error("revoke leave: restore balance", "leave_id", lr.ID, "error", err)
+		response.InternalError(c, "Failed to revoke leave")
+		return
+	}
+	if err := tx.Commit(ctx); err != nil {
+		h.logger.Error("revoke leave: commit", "error", err)
+		response.InternalError(c, "Failed to revoke leave")
+		return
+	}
+	if e, err := h.queries.GetEmployeeByID(ctx, store.GetEmployeeByIDParams{ID: lr.EmployeeID, CompanyID: companyID}); err == nil && e.UserID != nil {
+		entityType := "leave_request"
+		notification.Notify(ctx, h.queries, h.logger, companyID, *e.UserID, "Leave Cancelled",
+			fmt.Sprintf("HR cancelled your approved leave (%s - %s); the days are back in your balance.", lr.StartDate.Format("Jan 2"), lr.EndDate.Format("Jan 2")),
+			"leave", &entityType, &lr.ID)
+	}
+	response.OK(c, lr)
+}

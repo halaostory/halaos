@@ -339,6 +339,7 @@ export const leaveAPI = {
   rejectRequest: (id: number, data: { reason?: string }) =>
     post(`/v1/leaves/requests/${id}/reject`, data),
   cancelRequest: (id: number) => post(`/v1/leaves/requests/${id}/cancel`),
+  revokeRequest: (id: number) => post(`/v1/leaves/requests/${id}/revoke`),
   listAllBalances: (params?: Record<string, string>) =>
     get("/v1/leaves/balances/all", params),
   adjustBalance: (data: {

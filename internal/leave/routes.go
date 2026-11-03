@@ -14,6 +14,7 @@ func (h *Handler) RegisterRoutes(protected *gin.RouterGroup) {
 	protected.POST("/leaves/requests/:id/approve", auth.ManagerOrAbove(), h.ApproveRequest)
 	protected.POST("/leaves/requests/:id/reject", auth.ManagerOrAbove(), h.RejectRequest)
 	protected.POST("/leaves/requests/:id/cancel", h.CancelRequest)
+	protected.POST("/leaves/requests/:id/revoke", auth.AdminOnly(), h.RevokeRequest)
 
 	// Balance Management
 	protected.GET("/leaves/balances/all", auth.AdminOnly(), h.ListAllBalances)

@@ -140,6 +140,20 @@ func TestLeaveRequestRules(t *testing.T) {
 	if used != 4 {
 		t.Errorf("balance used = %v, want 4", used)
 	}
+	// HR revokes the approved leave: the 4 days come back.
+	if code, _ := call(uMgr, auth.RoleManager, "POST", fmt.Sprintf("/leaves/requests/%d/revoke", id), nil); code != 403 {
+		t.Errorf("manager revoked leave: %d", code)
+	}
+	if code, out := call(999999999, auth.RoleAdmin, "POST", fmt.Sprintf("/leaves/requests/%d/revoke", id), nil); code != 200 {
+		t.Fatalf("admin revoke: %d %v", code, out)
+	}
+	must(pool.QueryRow(ctx, `SELECT used::float8 FROM leave_balances WHERE employee_id = $1 AND leave_type_id = $2 AND year = 2027`, eRep, ltID).Scan(&used))
+	if used != 0 {
+		t.Errorf("balance used after revoke = %v, want 0", used)
+	}
+	if code, _ := call(999999999, auth.RoleAdmin, "POST", fmt.Sprintf("/leaves/requests/%d/revoke", id), nil); code != 404 {
+		t.Errorf("second revoke must fail: %d", code)
+	}
 	// An admin without an employee record can reject.
 	if code, out := call(999999999, auth.RoleAdmin, "POST", fmt.Sprintf("/leaves/requests/%d/reject", othID), map[string]any{"reason": "no"}); code != 200 {
 		t.Errorf("admin reject: %d %v", code, out)

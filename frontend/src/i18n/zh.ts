@@ -1613,6 +1613,10 @@ export default {
     ai_reminder: "AI 提醒",
   },
   leaveCalendar: {
+    revokeTitle: "撤销已批准的请假",
+    revokeConfirm: "撤销 {name} 已批准的请假？天数会退回其余额，并通知本人。",
+    revoke: "撤销请假",
+    revoked: "已撤销，天数已退回",
     title: "请假日历",
     noLeaves: "此期间无已批准的请假",
     today: "今天",

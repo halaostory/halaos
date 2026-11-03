@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "../stores/auth";
-import { loadEdition, featureEnabled } from "../edition";
+import { loadEdition, featureEnabled, edition } from "../edition";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -618,6 +618,10 @@ router.beforeEach(async (to) => {
   // Pages of modules this product does not ship are not reachable.
   if (to.name && !featureEnabled(String(to.name))) {
     return auth.isAuthenticated ? { name: "dashboard" } : { name: "home" };
+  }
+  // AI token billing only exists when the server has BILLING_ENABLED.
+  if (to.name === "billing" && !edition.config.ai_billing) {
+    return { name: "dashboard" };
   }
 
   // Home is for admins and managers; employees land on self-service.
