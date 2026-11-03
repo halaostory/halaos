@@ -79,7 +79,7 @@ Legend: ✅ shipped · 🟡 partial · ⬜ not yet · — not applicable
 | Warp | HalaPeople | Status |
 |---|---|:-:|
 | US 1099 contractors (W-9, payments, 1099-NEC) | PH freelancers: EWT, bank file, BIR 2307, 0619-E / 1601-EQ + QAP | ✅ |
-| International contractors in 150+ countries, FX payouts | — | ⬜ |
+| International contractors in 150+ countries, FX payouts | Pay via Wise: contractors linked to a recipient in the company's Wise Business account are paid in their currency from the Wise balance — live quote (rate, fee, amount received), explicit confirmation, idempotent transfer, status sync, payment marked paid with the Wise reference. Needs the company's own Wise account; W-8BEN-style forms not built | 🟡 |
 
 ## Benefits
 

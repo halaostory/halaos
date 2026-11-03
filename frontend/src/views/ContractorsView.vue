@@ -7,6 +7,7 @@ import {
 } from 'naive-ui'
 import { format } from 'date-fns'
 import { contractorsAPI } from '../api/client'
+import WisePayModal from '../components/contractors/WisePayModal.vue'
 
 interface ATC { code: string; description: string; rate: number; kind: string }
 interface Contractor { id: number; kind: string; name: string; email: string | null; tin: string; address: string; is_vat_registered: boolean; ewt_rate: string; atc_code: string; bank_name: string | null; bank_account_no: string | null; bank_account_name: string | null; status: string; ytd_paid: number }
@@ -72,6 +73,32 @@ async function saveP() {
   }))
   showP.value = false
 }
+// Cross-border payouts through Wise
+const wiseOpen = ref(false)
+const wisePayment = ref<number | null>(null)
+const linkOpen = ref(false)
+const linkFor = ref<Contractor | null>(null)
+const linkForm = ref({ recipient_id: null as number | null, currency: 'USD', label: '' })
+async function linkWise(c: Contractor) {
+  linkFor.value = c
+  linkForm.value = { recipient_id: null, currency: 'USD', label: '' }
+  try {
+    const a = ((await contractorsAPI.payoutAccount(c.id)) as { data: { account: { recipient_id: number; currency: string; label: string } | null } }).data.account
+    if (a) linkForm.value = { recipient_id: a.recipient_id, currency: a.currency, label: a.label }
+  } catch { /* none yet */ }
+  linkOpen.value = true
+}
+async function saveLink() {
+  if (!linkFor.value || !linkForm.value.recipient_id) return
+  try {
+    await contractorsAPI.setPayoutAccount(linkFor.value.id, { recipient_id: linkForm.value.recipient_id, currency: linkForm.value.currency, label: linkForm.value.label })
+    message.success(t('common.saved'))
+    linkOpen.value = false
+  } catch (e) {
+    message.error((e as { data?: { error?: { message?: string } } }).data?.error?.message || t('common.saveFailed'))
+  }
+}
+
 function markPaid(p: Payment) {
   const ref = { value: '' }
   dialog.info({
@@ -112,6 +139,7 @@ const cCols = computed<DataTableColumns<Contractor>>(() => [
   { title: '', key: 'a', width: 200, render: (r) => h(NSpace, { size: 4 }, () => [
     h(NButton, { size: 'small', onClick: () => editC(r) }, () => t('common.edit')),
     h(NButton, { size: 'small', onClick: () => cert(r) }, () => `2307 ${quarter.value}`),
+    h(NButton, { size: 'small', quaternary: true, onClick: () => linkWise(r) }, () => t('wise.link')),
   ]) },
 ])
 const pCols = computed<DataTableColumns<Payment>>(() => [
@@ -123,7 +151,8 @@ const pCols = computed<DataTableColumns<Payment>>(() => [
   { title: t('common.status'), key: 'status', width: 100, render: (r) => h(NTag, { size: 'small', type: stType[r.status] }, () => t('contractors.st_' + r.status)) },
   { title: '', key: 'a', width: 210, render: (r) => h(NSpace, { size: 4 }, () => [
     r.status === 'draft' ? h(NButton, { size: 'small', type: 'primary', onClick: () => run(() => contractorsAPI.approve(r.id)) }, () => t('common.approve')) : null,
-    r.status === 'approved' ? h(NButton, { size: 'small', type: 'success', onClick: () => markPaid(r) }, () => t('contractors.markPaid')) : null,
+    r.status === 'approved' ? h(NButton, { size: 'small', type: 'primary', secondary: true, onClick: () => { wisePayment.value = r.id; wiseOpen.value = true } }, () => t('wise.payVia')) : null,
+    r.status === 'approved' ? h(NButton, { size: 'small', onClick: () => markPaid(r) }, () => t('contractors.markPaid')) : null,
     ['draft', 'approved'].includes(r.status) ? h(NButton, { size: 'small', quaternary: true, type: 'error', onClick: () => run(() => contractorsAPI.void(r.id)) }, () => t('contractors.void')) : null,
     r.paid_reference ? h(NText, { depth: 3 }, () => r.paid_reference) : null,
   ]) },
@@ -140,7 +169,20 @@ onMounted(async () => {
     <div>
       <h2 style="margin: 0">{{ t('contractors.title') }}</h2>
       <div style="opacity: 0.7">{{ t('contractors.subtitle') }}</div>
-    </div>
+      <WisePayModal v-model:show="wiseOpen" :payment-id="wisePayment" @paid="load" />
+    <NModal v-model:show="linkOpen" preset="card" :title="t('wise.linkTitle') + (linkFor ? ' — ' + linkFor.name : '')" style="max-width: 480px">
+      <p style="opacity:.7;font-size:13px;margin-top:0">{{ t('wise.linkHelp') }}</p>
+      <NForm label-placement="top">
+        <NFormItem :label="t('wise.recipientId')"><NInputNumber v-model:value="linkForm.recipient_id" :show-button="false" style="width: 100%" /></NFormItem>
+        <NFormItem :label="t('wise.currency')"><NInput v-model:value="linkForm.currency" style="width: 100px" /></NFormItem>
+        <NFormItem :label="t('wise.label')"><NInput v-model:value="linkForm.label" :placeholder="t('wise.labelPh')" /></NFormItem>
+      </NForm>
+      <NSpace justify="end">
+        <NButton @click="linkOpen = false">{{ t('common.cancel') }}</NButton>
+        <NButton type="primary" :disabled="!linkForm.recipient_id" @click="saveLink">{{ t('common.save') }}</NButton>
+      </NSpace>
+    </NModal>
+  </div>
     <NTabs type="line">
       <NTabPane name="payments" :tab="t('contractors.tabPayments')">
         <NSpace vertical>

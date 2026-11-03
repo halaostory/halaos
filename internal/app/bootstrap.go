@@ -480,7 +480,9 @@ func (a *App) setupRoutes() {
 	lifecycleHandler.Service().SetDevices(deviceSvc)
 
 	// Contractors & freelancer payments (EWT, BIR 2307)
-	contractors.NewHandler(a.Queries, a.Logger, a.Edition.ProductName).RegisterRoutes(a.mod(edition.ModContractors, protected))
+	contractorsHandler := contractors.NewHandler(a.Queries, a.Logger, a.Edition.ProductName)
+	contractorsHandler.SetWise(contractors.WiseFromEnv())
+	contractorsHandler.RegisterRoutes(a.mod(edition.ModContractors, protected))
 
 	// Org Intelligence
 	var briefGen *orgintel.BriefingGenerator

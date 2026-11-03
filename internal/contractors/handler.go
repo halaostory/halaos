@@ -23,6 +23,7 @@ type Handler struct {
 	q       *store.Queries
 	logger  *slog.Logger
 	product string
+	wise    *Wise
 }
 
 // NewHandler creates the handler; product is the brand printed on generated documents.
@@ -44,6 +45,7 @@ func (h *Handler) RegisterRoutes(protected *gin.RouterGroup) {
 	g.POST("/payments/:id/pay", h.MarkPaid)
 	g.POST("/payments/:id/void", h.Void)
 	g.GET("/bank-file", h.BankFile)
+	h.registerWise(g)
 }
 
 func num(f float64) pgtype.Numeric {

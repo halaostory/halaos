@@ -1511,6 +1511,10 @@ export const contractorsAPI = {
   approve: (id: number) => post(`/v1/contractors/payments/${id}/approve`),
   pay: (id: number, data: Record<string, unknown>) => post(`/v1/contractors/payments/${id}/pay`, data),
   void: (id: number) => post(`/v1/contractors/payments/${id}/void`),
+  payoutAccount: (id: number) => get(`/v1/contractors/${id}/payout-account`),
+  setPayoutAccount: (id: number, data: { recipient_id: number; currency: string; label?: string }) => put(`/v1/contractors/${id}/payout-account`, data),
+  wiseQuote: (paymentId: number) => get(`/v1/contractors/payments/${paymentId}/wise`),
+  wisePay: (paymentId: number, data: Record<string, unknown>) => post(`/v1/contractors/payments/${paymentId}/wise`, data),
   bankFileBlob: () => api("/v1/contractors/bank-file", { responseType: "blob" }),
   certificateBlob: (id: number, quarter: string) =>
     api(`/v1/contractors/${id}/2307`, { params: { quarter }, responseType: "blob" }),

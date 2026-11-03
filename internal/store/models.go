@@ -732,6 +732,32 @@ type ContractorPayment struct {
 	UpdatedAt     time.Time          `json:"updated_at"`
 }
 
+type ContractorPayoutAccount struct {
+	ContractorID int64     `json:"contractor_id"`
+	CompanyID    int64     `json:"company_id"`
+	Provider     string    `json:"provider"`
+	RecipientID  int64     `json:"recipient_id"`
+	Currency     string    `json:"currency"`
+	Label        string    `json:"label"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+type ContractorWiseTransfer struct {
+	PaymentID      int64          `json:"payment_id"`
+	CompanyID      int64          `json:"company_id"`
+	QuoteID        string         `json:"quote_id"`
+	TransferID     int64          `json:"transfer_id"`
+	SourceAmount   pgtype.Numeric `json:"source_amount"`
+	SourceCurrency string         `json:"source_currency"`
+	TargetAmount   pgtype.Numeric `json:"target_amount"`
+	TargetCurrency string         `json:"target_currency"`
+	Rate           pgtype.Numeric `json:"rate"`
+	Status         string         `json:"status"`
+	CreatedBy      *int64         `json:"created_by"`
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
+}
+
 type CostCenter struct {
 	ID        int64     `json:"id"`
 	CompanyID int64     `json:"company_id"`
