@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import JournalEntryModal from "../components/payroll/JournalEntryModal.vue";
+import PayrollHistoryPanel from "../components/payroll/PayrollHistoryPanel.vue";
 import PaySchedulesPanel from "../components/payroll/PaySchedulesPanel.vue";
 import { ref, h, computed, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
@@ -936,6 +937,10 @@ function formatRatingMap(rm: Record<string, number>): string {
           <NButton @click="loadScheduleOptions(); showCreateModal = true">{{ t("payroll.createCycle") }}</NButton>
         </NSpace>
         <NDataTable :columns="columns" :data="data" :loading="loading" />
+      </NTabPane>
+
+      <NTabPane name="history" :tab="t('payrollHistory.tab')">
+        <PayrollHistoryPanel />
       </NTabPane>
 
       <NTabPane name="schedules" :tab="t('paySchedules.title')">

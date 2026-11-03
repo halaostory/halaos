@@ -45,7 +45,7 @@ Legend: ✅ shipped · 🟡 partial · ⬜ not yet · — not applicable
 | Auto-Pay (runs on schedule) | Auto-run, plus optional auto-approve under a limit | ✅ |
 | Unlimited off-cycle runs; termination payroll created automatically | Off-cycle runs; final pay computed on termination and released as an off-cycle run after approval | ✅ |
 | Money movement (ACH/wire funding, direct deposit) | Bank files only; no money movement | ⬜ |
-| Payroll history import on migration | CSV import of employees; no payroll-history import | 🟡 |
+| Payroll history import on migration | Payroll → Import history: CSV of earlier payslips (validated, all-or-nothing, no double counting) becomes locked imported pay runs that count toward YTD tax, 13th month, 2316 and the alphalist; plus employee CSV import | ✅ |
 | GL journal entries to QuickBooks / Xero / NetSuite | Balanced journal per payroll run (wages, employer contributions, statutory payables, withholding, other deductions, net pay) mapped to your chart of accounts; QuickBooks / Xero CSV import files; webhook sync for AIStarlight. No direct API push yet | 🟡 |
 
 ## Tax and compliance

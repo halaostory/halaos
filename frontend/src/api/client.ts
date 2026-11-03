@@ -370,6 +370,10 @@ export const overtimeAPI = {
 
 // Payroll
 export const payrollAPI = {
+  history: () => get("/v1/payroll/history"),
+  importHistory: (form: FormData, dryRun: boolean) =>
+    api(`/v1/payroll/history/import${dryRun ? "?dry_run=1" : ""}`, { method: "POST", body: form, headers: {} }),
+  deleteHistory: (id: number) => del(`/v1/payroll/history/${id}`),
   cycleJournal: (cycleId: number) => get(`/v1/payroll/cycles/${cycleId}/journal`),
   cycleJournalCSV: (cycleId: number, format: string) =>
     api(`/v1/payroll/cycles/${cycleId}/journal`, { params: { format }, responseType: "blob" }),
