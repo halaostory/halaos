@@ -57,6 +57,7 @@ import (
 	"github.com/halaostory/halaos/internal/integration"
 	"github.com/halaostory/halaos/internal/integration/connector"
 	connectorgithub "github.com/halaostory/halaos/internal/integration/connector/github"
+	connectorokta "github.com/halaostory/halaos/internal/integration/connector/okta"
 	connectorgoogle "github.com/halaostory/halaos/internal/integration/connector/google"
 	connectorslack "github.com/halaostory/halaos/internal/integration/connector/slack"
 	"github.com/halaostory/halaos/internal/integration/crypto"
@@ -492,6 +493,9 @@ func (a *App) setupRoutes() {
 			})
 			connRegistry.Register("github", func(creds connector.Credentials) (connector.Connector, error) {
 				return connectorgithub.New(creds)
+			})
+			connRegistry.Register("okta", func(creds connector.Credentials) (connector.Connector, error) {
+				return connectorokta.New(creds)
 			})
 
 			integrationSvc := integration.NewService(a.Queries, connRegistry, encryptor, a.Logger)

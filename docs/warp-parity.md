@@ -92,7 +92,7 @@ Legend: ✅ shipped · 🟡 partial · ⬜ not yet · — not applicable
 | Warp | HalaPeople | Status |
 |---|---|:-:|
 | Google Workspace / Slack account on hire, suspended at exit | App provisioning (Google, Slack, GitHub) on hire/exit | ✅ |
-| Okta provisioning | — | ⬜ |
+| Okta provisioning | Okta connector (Integrations → Okta): account created and activated at hire, deactivated (or deleted) at exit, re-activated on rehire, status sync | ✅ |
 | In-house MDM (enroll, lock, wipe, patch, compliance) | Device inventory + lock/wipe via an MDM gateway; no own agent | 🟡 |
 | Audit log of provisioning and device actions | Audit trail + device action log | ✅ |
 
