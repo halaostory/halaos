@@ -7,8 +7,8 @@ const soon = computed(() => edition.config.countries.filter((c) => c.status !== 
 
 const pillars = [
   {
-    title: 'Hire in one step',
-    body: 'Create the employee, salary, leave balances, onboarding checklist, offer letter and app accounts with a single form. New hires finish their own details and sign documents from one link.',
+    title: 'Hire and offboard in one step',
+    body: 'One form creates the employee, salary, leave, checklist, offer letter and app accounts; new hires finish the rest from one link. One action at exit runs clearance, final pay, device recall and access revocation.',
   },
   {
     title: 'Payroll that files itself',
@@ -19,16 +19,16 @@ const pillars = [
     body: 'Our filing agent logs in to eFPS, My.SSS, EPRS and eSRS for you. It hands you only what a person must do — a CAPTCHA, an OTP, a final yes — and keeps the receipt.',
   },
   {
-    title: 'Offboard without loose ends',
-    body: 'One action schedules clearance, locks devices, revokes app access on the last day and computes final pay under the Labor Code, ready to release through payroll.',
+    title: 'An agent with routines',
+    body: 'New hire, offboarding, pre-payroll check and filing routines run on their own. You choose how much the agent does by itself; every run is logged with what it did, why, and what it left for you — and can be undone.',
+  },
+  {
+    title: 'Government notices, resolved',
+    body: 'Paste a letter from BIR or SSS. The agent checks it against your filings and drafts the reply with your filing reference, or prepares the missing return. Audits go straight to your tax adviser.',
   },
   {
     title: 'An inbox, not a to-do list',
-    body: 'Everything waiting on HR — approvals, filings, OTPs, signatures, device returns — in one place, with an AI brief of what to do first.',
-  },
-  {
-    title: 'AI that asks before it acts',
-    body: 'Ask the assistant to hire, offboard or prepare a filing. Every change it proposes waits for your confirmation.',
+    body: 'Everything waiting on HR — approvals, filings, OTPs, signatures, notices, device returns — in one place, on your home page and in Slack.',
   },
 ]
 
@@ -36,7 +36,9 @@ const included = [
   'Employee records & 201 file', 'One-step hire & terminate', 'Self-onboarding portal', 'Offer letters & e-signature',
   'Payroll & payslips', '13th month & final pay', 'Government filing agent', 'Filing calendar autopilot',
   'Leave & overtime', 'Benefits & loans', 'Expense reimbursement', 'Devices & app provisioning',
-  'HR inbox with AI brief', 'Accounting sync',
+  'HR inbox with AI brief', 'Agent routines with undo', 'Government notice handling', 'Pre-payroll variance check',
+  'Time-off policies by tenure', 'QuickBooks & Xero journals', 'Payroll history import', 'Slack alerts',
+  'SSO (Google, Okta, Entra ID)', 'Two-factor sign-in', 'Okta & Google provisioning', 'Employee mobile app',
 ]
 </script>
 
@@ -44,7 +46,7 @@ const included = [
   <div class="people-home">
     <section class="hero">
       <div class="container">
-        <div class="badge">Built for Southeast Asia · Live in the Philippines</div>
+        <div class="badge">Open source · Built for Southeast Asia · Live in the Philippines</div>
         <h1>Payroll, compliance and HR<br /><span class="accent">on autopilot.</span></h1>
         <p class="sub">
           {{ edition.config.product_name }} runs the busywork of employing people — payroll, government filings,
@@ -52,7 +54,7 @@ const included = [
         </p>
         <div class="actions">
           <router-link to="/register" class="btn-primary">Start free</router-link>
-          <router-link to="/contact" class="btn-outline">Book a demo</router-link>
+          <a href="https://github.com/halaostory/halaos" class="btn-outline" target="_blank" rel="noopener">Self-host on GitHub</a>
         </div>
       </div>
     </section>
@@ -85,6 +87,19 @@ const included = [
         <p class="note">
           We only call a country live when payroll, statutory contributions and government filings are fully supported there.
         </p>
+      </div>
+    </section>
+
+    <section class="section alt">
+      <div class="container oss">
+        <h2>Open source. Your data, your servers.</h2>
+        <p>
+          {{ edition.config.product_name }} is MIT-licensed. Run it on your own infrastructure with Docker Compose, read every line
+          of the payroll and filing logic, and bring your own AI key — or use none at all. Nothing is submitted to a government
+          agency, and no payroll is approved, without a person saying yes.
+        </p>
+        <pre class="code">git clone https://github.com/halaostory/halaos && cd halaos
+docker compose -f docker-compose.people.yml --env-file .env.people up -d</pre>
       </div>
     </section>
 
@@ -123,6 +138,9 @@ h1 { font-size: clamp(34px, 5vw, 56px); line-height: 1.1; margin: 0 0 18px; }
 .country.live { border-color: #22c55e; color: #15803d; background: #f0fdf4; }
 .country b { color: #0f172a; }
 .note { text-align: center; color: #64748b; font-size: 14px; margin-top: 16px; }
+.oss { max-width: 760px; text-align: center; }
+.oss p { color: #475569; line-height: 1.6; }
+.code { text-align: left; background: #0f172a; color: #e2e8f0; padding: 16px 20px; border-radius: 10px; font-size: 13px; overflow-x: auto; margin-top: 20px; }
 .cta { text-align: center; background: #0f172a; color: #fff; }
 .cta h2 { color: #fff; }
 </style>
