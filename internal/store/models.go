@@ -1077,6 +1077,13 @@ type EmployeeSeparation struct {
 	CreatedAt      time.Time          `json:"created_at"`
 }
 
+type EmployeeWorkplace struct {
+	EmployeeID  int64     `json:"employee_id"`
+	CompanyID   int64     `json:"company_id"`
+	WorkplaceID int64     `json:"workplace_id"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
 type EmploymentHistory struct {
 	ID               int64     `json:"id"`
 	CompanyID        int64     `json:"company_id"`
@@ -1560,6 +1567,7 @@ type LeavePolicyRule struct {
 	IsActive        bool           `json:"is_active"`
 	CreatedAt       time.Time      `json:"created_at"`
 	UpdatedAt       time.Time      `json:"updated_at"`
+	WorkplaceIds    []int64        `json:"workplace_ids"`
 }
 
 type LeaveRequest struct {
@@ -2471,4 +2479,17 @@ type WorkflowTrigger struct {
 	CreatedBy     *int64          `json:"created_by"`
 	CreatedAt     time.Time       `json:"created_at"`
 	UpdatedAt     time.Time       `json:"updated_at"`
+}
+
+type Workplace struct {
+	ID        int64     `json:"id"`
+	CompanyID int64     `json:"company_id"`
+	Name      string    `json:"name"`
+	Address   string    `json:"address"`
+	City      string    `json:"city"`
+	Region    string    `json:"region"`
+	Country   string    `json:"country"`
+	IsRemote  bool      `json:"is_remote"`
+	IsActive  bool      `json:"is_active"`
+	CreatedAt time.Time `json:"created_at"`
 }

@@ -308,6 +308,15 @@ export const breakAPI = {
 };
 
 // Leave
+export const workplacesAPI = {
+  list: () => get("/v1/workplaces"),
+  create: (data: Record<string, unknown>) => post("/v1/workplaces", data),
+  update: (id: number, data: Record<string, unknown>) => put(`/v1/workplaces/${id}`, data),
+  ofEmployee: (employeeId: number) => get(`/v1/employees/${employeeId}/workplace`),
+  setForEmployee: (employeeId: number, workplaceId: number | null) =>
+    put(`/v1/employees/${employeeId}/workplace`, { workplace_id: workplaceId }),
+};
+
 export const leavePolicyAPI = {
   rules: () => get("/v1/leave-policies/rules"),
   create: (data: Record<string, unknown>) => post("/v1/leave-policies/rules", data),

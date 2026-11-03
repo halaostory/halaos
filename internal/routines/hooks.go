@@ -34,6 +34,7 @@ func (e *Engine) module(m string) bool { return e.Enabled == nil || e.Enabled(m)
 var stepTitles = map[string]string{
 	"employee_created":       "Created the employee record",
 	"compensation_set":       "Set compensation",
+	"workplace_set":          "Assigned the workplace",
 	"time_off_enrolled":      "Enrolled in time-off policies",
 	"custom_fields_saved":    "Saved custom fields",
 	"onboarding_checklist":   "Created the onboarding checklist",

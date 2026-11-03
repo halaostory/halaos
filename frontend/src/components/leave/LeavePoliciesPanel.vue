@@ -6,11 +6,11 @@ import {
   useMessage, type DataTableColumns,
 } from 'naive-ui'
 import { h } from 'vue'
-import { leaveAPI, companyAPI, leavePolicyAPI } from '../../api/client'
+import { leaveAPI, companyAPI, leavePolicyAPI, workplacesAPI } from '../../api/client'
 
 interface Rule {
   id: number; leave_type_id: number; name: string; priority: number; department_ids: number[]; employment_types: string[]
-  gender: string; min_tenure_months: number; max_tenure_months: number | null; days: string; is_active: boolean
+  gender: string; workplace_ids: number[]; min_tenure_months: number; max_tenure_months: number | null; days: string; is_active: boolean
 }
 interface Change { employee_name: string; leave_type: string; from: number; to: number; rule: string }
 
@@ -19,10 +19,11 @@ const message = useMessage()
 const rules = ref<Rule[]>([])
 const types = ref<{ label: string; value: number }[]>([])
 const depts = ref<{ label: string; value: number }[]>([])
+const places = ref<{ label: string; value: number }[]>([])
 const loading = ref(false)
 const showForm = ref(false)
 const editing = ref<number | null>(null)
-const form = ref({ leave_type_id: null as number | null, name: '', priority: 0, department_ids: [] as number[], employment_types: [] as string[], gender: '', min_years: 0, max_years: null as number | null, days: 15, is_active: true })
+const form = ref({ leave_type_id: null as number | null, name: '', priority: 0, department_ids: [] as number[], workplace_ids: [] as number[], employment_types: [] as string[], gender: '', min_years: 0, max_years: null as number | null, days: 15, is_active: true })
 const preview = ref<Change[] | null>(null)
 const busy = ref(false)
 
@@ -33,10 +34,12 @@ const empTypes = computed(() => [
 const genders = computed(() => [{ label: t('leavePolicy.anyGender'), value: '' }, { label: t('leavePolicy.female'), value: 'female' }, { label: t('leavePolicy.male'), value: 'male' }])
 const typeName = (id: number) => types.value.find((x) => x.value === id)?.label || `#${id}`
 const deptName = (id: number) => depts.value.find((x) => x.value === id)?.label || `#${id}`
+const placeName = (id: number) => places.value.find((x) => x.value === id)?.label || `#${id}`
 
 function who(r: Rule) {
   const parts: string[] = []
   if (r.department_ids.length) parts.push(r.department_ids.map(deptName).join(', '))
+  if (r.workplace_ids?.length) parts.push(r.workplace_ids.map(placeName).join(', '))
   if (r.employment_types.length) parts.push(r.employment_types.join(', ').replace(/_/g, ' '))
   if (r.gender) parts.push(r.gender)
   const minY = r.min_tenure_months / 12, maxY = r.max_tenure_months != null ? r.max_tenure_months / 12 : null
@@ -67,24 +70,25 @@ async function load() {
     rules.value = (r as { data: Rule[] }).data
     types.value = ((lt as { data: { id: number; name: string }[] }).data || []).map((x) => ({ label: x.name, value: x.id }))
     depts.value = ((d as { data: { id: number; name: string }[] }).data || []).map((x) => ({ label: x.name, value: x.id }))
+    try { places.value = ((await workplacesAPI.list()) as { data: { id: number; name: string }[] }).data.map((x) => ({ label: x.name, value: x.id })) } catch { places.value = [] }
   } finally {
     loading.value = false
   }
 }
 function add() {
   editing.value = null
-  form.value = { leave_type_id: types.value[0]?.value ?? null, name: '', priority: 0, department_ids: [], employment_types: [], gender: '', min_years: 0, max_years: null, days: 15, is_active: true }
+  form.value = { leave_type_id: types.value[0]?.value ?? null, name: '', priority: 0, department_ids: [], workplace_ids: [], employment_types: [], gender: '', min_years: 0, max_years: null, days: 15, is_active: true }
   showForm.value = true
 }
 function edit(r: Rule) {
   editing.value = r.id
-  form.value = { leave_type_id: r.leave_type_id, name: r.name, priority: r.priority, department_ids: [...r.department_ids], employment_types: [...r.employment_types], gender: r.gender,
+  form.value = { leave_type_id: r.leave_type_id, name: r.name, priority: r.priority, department_ids: [...r.department_ids], workplace_ids: [...(r.workplace_ids || [])], employment_types: [...r.employment_types], gender: r.gender,
     min_years: r.min_tenure_months / 12, max_years: r.max_tenure_months != null ? r.max_tenure_months / 12 : null, days: Number(r.days), is_active: r.is_active }
   showForm.value = true
 }
 async function save() {
   const f = form.value
-  const payload = { leave_type_id: f.leave_type_id, name: f.name, priority: f.priority, department_ids: f.department_ids, employment_types: f.employment_types, gender: f.gender,
+  const payload = { leave_type_id: f.leave_type_id, name: f.name, priority: f.priority, department_ids: f.department_ids, workplace_ids: f.workplace_ids, employment_types: f.employment_types, gender: f.gender,
     min_tenure_months: Math.round((f.min_years || 0) * 12), max_tenure_months: f.max_years != null ? Math.round(f.max_years * 12) : null, days: f.days, is_active: f.is_active }
   busy.value = true
   try {
@@ -136,6 +140,7 @@ onMounted(load)
         <NFormItem :label="t('leavePolicy.leaveType')"><NSelect v-model:value="form.leave_type_id" :options="types" /></NFormItem>
         <NFormItem :label="t('leavePolicy.days')"><NInputNumber v-model:value="form.days" :min="0" :max="365" :step="0.5" /></NFormItem>
         <div class="muted small" style="margin: -8px 0 8px">{{ t('leavePolicy.whoHelp') }}</div>
+        <NFormItem v-if="places.length" :label="t('leavePolicy.workplaces')"><NSelect v-model:value="form.workplace_ids" multiple :options="places" :placeholder="t('leavePolicy.any')" /></NFormItem>
         <NFormItem :label="t('leavePolicy.departments')"><NSelect v-model:value="form.department_ids" multiple :options="depts" :placeholder="t('leavePolicy.any')" /></NFormItem>
         <NFormItem :label="t('leavePolicy.employmentTypes')"><NSelect v-model:value="form.employment_types" multiple :options="empTypes" :placeholder="t('leavePolicy.any')" /></NFormItem>
         <NFormItem :label="t('leavePolicy.gender')"><NSelect v-model:value="form.gender" :options="genders" /></NFormItem>

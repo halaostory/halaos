@@ -86,6 +86,7 @@ import (
 	"github.com/halaostory/halaos/internal/store"
 	"github.com/halaostory/halaos/internal/training"
 	"github.com/halaostory/halaos/internal/workflow"
+	"github.com/halaostory/halaos/internal/workplace"
 	"github.com/halaostory/halaos/pkg/response"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -438,6 +439,9 @@ func (a *App) setupRoutes() {
 	}
 	govSvc.SetPolicy(routineEngine.Policy)
 	lifecycleHandler.Service().SetRoutines(routineEngine)
+
+	// Workplaces (work locations; policies can target them)
+	workplace.NewHandler(a.Queries).RegisterRoutes(a.mod(edition.ModPeople, protected))
 
 	// Rule-based time-off policies (by department, employment type, gender, tenure)
 	leavepolicy.NewService(a.Queries, a.Logger).RegisterRoutes(a.mod(edition.ModTimeOff, protected))

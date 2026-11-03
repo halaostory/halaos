@@ -115,6 +115,7 @@ type HireInput struct {
 	EmploymentType string            `json:"employment_type"`
 	BasicSalary    *float64          `json:"basic_salary"`
 	StructureID    *int64            `json:"structure_id"`
+	WorkplaceID    *int64            `json:"workplace_id"`
 	CustomFields   map[string]string `json:"custom_fields"`
 	// SkipOnboarding disables generating the onboarding checklist.
 	SkipOnboarding bool `json:"skip_onboarding"`
@@ -243,8 +244,19 @@ func (s *Service) Hire(ctx context.Context, companyID, userID int64, in HireInpu
 		steps = append(steps, Step{Key: "compensation_set", Status: "skipped", Detail: "no salary provided"})
 	}
 
+	// Workplace (drives location-based policies)
+	if in.WorkplaceID != nil {
+		if _, err := q.GetWorkplace(ctx, store.GetWorkplaceParams{ID: *in.WorkplaceID, CompanyID: companyID}); err != nil {
+			return nil, invalid("unknown workplace")
+		}
+		if err := q.SetEmployeeWorkplace(ctx, store.SetEmployeeWorkplaceParams{EmployeeID: emp.ID, CompanyID: companyID, WorkplaceID: *in.WorkplaceID}); err != nil {
+			return nil, fmt.Errorf("set workplace: %w", err)
+		}
+		steps = append(steps, Step{Key: "workplace_set", Status: "done"})
+	}
+
 	// Leave balances (time off policies)
-	n, err := initLeaveBalances(ctx, q, companyID, emp, hireDate, s.now())
+	n, err := initLeaveBalances(ctx, q, companyID, emp, in.WorkplaceID, hireDate, s.now())
 	if err != nil {
 		return nil, err
 	}
@@ -644,7 +656,7 @@ func (s *Service) fieldSpecs(ctx context.Context, companyID int64) ([]FieldSpec,
 	return specs, ids, nil
 }
 
-func initLeaveBalances(ctx context.Context, q *store.Queries, companyID int64, emp store.Employee, hireDate, now time.Time) (int, error) {
+func initLeaveBalances(ctx context.Context, q *store.Queries, companyID int64, emp store.Employee, workplaceID *int64, hireDate, now time.Time) (int, error) {
 	employeeID := emp.ID
 	year := int32(hireDate.Year())
 	if y := int32(now.Year()); y > year {
@@ -658,7 +670,7 @@ func initLeaveBalances(ctx context.Context, q *store.Queries, companyID int64, e
 	if err != nil {
 		return 0, fmt.Errorf("list leave policy rules: %w", err)
 	}
-	pe := leavepolicy.FromEmployee(emp)
+	pe := leavepolicy.FromEmployee(emp, workplaceID)
 	var zero pgtype.Numeric
 	_ = zero.Scan("0")
 	for _, lt := range leaveTypes {

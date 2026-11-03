@@ -29,6 +29,7 @@ func TestResolve(t *testing.T) {
 		{ID: 3, LeaveTypeID: 1, Name: "Engineering", DepartmentIds: []int64{eng}, Priority: 10, Days: numeric(18), IsActive: true},
 		{ID: 4, LeaveTypeID: 2, Name: "Solo parent", Gender: "female", Days: numeric(7), IsActive: true},
 		{ID: 5, LeaveTypeID: 1, Name: "Disabled", Days: numeric(99), Priority: 99, IsActive: false},
+		{ID: 7, LeaveTypeID: 3, Name: "Cebu office", WorkplaceIds: []int64{42}, Days: numeric(2), IsActive: true},
 		{ID: 6, LeaveTypeID: 1, Name: "Probation", EmploymentTypes: []string{"probationary"}, MaxTenureMonths: ptr(int32(6)), Days: numeric(0), IsActive: true},
 	}
 	now := d("2026-11-03")
@@ -45,6 +46,9 @@ func TestResolve(t *testing.T) {
 		{"priority beats tenure", Employee{EmploymentType: "regular", DepartmentID: &eng, HireDate: d("2020-01-01")}, 1, 18, "Engineering"},
 		{"gender", Employee{Gender: "Female", HireDate: d("2024-01-01")}, 2, 7, "Solo parent"},
 		{"probation band", Employee{EmploymentType: "probationary", HireDate: d("2026-09-01")}, 1, 0, "Probation"},
+		{"workplace", Employee{WorkplaceID: ptr(int64(42)), HireDate: d("2025-01-01")}, 3, 2, "Cebu office"},
+		{"other workplace", Employee{WorkplaceID: ptr(int64(7)), HireDate: d("2025-01-01")}, 3, 5, ""},
+		{"no workplace", Employee{HireDate: d("2025-01-01")}, 3, 5, ""},
 		{"probation band ends", Employee{EmploymentType: "probationary", HireDate: d("2026-01-01")}, 1, 5, ""},
 	}
 	for _, c := range cases {

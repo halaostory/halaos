@@ -7,7 +7,7 @@ import {
   NButton, NSpace, NCheckbox, NResult, NList, NListItem, NTag, NEmpty, useMessage,
 } from 'naive-ui'
 import { format } from 'date-fns'
-import { lifecycleAPI, companyAPI, employeeAPI, documentsAPI } from '../api/client'
+import { lifecycleAPI, companyAPI, employeeAPI, documentsAPI, workplacesAPI } from '../api/client'
 
 interface CustomField {
   id: number
@@ -44,6 +44,7 @@ const form = ref({
   department_id: null as number | null,
   position_id: null as number | null,
   manager_id: null as number | null,
+  workplace_id: null as number | null,
   basic_salary: null as number | null,
   skip_onboarding: false,
   send_invite: true,
@@ -55,6 +56,7 @@ const customFields = ref<CustomField[]>([])
 const departments = ref<{ label: string; value: number }[]>([])
 const positions = ref<{ label: string; value: number }[]>([])
 const managers = ref<{ label: string; value: number }[]>([])
+const workplaces = ref<{ label: string; value: number }[]>([])
 
 const employmentTypes = computed(() => [
   { label: t('employee.regular'), value: 'regular' },
@@ -89,6 +91,10 @@ async function loadLookups() {
     positions.value = (unwrap<{ id: number; title?: string; name?: string }[]>(p) || []).map((x) => ({ label: x.title || x.name || String(x.id), value: x.id }))
     managers.value = (unwrap<{ id: number; first_name: string; last_name: string }[]>(e) || []).map((x) => ({ label: `${x.first_name} ${x.last_name}`, value: x.id }))
     customFields.value = unwrap<CustomField[]>(f) || []
+    try {
+      workplaces.value = (unwrap<{ id: number; name: string; is_active: boolean }[]>(await workplacesAPI.list()) || [])
+        .filter((w) => w.is_active).map((w) => ({ label: w.name, value: w.id }))
+    } catch { workplaces.value = [] }
     const tpls = unwrap<{ id: number; name: string; kind: string; is_active: boolean }[]>(await documentsAPI.templates()) || []
     offerTemplates.value = tpls.filter((x) => x.is_active).map((x) => ({ label: x.name, value: x.id }))
   } catch {
@@ -141,6 +147,7 @@ async function submit() {
     if (f.department_id) payload.department_id = f.department_id
     if (f.position_id) payload.position_id = f.position_id
     if (f.manager_id) payload.manager_id = f.manager_id
+    if (f.workplace_id) payload.workplace_id = f.workplace_id
     if (f.basic_salary) payload.basic_salary = f.basic_salary
     if (f.offer_template_id) payload.offer_template_id = f.offer_template_id
     const res = await lifecycleAPI.hire(payload)
@@ -255,6 +262,9 @@ onMounted(() => {
           </NFormItem>
           <NFormItem :label="t('userMgmt.manager')">
             <NSelect v-model:value="form.manager_id" :options="managers" clearable filterable />
+          </NFormItem>
+          <NFormItem v-if="workplaces.length" :label="t('workplace.workplace')">
+            <NSelect v-model:value="form.workplace_id" :options="workplaces" clearable />
           </NFormItem>
           <NFormItem :label="t('employee.employeeNo')">
             <NInput v-model:value="form.employee_no" :placeholder="t('lifecycle.employeeNoAuto')" />

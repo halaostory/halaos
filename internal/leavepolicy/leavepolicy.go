@@ -30,6 +30,7 @@ type Employee struct {
 	ID             int64
 	Name           string
 	DepartmentID   *int64
+	WorkplaceID    *int64
 	EmploymentType string
 	Gender         string
 	HireDate       time.Time
@@ -53,6 +54,9 @@ func Matches(r store.LeavePolicyRule, e Employee, on time.Time) bool {
 		return false
 	}
 	if len(r.DepartmentIds) > 0 && (e.DepartmentID == nil || !slices.Contains(r.DepartmentIds, *e.DepartmentID)) {
+		return false
+	}
+	if len(r.WorkplaceIds) > 0 && (e.WorkplaceID == nil || !slices.Contains(r.WorkplaceIds, *e.WorkplaceID)) {
 		return false
 	}
 	if len(r.EmploymentTypes) > 0 && !slices.Contains(r.EmploymentTypes, e.EmploymentType) {
@@ -171,7 +175,7 @@ func (s *Service) Plan(ctx context.Context, companyID int64, apply bool) ([]Chan
 	changes := []Change{}
 	for _, row := range emps {
 		e := Employee{ID: row.ID, Name: strings.TrimSpace(row.FirstName + " " + row.LastName), DepartmentID: row.DepartmentID,
-			EmploymentType: row.EmploymentType, Gender: row.Gender, HireDate: row.HireDate}
+			WorkplaceID: row.WorkplaceID, EmploymentType: row.EmploymentType, Gender: row.Gender, HireDate: row.HireDate}
 		for _, lt := range types {
 			if !lt.IsActive {
 				continue
@@ -241,6 +245,7 @@ type ruleRequest struct {
 	Name            string   `json:"name" binding:"required"`
 	Priority        int32    `json:"priority"`
 	DepartmentIDs   []int64  `json:"department_ids"`
+	WorkplaceIDs    []int64  `json:"workplace_ids"`
 	EmploymentTypes []string `json:"employment_types"`
 	Gender          string   `json:"gender"`
 	MinTenureMonths int32    `json:"min_tenure_months"`
@@ -263,6 +268,9 @@ func (r *ruleRequest) validate() error {
 	}
 	if r.DepartmentIDs == nil {
 		r.DepartmentIDs = []int64{}
+	}
+	if r.WorkplaceIDs == nil {
+		r.WorkplaceIDs = []int64{}
 	}
 	if r.EmploymentTypes == nil {
 		r.EmploymentTypes = []string{}
@@ -297,6 +305,7 @@ func (s *Service) create(c *gin.Context) {
 		CompanyID: auth.GetCompanyID(c), LeaveTypeID: req.LeaveTypeID, Name: req.Name, Priority: req.Priority,
 		DepartmentIds: req.DepartmentIDs, EmploymentTypes: req.EmploymentTypes, Gender: req.Gender,
 		MinTenureMonths: req.MinTenureMonths, MaxTenureMonths: req.MaxTenureMonths, Days: numeric(req.Days), IsActive: active,
+		WorkplaceIds: req.WorkplaceIDs,
 	})
 	if err != nil {
 		response.BadRequest(c, "Could not save the rule (check the leave type)")
@@ -325,6 +334,7 @@ func (s *Service) update(c *gin.Context) {
 		ID: id, CompanyID: auth.GetCompanyID(c), LeaveTypeID: req.LeaveTypeID, Name: req.Name, Priority: req.Priority,
 		DepartmentIds: req.DepartmentIDs, EmploymentTypes: req.EmploymentTypes, Gender: req.Gender,
 		MinTenureMonths: req.MinTenureMonths, MaxTenureMonths: req.MaxTenureMonths, Days: numeric(req.Days), IsActive: active,
+		WorkplaceIds: req.WorkplaceIDs,
 	})
 	if err != nil {
 		response.NotFound(c, "Rule not found")
@@ -356,14 +366,14 @@ func (s *Service) plan(c *gin.Context, apply bool) {
 	response.OK(c, gin.H{"changes": changes, "applied": apply})
 }
 
-// FromEmployee adapts a stored employee.
-func FromEmployee(e store.Employee) Employee {
+// FromEmployee adapts a stored employee (workplace may be nil).
+func FromEmployee(e store.Employee, workplaceID *int64) Employee {
 	g := ""
 	if e.Gender != nil {
 		g = *e.Gender
 	}
 	return Employee{ID: e.ID, Name: strings.TrimSpace(e.FirstName + " " + e.LastName), DepartmentID: e.DepartmentID,
-		EmploymentType: e.EmploymentType, Gender: g, HireDate: e.HireDate}
+		WorkplaceID: workplaceID, EmploymentType: e.EmploymentType, Gender: g, HireDate: e.HireDate}
 }
 
 // InitialDays is a new hire's entitlement for a leave type, as of their

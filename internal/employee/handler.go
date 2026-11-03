@@ -553,7 +553,7 @@ func (h *Handler) initLeaveBalances(ctx context.Context, companyID int64, emp st
 		return
 	}
 	rules, _ := h.queries.ListLeavePolicyRules(ctx, companyID)
-	pe := leavepolicy.FromEmployee(emp)
+	pe := leavepolicy.FromEmployee(emp, nil)
 	var zero pgtype.Numeric
 	_ = zero.Scan("0")
 	for _, lt := range leaveTypes {

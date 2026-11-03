@@ -14,9 +14,9 @@ import (
 
 const createLeavePolicyRule = `-- name: CreateLeavePolicyRule :one
 INSERT INTO leave_policy_rules (company_id, leave_type_id, name, priority, department_ids, employment_types, gender,
-    min_tenure_months, max_tenure_months, days, is_active)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-RETURNING id, company_id, leave_type_id, name, priority, department_ids, employment_types, gender, min_tenure_months, max_tenure_months, days, is_active, created_at, updated_at
+    min_tenure_months, max_tenure_months, days, is_active, workplace_ids)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+RETURNING id, company_id, leave_type_id, name, priority, department_ids, employment_types, gender, min_tenure_months, max_tenure_months, days, is_active, created_at, updated_at, workplace_ids
 `
 
 type CreateLeavePolicyRuleParams struct {
@@ -31,6 +31,7 @@ type CreateLeavePolicyRuleParams struct {
 	MaxTenureMonths *int32         `json:"max_tenure_months"`
 	Days            pgtype.Numeric `json:"days"`
 	IsActive        bool           `json:"is_active"`
+	WorkplaceIds    []int64        `json:"workplace_ids"`
 }
 
 func (q *Queries) CreateLeavePolicyRule(ctx context.Context, arg CreateLeavePolicyRuleParams) (LeavePolicyRule, error) {
@@ -46,6 +47,7 @@ func (q *Queries) CreateLeavePolicyRule(ctx context.Context, arg CreateLeavePoli
 		arg.MaxTenureMonths,
 		arg.Days,
 		arg.IsActive,
+		arg.WorkplaceIds,
 	)
 	var i LeavePolicyRule
 	err := row.Scan(
@@ -63,6 +65,7 @@ func (q *Queries) CreateLeavePolicyRule(ctx context.Context, arg CreateLeavePoli
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.WorkplaceIds,
 	)
 	return i, err
 }
@@ -106,9 +109,11 @@ func (q *Queries) ListCompaniesWithLeavePolicies(ctx context.Context) ([]int64, 
 }
 
 const listEmployeesForLeavePolicy = `-- name: ListEmployeesForLeavePolicy :many
-SELECT id, first_name, last_name, department_id, employment_type, COALESCE(gender, '')::text AS gender, hire_date
-FROM employees
-WHERE company_id = $1 AND status IN ('active', 'probationary') AND hire_date <= CURRENT_DATE + 60
+SELECT e.id, e.first_name, e.last_name, e.department_id, e.employment_type, COALESCE(e.gender, '')::text AS gender, e.hire_date,
+       ew.workplace_id
+FROM employees e
+LEFT JOIN employee_workplaces ew ON ew.employee_id = e.id
+WHERE e.company_id = $1 AND e.status IN ('active', 'probationary') AND e.hire_date <= CURRENT_DATE + 60
 `
 
 type ListEmployeesForLeavePolicyRow struct {
@@ -119,6 +124,7 @@ type ListEmployeesForLeavePolicyRow struct {
 	EmploymentType string    `json:"employment_type"`
 	Gender         string    `json:"gender"`
 	HireDate       time.Time `json:"hire_date"`
+	WorkplaceID    *int64    `json:"workplace_id"`
 }
 
 func (q *Queries) ListEmployeesForLeavePolicy(ctx context.Context, companyID int64) ([]ListEmployeesForLeavePolicyRow, error) {
@@ -138,6 +144,7 @@ func (q *Queries) ListEmployeesForLeavePolicy(ctx context.Context, companyID int
 			&i.EmploymentType,
 			&i.Gender,
 			&i.HireDate,
+			&i.WorkplaceID,
 		); err != nil {
 			return nil, err
 		}
@@ -186,7 +193,7 @@ func (q *Queries) ListLeaveBalancesForYear(ctx context.Context, arg ListLeaveBal
 
 const listLeavePolicyRules = `-- name: ListLeavePolicyRules :many
 
-SELECT id, company_id, leave_type_id, name, priority, department_ids, employment_types, gender, min_tenure_months, max_tenure_months, days, is_active, created_at, updated_at FROM leave_policy_rules WHERE company_id = $1 ORDER BY leave_type_id, priority DESC, id
+SELECT id, company_id, leave_type_id, name, priority, department_ids, employment_types, gender, min_tenure_months, max_tenure_months, days, is_active, created_at, updated_at, workplace_ids FROM leave_policy_rules WHERE company_id = $1 ORDER BY leave_type_id, priority DESC, id
 `
 
 // Leave policy rules
@@ -214,6 +221,7 @@ func (q *Queries) ListLeavePolicyRules(ctx context.Context, companyID int64) ([]
 			&i.IsActive,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.WorkplaceIds,
 		); err != nil {
 			return nil, err
 		}
@@ -252,9 +260,9 @@ func (q *Queries) SetLeaveEarned(ctx context.Context, arg SetLeaveEarnedParams) 
 
 const updateLeavePolicyRule = `-- name: UpdateLeavePolicyRule :one
 UPDATE leave_policy_rules SET leave_type_id = $3, name = $4, priority = $5, department_ids = $6, employment_types = $7,
-    gender = $8, min_tenure_months = $9, max_tenure_months = $10, days = $11, is_active = $12, updated_at = now()
+    gender = $8, min_tenure_months = $9, max_tenure_months = $10, days = $11, is_active = $12, workplace_ids = $13, updated_at = now()
 WHERE id = $1 AND company_id = $2
-RETURNING id, company_id, leave_type_id, name, priority, department_ids, employment_types, gender, min_tenure_months, max_tenure_months, days, is_active, created_at, updated_at
+RETURNING id, company_id, leave_type_id, name, priority, department_ids, employment_types, gender, min_tenure_months, max_tenure_months, days, is_active, created_at, updated_at, workplace_ids
 `
 
 type UpdateLeavePolicyRuleParams struct {
@@ -270,6 +278,7 @@ type UpdateLeavePolicyRuleParams struct {
 	MaxTenureMonths *int32         `json:"max_tenure_months"`
 	Days            pgtype.Numeric `json:"days"`
 	IsActive        bool           `json:"is_active"`
+	WorkplaceIds    []int64        `json:"workplace_ids"`
 }
 
 func (q *Queries) UpdateLeavePolicyRule(ctx context.Context, arg UpdateLeavePolicyRuleParams) (LeavePolicyRule, error) {
@@ -286,6 +295,7 @@ func (q *Queries) UpdateLeavePolicyRule(ctx context.Context, arg UpdateLeavePoli
 		arg.MaxTenureMonths,
 		arg.Days,
 		arg.IsActive,
+		arg.WorkplaceIds,
 	)
 	var i LeavePolicyRule
 	err := row.Scan(
@@ -303,6 +313,7 @@ func (q *Queries) UpdateLeavePolicyRule(ctx context.Context, arg UpdateLeavePoli
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.WorkplaceIds,
 	)
 	return i, err
 }

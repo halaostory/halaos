@@ -64,11 +64,12 @@ Legend: ✅ shipped · 🟡 partial · ⬜ not yet · — not applicable
 |---|---|:-:|
 | Employee profiles, custom fields, reporting lines, job history, compensation | Same + 201 file | ✅ |
 | Directory and org chart | Directory with org chart | ✅ |
+| Departments, workplaces | Departments, positions and workplaces (offices / remote) with headcount; workplace set at hire or on the profile | ✅ |
 | Documents with e-signature, timestamped and audit-ready | Templates, e-signature, signed PDF with audit trail | ✅ |
 | Self-service onboarding checklist (offer, NDA, tax forms, bank, ID upload, benefits) | Self-onboarding portal (offer letter e-sign, IDs, bank, documents) | ✅ |
 | Offboarding: one action → final pay, Google/Okta suspended, device locked | One action: clearance, final pay, device lock/recall, access revocation (Google/Slack/GitHub) | ✅ |
 | PTO policies, accruals, approvals, payroll sync | Leave types, accrual, approvals, encashment, payroll sync | ✅ |
-| Policy assignment by location / tenure / department | Time off → Policies: entitlement rules by department, employment type, gender and tenure band with priorities; applied at hire, re-applied daily (tenure upgrades), preview before apply. No work-location attribute yet | ✅ |
+| Policy assignment by location / tenure / department | Time off → Policies: entitlement rules by department, employment type, gender and tenure band with priorities; applied at hire, re-applied daily (tenure upgrades), preview before apply; rules can also target workplaces | ✅ |
 | Time tracking add-on (clock in/out, geofence, shifts, timesheets → payroll) | Suite edition: attendance, geofences, schedules, DTR, overtime → payroll | ✅ |
 | Roles & permissions, MFA, SSO | Roles (super admin / admin / manager / employee); two-factor sign-in (TOTP + recovery codes); single sign-on with any OpenID Connect provider (Google Workspace, Okta, Entra ID) per company e-mail domain. No SAML | ✅ |
 | Mobile app for employees | `frontend-mobile` (mobile web): edition-aware tabs (Home, Clock in suite, Leave, Pay, Expenses, Me), expense claims, leave balances, payslips, two-factor sign-in. No native store app | 🟡 |

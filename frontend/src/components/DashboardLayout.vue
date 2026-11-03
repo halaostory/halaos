@@ -142,7 +142,7 @@ const features: Record<string, boolean> = {
   'pulse-surveys': true, recognition: true, 'hr-requests': true,
   'bot-setup': true,
   inbox: true, hire: true, 'custom-fields': true, 'gov-filings': true, documents: true, devices: true, contractors: true,
-  routines: true, insights: true, notices: true,
+  routines: true, insights: true, notices: true, workplaces: true,
 }
 
 function isEnabled(key: string): boolean {
@@ -284,6 +284,7 @@ const rawGroups = computed<MenuOption[]>(() => {
     const companyItems: MenuOption[] = []
     pushIf(companyItems, 'departments', 'nav.departments', BusinessOutline)
     pushIf(companyItems, 'positions', 'nav.positions', BriefcaseOutline)
+    pushIf(companyItems, 'workplaces', 'nav.workplaces', LocationOutline)
     pushIf(companyItems, 'custom-fields', 'nav.customFields', OptionsOutline)
     pushIf(companyItems, 'salary', 'nav.salary', CashOutline)
     pushIf(companyItems, 'holidays', 'nav.holidays', TodayOutline)

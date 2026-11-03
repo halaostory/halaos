@@ -30,7 +30,7 @@ import {
   type UploadFileInfo,
 } from "naive-ui";
 import { h } from "vue";
-import { employeeAPI, salaryAPI, companyAPI, integrationAPI, userAPI } from "../api/client";
+import { employeeAPI, salaryAPI, companyAPI, integrationAPI, userAPI, workplacesAPI } from "../api/client";
 import BenefitDeductionConfig from "../components/payroll/BenefitDeductionConfig.vue";
 import EmployeeLifecycleCard from "../components/lifecycle/EmployeeLifecycleCard.vue";
 import { format } from "date-fns";
@@ -92,7 +92,31 @@ async function reloadEmployee() {
   } catch { /* keep current */ }
 }
 
+// Workplace (location) assignment
+const workplaceOptions = ref<{ label: string; value: number }[]>([]);
+const workplaceId = ref<number | null>(null);
+async function loadWorkplace(id: number) {
+  try {
+    const [list, mine] = await Promise.all([workplacesAPI.list(), workplacesAPI.ofEmployee(id)]);
+    workplaceOptions.value = ((list as { data: { id: number; name: string; is_active: boolean }[] }).data || [])
+      .filter((w) => w.is_active).map((w) => ({ label: w.name, value: w.id }));
+    workplaceId.value = ((mine as { data: { id: number } | null }).data)?.id ?? null;
+  } catch {
+    workplaceOptions.value = [];
+  }
+}
+async function changeWorkplace(v: number | null) {
+  try {
+    await workplacesAPI.setForEmployee(Number(route.params.id), v);
+    workplaceId.value = v;
+    message.success(t("common.saved"));
+  } catch {
+    message.error(t("common.saveFailed"));
+  }
+}
+
 onMounted(async () => {
+  loadWorkplace(Number(route.params.id));
   try {
     const id = Number(route.params.id);
     const [emp, prof, sal, structs, depts, positions] = await Promise.allSettled([
@@ -627,6 +651,12 @@ async function handleAssignSalary() {
               <span>{{ employee.employee_no }}</span>
               <span v-if="employee.email">{{ employee.email }}</span>
               <NTag v-if="employee.user_id" size="small" round :bordered="false">{{ t("employee.hasLoginAccount") }}</NTag>
+              <NSelect
+                v-if="workplaceOptions.length"
+                :value="workplaceId" :options="workplaceOptions" size="tiny" clearable :disabled="!authStore.isAdmin"
+                :placeholder="t('workplace.none')" style="width: 170px" :consistent-menu-width="false"
+                @update:value="changeWorkplace"
+              />
             </div>
           </div>
           <NSpace class="emp-actions">
