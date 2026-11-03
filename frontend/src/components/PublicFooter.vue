@@ -13,7 +13,7 @@ const links = {
     { label: 'Tax Calculator', to: '/tools/tax-calculator' },
     { label: 'SSS Calculator', to: '/tools/sss-calculator' },
     { label: '13th Month Pay', to: '/tools/13th-month-calculator' },
-    { label: 'BIR 2550M Guide', to: '/blog/bir-2550m-guide-2026' },
+    { label: 'SSS Contribution Table', to: '/blog/sss-contribution-table-2026' },
   ],
   company: [
     { label: 'About', to: '/about' },

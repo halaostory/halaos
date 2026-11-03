@@ -227,7 +227,7 @@ func (r *ToolRegistry) toolPrepareGovFiling(ctx context.Context, companyID, user
 	return toJSON(map[string]any{
 		"success": true, "submission_id": p.Submission.ID, "status": p.Submission.Status, "channel": p.Submission.Channel,
 		"blocking": p.Preflight.Blocking, "issues": p.Preflight.Issues, "ai_summary": p.Preflight.AISummary,
-		"next_step": "Review and approve it on the Government Filings page; HalaOS submits only after that approval.",
+		"next_step": "Review and approve it on the Government Filings page; HalaPeople submits only after that approval.",
 	})
 }
 
@@ -282,7 +282,7 @@ func lifecycleDefs() []provider.ToolDefinition {
 			Parameters: obj(map[string]any{"employee_id": num("Employee ID"), "email": str("Override e-mail")}, "employee_id")},
 		{Name: "send_document_for_signature", Description: "Send a document (from a template, or title + body text) to an employee for electronic signature. Returns the signing link.",
 			Parameters: obj(map[string]any{"employee_id": num("Employee ID"), "template_id": num("Document template ID"), "title": str("Title if no template"), "body": str("Body text if no template")}, "employee_id")},
-		{Name: "list_gov_filings", Description: "Government filings: prepared/submitted returns with status and reference numbers, upcoming due dates, and the forms HalaOS can file for this company.",
+		{Name: "list_gov_filings", Description: "Government filings: prepared/submitted returns with status and reference numbers, upcoming due dates, and the forms HalaPeople can file for this company.",
 			Parameters: obj(map[string]any{"status": str("Optional status filter: draft, ready, approved, running, needs_human, submitted, failed")})},
 		{Name: "prepare_gov_filing", Description: "Prepare a statutory return (e.g. bir_1601c, sss_r3, philhealth_rf1, pagibig_mcrf, bir_1604c, irs_941) for a period: builds the file from payroll and runs the pre-flight review. Submission still needs approval on the Government Filings page.",
 			Parameters: obj(map[string]any{"form_code": str("Form code"), "period": str("YYYY-MM (monthly), YYYY-Qn (quarterly) or YYYY (annual)"), "channel": str("Optional: browser, email, api, manual")}, "form_code", "period")},

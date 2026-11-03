@@ -175,7 +175,7 @@ func Load() *Config {
 		},
 		Resend: ResendConfig{
 			APIKey:  getEnv("RESEND_API_KEY", ""),
-			From:    getEnv("RESEND_FROM", "HalaOS <noreply@halaos.com>"),
+			From:    getEnv("RESEND_FROM", "HalaPeople <noreply@halaos.com>"),
 			BaseURL: getEnv("APP_BASE_URL", "http://localhost:3001"),
 		},
 		Integration: IntegrationConfig{

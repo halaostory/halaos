@@ -66,10 +66,10 @@ func Compute(in Inputs) Result {
 	hasPayroll := !in.LastPaidThrough.IsZero() && in.LastPaidThrough.Year() >= 1900
 	start := in.LastPaidThrough.AddDate(0, 0, 1)
 	if !hasPayroll {
-		// No payroll history in HalaOS (e.g. migrated mid-employment): assume
+		// No payroll history in HalaPeople (e.g. migrated mid-employment): assume
 		// salary was paid through the end of the previous month.
 		start = time.Date(in.SeparationDate.Year(), in.SeparationDate.Month(), 1, 0, 0, 0, 0, time.UTC)
-		res.Notes = append(res.Notes, "No payroll history in HalaOS — assumed salary was paid through the end of the previous month. Verify unpaid salary and 13th-month figures against your previous payroll records.")
+		res.Notes = append(res.Notes, "No payroll history in HalaPeople — assumed salary was paid through the end of the previous month. Verify unpaid salary and 13th-month figures against your previous payroll records.")
 	}
 	if start.Before(in.HireDate) {
 		start = in.HireDate

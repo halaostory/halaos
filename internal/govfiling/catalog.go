@@ -82,9 +82,9 @@ var catalog = map[string]FormSpec{
 			"Log in to eFPS (https://efps.bir.gov.ph) with the company TIN user.",
 			"Open BIR Form 1601-C, choose the return period, and enter the amounts from the attached summary.",
 			"Validate, submit, then pay through an eFPS authorised agent bank.",
-			"Copy the Filing Reference Number (FRN) back into HalaOS.",
+			"Copy the Filing Reference Number (FRN) back into HalaPeople.",
 		},
-		Notes: "eBIRForms users file with the offline package; HalaOS prepares the amounts.",
+		Notes: "eBIRForms users file with the offline package; HalaPeople prepares the amounts.",
 	},
 	"bir_1604c": {
 		Code: "bir_1604c", Country: "PHL", Agency: "BIR", Frequency: "annual",
@@ -94,7 +94,7 @@ var catalog = map[string]FormSpec{
 		Steps: []string{
 			"Validate the alphalist with the BIR Alphalist Data Entry & Validation Module.",
 			"E-mail the validated file to esubmission@bir.gov.ph (eFPS filers may attach it in eFPS).",
-			"Keep the BIR acknowledgement e-mail and record its reference in HalaOS.",
+			"Keep the BIR acknowledgement e-mail and record its reference in HalaPeople.",
 		},
 		Notes: "BIR treats an alphalist that fails its validation module as not received.",
 	},
@@ -107,7 +107,7 @@ var catalog = map[string]FormSpec{
 			"Log in to My.SSS employer account.",
 			"Go to Contributions → Contribution Collection List and upload the R-3 file.",
 			"Generate the Payment Reference Number (PRN) and pay before the due date.",
-			"Record the PRN in HalaOS.",
+			"Record the PRN in HalaPeople.",
 		},
 	},
 	"philhealth_rf1": {
@@ -118,7 +118,7 @@ var catalog = map[string]FormSpec{
 		Steps: []string{
 			"Log in to PhilHealth EPRS.",
 			"Upload the RF-1 file for the applicable month and generate the Statement of Premium Account (SPA).",
-			"Pay the SPA and record its number in HalaOS.",
+			"Pay the SPA and record its number in HalaPeople.",
 		},
 	},
 	"pagibig_mcrf": {
@@ -129,7 +129,7 @@ var catalog = map[string]FormSpec{
 		Steps: []string{
 			"Log in to Pag-IBIG eSRS (for employers with up to 30 employees) or Virtual Pag-IBIG.",
 			"Upload the remittance file, review the schedule and confirm.",
-			"Record the Pag-IBIG reference number in HalaOS.",
+			"Record the Pag-IBIG reference number in HalaPeople.",
 		},
 	},
 	// Expanded withholding on contractor / freelancer payments.
@@ -210,8 +210,8 @@ var catalog = map[string]FormSpec{
 		Channels: []Channel{ChannelManual, ChannelAPI}, Portal: "iras_ais_api",
 		FileFormat: "AIS API JSON",
 		Steps: []string{
-			"Authorise HalaOS with CorpPass when prompted (IRAS requires a CorpPass login for each submission).",
-			"HalaOS submits IR8A records through the IRAS AIS API and stores the acknowledgement.",
+			"Authorise HalaPeople with CorpPass when prompted (IRAS requires a CorpPass login for each submission).",
+			"HalaPeople submits IR8A records through the IRAS AIS API and stores the acknowledgement.",
 			"Deadline: 1 March (IRAS encourages submission by 10 February).",
 		},
 		Notes: "Requires an IRAS API subscription (Submission of Employment Income Records, CorpPass).",
@@ -224,7 +224,7 @@ var catalog = map[string]FormSpec{
 		Steps: []string{
 			"Log in to CPF EZPay with CorpPass.",
 			"Upload the contribution file, review and submit before the 14th.",
-			"Record the submission reference in HalaOS.",
+			"Record the submission reference in HalaPeople.",
 		},
 	},
 	// ── United States ────────────────────────────────────────────────────
@@ -238,7 +238,7 @@ var catalog = map[string]FormSpec{
 			"file on paper / through your tax professional using the attached figures.",
 			"Deposits go through EFTPS on your deposit schedule.",
 		},
-		Notes: "IRS 94x e-file is only available to authorised providers; HalaOS hands off to one through the partner webhook.",
+		Notes: "IRS 94x e-file is only available to authorised providers; HalaPeople hands off to one through the partner webhook.",
 	},
 	"us_state_registration": {
 		Code: "us_state_registration", Country: "USA", Agency: "STATE", Frequency: "per_state",
@@ -259,7 +259,7 @@ var catalog = map[string]FormSpec{
 		FileFormat: "C-form data",
 		Steps: []string{
 			"Submit the C-form and pay EPF (Central Bank) and ETF (ETF Board) contributions by the last working day of the following month.",
-			"Record the payment references in HalaOS.",
+			"Record the payment references in HalaPeople.",
 		},
 	},
 	// ── Demo / test portal ───────────────────────────────────────────────

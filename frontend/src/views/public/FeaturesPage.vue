@@ -127,7 +127,7 @@ const categories = [
     title: 'Stay compliant, effortlessly',
     desc: 'Automatically generate and manage tax filings across multiple jurisdictions with built-in compliance checks.',
     items: [
-      'BIR 2316, 1601C, 2550M/Q auto-generation (PH)',
+      'BIR 1601-C, 1604-C alphalist, 2316, 0619-E / 1601-EQ (PH)',
       'EPF/ETF filings (LK), IRAS compliance (SG)',
       'Federal/state withholding, FICA, W-2/W-4 (US)',
       'Compliance calendar & reminders',

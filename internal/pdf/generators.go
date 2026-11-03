@@ -239,7 +239,7 @@ func GenerateDOLERegister(comp store.Company, emps []store.ListEmployeesForDOLER
 
 // --- internal helpers ---
 
-// addBrandingFooter adds a "Powered by HalaOS" footer to every page.
+// addBrandingFooter adds a "Powered by HalaPeople" footer to every page.
 func addBrandingFooter(pdf *fpdf.Fpdf) {
 	// Writing inside the bottom margin must not trigger an automatic page
 	// break (which would append a blank page per page).
@@ -251,7 +251,7 @@ func addBrandingFooter(pdf *fpdf.Fpdf) {
 		pdf.SetY(pageH - 10)
 		pdf.SetFont("Arial", "", 7)
 		pdf.SetTextColor(160, 160, 160)
-		pdf.CellFormat(0, 4, "Powered by HalaOS | halaos.com", "", 0, "C", false, 0, "https://halaos.com")
+		pdf.CellFormat(0, 4, "Powered by HalaPeople | open source HR", "", 0, "C", false, 0, "https://github.com/halaostory/halaos")
 		pdf.SetTextColor(0, 0, 0)
 	}
 }

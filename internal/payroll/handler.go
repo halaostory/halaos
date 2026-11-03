@@ -541,7 +541,7 @@ func generatePayslipPDF(company store.Company, emp store.Employee, payslip store
 	pdf.SetY(pageH - 10)
 	pdf.SetFont("Arial", "", 7)
 	pdf.SetTextColor(160, 160, 160)
-	pdf.CellFormat(0, 4, "Powered by HalaOS | halaos.com", "", 0, "C", false, 0, "https://halaos.com")
+	pdf.CellFormat(0, 4, "Powered by HalaPeople | open source HR", "", 0, "C", false, 0, "https://github.com/halaostory/halaos")
 	pdf.SetTextColor(0, 0, 0)
 
 	var buf bytes.Buffer

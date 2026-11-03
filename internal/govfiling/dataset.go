@@ -42,8 +42,8 @@ type Dataset struct {
 	DueDate *time.Time `json:"due_date,omitempty"`
 }
 
-// ErrNoGenerator means HalaOS cannot build this return's data from payroll yet.
-var ErrNoGenerator = errors.New("HalaOS cannot generate this return's data yet")
+// ErrNoGenerator means HalaPeople cannot build this return's data from payroll yet.
+var ErrNoGenerator = errors.New("HalaPeople cannot generate this return's data yet")
 
 // Period is a parsed filing period.
 type Period struct {

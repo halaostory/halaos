@@ -263,7 +263,7 @@ func (s *Service) Prepare(ctx context.Context, companyID int64, userID *int64, i
 	pf := RunRules(ri)
 	if noFile {
 		pf.Issues = append(pf.Issues, Issue{Severity: "info", Code: "no_generator", Source: "rules",
-			Message: "HalaOS does not generate this return's figures yet — follow the steps and record the reference number."})
+			Message: "HalaPeople does not generate this return's figures yet — follow the steps and record the reference number."})
 	}
 	if s.ai != nil && !noFile {
 		if err := s.ai.Review(ctx, ri, pf); err != nil {
