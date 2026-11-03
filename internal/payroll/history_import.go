@@ -21,11 +21,11 @@ import (
 )
 
 // Payroll history import: when a company switches from another provider
-// mid-year, its earlier payslips are imported so year-to-date figures —
-// annualised withholding, 13th month pay, BIR 2316 and the alphalist —
-// are right from the first HalaPeople payroll. Each pay period becomes a
-// locked, paid cycle of type "imported"; the YTD logic treats it like any
-// other completed run.
+// mid-year, its earlier payslips are imported so the year-end forms (BIR
+// 2316, 1604-C alphalist) and year-to-date reports cover the whole year.
+// Each pay period becomes a locked, paid cycle of type "imported" that
+// those datasets read like any other completed run. (13th month pay is
+// computed from salary and months worked, so it does not depend on it.)
 
 // HistoryRow is one employee's pay for one period.
 type HistoryRow struct {

@@ -2875,7 +2875,7 @@ export default {
   },
   payrollHistory: {
     tab: "Import history",
-    desc: "Switching from another payroll provider mid-year? Import this year's earlier payslips so year-to-date tax, 13th month pay, BIR 2316 and the alphalist are right from your first payroll here. One row per employee per pay period; nothing is saved until the whole file checks out.",
+    desc: "Switching from another payroll provider mid-year? Import this year's earlier payslips so year-end forms (BIR 2316, 1604-C alphalist) and year-to-date reports cover the whole year. One row per employee per pay period; nothing is saved until the whole file checks out.",
     choose: "Choose CSV file",
     template: "Download template",
     issues: "{n} rows need fixing",
