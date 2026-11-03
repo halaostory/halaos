@@ -21,11 +21,29 @@ const saving = ref(false)
 interface GLConn { provider: string; available: boolean; connected: boolean; tenant_name?: string }
 const gl = ref<GLConn[]>([])
 const pushing = ref('')
-const glName: Record<string, string> = { xero: 'Xero', quickbooks: 'QuickBooks' }
+const glName: Record<string, string> = { xero: 'Xero', quickbooks: 'QuickBooks', netsuite: 'NetSuite' }
+const nsOpen = ref(false)
+const nsSaving = ref(false)
+const ns = ref({ account_id: '', consumer_key: '', consumer_secret: '', token_id: '', token_secret: '', subsidiary_id: '' })
+async function saveNetSuite() {
+  nsSaving.value = true
+  try {
+    await glAPI.netsuite({ ...ns.value })
+    message.success(t('journal.nsConnected'))
+    nsOpen.value = false
+    ns.value = { account_id: '', consumer_key: '', consumer_secret: '', token_id: '', token_secret: '', subsidiary_id: '' }
+    await loadGL()
+  } catch (e) {
+    message.error((e as { data?: { error?: { message?: string } } }).data?.error?.message || t('common.failed'))
+  } finally {
+    nsSaving.value = false
+  }
+}
 async function loadGL() {
   try { gl.value = ((await glAPI.connections()) as { data: GLConn[] }).data } catch { gl.value = [] }
 }
 async function connectGL(p: string) {
+  if (p === 'netsuite') { nsOpen.value = !nsOpen.value; return }
   const { url } = ((await glAPI.connect(p)) as { data: { url: string } }).data
   window.location.href = url
 }
@@ -117,6 +135,18 @@ const fmt = (v: number) => (v ? v.toLocaleString(undefined, { minimumFractionDig
           <NButton @click="download('xero')">{{ t('journal.xero') }}</NButton>
           <span class="muted small">{{ t('journal.hint') }}</span>
         </div>
+        <div v-if="nsOpen" class="ns-form">
+          <p class="muted small">{{ t('journal.nsHelp') }}</p>
+          <div class="ns-grid">
+            <NInput v-model:value="ns.account_id" :placeholder="t('journal.nsAccount')" />
+            <NInput v-model:value="ns.subsidiary_id" :placeholder="t('journal.nsSubsidiary')" />
+            <NInput v-model:value="ns.consumer_key" :placeholder="t('journal.nsConsumerKey')" />
+            <NInput v-model:value="ns.consumer_secret" type="password" show-password-on="click" :placeholder="t('journal.nsConsumerSecret')" />
+            <NInput v-model:value="ns.token_id" :placeholder="t('journal.nsTokenId')" />
+            <NInput v-model:value="ns.token_secret" type="password" show-password-on="click" :placeholder="t('journal.nsTokenSecret')" />
+          </div>
+          <NButton type="primary" size="small" :loading="nsSaving" @click="saveNetSuite">{{ t('journal.nsSave') }}</NButton>
+        </div>
         <NCollapse class="accounts">
           <NCollapseItem :title="t('journal.mapAccounts')" name="acc">
             <div v-for="r in roles" :key="r" class="acc-row">
@@ -137,6 +167,8 @@ const fmt = (v: number) => (v ? v.toLocaleString(undefined, { minimumFractionDig
 .small { font-size: 12px; }
 .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .total td { font-weight: 600; }
+.ns-form { margin-top: 12px; padding: 12px; border: 1px solid var(--n-border-color, rgba(128,128,128,.25)); border-radius: 8px; }
+.ns-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; margin-bottom: 8px; }
 .actions { display: flex; gap: 8px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
 .accounts { margin-top: 16px; }
 .acc-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }

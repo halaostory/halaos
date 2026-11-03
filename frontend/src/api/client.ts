@@ -389,6 +389,7 @@ export const glAPI = {
   connect: (provider: string) => post(`/v1/gl/${provider}/connect`, {}),
   disconnect: (provider: string) => del(`/v1/gl/${provider}`),
   push: (provider: string, cycleId: number) => post(`/v1/gl/${provider}/push`, { cycle_id: cycleId }),
+  netsuite: (creds: Record<string, unknown>) => put("/v1/gl/netsuite/credentials", creds),
 };
 
 export const payrollAPI = {
