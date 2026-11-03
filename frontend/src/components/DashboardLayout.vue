@@ -24,7 +24,7 @@ import {
 } from '@vicons/ionicons5'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
-import { notificationAPI, integrationAPI } from '../api/client'
+import { notificationAPI } from '../api/client'
 import ChatPanel from './ChatPanel.vue'
 import CommandPalette from './CommandPalette.vue'
 import { useTour } from '../composables/useTour'

@@ -77,3 +77,13 @@ LIMIT 6;
 -- name: HomeOverdueFilings :one
 SELECT COUNT(*)::int FROM tax_filings
 WHERE company_id = $1 AND status IN ('pending', 'generated') AND due_date < CURRENT_DATE;
+
+-- name: HomeSetupCounts :one
+SELECT
+    (SELECT COUNT(*) FROM employees e WHERE e.company_id = $1 AND e.status IN ('active', 'probationary'))::int AS employees,
+    (SELECT COUNT(*) FROM employees e WHERE e.company_id = $1 AND e.status IN ('active', 'probationary')
+        AND NOT EXISTS (SELECT 1 FROM employee_salaries s WHERE s.employee_id = e.id))::int AS without_salary,
+    (SELECT COUNT(*) FROM pay_schedules p WHERE p.company_id = $1)::int AS pay_schedules,
+    (SELECT COUNT(*) FROM payroll_cycles c WHERE c.company_id = $1 AND c.cycle_type = 'imported')::int AS imported_periods,
+    (SELECT COUNT(*) FROM payroll_runs r JOIN payroll_cycles c ON c.id = r.cycle_id
+        WHERE r.company_id = $1 AND r.status IN ('completed', 'ready_for_approval') AND c.cycle_type <> 'imported')::int AS payroll_runs;

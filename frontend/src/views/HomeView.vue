@@ -30,6 +30,7 @@ interface HomeData {
   filings: { id: number; filing_type: string; period_year: number; period_month: number | null; period_quarter: number | null; due_date: string; status: string }[]
   registrations?: { country: string; active: number; total: number; counts: Record<string, number>; agencies: Agency[] }
   agent_runs: Run[]
+  setup?: { key: string; done: boolean; optional?: boolean; detail?: string; link: string }[]
 }
 
 const { t } = useI18n()
@@ -47,6 +48,11 @@ const greeting = computed(() => {
   return t(h < 12 ? 'home.goodMorning' : h < 18 ? 'home.goodAfternoon' : 'home.goodEvening')
 })
 const today = format(new Date(), 'EEEE, MMMM d')
+
+// "Get payroll-ready" checklist (hidden once every required step is done).
+const setupRequired = computed(() => (data.value?.setup || []).filter((s) => !s.optional))
+const setupDone = computed(() => setupRequired.value.filter((s) => s.done).length)
+const showSetup = computed(() => setupRequired.value.length > 0 && setupDone.value < setupRequired.value.length)
 
 async function load() {
   loading.value = true
@@ -152,6 +158,25 @@ onMounted(load)
 
         <div class="grid">
           <div class="col-main">
+            <!-- Get payroll-ready -->
+            <section v-if="showSetup" class="panel setup">
+              <div class="panel-head">
+                <h2>{{ t('home.setupTitle') }}</h2>
+                <span class="muted">{{ t('home.setupProgress', { a: setupDone, b: setupRequired.length }) }}</span>
+              </div>
+              <NProgress type="line" :percentage="Math.round((setupDone / setupRequired.length) * 100)" :show-indicator="false" :height="6" />
+              <ul class="rows">
+                <li v-for="st in data.setup" :key="st.key" class="row clickable" @click="router.push(st.link)">
+                  <NIcon size="18" :color="st.done ? '#18a058' : '#c2c2c2'"><CheckmarkCircle v-if="st.done" /><EllipseOutline v-else /></NIcon>
+                  <div class="row-main">
+                    <div class="row-title" :class="{ 'done-step': st.done }">{{ t('home.setup_' + st.key) }}<span v-if="st.optional" class="muted"> · {{ t('home.optional') }}</span></div>
+                    <div v-if="!st.done" class="row-sub">{{ t('home.setupHelp_' + st.key, { n: st.detail || 0 }) }}</div>
+                  </div>
+                  <NIcon v-if="!st.done" class="chev"><ChevronForwardOutline /></NIcon>
+                </li>
+              </ul>
+            </section>
+
             <!-- To-dos -->
             <section v-if="auth.isAdmin && featureEnabled('inbox')" class="panel">
               <div class="panel-head">
@@ -357,6 +382,7 @@ onMounted(load)
 .onboard { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; background: linear-gradient(135deg, rgba(124, 58, 237, .07), rgba(24, 160, 88, .06)); }
 .onboard p { margin: 4px 0 0; }
 .onboard-form { display: flex; gap: 8px; min-width: 280px; flex: 1; max-width: 420px; }
+.done-step { opacity: .55; text-decoration: line-through; }
 .payday { display: flex; align-items: center; gap: 12px; }
 .payday-n { font-size: 34px; font-weight: 700; min-width: 48px; text-align: center; }
 .payday > div:nth-child(2) { flex: 1; min-width: 0; }

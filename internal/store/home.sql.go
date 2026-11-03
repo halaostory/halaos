@@ -216,6 +216,38 @@ func (q *Queries) HomeRegistrationNumbers(ctx context.Context, companyID int64) 
 	return items, nil
 }
 
+const homeSetupCounts = `-- name: HomeSetupCounts :one
+SELECT
+    (SELECT COUNT(*) FROM employees e WHERE e.company_id = $1 AND e.status IN ('active', 'probationary'))::int AS employees,
+    (SELECT COUNT(*) FROM employees e WHERE e.company_id = $1 AND e.status IN ('active', 'probationary')
+        AND NOT EXISTS (SELECT 1 FROM employee_salaries s WHERE s.employee_id = e.id))::int AS without_salary,
+    (SELECT COUNT(*) FROM pay_schedules p WHERE p.company_id = $1)::int AS pay_schedules,
+    (SELECT COUNT(*) FROM payroll_cycles c WHERE c.company_id = $1 AND c.cycle_type = 'imported')::int AS imported_periods,
+    (SELECT COUNT(*) FROM payroll_runs r JOIN payroll_cycles c ON c.id = r.cycle_id
+        WHERE r.company_id = $1 AND r.status IN ('completed', 'ready_for_approval') AND c.cycle_type <> 'imported')::int AS payroll_runs
+`
+
+type HomeSetupCountsRow struct {
+	Employees       int32 `json:"employees"`
+	WithoutSalary   int32 `json:"without_salary"`
+	PaySchedules    int32 `json:"pay_schedules"`
+	ImportedPeriods int32 `json:"imported_periods"`
+	PayrollRuns     int32 `json:"payroll_runs"`
+}
+
+func (q *Queries) HomeSetupCounts(ctx context.Context, companyID int64) (HomeSetupCountsRow, error) {
+	row := q.db.QueryRow(ctx, homeSetupCounts, companyID)
+	var i HomeSetupCountsRow
+	err := row.Scan(
+		&i.Employees,
+		&i.WithoutSalary,
+		&i.PaySchedules,
+		&i.ImportedPeriods,
+		&i.PayrollRuns,
+	)
+	return i, err
+}
+
 const homeUpcomingFilings = `-- name: HomeUpcomingFilings :many
 SELECT id, filing_type, period_year, period_month, period_quarter, due_date, status
 FROM tax_filings

@@ -58,6 +58,15 @@ type Registrations struct {
 	Agencies []Agency       `json:"agencies"`
 }
 
+// SetupStep is one item of the "get payroll-ready" checklist.
+type SetupStep struct {
+	Key      string `json:"key"`
+	Done     bool   `json:"done"`
+	Optional bool   `json:"optional,omitempty"`
+	Detail   string `json:"detail,omitempty"`
+	Link     string `json:"link"`
+}
+
 // Response is the home payload. Sections a module does not ship are omitted.
 type Response struct {
 	Company       string                         `json:"company"`
@@ -73,6 +82,7 @@ type Response struct {
 	Overdue       int                            `json:"filings_overdue"`
 	Registrations *Registrations                 `json:"registrations,omitempty"`
 	AgentRuns     []store.AgentRoutineRun        `json:"agent_runs"`
+	Setup         []SetupStep                    `json:"setup,omitempty"`
 }
 
 // Get handles GET /home.
@@ -126,6 +136,9 @@ func (h *Handler) Get(c *gin.Context) {
 			out.Overdue = int(n)
 		}
 		out.Registrations = h.registrations(ctx, comp)
+	}
+	if isAdmin && h.module("payroll") {
+		out.Setup = h.setup(ctx, comp)
 	}
 	if isAdmin && h.module("ai") {
 		if rows, err := h.q.ListAgentRoutineRuns(ctx, store.ListAgentRoutineRunsParams{CompanyID: companyID, Lim: 6}); err == nil && rows != nil {
@@ -222,4 +235,42 @@ func plural(n int, one, many string) string {
 		return "1 " + one
 	}
 	return strconv.Itoa(n) + " " + many
+}
+
+func filled(p *string) bool { return p != nil && strings.TrimSpace(*p) != "" }
+
+// setup computes the "get payroll-ready" checklist from live data (Warp:
+// sign up, add the company's tax IDs and bank, add people, run payroll).
+func (h *Handler) setup(ctx context.Context, comp store.Company) []SetupStep {
+	cnt, err := h.q.HomeSetupCounts(ctx, comp.ID)
+	if err != nil {
+		h.logger.Warn("home: setup counts", "error", err)
+		return nil
+	}
+	steps := []SetupStep{
+		{Key: "company", Done: filled(comp.LegalName) && filled(comp.Tin) && (comp.Country != "PHL" || filled(comp.BirRdo)), Link: "/settings"},
+	}
+	if comp.Country == "PHL" {
+		steps = append(steps, SetupStep{Key: "agencies", Done: filled(comp.SssErNo) && filled(comp.PhilhealthErNo) && filled(comp.PagibigErNo), Link: "/settings"})
+	}
+	steps = append(steps,
+		SetupStep{Key: "bank", Done: filled(comp.BankName) && filled(comp.BankAccountNo), Link: "/settings"},
+		SetupStep{Key: "schedule", Done: cnt.PaySchedules > 0, Link: "/payroll"},
+		SetupStep{Key: "people", Done: cnt.Employees > 0, Detail: strconv.Itoa(int(cnt.Employees)), Link: "/hire"},
+		SetupStep{Key: "salaries", Done: cnt.Employees > 0 && cnt.WithoutSalary == 0, Detail: strconv.Itoa(int(cnt.WithoutSalary)), Link: "/employees"},
+	)
+	if comp.Country == "PHL" {
+		if cov, err := h.q.HomeEmployeeIDCoverage(ctx, comp.ID); err == nil {
+			missing := 0
+			for _, n := range []int32{cov.Bir, cov.Sss, cov.Philhealth, cov.Pagibig} {
+				missing = max(missing, int(cov.Total-n))
+			}
+			steps = append(steps, SetupStep{Key: "gov_ids", Done: cov.Total > 0 && missing == 0, Detail: strconv.Itoa(missing), Link: "/employees"})
+		}
+	}
+	steps = append(steps,
+		SetupStep{Key: "history", Done: cnt.ImportedPeriods > 0 || cnt.PayrollRuns > 0, Optional: true, Link: "/payroll"},
+		SetupStep{Key: "first_payroll", Done: cnt.PayrollRuns > 0, Link: "/payroll"},
+	)
+	return steps
 }
