@@ -345,8 +345,21 @@ func (h *Handler) OIDCCallback(c *gin.Context) {
 		h.oidcFail(c, "Your identity provider did not confirm a company e-mail address")
 		return
 	}
-	user, err := h.queries.GetUserByEmailAny(ctx, email)
-	if err != nil || user.CompanyID != login.CompanyID {
+	// The account at the company whose identity provider signed them in
+	// (the same email may have accounts at other companies too).
+	var user store.User
+	found := false
+	if rows, err := h.queries.ListUsersByEmail(ctx, email); err == nil {
+		for _, r := range rows {
+			if r.CompanyID == login.CompanyID {
+				if u, err := h.queries.GetUserByID(ctx, r.ID); err == nil {
+					user, found = u, true
+				}
+				break
+			}
+		}
+	}
+	if !found {
 		h.oidcFail(c, "No account for "+email+"; ask your HR admin to invite you")
 		return
 	}

@@ -83,3 +83,9 @@ SELECT u.*, c.name AS company_name
 FROM users u JOIN companies c ON c.id = u.company_id
 WHERE lower(u.email) = lower(@email)
 ORDER BY c.name, u.id;
+
+-- name: SetPasswordForEmail :exec
+-- A password reset proves ownership of the email, so it applies to every
+-- account with that email (one person, one password across companies).
+UPDATE users SET password_hash = @password_hash, updated_at = NOW()
+WHERE lower(email) = lower(@email);

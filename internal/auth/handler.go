@@ -900,6 +900,11 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 		return
 	}
 
+	// The same person's accounts at other companies get the new password
+	// too, so one password opens all of them (sign-in then asks which).
+	if err := h.queries.SetPasswordForEmail(c.Request.Context(), store.SetPasswordForEmailParams{PasswordHash: hashedPassword, Email: user.Email}); err != nil {
+		h.logger.Error("failed to apply reset to other accounts", "error", err)
+	}
 	err = h.queries.ClearResetToken(c.Request.Context(), user.ID)
 	if err != nil {
 		h.logger.Error("failed to clear reset token", "error", err)

@@ -484,6 +484,23 @@ func (q *Queries) ResetUserPassword(ctx context.Context, arg ResetUserPasswordPa
 	return err
 }
 
+const setPasswordForEmail = `-- name: SetPasswordForEmail :exec
+UPDATE users SET password_hash = $1, updated_at = NOW()
+WHERE lower(email) = lower($2)
+`
+
+type SetPasswordForEmailParams struct {
+	PasswordHash string `json:"password_hash"`
+	Email        string `json:"email"`
+}
+
+// A password reset proves ownership of the email, so it applies to every
+// account with that email (one person, one password across companies).
+func (q *Queries) SetPasswordForEmail(ctx context.Context, arg SetPasswordForEmailParams) error {
+	_, err := q.db.Exec(ctx, setPasswordForEmail, arg.PasswordHash, arg.Email)
+	return err
+}
+
 const setResetToken = `-- name: SetResetToken :exec
 UPDATE users SET reset_token = $2, reset_token_expires_at = $3, updated_at = NOW()
 WHERE id = $1
