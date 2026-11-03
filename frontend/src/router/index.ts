@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "../stores/auth";
-import { loadEdition, featureEnabled, isPeople } from "../edition";
+import { loadEdition, featureEnabled } from "../edition";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -25,13 +25,6 @@ const router = createRouter({
       path: "/sign/:token",
       name: "sign-document",
       component: () => import("../views/public/SignDocumentView.vue"),
-    },
-    // Virtual Office (standalone, no sidebar)
-    {
-      path: "/virtual-office",
-      name: "virtual-office",
-      component: () => import("../views/VirtualOfficeView.vue"),
-      meta: { requiresAuth: true },
     },
     // Public marketing pages (guest only)
     {
@@ -495,13 +488,6 @@ const router = createRouter({
           component: () => import("../views/BillingView.vue"),
           meta: { roles: ["super_admin", "admin"] },
         },
-        // Referrals
-        {
-          path: "referrals",
-          name: "referrals",
-          component: () => import("../views/ReferralsView.vue"),
-          meta: { roles: ["super_admin", "admin"] },
-        },
         // Agent Hub
         {
           path: "agent-hub",
@@ -610,7 +596,7 @@ router.beforeEach(async (to) => {
 
   // HalaPeople has no attendance/analytics dashboard: admins land on the HR
   // inbox, everyone else on self-service (payslips, leave, documents).
-  if (to.name === "dashboard" && isPeople() && auth.isAuthenticated) {
+  if (to.name === "dashboard" && auth.isAuthenticated) {
     if (!auth.user) await auth.fetchMe();
     return auth.isAdmin ? { name: "inbox" } : { name: "self-service" };
   }

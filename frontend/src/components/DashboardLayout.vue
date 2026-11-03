@@ -26,7 +26,6 @@ import { useThemeStore } from '../stores/theme'
 import { notificationAPI, integrationAPI } from '../api/client'
 import ChatPanel from './ChatPanel.vue'
 import CommandPalette from './CommandPalette.vue'
-import NPSModal from './NPSModal.vue'
 import { useTour } from '../composables/useTour'
 import { edition, featureEnabled } from '../edition'
 
@@ -140,7 +139,6 @@ const features: Record<string, boolean> = {
   holidays: true, 'org-intelligence': true, 'workflow-rules': true, accounting: true,
   'workflow-analytics': true, 'workflow-triggers': true, 'workflow-decisions': true,
   'pulse-surveys': true, recognition: true, 'hr-requests': true,
-  'virtual-office': true,
   'bot-setup': true,
   inbox: true, hire: true, 'custom-fields': true, 'gov-filings': true, documents: true, devices: true, contractors: true,
 }
@@ -236,7 +234,6 @@ const menuOptions = computed<MenuOption[]>(() => {
   const engagement: MenuOption[] = []
   pushIf(engagement, 'recognition', 'nav.recognition', StarOutline)
   pushIf(engagement, 'pulse-surveys', 'nav.pulseSurveys', HappyOutline)
-  pushIf(engagement, 'virtual-office', 'nav.virtualOffice', BusinessOutline)
   pushIf(engagement, 'policies', 'nav.policies', DocumentTextOutline)
   if (engagement.length) {
     groups.push({ type: 'group', label: t('nav.groupEngagement'), key: 'g-engagement', children: engagement })
@@ -287,8 +284,7 @@ const menuOptions = computed<MenuOption[]>(() => {
     pushIf(sysItems, 'geofences', 'nav.geofences', LocationOutline)
     pushIf(sysItems, 'import-export', 'nav.importExport', CloudDownloadOutline)
     pushIf(sysItems, 'audit', 'nav.audit', FileTrayFullOutline)
-    pushIf(sysItems, 'billing', 'nav.billing', WalletOutline)
-    pushIf(sysItems, 'referrals', 'nav.referrals', GitBranchOutline)
+    if (edition.config.ai_billing) pushIf(sysItems, 'billing', 'nav.billing', WalletOutline)
     pushIf(sysItems, 'bot-setup', 'nav.botSetup', ChatbubblesOutline)
     pushIf(sysItems, 'settings', 'nav.settings', SettingsOutline)
     if (sysItems.length) {
@@ -485,6 +481,5 @@ function handleUserAction(key: string) {
     </NLayout>
     <ChatPanel />
     <CommandPalette />
-    <NPSModal />
   </NLayout>
 </template>

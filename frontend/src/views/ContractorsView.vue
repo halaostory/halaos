@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, h } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
-  NCard, NSpace, NTabs, NTabPane, NButton, NDataTable, NTag, NModal, NForm, NFormItem, NInput, NInputNumber,
+  NSpace, NTabs, NTabPane, NButton, NDataTable, NTag, NModal, NForm, NFormItem, NInput, NInputNumber,
   NSelect, NCheckbox, NDatePicker, NAlert, NText, useMessage, useDialog, type DataTableColumns,
 } from 'naive-ui'
 import { format } from 'date-fns'

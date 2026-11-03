@@ -89,13 +89,12 @@ func generateVerificationToken() (string, error) {
 }
 
 type registerRequest struct {
-	CompanyName  string `json:"company_name"` // optional for magic link; derived from email domain if empty
-	Email        string `json:"email" binding:"required,email"`
-	Password     string `json:"password"`     // optional for magic link; random if empty
-	FirstName    string `json:"first_name"`   // optional for magic link; "User" if empty
-	LastName     string `json:"last_name"`    // optional for magic link; "" if empty
-	Country      string `json:"country"`      // PHL (default), LKA, SGP, IDN
-	ReferralCode string `json:"referral_code"` // optional referral code from ?ref= link
+	CompanyName string `json:"company_name"` // optional for magic link; derived from email domain if empty
+	Email       string `json:"email" binding:"required,email"`
+	Password    string `json:"password"`   // optional for magic link; random if empty
+	FirstName   string `json:"first_name"` // optional for magic link; "User" if empty
+	LastName    string `json:"last_name"`  // optional for magic link; "" if empty
+	Country     string `json:"country"`    // PHL (default), LKA, SGP, IDN
 }
 
 type loginRequest struct {
@@ -235,23 +234,6 @@ func (h *Handler) Register(c *gin.Context) {
 		h.logger.Warn("failed to seed country defaults", "company_id", company.ID, "country", country, "error", seedErr)
 	}
 
-	// Track referral if a referral code was provided
-	if req.ReferralCode != "" {
-		referrer, refErr := qtx.GetCompanyByReferralCode(c.Request.Context(), &req.ReferralCode)
-		if refErr == nil && referrer.ID != company.ID {
-			_ = qtx.SetReferredByCode(c.Request.Context(), store.SetReferredByCodeParams{
-				ID:             company.ID,
-				ReferredByCode: &req.ReferralCode,
-			})
-			_, _ = qtx.CreateReferralEvent(c.Request.Context(), store.CreateReferralEventParams{
-				ReferrerCompanyID: referrer.ID,
-				ReferredCompanyID: company.ID,
-				ReferralCode:      req.ReferralCode,
-			})
-			h.logger.Info("referral tracked", "referrer", referrer.ID, "referred", company.ID, "code", req.ReferralCode)
-		}
-	}
-
 	if err := tx.Commit(c.Request.Context()); err != nil {
 		h.logger.Error("failed to commit transaction", "error", err)
 		response.InternalError(c, "Registration failed")
@@ -325,19 +307,18 @@ func (h *Handler) Register(c *gin.Context) {
 }
 
 type cliRegisterRequest struct {
-	Email        string `json:"email" binding:"required,email"`
-	Password     string `json:"password" binding:"required,min=8"`
-	CompanyName  string `json:"company_name"`
-	Country      string `json:"country"`
-	ReferralCode string `json:"referral_code"`
+	Email       string `json:"email" binding:"required,email"`
+	Password    string `json:"password" binding:"required,min=8"`
+	CompanyName string `json:"company_name"`
+	Country     string `json:"country"`
 }
 
 type cliRegisterResponse struct {
-	Token          string       `json:"token"`
-	RefreshToken   string       `json:"refresh_token"`
-	APIKey         string       `json:"api_key"`
-	APIKeyPrefix   string       `json:"api_key_prefix"`
-	User           userResponse `json:"user"`
+	Token        string       `json:"token"`
+	RefreshToken string       `json:"refresh_token"`
+	APIKey       string       `json:"api_key"`
+	APIKeyPrefix string       `json:"api_key_prefix"`
+	User         userResponse `json:"user"`
 }
 
 // CLIRegister handles POST /auth/cli-register.
@@ -439,23 +420,6 @@ func (h *Handler) CLIRegister(c *gin.Context) {
 	// Seed country-specific leave types and holidays
 	if seedErr := seedCountryDefaults(c.Request.Context(), qtx, company.ID, country); seedErr != nil {
 		h.logger.Warn("failed to seed country defaults", "company_id", company.ID, "country", country, "error", seedErr)
-	}
-
-	// Track referral if a referral code was provided
-	if req.ReferralCode != "" {
-		referrer, refErr := qtx.GetCompanyByReferralCode(c.Request.Context(), &req.ReferralCode)
-		if refErr == nil && referrer.ID != company.ID {
-			_ = qtx.SetReferredByCode(c.Request.Context(), store.SetReferredByCodeParams{
-				ID:             company.ID,
-				ReferredByCode: &req.ReferralCode,
-			})
-			_, _ = qtx.CreateReferralEvent(c.Request.Context(), store.CreateReferralEventParams{
-				ReferrerCompanyID: referrer.ID,
-				ReferredCompanyID: company.ID,
-				ReferralCode:      req.ReferralCode,
-			})
-			h.logger.Info("referral tracked", "referrer", referrer.ID, "referred", company.ID, "code", req.ReferralCode)
-		}
 	}
 
 	// Auto-verify email (CLI registration skips email verification flow)

@@ -9,13 +9,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/halaostory/halaos/internal/analytics/blindspot"
-	"github.com/halaostory/halaos/internal/integration"
 	"github.com/halaostory/halaos/internal/notification"
 	"github.com/halaostory/halaos/internal/store"
 )
 
 // detectManagerBlindSpots runs weekly on Monday to identify patterns managers might miss.
-func detectManagerBlindSpots(ctx context.Context, queries *store.Queries, pool *pgxpool.Pool, brainEmitter *integration.BrainEmitter, logger *slog.Logger) {
+func detectManagerBlindSpots(ctx context.Context, queries *store.Queries, pool *pgxpool.Pool, logger *slog.Logger) {
 	if time.Now().Weekday() != time.Monday {
 		return
 	}
@@ -52,20 +51,6 @@ func detectManagerBlindSpots(ctx context.Context, queries *store.Queries, pool *
 				"error", err,
 			)
 			continue
-		}
-
-		// Emit brain events for each detected blind spot
-		for _, spot := range spots {
-			employees := make([]integration.BlindspotEmployee, len(spot.Employees))
-			for i, e := range spot.Employees {
-				employees[i] = integration.BlindspotEmployee{
-					ID:         e.ID,
-					EmployeeNo: "",
-					Name:       e.Name,
-					Detail:     e.Detail,
-				}
-			}
-			_ = brainEmitter.EmitBlindspotDetected(ctx, company.ID, spot.ManagerID, spot.ManagerName, spot.SpotType, spot.Severity, spot.Title, spot.Description, employees)
 		}
 
 		totalSpots += len(spots)

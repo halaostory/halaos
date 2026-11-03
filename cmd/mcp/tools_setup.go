@@ -37,9 +37,6 @@ func setupAccountTool() mcp.Tool {
 		mcp.WithString("country",
 			mcp.Description("Country code, e.g. PH, SG, LK (required for register)"),
 		),
-		mcp.WithString("referral_code",
-			mcp.Description("Optional referral code"),
-		),
 	)
 }
 
@@ -136,9 +133,6 @@ func makeSetupAccount(baseURL string) server.ToolHandlerFunc {
 			}
 			if country := req.GetString("country", ""); country != "" {
 				requestBody["country"] = country
-			}
-			if referralCode := req.GetString("referral_code", ""); referralCode != "" {
-				requestBody["referral_code"] = referralCode
 			}
 		case "login":
 			endpoint = "cli-login"

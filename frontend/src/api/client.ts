@@ -105,7 +105,6 @@ export const authAPI = {
     password?: string;
     first_name?: string;
     last_name?: string;
-    referral_code?: string;
   }) => post("/v1/auth/register", data),
   login: (data: { email: string; password: string }) =>
     post("/v1/auth/login", data),
@@ -1229,12 +1228,6 @@ export const recognitionAPI = {
   getStats: () => get("/v1/recognitions/stats"),
 };
 
-// Referrals
-export const referralAPI = {
-  getCode: () => get("/v1/referrals/code"),
-  getStats: () => get("/v1/referrals/stats"),
-  listReferrals: () => get("/v1/referrals/list"),
-};
 
 // Pulse Surveys
 export const pulseAPI = {
@@ -1297,12 +1290,6 @@ export const apiKeyAPI = {
   revokeKey: (id: number) => del(`/v1/api-keys/${id}`),
 }
 
-// NPS Feedback
-export const npsAPI = {
-  submit: (data: { score: number; comment?: string }) => post("/v1/nps", data),
-  status: () => get("/v1/nps/status"),
-  summary: () => get("/v1/nps/summary"),
-};
 
 // Onboarding Checklist (admin getting-started)
 export const onboardingChecklistAPI = {
@@ -1335,22 +1322,6 @@ export const companyRegistrationAPI = {
     del(`/v1/company/registration-numbers/${id}`),
 }
 
-// Virtual Office
-export const virtualOfficeAPI = {
-  getConfig: () => get("/v1/virtual-office/config"),
-  updateConfig: (data: { template: string }) => put("/v1/virtual-office/config", data),
-  listSeats: () => get("/v1/virtual-office/seats"),
-  assignSeat: (data: { employee_id: number; floor: number; zone: string; seat_x: number; seat_y: number }) =>
-    post("/v1/virtual-office/seats/assign", data),
-  autoAssign: () => post("/v1/virtual-office/seats/auto", {}),
-  removeSeat: (employeeId: number) => del(`/v1/virtual-office/seats/${employeeId}`),
-  listUnassigned: () => get("/v1/virtual-office/unassigned"),
-  getSnapshot: () => get("/v1/virtual-office/snapshot"),
-  updateMyStatus: (data: { manual_status?: string | null; meeting_room_zone?: string | null; custom_status?: string | null; custom_emoji?: string | null }) =>
-    put("/v1/virtual-office/my-status", data),
-  updateMyAvatar: (data: { avatar_type: string; avatar_color: string }) =>
-    put("/v1/virtual-office/my-avatar", data),
-}
 
 // Employee lifecycle (Warp-style one-step hire / terminate), HR inbox, custom fields
 export const lifecycleAPI = {

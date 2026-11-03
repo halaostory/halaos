@@ -1,6 +1,6 @@
-// Product editions built from this codebase. Must match internal/edition.
-//   halaos — full AI HR operating system
-//   people — HalaPeople: Warp-style payroll, compliance & HR for Southeast Asia
+// HalaPeople editions. Must match internal/edition.
+//   people — default: payroll, compliance, lifecycle, time off, benefits, expenses, contractors, e-sign, IT, AI
+//   suite  — people + attendance, talent, engagement and people analytics
 import { reactive } from "vue";
 
 export interface EditionCountry {
@@ -10,11 +10,12 @@ export interface EditionCountry {
 }
 
 export interface EditionConfig {
-  edition: "halaos" | "people";
+  edition: "people" | "suite";
   product_name: string;
   tagline: string;
   modules: string[];
   countries: EditionCountry[];
+  ai_billing?: boolean;
 }
 
 // Route / nav key → module. Anything not listed belongs to "core".
@@ -34,17 +35,16 @@ const routeModule: Record<string, string> = {
   attendance: "attendance", "attendance-records": "attendance", "attendance-report": "attendance", dtr: "attendance",
   schedules: "attendance", geofences: "attendance",
   performance: "talent", training: "talent", disciplinary: "talent", grievance: "talent",
-  "pulse-surveys": "engagement", "pulse-respond": "engagement", recognition: "engagement", referrals: "engagement",
+  "pulse-surveys": "engagement", "pulse-respond": "engagement", recognition: "engagement",
   analytics: "intelligence", "org-intelligence": "intelligence", knowledge: "intelligence",
   "workflow-rules": "intelligence", "workflow-analytics": "intelligence", "workflow-triggers": "intelligence",
   "workflow-decisions": "intelligence",
-  "virtual-office": "workspace",
 };
 
 const fallback: EditionConfig = {
-  edition: "halaos",
-  product_name: "HalaOS",
-  tagline: "AI-powered HR Operating System",
+  edition: "people",
+  product_name: "HalaPeople",
+  tagline: "Payroll, compliance and HR for Southeast Asia — on autopilot",
   modules: [],
   countries: [],
 };
@@ -53,7 +53,7 @@ export const edition = reactive<{ config: EditionConfig; loaded: boolean }>({ co
 
 let loading: Promise<void> | null = null;
 
-/** Loads the product configuration from the API once (falls back to HalaOS with every module). */
+/** Loads the product configuration from the API once (falls back to HalaPeople with every module). */
 export function loadEdition(): Promise<void> {
   if (!loading) {
     loading = fetch((import.meta.env.VITE_API_URL || "/api") + "/v1/edition", { signal: AbortSignal.timeout(4000) })
@@ -81,4 +81,3 @@ export function featureEnabled(key: string): boolean {
   return mods.includes(moduleOf(key));
 }
 
-export const isPeople = () => edition.config.edition === "people";

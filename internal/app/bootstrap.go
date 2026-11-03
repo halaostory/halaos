@@ -22,70 +22,67 @@ import (
 	aicontext "github.com/halaostory/halaos/internal/ai/context"
 	"github.com/halaostory/halaos/internal/ai/draft"
 	"github.com/halaostory/halaos/internal/ai/provider"
-	"github.com/halaostory/halaos/internal/billing"
-	"github.com/halaostory/halaos/internal/bot"
-	bottelegram "github.com/halaostory/halaos/internal/bot/telegram"
-	"github.com/halaostory/halaos/internal/integration"
-	"github.com/halaostory/halaos/internal/integration/connector"
-	connectorslack "github.com/halaostory/halaos/internal/integration/connector/slack"
-	connectorgoogle "github.com/halaostory/halaos/internal/integration/connector/google"
-	connectorgithub "github.com/halaostory/halaos/internal/integration/connector/github"
-	"github.com/halaostory/halaos/internal/integration/crypto"
 	"github.com/halaostory/halaos/internal/analytics"
-	"github.com/halaostory/halaos/internal/orgintel"
 	"github.com/halaostory/halaos/internal/announcement"
 	"github.com/halaostory/halaos/internal/approval"
 	"github.com/halaostory/halaos/internal/attendance"
-	"github.com/halaostory/halaos/internal/breaks"
 	"github.com/halaostory/halaos/internal/audit"
 	"github.com/halaostory/halaos/internal/auth"
 	"github.com/halaostory/halaos/internal/benefits"
+	"github.com/halaostory/halaos/internal/billing"
+	"github.com/halaostory/halaos/internal/bot"
+	bottelegram "github.com/halaostory/halaos/internal/bot/telegram"
+	"github.com/halaostory/halaos/internal/breaks"
 	"github.com/halaostory/halaos/internal/clearance"
 	"github.com/halaostory/halaos/internal/company"
 	"github.com/halaostory/halaos/internal/compliance"
 	"github.com/halaostory/halaos/internal/config"
+	"github.com/halaostory/halaos/internal/contractors"
 	"github.com/halaostory/halaos/internal/dashboard"
+	"github.com/halaostory/halaos/internal/devices"
 	"github.com/halaostory/halaos/internal/disciplinary"
 	"github.com/halaostory/halaos/internal/docfile"
+	"github.com/halaostory/halaos/internal/edition"
 	"github.com/halaostory/halaos/internal/email"
 	"github.com/halaostory/halaos/internal/employee"
-	"github.com/halaostory/halaos/internal/govfiling"
-	"github.com/halaostory/halaos/internal/contractors"
-	"github.com/halaostory/halaos/internal/devices"
-	"github.com/halaostory/halaos/internal/edition"
-	"github.com/halaostory/halaos/pkg/response"
-	"github.com/halaostory/halaos/internal/lifecycle"
-	"github.com/halaostory/halaos/internal/selfonboard"
 	"github.com/halaostory/halaos/internal/expense"
 	"github.com/halaostory/halaos/internal/finalpay"
+	"github.com/halaostory/halaos/internal/govfiling"
 	"github.com/halaostory/halaos/internal/grievance"
 	"github.com/halaostory/halaos/internal/holiday"
+	"github.com/halaostory/halaos/internal/hrrequest"
 	"github.com/halaostory/halaos/internal/importexport"
+	"github.com/halaostory/halaos/internal/integration"
+	"github.com/halaostory/halaos/internal/integration/connector"
+	connectorgithub "github.com/halaostory/halaos/internal/integration/connector/github"
+	connectorgoogle "github.com/halaostory/halaos/internal/integration/connector/google"
+	connectorslack "github.com/halaostory/halaos/internal/integration/connector/slack"
+	"github.com/halaostory/halaos/internal/integration/crypto"
 	"github.com/halaostory/halaos/internal/knowledge"
 	"github.com/halaostory/halaos/internal/leave"
+	"github.com/halaostory/halaos/internal/lifecycle"
 	"github.com/halaostory/halaos/internal/loan"
 	"github.com/halaostory/halaos/internal/middleware"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/halaostory/halaos/internal/milestone"
 	"github.com/halaostory/halaos/internal/notification"
 	"github.com/halaostory/halaos/internal/onboarding"
 	onboardingChecklist "github.com/halaostory/halaos/internal/onboarding_checklist"
+	"github.com/halaostory/halaos/internal/orgintel"
 	"github.com/halaostory/halaos/internal/overtime"
 	"github.com/halaostory/halaos/internal/payroll"
 	"github.com/halaostory/halaos/internal/performance"
 	"github.com/halaostory/halaos/internal/policy"
+	"github.com/halaostory/halaos/internal/pulse"
 	"github.com/halaostory/halaos/internal/ratelimit"
+	"github.com/halaostory/halaos/internal/recognition"
 	"github.com/halaostory/halaos/internal/report"
+	"github.com/halaostory/halaos/internal/selfonboard"
 	"github.com/halaostory/halaos/internal/selfservice"
 	"github.com/halaostory/halaos/internal/store"
 	"github.com/halaostory/halaos/internal/training"
-	"github.com/halaostory/halaos/internal/pulse"
-	"github.com/halaostory/halaos/internal/hrrequest"
-	"github.com/halaostory/halaos/internal/recognition"
-	"github.com/halaostory/halaos/internal/nps"
-	"github.com/halaostory/halaos/internal/referral"
-	"github.com/halaostory/halaos/internal/virtualoffice"
 	"github.com/halaostory/halaos/internal/workflow"
+	"github.com/halaostory/halaos/pkg/response"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type App struct {
@@ -272,10 +269,6 @@ func (a *App) setupRoutes() {
 	acctDispatcher := integration.NewAccountingDispatcher(a.Queries, a.Logger)
 	go acctDispatcher.Run(context.Background())
 
-	// Wire brain integration (outbox + dispatcher)
-	brainDispatcher := integration.NewBrainDispatcher(a.Queries, a.Logger)
-	go brainDispatcher.Run(context.Background())
-
 	acctHandler := integration.NewAccountingHandler(a.Queries, acctSSO, a.Logger)
 	complianceHandler := compliance.NewHandler(a.Queries, a.Pool, a.Logger)
 	onboardingHandler := onboarding.NewHandler(a.Queries, a.Pool, a.Logger)
@@ -307,7 +300,6 @@ func (a *App) setupRoutes() {
 	pulseHandler := pulse.NewHandler(a.Queries, a.Pool, a.Logger)
 	recognitionHandler := recognition.NewHandler(a.Queries, a.Pool, a.Logger)
 	hrrequestHandler := hrrequest.NewHandler(a.Queries, a.Pool, a.Logger)
-	virtualOfficeHandler := virtualoffice.NewHandler(a.Queries, a.Pool, a.Logger, a.Redis)
 
 	// Billing service
 	billingSvc := billing.NewService(a.Queries, a.Logger)
@@ -420,7 +412,6 @@ func (a *App) setupRoutes() {
 	pulseHandler.RegisterRoutes(a.mod(edition.ModEngagement, protected))
 	recognitionHandler.RegisterRoutes(a.mod(edition.ModEngagement, protected))
 	hrrequestHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
-	virtualOfficeHandler.RegisterRoutes(a.mod(edition.ModWorkspace, protected))
 
 	billingHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
 
@@ -444,12 +435,6 @@ func (a *App) setupRoutes() {
 
 	// Contractors & freelancer payments (EWT, BIR 2307)
 	contractors.NewHandler(a.Queries, a.Logger, a.Edition.ProductName).RegisterRoutes(a.mod(edition.ModContractors, protected))
-
-	referralHandler := referral.NewHandler(a.Queries, a.Logger)
-	referralHandler.RegisterRoutes(a.mod(edition.ModEngagement, protected))
-
-	npsHandler := nps.NewHandler(a.Queries, a.Logger)
-	npsHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
 
 	// Org Intelligence
 	var briefGen *orgintel.BriefingGenerator

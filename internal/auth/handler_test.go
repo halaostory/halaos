@@ -523,37 +523,34 @@ func TestSSOLogin_UnverifiedEmail(t *testing.T) {
 func companyScanValues(id int64, name, country, timezone, currency string) []interface{} {
 	now := time.Now()
 	return []interface{}{
-		id,              // ID
-		name,            // Name
-		(*string)(nil),  // LegalName
-		(*string)(nil),  // Tin
-		(*string)(nil),  // BirRdo
-		(*string)(nil),  // Address
-		(*string)(nil),  // City
-		(*string)(nil),  // Province
-		(*string)(nil),  // ZipCode
-		country,         // Country
-		timezone,        // Timezone
-		currency,        // Currency
-		"semi_monthly",  // PayFrequency
-		"active",        // Status
-		(*string)(nil),  // LogoUrl
-		now,             // CreatedAt
-		now,             // UpdatedAt
-		false,           // GeofenceEnabled
-		(*string)(nil),  // SssErNo
-		(*string)(nil),  // PhilhealthErNo
-		(*string)(nil),  // PagibigErNo
-		(*string)(nil),  // BankName
-		(*string)(nil),  // BankBranch
-		(*string)(nil),  // BankAccountNo
-		(*string)(nil),  // BankAccountName
-		(*string)(nil),  // ContactPerson
-		(*string)(nil),  // ContactEmail
-		(*string)(nil),  // ContactPhone
-		(*string)(nil),  // ReferralCode
-		(*string)(nil),  // ReferredByCode
-		false,           // ReferralRewardClaimed
+		id,             // ID
+		name,           // Name
+		(*string)(nil), // LegalName
+		(*string)(nil), // Tin
+		(*string)(nil), // BirRdo
+		(*string)(nil), // Address
+		(*string)(nil), // City
+		(*string)(nil), // Province
+		(*string)(nil), // ZipCode
+		country,        // Country
+		timezone,       // Timezone
+		currency,       // Currency
+		"semi_monthly", // PayFrequency
+		"active",       // Status
+		(*string)(nil), // LogoUrl
+		now,            // CreatedAt
+		now,            // UpdatedAt
+		false,          // GeofenceEnabled
+		(*string)(nil), // SssErNo
+		(*string)(nil), // PhilhealthErNo
+		(*string)(nil), // PagibigErNo
+		(*string)(nil), // BankName
+		(*string)(nil), // BankBranch
+		(*string)(nil), // BankAccountNo
+		(*string)(nil), // BankAccountName
+		(*string)(nil), // ContactPerson
+		(*string)(nil), // ContactEmail
+		(*string)(nil), // ContactPhone
 	}
 }
 

@@ -10,13 +10,12 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/halaostory/halaos/internal/integration"
 	"github.com/halaostory/halaos/internal/store"
 )
 
 // snapshotScoreHistory copies current scores into history tables and computes org-level aggregates.
 // Runs weekly on Monday only, after individual scorers have completed.
-func snapshotScoreHistory(ctx context.Context, queries *store.Queries, pool *pgxpool.Pool, brainEmitter *integration.BrainEmitter, logger *slog.Logger) {
+func snapshotScoreHistory(ctx context.Context, queries *store.Queries, pool *pgxpool.Pool, logger *slog.Logger) {
 	if time.Now().Weekday() != time.Monday {
 		return
 	}
@@ -32,7 +31,7 @@ func snapshotScoreHistory(ctx context.Context, queries *store.Queries, pool *pgx
 	weekDate := mondayOfWeek(time.Now())
 
 	for _, company := range companies {
-		if err := snapshotCompany(ctx, queries, pool, company.ID, weekDate, brainEmitter, logger); err != nil {
+		if err := snapshotCompany(ctx, queries, pool, company.ID, weekDate, logger); err != nil {
 			logger.Error("score history: failed for company",
 				"company_id", company.ID,
 				"error", err,
@@ -43,7 +42,7 @@ func snapshotScoreHistory(ctx context.Context, queries *store.Queries, pool *pgx
 	logger.Info("score history snapshot completed", "companies", len(companies))
 }
 
-func snapshotCompany(ctx context.Context, queries *store.Queries, pool *pgxpool.Pool, companyID int64, weekDate time.Time, brainEmitter *integration.BrainEmitter, logger *slog.Logger) error {
+func snapshotCompany(ctx context.Context, queries *store.Queries, pool *pgxpool.Pool, companyID int64, weekDate time.Time, logger *slog.Logger) error {
 	// Snapshot flight risk scores
 	flightRisks, err := queries.ListAllFlightRiskScores(ctx, companyID)
 	if err != nil {
@@ -135,10 +134,10 @@ func snapshotCompany(ctx context.Context, queries *store.Queries, pool *pgxpool.
 	avgTH := avgScore(totalTeamHealth, len(teamHealths))
 
 	metadata, _ := json.Marshal(map[string]any{
-		"snapshot_time":   time.Now().Format(time.RFC3339),
-		"flight_risk_n":   len(flightRisks),
-		"burnout_n":       len(burnouts),
-		"team_health_n":   len(teamHealths),
+		"snapshot_time": time.Now().Format(time.RFC3339),
+		"flight_risk_n": len(flightRisks),
+		"burnout_n":     len(burnouts),
+		"team_health_n": len(teamHealths),
 	})
 
 	if err := queries.UpsertOrgScoreSnapshot(ctx, store.UpsertOrgScoreSnapshotParams{
@@ -158,7 +157,6 @@ func snapshotCompany(ctx context.Context, queries *store.Queries, pool *pgxpool.
 	}
 
 	// Emit org snapshot to Brain
-	_ = brainEmitter.EmitOrgSnapshot(ctx, companyID, avgFR, avgBO, avgTH, highRiskCount, highBurnoutCount, totalEmployees, lowHealthCount)
 
 	return nil
 }

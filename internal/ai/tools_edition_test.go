@@ -33,9 +33,9 @@ func TestToolRegistry_PeopleEditionHidesHalaOSOnlyTools(t *testing.T) {
 	}
 }
 
-func TestToolRegistry_HalaOSExposesEverything(t *testing.T) {
+func TestToolRegistry_SuiteExposesEverything(t *testing.T) {
 	r := NewToolRegistry(nil, nil)
-	r.edition = edition.New(edition.HalaOS, "", "")
+	r.edition = edition.New(edition.Suite, "", "")
 	r.disabledTools = disabledToolsFor(r.edition)
 	if len(r.Definitions()) != len(r.tools) {
 		t.Errorf("defs %d != registered %d", len(r.Definitions()), len(r.tools))

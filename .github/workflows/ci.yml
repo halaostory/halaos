@@ -91,7 +91,7 @@ jobs:
         run: npm ci
 
       - name: Type check
-        run: npx vue-tsc --noEmit
+        run: npx vue-tsc --noEmit -p tsconfig.app.json
 
       - name: Build
         run: npm run build

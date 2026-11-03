@@ -429,36 +429,6 @@ type BotUserLink struct {
 	UpdatedAt       time.Time          `json:"updated_at"`
 }
 
-type BrainLink struct {
-	ID            int64              `json:"id"`
-	CompanyID     int64              `json:"company_id"`
-	BrainTenantID uuid.UUID          `json:"brain_tenant_id"`
-	ApiEndpoint   string             `json:"api_endpoint"`
-	ApiKeyEnc     string             `json:"api_key_enc"`
-	WebhookSecret string             `json:"webhook_secret"`
-	IsActive      bool               `json:"is_active"`
-	LastSyncedAt  pgtype.Timestamptz `json:"last_synced_at"`
-	CreatedAt     time.Time          `json:"created_at"`
-	UpdatedAt     time.Time          `json:"updated_at"`
-}
-
-type BrainOutbox struct {
-	ID             int64              `json:"id"`
-	CompanyID      int64              `json:"company_id"`
-	EventType      string             `json:"event_type"`
-	AggregateType  string             `json:"aggregate_type"`
-	AggregateID    int64              `json:"aggregate_id"`
-	Payload        json.RawMessage    `json:"payload"`
-	IdempotencyKey string             `json:"idempotency_key"`
-	Status         string             `json:"status"`
-	RetryCount     int32              `json:"retry_count"`
-	MaxRetries     int32              `json:"max_retries"`
-	NextRetryAt    pgtype.Timestamptz `json:"next_retry_at"`
-	SentAt         pgtype.Timestamptz `json:"sent_at"`
-	ErrorMessage   *string            `json:"error_message"`
-	CreatedAt      time.Time          `json:"created_at"`
-}
-
 type BreakLog struct {
 	ID              int64              `json:"id"`
 	CompanyID       int64              `json:"company_id"`
@@ -577,37 +547,34 @@ type ClearanceTemplate struct {
 }
 
 type Company struct {
-	ID                    int64     `json:"id"`
-	Name                  string    `json:"name"`
-	LegalName             *string   `json:"legal_name"`
-	Tin                   *string   `json:"tin"`
-	BirRdo                *string   `json:"bir_rdo"`
-	Address               *string   `json:"address"`
-	City                  *string   `json:"city"`
-	Province              *string   `json:"province"`
-	ZipCode               *string   `json:"zip_code"`
-	Country               string    `json:"country"`
-	Timezone              string    `json:"timezone"`
-	Currency              string    `json:"currency"`
-	PayFrequency          string    `json:"pay_frequency"`
-	Status                string    `json:"status"`
-	LogoUrl               *string   `json:"logo_url"`
-	CreatedAt             time.Time `json:"created_at"`
-	UpdatedAt             time.Time `json:"updated_at"`
-	GeofenceEnabled       bool      `json:"geofence_enabled"`
-	SssErNo               *string   `json:"sss_er_no"`
-	PhilhealthErNo        *string   `json:"philhealth_er_no"`
-	PagibigErNo           *string   `json:"pagibig_er_no"`
-	BankName              *string   `json:"bank_name"`
-	BankBranch            *string   `json:"bank_branch"`
-	BankAccountNo         *string   `json:"bank_account_no"`
-	BankAccountName       *string   `json:"bank_account_name"`
-	ContactPerson         *string   `json:"contact_person"`
-	ContactEmail          *string   `json:"contact_email"`
-	ContactPhone          *string   `json:"contact_phone"`
-	ReferralCode          *string   `json:"referral_code"`
-	ReferredByCode        *string   `json:"referred_by_code"`
-	ReferralRewardClaimed bool      `json:"referral_reward_claimed"`
+	ID              int64     `json:"id"`
+	Name            string    `json:"name"`
+	LegalName       *string   `json:"legal_name"`
+	Tin             *string   `json:"tin"`
+	BirRdo          *string   `json:"bir_rdo"`
+	Address         *string   `json:"address"`
+	City            *string   `json:"city"`
+	Province        *string   `json:"province"`
+	ZipCode         *string   `json:"zip_code"`
+	Country         string    `json:"country"`
+	Timezone        string    `json:"timezone"`
+	Currency        string    `json:"currency"`
+	PayFrequency    string    `json:"pay_frequency"`
+	Status          string    `json:"status"`
+	LogoUrl         *string   `json:"logo_url"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+	GeofenceEnabled bool      `json:"geofence_enabled"`
+	SssErNo         *string   `json:"sss_er_no"`
+	PhilhealthErNo  *string   `json:"philhealth_er_no"`
+	PagibigErNo     *string   `json:"pagibig_er_no"`
+	BankName        *string   `json:"bank_name"`
+	BankBranch      *string   `json:"bank_branch"`
+	BankAccountNo   *string   `json:"bank_account_no"`
+	BankAccountName *string   `json:"bank_account_name"`
+	ContactPerson   *string   `json:"contact_person"`
+	ContactEmail    *string   `json:"contact_email"`
+	ContactPhone    *string   `json:"contact_phone"`
 }
 
 type CompanyDevice struct {
@@ -876,13 +843,6 @@ type DocumentTemplate struct {
 	CreatedBy *int64    `json:"created_by"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-}
-
-type DripEmail struct {
-	ID        int64     `json:"id"`
-	CompanyID int64     `json:"company_id"`
-	Step      int32     `json:"step"`
-	SentAt    time.Time `json:"sent_at"`
 }
 
 type Employee struct {
@@ -1641,15 +1601,6 @@ type Notification struct {
 	Actions    []byte             `json:"actions"`
 }
 
-type NpsFeedback struct {
-	ID        int64     `json:"id"`
-	CompanyID int64     `json:"company_id"`
-	UserID    int64     `json:"user_id"`
-	Score     int16     `json:"score"`
-	Comment   string    `json:"comment"`
-	CreatedAt time.Time `json:"created_at"`
-}
-
 type OnboardingInvite struct {
 	ID          int64              `json:"id"`
 	CompanyID   int64              `json:"company_id"`
@@ -2033,17 +1984,6 @@ type Recognition struct {
 	CreatedAt      time.Time `json:"created_at"`
 }
 
-type ReferralEvent struct {
-	ID                int64              `json:"id"`
-	ReferrerCompanyID int64              `json:"referrer_company_id"`
-	ReferredCompanyID int64              `json:"referred_company_id"`
-	ReferralCode      string             `json:"referral_code"`
-	Status            string             `json:"status"`
-	RewardType        *string            `json:"reward_type"`
-	CreatedAt         time.Time          `json:"created_at"`
-	ActivatedAt       pgtype.Timestamptz `json:"activated_at"`
-}
-
 type RemittanceRecord struct {
 	ID            int64          `json:"id"`
 	CompanyID     int64          `json:"company_id"`
@@ -2331,31 +2271,6 @@ type UserCompany struct {
 	CompanyID int64     `json:"company_id"`
 	Role      string    `json:"role"`
 	JoinedAt  time.Time `json:"joined_at"`
-}
-
-type VirtualOfficeConfig struct {
-	CompanyID int64     `json:"company_id"`
-	Template  string    `json:"template"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-type VirtualOfficeSeat struct {
-	ID              int64     `json:"id"`
-	CompanyID       int64     `json:"company_id"`
-	EmployeeID      int64     `json:"employee_id"`
-	Floor           int32     `json:"floor"`
-	Zone            string    `json:"zone"`
-	SeatX           int32     `json:"seat_x"`
-	SeatY           int32     `json:"seat_y"`
-	AvatarType      string    `json:"avatar_type"`
-	AvatarColor     string    `json:"avatar_color"`
-	CustomStatus    *string   `json:"custom_status"`
-	CustomEmoji     *string   `json:"custom_emoji"`
-	ManualStatus    *string   `json:"manual_status"`
-	MeetingRoomZone *string   `json:"meeting_room_zone"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
 }
 
 type WorkSchedule struct {

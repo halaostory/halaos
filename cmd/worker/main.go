@@ -88,8 +88,6 @@ func main() {
 		triggerDispatcher = workflow.NewTriggerDispatcher(queries, agentEvaluator, workflowEngine, pool, logger)
 	}
 
-	brainEmitter := integration.NewBrainEmitter(queries, logger)
-
 	logger.Info("worker started")
 
 	// Event outbox processor + agent task executor
@@ -144,7 +142,7 @@ func main() {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				runPeriodicJobs(ctx, queries, pool, rdb, aiProvider, workflowEngine, calculator, emailSvc, brainEmitter, logger)
+				runPeriodicJobs(ctx, queries, pool, rdb, aiProvider, workflowEngine, calculator, emailSvc, logger)
 			}
 		}
 	}()
@@ -224,7 +222,7 @@ func dispatchEvent(ctx context.Context, queries *store.Queries, calculator *payr
 // ed is the product edition; jobs of modules the edition does not ship are skipped.
 var ed = edition.Load()
 
-func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.Pool, _ *redis.Client, aiProvider provider.Provider, workflowEngine *workflow.Engine, calculator *payroll.Calculator, emailSvc *email.Service, brainEmitter *integration.BrainEmitter, logger *slog.Logger) {
+func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.Pool, _ *redis.Client, aiProvider provider.Provider, workflowEngine *workflow.Engine, calculator *payroll.Calculator, emailSvc *email.Service, logger *slog.Logger) {
 	logger.Info("running periodic jobs")
 
 	// Auto-close open attendance records from previous day
@@ -274,27 +272,27 @@ func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.
 
 	// Calculate flight risk scores (weekly, Monday only)
 	if ed.Enabled(edition.ModIntelligence) {
-		calculateFlightRisk(ctx, queries, pool, brainEmitter, logger)
+		calculateFlightRisk(ctx, queries, pool, logger)
 	}
 
 	// Calculate team health scores (weekly, Monday only)
 	if ed.Enabled(edition.ModIntelligence) {
-		calculateTeamHealth(ctx, queries, pool, brainEmitter, logger)
+		calculateTeamHealth(ctx, queries, pool, logger)
 	}
 
 	// Calculate burnout risk scores (weekly, Monday only)
 	if ed.Enabled(edition.ModIntelligence) {
-		calculateBurnoutScores(ctx, queries, pool, brainEmitter, logger)
+		calculateBurnoutScores(ctx, queries, pool, logger)
 	}
 
 	// Detect manager blind spots (weekly, Monday only, after scorers)
 	if ed.Enabled(edition.ModIntelligence) {
-		detectManagerBlindSpots(ctx, queries, pool, brainEmitter, logger)
+		detectManagerBlindSpots(ctx, queries, pool, logger)
 	}
 
 	// Snapshot score history + org aggregates (weekly, Monday only, after scorers)
 	if ed.Enabled(edition.ModIntelligence) {
-		snapshotScoreHistory(ctx, queries, pool, brainEmitter, logger)
+		snapshotScoreHistory(ctx, queries, pool, logger)
 	}
 
 	// Generate executive briefings (weekly, Monday only, after snapshots)
@@ -335,13 +333,8 @@ func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.
 	// Auto-approve zero-anomaly payroll runs (hourly)
 	autoApprovePayroll(ctx, queries, pool, logger)
 
-	// Send onboarding drip emails (hourly)
-	sendDripEmails(ctx, queries, emailSvc, logger)
-
 	// Clear stale virtual office manual statuses (daily, idempotent)
-	if ed.Enabled(edition.ModWorkspace) {
-		clearStaleVOStatuses(ctx, queries, logger)
-	}
+
 }
 
 func autoCloseAttendance(ctx context.Context, queries *store.Queries, logger *slog.Logger) {

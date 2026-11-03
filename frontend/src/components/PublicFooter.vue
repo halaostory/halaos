@@ -35,8 +35,7 @@ const links = {
             <span class="logo-text">{{ edition.config.product_name }}</span>
           </router-link>
           <p class="footer-tagline">
-            <template v-if="edition.config.edition === 'people'">{{ edition.config.tagline }}.</template>
-            <template v-else>Unified HR, Payroll &amp; Tax Compliance platform for growing businesses across Asia and the US. Open source on GitHub.</template>
+            {{ edition.config.tagline }}. Open source on GitHub.
           </p>
           <div class="footer-social">
             <a href="https://twitter.com/halaos" target="_blank" rel="noopener" aria-label="Twitter">

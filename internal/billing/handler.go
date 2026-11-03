@@ -46,11 +46,16 @@ type balanceResponse struct {
 	TotalPurchased int64 `json:"total_purchased"`
 	TotalGranted   int64 `json:"total_granted"`
 	TotalConsumed  int64 `json:"total_consumed"`
+	Unlimited      bool  `json:"unlimited"`
 }
 
 // GetBalance returns the current token balance and lifetime stats.
 func (h *Handler) GetBalance(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
+	if !h.service.Enabled() {
+		response.OK(c, balanceResponse{Unlimited: true})
+		return
+	}
 
 	tb, err := h.queries.GetTokenBalance(c.Request.Context(), companyID)
 	if err != nil {

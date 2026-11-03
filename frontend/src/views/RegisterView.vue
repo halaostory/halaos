@@ -1,18 +1,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { edition, isPeople } from '../edition'
-import { useRoute } from 'vue-router'
+import { edition } from '../edition'
 import { useI18n } from 'vue-i18n'
 import { NInput, NButton, NSpace, NResult, useMessage } from 'naive-ui'
 import { useAuthStore } from '../stores/auth'
 import { authAPI } from '../api/client'
 
-const route = useRoute()
 const { t } = useI18n()
 const message = useMessage()
 const auth = useAuthStore()
 
-const referralCode = (route.query.ref as string) || ''
 const emailInput = ref('')
 const loading = ref(false)
 const emailSent = ref(false)
@@ -65,7 +62,6 @@ async function handleRegister() {
       password: '',
       first_name: '',
       last_name: '',
-      referral_code: referralCode,
       // The API reads `country` (ISO alpha-3); the old `jurisdiction` field was ignored.
       country: selectedJurisdiction.value,
       jurisdiction: selectedJurisdiction.value,
@@ -133,7 +129,7 @@ function handleKeydown(e: KeyboardEvent) {
           <span class="logo-icon">H</span>
           <span class="logo-text">{{ edition.config.product_name }}</span>
         </router-link>
-        <h2>{{ isPeople() ? edition.config.tagline : 'Free HR, Payroll & Tax Compliance' }}</h2>
+        <h2>{{ edition.config.tagline }}</h2>
         <p class="subtitle">Get started in 10 seconds. No credit card required.</p>
       </div>
       <div class="jurisdiction-selector">

@@ -12,7 +12,7 @@ func TestPeopleEdition(t *testing.T) {
 			t.Errorf("%s should ship in people", m)
 		}
 	}
-	for _, m := range []string{ModAttendance, ModTalent, ModEngagement, ModIntelligence, ModWorkspace} {
+	for _, m := range []string{ModAttendance, ModTalent, ModEngagement, ModIntelligence} {
 		if c.Enabled(m) {
 			t.Errorf("%s must not ship in people", m)
 		}
@@ -22,10 +22,15 @@ func TestPeopleEdition(t *testing.T) {
 	}
 }
 
-func TestDefaultsToHalaOS(t *testing.T) {
-	for _, e := range []Edition{"", "bogus", HalaOS} {
+func TestDefaultsToPeople(t *testing.T) {
+	for _, e := range []Edition{"", "bogus", People} {
+		if c := New(e, "", ""); c.Edition != People {
+			t.Errorf("%q → %s", e, c.Edition)
+		}
+	}
+	for _, e := range []Edition{Suite, "halaos"} {
 		c := New(e, "", "")
-		if c.Edition != HalaOS || len(c.Modules) != len(All) {
+		if c.Edition != Suite || len(c.Modules) != len(All) || c.ProductName != "HalaPeople" {
 			t.Errorf("%q → %+v", e, c)
 		}
 	}

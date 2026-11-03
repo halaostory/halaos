@@ -1,12 +1,16 @@
-// Package edition defines the products built from this codebase and which
-// modules each one ships.
+// Package edition defines which HR modules a deployment ships.
 //
-//   - halaos  — the full AI HR operating system (default; every module)
-//   - people  — HalaPeople, a Warp-style "HR on autopilot" product for
-//     Southeast Asia: people records, one-step hire/terminate, payroll,
-//     statutory filings, e-signature, time off, benefits, expenses, devices.
+// HalaPeople is an open-source, Warp-style "HR on autopilot" platform for
+// Southeast Asia. It comes in two editions:
 //
-// Each product is deployed separately (own domain, database and brand).
+//   - people — the default: people records, one-step hire/terminate,
+//     payroll, statutory filings, contractors, e-signature, time off,
+//     benefits, expenses, devices and the AI agent.
+//   - suite  — people plus the optional HR extras: attendance/time
+//     tracking, talent (performance, training), engagement (pulse,
+//     recognition) and people analytics/workflow automation.
+//     "halaos" is accepted as a legacy alias.
+//
 // Modules that are not part of an edition are not routed at all (404) and
 // their background jobs do not run.
 package edition
@@ -14,6 +18,7 @@ package edition
 import (
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -21,8 +26,10 @@ import (
 type Edition string
 
 const (
-	HalaOS Edition = "halaos"
 	People Edition = "people"
+	Suite  Edition = "suite"
+	// legacyHalaOS was the pre-HalaPeople name of the suite edition.
+	legacyHalaOS Edition = "halaos"
 )
 
 // Module names. Keep in sync with frontend/src/edition.ts.
@@ -41,19 +48,18 @@ const (
 	ModAI           = "ai"           // AI assistant, agents, drafts, messaging bot
 	ModAttendance   = "attendance"   // clock in/out, breaks, geofences, schedules, DTR
 	ModTalent       = "talent"       // performance, training, disciplinary, grievance
-	ModEngagement   = "engagement"   // pulse surveys, recognition, NPS, referrals
-	ModIntelligence = "intelligence" // analytics, org intelligence, knowledge base, workflow automation
-	ModWorkspace    = "workspace"    // virtual office
+	ModEngagement   = "engagement"   // pulse surveys, recognition
+	ModIntelligence = "intelligence" // people analytics, org intelligence, knowledge base, workflow automation
 )
 
 // All lists every module.
 var All = []string{
 	ModCore, ModPeople, ModLifecycle, ModPayroll, ModCompliance, ModTimeOff, ModBenefits, ModExpenses, ModContractors,
-	ModESign, ModIT, ModAI, ModAttendance, ModTalent, ModEngagement, ModIntelligence, ModWorkspace,
+	ModESign, ModIT, ModAI, ModAttendance, ModTalent, ModEngagement, ModIntelligence,
 }
 
 var membership = map[Edition][]string{
-	HalaOS: All,
+	Suite:  All,
 	People: {ModCore, ModPeople, ModLifecycle, ModPayroll, ModCompliance, ModTimeOff, ModBenefits, ModExpenses, ModContractors, ModESign, ModIT, ModAI},
 }
 
@@ -65,7 +71,7 @@ type Country struct {
 }
 
 var countries = map[Edition][]Country{
-	HalaOS: {
+	Suite: {
 		{"PHL", "Philippines", "live"}, {"LKA", "Sri Lanka", "live"}, {"USA", "United States", "live"},
 		{"SGP", "Singapore", "coming_soon"}, {"IDN", "Indonesia", "coming_soon"},
 	},
@@ -79,33 +85,37 @@ var countries = map[Edition][]Country{
 
 // Config is the resolved product configuration.
 type Config struct {
-	Edition     Edition         `json:"edition"`
-	ProductName string          `json:"product_name"`
-	Tagline     string          `json:"tagline"`
-	Modules     []string        `json:"modules"`
-	Countries   []Country       `json:"countries"`
-	enabled     map[string]bool `json:"-"`
+	Edition     Edition   `json:"edition"`
+	ProductName string    `json:"product_name"`
+	Tagline     string    `json:"tagline"`
+	Modules     []string  `json:"modules"`
+	Countries   []Country `json:"countries"`
+	AIBilling   bool      `json:"ai_billing"` // BILLING_ENABLED: meter AI usage with prepaid tokens
+
+	enabled map[string]bool `json:"-"`
 }
 
-// Load reads APP_EDITION (default halaos), PRODUCT_NAME and
-// PRODUCT_TAGLINE. Unknown editions fall back to halaos.
+// Load reads APP_EDITION (default people), PRODUCT_NAME and
+// PRODUCT_TAGLINE. Unknown editions fall back to people.
 func Load() Config {
-	return New(Edition(strings.ToLower(strings.TrimSpace(os.Getenv("APP_EDITION")))), os.Getenv("PRODUCT_NAME"), os.Getenv("PRODUCT_TAGLINE"))
+	c := New(Edition(strings.ToLower(strings.TrimSpace(os.Getenv("APP_EDITION")))), os.Getenv("PRODUCT_NAME"), os.Getenv("PRODUCT_TAGLINE"))
+	c.AIBilling, _ = strconv.ParseBool(os.Getenv("BILLING_ENABLED"))
+	return c
 }
 
 // New builds a config for an edition.
 func New(e Edition, name, tagline string) Config {
+	if e == legacyHalaOS {
+		e = Suite
+	}
 	if _, ok := membership[e]; !ok {
-		e = HalaOS
+		e = People
 	}
 	if name == "" {
-		name = map[Edition]string{HalaOS: "HalaOS", People: "HalaPeople"}[e]
+		name = "HalaPeople"
 	}
 	if tagline == "" {
-		tagline = map[Edition]string{
-			HalaOS: "AI-powered HR Operating System",
-			People: "Payroll, compliance and HR for Southeast Asia — on autopilot",
-		}[e]
+		tagline = "Payroll, compliance and HR for Southeast Asia — on autopilot"
 	}
 	c := Config{Edition: e, ProductName: name, Tagline: tagline, Countries: countries[e], enabled: map[string]bool{}}
 	for _, m := range membership[e] {
