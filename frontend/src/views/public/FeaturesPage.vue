@@ -81,12 +81,12 @@
 import { useHead } from '@unhead/vue'
 
 useHead({
-  title: 'Features - HalaOS',
+  title: 'Features - HalaPeople',
   meta: [
-    { name: 'description', content: 'Explore HalaOS features: HR management, automated payroll, tax compliance, AI-powered insights, CLI, MCP integration, and Lark/Slack/Telegram bots. Built for businesses in Southeast Asia and the US.' },
-    { property: 'og:title', content: 'Features - HalaOS' },
+    { name: 'description', content: 'Explore HalaPeople features: HR management, automated payroll, tax compliance, AI-powered insights, CLI, MCP integration, and Lark/Slack/Telegram bots. Built for businesses in Southeast Asia and the US.' },
+    { property: 'og:title', content: 'Features - HalaPeople' },
     { property: 'og:description', content: 'Every tool you need to manage employees, run payroll, and stay compliant — all in one place.' },
-    { property: 'og:url', content: 'https://halaos.com/features' },
+    { property: 'og:url', content: 'https://halapeople.com/features' },
   ],
 })
 
@@ -138,9 +138,9 @@ const categories = [
   },
   {
     id: 'time',
-    label: 'Time & Attendance',
+    label: 'Time & Attendance (Suite)',
     title: 'Track time, anywhere',
-    desc: 'Flexible attendance tracking with geofencing, mobile clock-in, and automated schedule management.',
+    desc: 'In the Suite edition: attendance tracking with geofencing, mobile clock-in and schedules. Every edition includes leave, overtime and time-off policies.',
     items: [
       'GPS-enabled clock in/out',
       'Geofence zones for office locations',
@@ -187,7 +187,7 @@ const categories = [
     title: 'CLI, MCP & REST API',
     desc: 'Full developer experience — manage HR from your terminal, connect AI tools via MCP, or build custom integrations with the REST API.',
     items: [
-      'HalaOS CLI — employees, payroll, leave, tax forms from terminal',
+      'HalaPeople CLI — employees, payroll, leave, tax forms from terminal',
       'MCP server for Claude Code, Cursor & AI IDEs',
       'REST API with read-only (Free) or full CRUD (Pro)',
       'Webhook events for payroll, employee changes',
@@ -200,7 +200,7 @@ const categories = [
     id: 'bots',
     label: 'Messaging Bots',
     title: 'HR in your team chat',
-    desc: 'Access HalaOS directly from Lark, Slack, or Telegram. Employees can clock in, check leave, and managers can approve requests — all from chat.',
+    desc: 'Access HalaPeople directly from Lark, Slack, or Telegram. Employees can clock in, check leave, and managers can approve requests — all from chat.',
     items: [
       'Lark bot — clock in/out, leave requests, announcements',
       'Slack bot — attendance, approvals, HR queries',
