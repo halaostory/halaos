@@ -165,12 +165,21 @@ type Setting struct {
 	Instructions string `json:"instructions"`
 }
 
+// Notifier posts alerts (e.g. internal/alerts → Slack).
+type Notifier interface {
+	Notify(companyID int64, event, text, link string)
+}
+
 // Service runs and records routines.
 type Service struct {
 	q      *store.Queries
 	logger *slog.Logger
 	now    func() time.Time
+	alerts Notifier
 }
+
+// SetNotifier wires alerts for runs that need a person.
+func (s *Service) SetNotifier(n Notifier) { s.alerts = n }
 
 // NewService builds the routines service.
 func NewService(q *store.Queries, logger *slog.Logger) *Service {
@@ -229,6 +238,7 @@ func (s *Service) Record(ctx context.Context, companyID int64, key, autonomy str
 		s.logger.Error("routines: record run", "company_id", companyID, "routine", key, "error", err)
 		return nil, err
 	}
+	s.alert(row)
 	return &row, nil
 }
 
@@ -285,4 +295,22 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return s[:n]
+}
+
+func (s *Service) alert(run store.AgentRoutineRun) {
+	if s.alerts == nil {
+		return
+	}
+	def, _ := Lookup(run.RoutineKey)
+	link := fmt.Sprintf("/routines?run=%d", run.ID)
+	switch {
+	case run.Status == "needs_attention" || run.Status == "failed":
+		icon := ":raised_hand:"
+		if run.Status == "failed" {
+			icon = ":warning:"
+		}
+		s.alerts.Notify(run.CompanyID, "agent_attention", fmt.Sprintf("%s *%s* — %s\n%s", icon, def.Name, run.Trigger, run.Summary), link)
+	case run.RoutineKey == KeyPrePayrollCheck:
+		s.alerts.Notify(run.CompanyID, "payroll_ready", fmt.Sprintf(":white_check_mark: *%s* — no variances found, ready for approval.", run.SubjectName), "/payroll")
+	}
 }

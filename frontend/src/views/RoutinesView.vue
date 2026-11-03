@@ -4,11 +4,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   NButton, NSpin, NSwitch, NRadioGroup, NRadioButton, NInput, NTag, NDrawer, NDrawerContent, NTimeline,
-  NTimelineItem, NEmpty, NIcon, NTooltip, useMessage,
+  NTimelineItem, NEmpty, NIcon, NTooltip, NCheckbox, NCheckboxGroup, useMessage,
 } from 'naive-ui'
 import { SparklesOutline, LockClosedOutline, FlashOutline, TimeOutline } from '@vicons/ionicons5'
 import { formatDistanceToNow, format } from 'date-fns'
-import { routinesAPI } from '../api/client'
+import { routinesAPI, alertsAPI } from '../api/client'
 
 interface RunRow {
   id: number; routine_key: string; trigger: string; subject_type: string; subject_id: number; subject_name: string
@@ -36,6 +36,35 @@ const drawerTitle = ref('')
 const runs = ref<RunRow[]>([])
 const runsLoading = ref(false)
 const selected = ref<RunRow | null>(null)
+
+// Slack alerts
+interface SlackView { connected: boolean; hint: string; events: string[]; enabled: boolean; all_events: string[]; can_store: boolean }
+const slack = ref<SlackView | null>(null)
+const slackUrl = ref('')
+const slackBusy = ref(false)
+async function loadSlack() {
+  try { slack.value = ((await alertsAPI.get()) as { data: SlackView }).data } catch { slack.value = null }
+}
+async function saveSlack(patch: { webhook_url?: string; events?: string[]; enabled?: boolean }) {
+  slackBusy.value = true
+  try {
+    slack.value = ((await alertsAPI.save(patch)) as { data: SlackView }).data
+    slackUrl.value = ''
+    message.success(t('routines.saved'))
+  } catch (e) {
+    message.error((e as Error).message)
+  } finally {
+    slackBusy.value = false
+  }
+}
+async function testSlack() {
+  slackBusy.value = true
+  try { await alertsAPI.test(); message.success(t('slack.testSent')) } catch (e) { message.error((e as Error).message) } finally { slackBusy.value = false }
+}
+async function disconnectSlack() {
+  slackBusy.value = true
+  try { slack.value = ((await alertsAPI.disconnect()) as { data: SlackView }).data } finally { slackBusy.value = false }
+}
 
 const levels = ['recommend', 'approve', 'autonomous'] as const
 const rank: Record<string, number> = { recommend: 0, approve: 1, autonomous: 2 }
@@ -109,6 +138,7 @@ function followLink(a: Action) {
 }
 
 onMounted(async () => {
+  loadSlack()
   await load()
   if (route.query.run) openRun(Number(route.query.run))
 })
@@ -184,6 +214,31 @@ watch(() => route.query.run, (id) => { if (id) openRun(Number(id)) })
       </div>
     </NSpin>
 
+    <section v-if="slack" class="slack">
+      <div class="slack-main">
+        <h2>{{ t('slack.title') }}</h2>
+        <p class="muted small">{{ t('slack.desc') }}</p>
+        <NCheckboxGroup :value="slack.events" :disabled="!slack.connected" @update:value="(v: (string | number)[]) => saveSlack({ events: v.map(String) })">
+          <NCheckbox v-for="e in slack.all_events" :key="e" :value="e" :label="t('slack.event_' + e)" style="margin-right: 14px" />
+        </NCheckboxGroup>
+      </div>
+      <div class="slack-side">
+        <template v-if="slack.connected">
+          <div class="small"><NTag size="small" round type="success" :bordered="false">{{ t('slack.connected') }}</NTag> <span class="muted">{{ slack.hint }}</span></div>
+          <div class="slack-btns">
+            <NSwitch :value="slack.enabled" @update:value="(v: boolean) => saveSlack({ enabled: v })" />
+            <NButton size="small" :loading="slackBusy" @click="testSlack">{{ t('slack.test') }}</NButton>
+            <NButton size="small" quaternary :loading="slackBusy" @click="disconnectSlack">{{ t('slack.disconnect') }}</NButton>
+          </div>
+        </template>
+        <template v-else>
+          <NInput v-model:value="slackUrl" size="small" placeholder="https://hooks.slack.com/services/…" :disabled="!slack.can_store" />
+          <NButton size="small" type="primary" :disabled="!slackUrl" :loading="slackBusy" @click="saveSlack({ webhook_url: slackUrl })">{{ t('slack.connect') }}</NButton>
+          <div v-if="!slack.can_store" class="muted small">{{ t('slack.needKey') }}</div>
+        </template>
+      </div>
+    </section>
+
     <NDrawer v-model:show="drawer" :width="760" placement="right">
       <NDrawerContent :title="drawerTitle" closable>
         <NSpin :show="runsLoading">
@@ -230,6 +285,11 @@ watch(() => route.query.run, (id) => { if (id) openRun(Number(id)) })
 .spark { color: #7c3aed; }
 .muted { opacity: .65; }
 .small { font-size: 12px; }
+.slack { margin-top: 20px; border: 1px solid rgba(128, 128, 128, .18); border-radius: 12px; padding: 16px; display: flex; gap: 16px; justify-content: space-between; flex-wrap: wrap; }
+.slack h2 { font-size: 16px; margin: 0 0 4px; }
+.slack-main { flex: 1; min-width: 280px; }
+.slack-side { display: flex; flex-direction: column; gap: 8px; min-width: 280px; align-items: flex-start; }
+.slack-btns { display: flex; gap: 8px; align-items: center; }
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
 .card { border: 1px solid rgba(128, 128, 128, .18); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
 .card.off { opacity: .6; }

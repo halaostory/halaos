@@ -17,6 +17,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/halaostory/halaos/internal/ai"
+	"github.com/halaostory/halaos/internal/alerts"
 	"github.com/halaostory/halaos/internal/ai/agent"
 	"github.com/halaostory/halaos/internal/ai/byok"
 	aicontext "github.com/halaostory/halaos/internal/ai/context"
@@ -431,6 +432,12 @@ func (a *App) setupRoutes() {
 	}
 	govSvc.SetPolicy(routineEngine.Policy)
 	lifecycleHandler.Service().SetRoutines(routineEngine)
+
+	// Slack alerts (agent needs you, notices, filings due, payroll ready)
+	alertSvc := alerts.NewServiceFromKey(a.Queries, a.Cfg.Integration.EncryptionKey, a.Logger, a.Cfg.Resend.BaseURL)
+	alertSvc.RegisterRoutes(a.mod(edition.ModCore, protected))
+	routineEngine.SetNotifier(alertSvc)
+	govSvc.SetNotifier(alertSvc)
 	routines.NewHandler(routineEngine).RegisterRoutes(a.mod(edition.ModAI, protected))
 
 	// Home dashboard (to-dos, upcoming payroll/filings, agency registrations, agent activity)

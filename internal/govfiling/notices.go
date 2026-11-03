@@ -496,6 +496,14 @@ func nonEmptySlice(s []string, def string) []string {
 	return s
 }
 
+// Notifier posts alerts (e.g. internal/alerts → Slack).
+type Notifier interface {
+	Notify(companyID int64, event, text, link string)
+}
+
+// SetNotifier wires alerts for new notices.
+func (s *Service) SetNotifier(n Notifier) { s.alerts = n }
+
 // IntakeNotice triages a notice and stores it.
 func (s *Service) IntakeNotice(ctx context.Context, companyID int64, userID *int64, text string, fileName, filePath *string) (*store.GovNotice, error) {
 	text = strings.TrimSpace(text)
@@ -503,7 +511,15 @@ func (s *Service) IntakeNotice(ctx context.Context, companyID int64, userID *int
 		return nil, &ValidationError{Msg: "paste the notice text (or the e-mail body) so it can be read"}
 	}
 	t := s.triage(ctx, companyID, text)
-	return s.saveNotice(ctx, companyID, userID, 0, text, fileName, filePath, t)
+	n, err := s.saveNotice(ctx, companyID, userID, 0, text, fileName, filePath, t)
+	if err == nil && s.alerts != nil {
+		due := ""
+		if t.RespondBy != "" {
+			due = " · respond by " + t.RespondBy
+		}
+		s.alerts.Notify(companyID, "notice", fmt.Sprintf(":envelope_with_arrow: *%s notice*: %s%s\n%s", nonEmpty(t.Agency, "Government"), t.Title, due, t.Recommendation), fmt.Sprintf("/notices?id=%d", n.ID))
+	}
+	return n, err
 }
 
 // RetriageNotice re-reads a stored notice (e.g. after filings changed).

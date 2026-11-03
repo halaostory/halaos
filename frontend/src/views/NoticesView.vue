@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   NButton, NSpin, NEmpty, NTag, NModal, NInput, NDrawer, NDrawerContent, NAlert, NIcon, NCollapse,
@@ -21,6 +21,7 @@ interface Submission { id: number; status: string; reference_no: string | null; 
 
 const { t } = useI18n()
 const router = useRouter()
+const route = useRoute()
 const message = useMessage()
 const loading = ref(true)
 const notices = ref<Notice[]>([])
@@ -177,7 +178,12 @@ function money(v: string | null) {
   return v ? Number(v).toLocaleString(undefined, { minimumFractionDigits: 2 }) : ''
 }
 
-onMounted(load)
+onMounted(async () => {
+  await load()
+  const id = Number(route.query.id)
+  const n = id ? notices.value.find((x) => x.id === id) : undefined
+  if (n) open(n)
+})
 </script>
 
 <template>

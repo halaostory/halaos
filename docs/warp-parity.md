@@ -100,7 +100,7 @@ Legend: ✅ shipped · 🟡 partial · ⬜ not yet · — not applicable
 
 | Warp | HalaPeople | Status |
 |---|---|:-:|
-| Slack payroll/tax alerts | Slack connector for provisioning; alerts go to in-app notifications and e-mail | 🟡 |
+| Slack payroll/tax alerts | Slack alerts via incoming webhook: agent hand-offs, new notices, daily filings-due digest, payroll ready (Routines → Slack alerts) | ✅ |
 | Public REST API | REST API (the web app's API) + MCP server | ✅ |
 | Merge / Unified connectors | — | ⬜ |
 
@@ -108,7 +108,6 @@ Legend: ✅ shipped · 🟡 partial · ⬜ not yet · — not applicable
 
 1. Push journals to QuickBooks / Xero through their APIs (CSV import ships today).
 2. Rule-based policy assignment (leave and time policies by location, tenure, department).
-3. Slack alerts for to-dos, filings due and notices.
-4. MFA.
-5. Money movement through a licensed payout partner (PH: InstaPay/PESONet via a partner).
-6. Singapore (CPF, IRAS AIS) and Malaysia (EPF, SOCSO, EIS, PCB) payroll and filings.
+3. MFA.
+4. Money movement through a licensed payout partner (PH: InstaPay/PESONet via a partner).
+5. Singapore (CPF, IRAS AIS) and Malaysia (EPF, SOCSO, EIS, PCB) payroll and filings.

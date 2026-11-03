@@ -1333,6 +1333,14 @@ export const homeAPI = {
   get: () => get("/v1/home"),
 };
 
+// Slack alerts
+export const alertsAPI = {
+  get: () => get("/v1/alerts/slack"),
+  save: (data: { webhook_url?: string; events?: string[]; enabled?: boolean }) => put("/v1/alerts/slack", data),
+  disconnect: () => del("/v1/alerts/slack"),
+  test: () => post("/v1/alerts/slack/test", {}),
+};
+
 // Agent routines (New hire, Offboarding, Pre-payroll check, Filing autopilot)
 export const routinesAPI = {
   list: () => get("/v1/routines"),

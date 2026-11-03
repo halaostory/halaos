@@ -170,6 +170,17 @@ type AiReminder struct {
 	CreatedAt      time.Time          `json:"created_at"`
 }
 
+type AlertChannel struct {
+	CompanyID       int64       `json:"company_id"`
+	SlackWebhookEnc []byte      `json:"slack_webhook_enc"`
+	SlackHint       string      `json:"slack_hint"`
+	Events          []string    `json:"events"`
+	Enabled         bool        `json:"enabled"`
+	LastDigestOn    pgtype.Date `json:"last_digest_on"`
+	UpdatedBy       *int64      `json:"updated_by"`
+	UpdatedAt       time.Time   `json:"updated_at"`
+}
+
 type Announcement struct {
 	ID                int64              `json:"id"`
 	CompanyID         int64              `json:"company_id"`

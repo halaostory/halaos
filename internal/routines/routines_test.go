@@ -1,10 +1,12 @@
 package routines
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/halaostory/halaos/internal/lifecycle"
 	"github.com/halaostory/halaos/internal/payroll"
+	"github.com/halaostory/halaos/internal/store"
 )
 
 func TestSummarize(t *testing.T) {
@@ -90,5 +92,26 @@ func TestAnomalyActions(t *testing.T) {
 	}
 	if acts[1].Title != "Ana Cruz: Net pay is negative" || acts[1].Link != "/payroll" {
 		t.Errorf("%+v", acts[1])
+	}
+}
+
+type fakeNotifier struct{ events, texts []string }
+
+func (f *fakeNotifier) Notify(_ int64, event, text, _ string) {
+	f.events = append(f.events, event)
+	f.texts = append(f.texts, text)
+}
+
+func TestAlertMapping(t *testing.T) {
+	f := &fakeNotifier{}
+	s := &Service{alerts: f}
+	s.alert(store.AgentRoutineRun{RoutineKey: KeyNewHire, Status: "needs_attention", Trigger: "Ana was hired", Summary: "1 item left for you"})
+	s.alert(store.AgentRoutineRun{RoutineKey: KeyPrePayrollCheck, Status: "completed", SubjectName: "Nov 2026 A"})
+	s.alert(store.AgentRoutineRun{RoutineKey: KeyFilingAutopilot, Status: "completed"})
+	if len(f.events) != 2 || f.events[0] != "agent_attention" || f.events[1] != "payroll_ready" {
+		t.Fatalf("%v", f.events)
+	}
+	if !strings.Contains(f.texts[0], "*New hire* — Ana was hired\n1 item left for you") {
+		t.Errorf("%q", f.texts[0])
 	}
 }

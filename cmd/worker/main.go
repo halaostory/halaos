@@ -24,6 +24,7 @@ import (
 	"github.com/halaostory/halaos/internal/integration"
 	"github.com/halaostory/halaos/internal/lifecycle"
 	"github.com/halaostory/halaos/internal/payroll"
+	"github.com/halaostory/halaos/internal/alerts"
 	"github.com/halaostory/halaos/internal/routines"
 	"github.com/halaostory/halaos/internal/store"
 	"github.com/halaostory/halaos/internal/workflow"
@@ -112,6 +113,8 @@ func main() {
 	deviceSvc := devices.NewServiceFromKey(queries, logger, cfg.Integration.EncryptionKey)
 	routineEngine := &routines.Engine{Service: routines.NewService(queries, logger), Gov: govSvc, Calculator: calculator, Enabled: ed.Enabled}
 	govSvc.SetPolicy(routineEngine.Policy)
+	alertSvc := alerts.NewServiceFromKey(queries, cfg.Integration.EncryptionKey, logger, cfg.Resend.BaseURL)
+	routineEngine.SetNotifier(alertSvc)
 	go func() {
 		ticker := time.NewTicker(10 * time.Second)
 		defer ticker.Stop()
@@ -126,6 +129,9 @@ func main() {
 					r := govSvc.Autopilot(ctx)
 					logger.Info("gov filing autopilot", "prepared", r.Prepared, "failed", r.Failed, "state_registrations", r.Registrations, "new_hire_forms", r.NewHireForms)
 					routineEngine.RecordAutopilot(ctx, r)
+					if n := alertSvc.FilingDigest(ctx); n > 0 {
+						logger.Info("slack filing digests sent", "companies", n)
+					}
 				}
 				if n := routineEngine.CheckPayrollRuns(ctx); n > 0 {
 					logger.Info("pre-payroll check", "runs", n)
