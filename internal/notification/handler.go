@@ -388,7 +388,25 @@ func Notify(ctx context.Context, queries *store.Queries, logger *slog.Logger, co
 	})
 	if err != nil {
 		logger.Error("failed to create notification", "error", err, "user_id", userID)
+		return
 	}
+	Push(companyID, userID, title, msg, category)
+}
+
+// Pusher delivers a notification to the user's phone (Web Push). Set at
+// start-up; nil when push is off.
+var Pusher func(ctx context.Context, companyID, userID int64, title, msg, category string)
+
+// Push sends a notification to the user's devices in the background.
+func Push(companyID, userID int64, title, msg, category string) {
+	if Pusher == nil {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		Pusher(ctx, companyID, userID, title, msg, category)
+	}()
 }
 
 // NotifyWithEmail creates a notification and optionally sends an email.

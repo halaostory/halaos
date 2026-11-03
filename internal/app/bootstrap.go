@@ -76,6 +76,7 @@ import (
 	"github.com/halaostory/halaos/internal/orgintel"
 	"github.com/halaostory/halaos/internal/overtime"
 	"github.com/halaostory/halaos/internal/payouts"
+	"github.com/halaostory/halaos/internal/push"
 	"github.com/halaostory/halaos/internal/payroll"
 	"github.com/halaostory/halaos/internal/performance"
 	"github.com/halaostory/halaos/internal/policy"
@@ -467,6 +468,16 @@ func (a *App) setupRoutes() {
 
 	// Home dashboard (to-dos, upcoming payroll/filings, agency registrations, agent activity)
 	home.NewHandler(a.Queries, a.Logger, a.Edition.Enabled).RegisterRoutes(a.mod(edition.ModCore, protected))
+	// Phone notifications (Web Push): every in-app notification is also
+	// pushed to the person's subscribed devices.
+	if pushSvc, err := push.New(context.Background(), a.Queries, a.Logger, a.Cfg.Resend.BaseURL); err != nil {
+		a.Logger.Warn("push notifications disabled", "error", err)
+	} else {
+		pushSvc.RegisterRoutes(a.mod(edition.ModCore, protected))
+		notification.Pusher = func(ctx context.Context, companyID, userID int64, title, msg, category string) {
+			pushSvc.Send(ctx, companyID, userID, push.Message{Title: title, Body: msg, URL: push.LinkFor(category), Tag: category})
+		}
+	}
 
 	// New-hire self-onboarding portal + e-signatures (public token routes are rate limited)
 	selfOnboardHandler := selfonboard.NewHandler(selfonboard.NewService(a.Queries, a.Logger, a.Email, aiProvider, a.Cfg.Resend.BaseURL), a.Queries, a.Logger)

@@ -11,6 +11,7 @@ import (
 	"github.com/halaostory/halaos/internal/govfiling"
 	"github.com/halaostory/halaos/internal/lifecycle"
 	"github.com/halaostory/halaos/internal/payroll"
+	"github.com/halaostory/halaos/internal/notification"
 	"github.com/halaostory/halaos/internal/store"
 )
 
@@ -160,6 +161,7 @@ func (e *Engine) AfterHire(ctx context.Context, companyID, _ int64, emp store.Em
 				Title:   "New team member",
 				Message: fmt.Sprintf("%s joins your team on %s. Plan their first week and a 1:1.", name, emp.HireDate.Format("Mon, Jan 2")),
 			}); err == nil {
+				notification.Push(companyID, *mgr.UserID, n.Title, n.Message, "onboarding")
 				extra = append(extra, Action{Key: "manager_notice", Title: title, Status: ActDone, Rationale: "Managers own the first week.",
 					Undo: &Undo{Kind: UndoRetractNotification, ID: n.ID}})
 			}

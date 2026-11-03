@@ -160,6 +160,9 @@ export default {
     noPayslips: "暂无薪资单",
   },
   profile: {
+    phoneNotifications: "手机通知",
+    phoneNotificationsHelp: "在这台手机上接收审批结果、工资单和提醒",
+    phoneNotificationsBlocked: "手机设置里已关闭本应用的通知",
     title: "个人中心",
     personalInfo: "个人信息",
     firstName: "名",

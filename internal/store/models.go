@@ -2200,6 +2200,25 @@ type PulseSurvey struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
+type PushSubscription struct {
+	ID         int64              `json:"id"`
+	CompanyID  int64              `json:"company_id"`
+	UserID     int64              `json:"user_id"`
+	Endpoint   string             `json:"endpoint"`
+	P256dh     string             `json:"p256dh"`
+	Auth       string             `json:"auth"`
+	UserAgent  string             `json:"user_agent"`
+	CreatedAt  time.Time          `json:"created_at"`
+	LastUsedAt pgtype.Timestamptz `json:"last_used_at"`
+}
+
+type PushVapidKey struct {
+	ID         int16     `json:"id"`
+	PublicKey  string    `json:"public_key"`
+	PrivateKey string    `json:"private_key"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
 type Recognition struct {
 	ID             int64     `json:"id"`
 	CompanyID      int64     `json:"company_id"`

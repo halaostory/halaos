@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/halaostory/halaos/internal/ai/provider"
+	"github.com/halaostory/halaos/internal/notification"
 	"github.com/halaostory/halaos/internal/store"
 )
 
@@ -231,6 +232,7 @@ func (e *Engine) notify(ctx context.Context, sc stepContext, target, text, subje
 		})
 		if err == nil {
 			ids = append(ids, n.ID)
+			notification.Push(sc.companyID, u, subject, text, sc.workflow)
 		}
 	}
 	return ids

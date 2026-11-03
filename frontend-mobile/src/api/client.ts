@@ -340,3 +340,10 @@ export const expenseAPI = {
   create: (data: Record<string, unknown>) => post("/v1/expenses", data),
   submit: (id: number) => post(`/v1/expenses/${id}/submit`, {}),
 };
+
+// Phone notifications (Web Push)
+export const pushAPI = {
+  key: () => get("/v1/push/key"),
+  subscribe: (sub: Record<string, unknown>) => post("/v1/push/subscribe", sub),
+  unsubscribe: (endpoint: string) => post("/v1/push/unsubscribe", { endpoint }),
+};

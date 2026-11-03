@@ -1,7 +1,7 @@
 // HalaPeople mobile service worker: caches the app shell so the app opens
 // offline and installs like a native app. API calls always go to the
 // network — payslips and balances are never served stale from cache.
-const CACHE = 'halapeople-shell-v1'
+const CACHE = 'halapeople-shell-v2'
 const SHELL = ['/m/', '/m/manifest.webmanifest', '/m/icon-192.png', '/m/icon-512.png']
 
 self.addEventListener('install', (e) => {
@@ -27,4 +27,29 @@ self.addEventListener('fetch', (e) => {
       return res
     })))
   }
+})
+
+// Phone notifications (Web Push): show what the server sent; tapping opens
+// the page it points to (or focuses an open app window).
+self.addEventListener('push', (e) => {
+  let m = {}
+  try { m = e.data ? e.data.json() : {} } catch { m = { title: 'HalaPeople', body: e.data ? e.data.text() : '' } }
+  e.waitUntil(self.registration.showNotification(m.title || 'HalaPeople', {
+    body: m.body || '',
+    icon: '/m/icon-192.png',
+    badge: '/m/icon-192.png',
+    tag: m.tag || undefined,
+    data: { url: m.url || '/m/notifications' },
+  }))
+})
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close()
+  const url = (e.notification.data && e.notification.data.url) || '/m/notifications'
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
+    for (const w of wins) {
+      if (w.url.includes('/m/') && 'focus' in w) { w.navigate(url); return w.focus() }
+    }
+    return self.clients.openWindow(url)
+  }))
 })

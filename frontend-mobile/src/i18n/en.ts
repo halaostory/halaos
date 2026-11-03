@@ -160,6 +160,9 @@ export default {
     noPayslips: "No payslips",
   },
   profile: {
+    phoneNotifications: "Phone notifications",
+    phoneNotificationsHelp: "Approvals, payslips and reminders on this phone",
+    phoneNotificationsBlocked: "Notifications are blocked for this app in your phone settings",
     title: "Profile",
     personalInfo: "Personal Info",
     firstName: "First Name",

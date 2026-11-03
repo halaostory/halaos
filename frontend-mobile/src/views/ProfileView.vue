@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { pushSupported, pushEnabled, enablePush, disablePush } from "../utils/push";
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
@@ -142,6 +143,28 @@ onMounted(() => {
   loadInfo();
   loadBotStatus();
 });
+
+// Phone notifications (Web Push) on this device.
+const pushOk = ref(pushSupported());
+const pushOn = ref(false);
+const pushBusy = ref(false);
+pushEnabled().then((v) => (pushOn.value = v)).catch(() => undefined);
+async function togglePush(on: boolean) {
+  pushBusy.value = true;
+  try {
+    if (on) {
+      pushOn.value = await enablePush();
+      if (!pushOn.value) showToast(t("profile.phoneNotificationsBlocked"));
+    } else {
+      await disablePush();
+      pushOn.value = false;
+    }
+  } catch {
+    showToast(t("common.failed"));
+  } finally {
+    pushBusy.value = false;
+  }
+}
 </script>
 
 <template>
@@ -229,6 +252,11 @@ onMounted(() => {
         is-link
         @click="router.push({ name: 'notifications' })"
       />
+      <Cell v-if="pushOk" :title="t('profile.phoneNotifications')" :label="t('profile.phoneNotificationsHelp')" center>
+        <template #right-icon>
+          <Switch :model-value="pushOn" :loading="pushBusy" size="22" @update:model-value="togglePush" />
+        </template>
+      </Cell>
     </CellGroup>
 
     <!-- Logout -->
