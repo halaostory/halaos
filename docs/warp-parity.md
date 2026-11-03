@@ -68,7 +68,7 @@ Legend: ✅ shipped · 🟡 partial · ⬜ not yet · — not applicable
 | Self-service onboarding checklist (offer, NDA, tax forms, bank, ID upload, benefits) | Self-onboarding portal (offer letter e-sign, IDs, bank, documents) | ✅ |
 | Offboarding: one action → final pay, Google/Okta suspended, device locked | One action: clearance, final pay, device lock/recall, access revocation (Google/Slack/GitHub) | ✅ |
 | PTO policies, accruals, approvals, payroll sync | Leave types, accrual, approvals, encashment, payroll sync | ✅ |
-| Policy assignment by location / tenure / department | Leave types per company. No rule-based assignment | 🟡 |
+| Policy assignment by location / tenure / department | Time off → Policies: entitlement rules by department, employment type, gender and tenure band with priorities; applied at hire, re-applied daily (tenure upgrades), preview before apply. No work-location attribute yet | ✅ |
 | Time tracking add-on (clock in/out, geofence, shifts, timesheets → payroll) | Suite edition: attendance, geofences, schedules, DTR, overtime → payroll | ✅ |
 | Roles & permissions, MFA, SSO | Roles (super admin / admin / manager / employee); two-factor sign-in with an authenticator app (TOTP) and recovery codes; SSO via JWT. No SAML/OIDC SSO yet | 🟡 |
 | Mobile app for employees | `frontend-mobile` (H5); not yet adapted to editions | 🟡 |
@@ -107,7 +107,6 @@ Legend: ✅ shipped · 🟡 partial · ⬜ not yet · — not applicable
 ## Next up
 
 1. Push journals to QuickBooks / Xero through their APIs (CSV import ships today).
-2. Rule-based policy assignment (leave and time policies by location, tenure, department).
-3. SAML / OIDC single sign-on (Google Workspace, Okta).
-4. Money movement through a licensed payout partner (PH: InstaPay/PESONet via a partner).
-5. Singapore (CPF, IRAS AIS) and Malaysia (EPF, SOCSO, EIS, PCB) payroll and filings.
+2. SAML / OIDC single sign-on (Google Workspace, Okta).
+3. Money movement through a licensed payout partner (PH: InstaPay/PESONet via a partner).
+4. Singapore (CPF, IRAS AIS) and Malaysia (EPF, SOCSO, EIS, PCB) payroll and filings.

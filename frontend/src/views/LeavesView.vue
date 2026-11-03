@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LeavePoliciesPanel from '../components/leave/LeavePoliciesPanel.vue'
 import { ref, h, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
@@ -307,6 +308,9 @@ async function runCarryover() {
           </NButton>
         </NSpace>
         <NDataTable :columns="allBalanceColumns" :data="allBalances" :loading="allBalancesLoading" />
+      </NTabPane>
+      <NTabPane v-if="auth.isAdmin" name="policies" :tab="t('leavePolicy.tab')">
+        <LeavePoliciesPanel />
       </NTabPane>
       <NTabPane v-if="auth.isAdmin" name="types" :tab="t('leave.manageTypes')">
         <NSpace justify="end" style="margin-bottom: 12px;">

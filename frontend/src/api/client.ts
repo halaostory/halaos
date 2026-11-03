@@ -303,6 +303,15 @@ export const breakAPI = {
 };
 
 // Leave
+export const leavePolicyAPI = {
+  rules: () => get("/v1/leave-policies/rules"),
+  create: (data: Record<string, unknown>) => post("/v1/leave-policies/rules", data),
+  update: (id: number, data: Record<string, unknown>) => put(`/v1/leave-policies/rules/${id}`, data),
+  remove: (id: number) => del(`/v1/leave-policies/rules/${id}`),
+  preview: () => post("/v1/leave-policies/preview", {}),
+  apply: () => post("/v1/leave-policies/apply", {}),
+};
+
 export const leaveAPI = {
   listTypes: () => get("/v1/leaves/types"),
   createType: (data: Record<string, unknown>) => post("/v1/leaves/types", data),

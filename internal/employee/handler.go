@@ -19,6 +19,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/halaostory/halaos/internal/auth"
+	"github.com/halaostory/halaos/internal/leavepolicy"
 	"github.com/halaostory/halaos/internal/store"
 	"github.com/halaostory/halaos/pkg/pagination"
 	"github.com/halaostory/halaos/pkg/response"
@@ -157,7 +158,7 @@ func (h *Handler) CreateEmployee(c *gin.Context) {
 	}
 
 	// Initialize leave balances for all active leave types (best-effort, non-blocking)
-	h.initLeaveBalances(c.Request.Context(), companyID, emp.ID, hireDate)
+	h.initLeaveBalances(c.Request.Context(), companyID, emp, hireDate)
 
 	// Emit employee.hired event for Integration Hub provisioning
 	h.emitEmployeeEvent(c, companyID, emp.ID, "employee.hired", map[string]any{
@@ -540,7 +541,8 @@ func (h *Handler) DeleteDocument(c *gin.Context) {
 // initLeaveBalances creates zero-balance rows for all active leave types so the
 // employee can see their leave entitlements immediately. Best-effort: errors are
 // logged but do not block employee creation.
-func (h *Handler) initLeaveBalances(ctx context.Context, companyID, employeeID int64, hireDate time.Time) {
+func (h *Handler) initLeaveBalances(ctx context.Context, companyID int64, emp store.Employee, hireDate time.Time) {
+	employeeID := emp.ID
 	year := int32(hireDate.Year())
 	if y := int32(time.Now().Year()); y > year {
 		year = y
@@ -550,6 +552,8 @@ func (h *Handler) initLeaveBalances(ctx context.Context, companyID, employeeID i
 		h.logger.Error("failed to list leave types for balance init", "error", err)
 		return
 	}
+	rules, _ := h.queries.ListLeavePolicyRules(ctx, companyID)
+	pe := leavepolicy.FromEmployee(emp)
 	var zero pgtype.Numeric
 	_ = zero.Scan("0")
 	for _, lt := range leaveTypes {
@@ -558,7 +562,7 @@ func (h *Handler) initLeaveBalances(ctx context.Context, companyID, employeeID i
 			EmployeeID:  employeeID,
 			LeaveTypeID: lt.ID,
 			Year:        year,
-			Earned:      lt.DefaultDays,
+			Earned:      leavepolicy.InitialDays(rules, lt, pe, time.Now()),
 			Carried:     zero,
 		}); err != nil {
 			h.logger.Error("failed to init leave balance",

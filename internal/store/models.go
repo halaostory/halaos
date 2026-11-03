@@ -1545,6 +1545,23 @@ type LeaveEncashment struct {
 	UpdatedAt   time.Time          `json:"updated_at"`
 }
 
+type LeavePolicyRule struct {
+	ID              int64          `json:"id"`
+	CompanyID       int64          `json:"company_id"`
+	LeaveTypeID     int64          `json:"leave_type_id"`
+	Name            string         `json:"name"`
+	Priority        int32          `json:"priority"`
+	DepartmentIds   []int64        `json:"department_ids"`
+	EmploymentTypes []string       `json:"employment_types"`
+	Gender          string         `json:"gender"`
+	MinTenureMonths int32          `json:"min_tenure_months"`
+	MaxTenureMonths *int32         `json:"max_tenure_months"`
+	Days            pgtype.Numeric `json:"days"`
+	IsActive        bool           `json:"is_active"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+}
+
 type LeaveRequest struct {
 	ID              int64              `json:"id"`
 	CompanyID       int64              `json:"company_id"`

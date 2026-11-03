@@ -23,6 +23,7 @@ import (
 	"github.com/halaostory/halaos/internal/email"
 	"github.com/halaostory/halaos/internal/govfiling"
 	"github.com/halaostory/halaos/internal/integration"
+	"github.com/halaostory/halaos/internal/leavepolicy"
 	"github.com/halaostory/halaos/internal/lifecycle"
 	"github.com/halaostory/halaos/internal/payroll"
 	"github.com/halaostory/halaos/internal/routines"
@@ -255,6 +256,13 @@ func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.
 
 	// Check for overdue leave accruals (monthly)
 	accrueLeaveBalances(ctx, queries, logger)
+
+	// Re-apply rule-based leave policies (tenure upgrades, department moves)
+	if ed.Enabled(edition.ModTimeOff) {
+		if n := leavepolicy.NewService(queries, logger).ApplyAll(ctx); n > 0 {
+			logger.Info("leave policy entitlements updated", "changes", n)
+		}
+	}
 
 	// Year-end leave carryover (runs in January)
 	processLeaveCarryover(ctx, queries, logger)

@@ -62,6 +62,7 @@ import (
 	"github.com/halaostory/halaos/internal/integration/crypto"
 	"github.com/halaostory/halaos/internal/knowledge"
 	"github.com/halaostory/halaos/internal/leave"
+	"github.com/halaostory/halaos/internal/leavepolicy"
 	"github.com/halaostory/halaos/internal/lifecycle"
 	"github.com/halaostory/halaos/internal/loan"
 	"github.com/halaostory/halaos/internal/middleware"
@@ -432,6 +433,9 @@ func (a *App) setupRoutes() {
 	}
 	govSvc.SetPolicy(routineEngine.Policy)
 	lifecycleHandler.Service().SetRoutines(routineEngine)
+
+	// Rule-based time-off policies (by department, employment type, gender, tenure)
+	leavepolicy.NewService(a.Queries, a.Logger).RegisterRoutes(a.mod(edition.ModTimeOff, protected))
 
 	// Slack alerts (agent needs you, notices, filings due, payroll ready)
 	alertSvc := alerts.NewServiceFromKey(a.Queries, a.Cfg.Integration.EncryptionKey, a.Logger, a.Cfg.Resend.BaseURL)

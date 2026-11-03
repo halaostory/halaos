@@ -22,6 +22,7 @@ import (
 	"github.com/halaostory/halaos/internal/clearance"
 	"github.com/halaostory/halaos/internal/devices"
 	"github.com/halaostory/halaos/internal/finalpay"
+	"github.com/halaostory/halaos/internal/leavepolicy"
 	"github.com/halaostory/halaos/internal/selfonboard"
 	"github.com/halaostory/halaos/internal/store"
 )
@@ -243,7 +244,7 @@ func (s *Service) Hire(ctx context.Context, companyID, userID int64, in HireInpu
 	}
 
 	// Leave balances (time off policies)
-	n, err := initLeaveBalances(ctx, q, companyID, emp.ID, hireDate, s.now())
+	n, err := initLeaveBalances(ctx, q, companyID, emp, hireDate, s.now())
 	if err != nil {
 		return nil, err
 	}
@@ -643,7 +644,8 @@ func (s *Service) fieldSpecs(ctx context.Context, companyID int64) ([]FieldSpec,
 	return specs, ids, nil
 }
 
-func initLeaveBalances(ctx context.Context, q *store.Queries, companyID, employeeID int64, hireDate, now time.Time) (int, error) {
+func initLeaveBalances(ctx context.Context, q *store.Queries, companyID int64, emp store.Employee, hireDate, now time.Time) (int, error) {
+	employeeID := emp.ID
 	year := int32(hireDate.Year())
 	if y := int32(now.Year()); y > year {
 		year = y
@@ -652,6 +654,11 @@ func initLeaveBalances(ctx context.Context, q *store.Queries, companyID, employe
 	if err != nil {
 		return 0, fmt.Errorf("list leave types: %w", err)
 	}
+	rules, err := q.ListLeavePolicyRules(ctx, companyID)
+	if err != nil {
+		return 0, fmt.Errorf("list leave policy rules: %w", err)
+	}
+	pe := leavepolicy.FromEmployee(emp)
 	var zero pgtype.Numeric
 	_ = zero.Scan("0")
 	for _, lt := range leaveTypes {
@@ -660,7 +667,7 @@ func initLeaveBalances(ctx context.Context, q *store.Queries, companyID, employe
 			EmployeeID:  employeeID,
 			LeaveTypeID: lt.ID,
 			Year:        year,
-			Earned:      lt.DefaultDays,
+			Earned:      leavepolicy.InitialDays(rules, lt, pe, now),
 			Carried:     zero,
 		}); err != nil {
 			return 0, fmt.Errorf("init leave balance: %w", err)
