@@ -86,6 +86,7 @@ Legend: ✅ shipped · 🟡 partial · ⬜ not yet · — not applicable
 | Warp | HalaPeople | Status |
 |---|---|:-:|
 | Licensed brokerage, carriers, EDI, deduction sync | Benefit plans, enrollment, claims, payroll deductions. No brokerage or HMO integrations | 🟡 |
+| Partner perks (discounts on software and services) | Benefits → Perks: HR curates offers (partner, category, offer, code, link, expiry); employees browse by category and claim one to reveal the code/link; claims are counted for HR | ✅ |
 | 401(k) partners | — (SSS/Pag-IBIG MP2 are statutory/voluntary in-payroll) | — |
 
 ## IT

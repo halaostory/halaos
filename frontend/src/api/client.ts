@@ -905,6 +905,11 @@ export const file201API = {
 
 // Benefits Administration
 export const benefitAPI = {
+  listPerks: () => get("/v1/benefits/perks"),
+  createPerk: (data: Record<string, unknown>) => post("/v1/benefits/perks", data),
+  updatePerk: (id: number, data: Record<string, unknown>) => put(`/v1/benefits/perks/${id}`, data),
+  deletePerk: (id: number) => del(`/v1/benefits/perks/${id}`),
+  claimPerk: (id: number) => post(`/v1/benefits/perks/${id}/claim`, {}),
   listPlans: () => get("/v1/benefits/plans"),
   getPlan: (id: number) => get(`/v1/benefits/plans/${id}`),
   createPlan: (data: Record<string, unknown>) =>

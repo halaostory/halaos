@@ -633,6 +633,24 @@ type CompanyDevice struct {
 	UpdatedAt          time.Time          `json:"updated_at"`
 }
 
+type CompanyPerk struct {
+	ID          int64       `json:"id"`
+	CompanyID   int64       `json:"company_id"`
+	Title       string      `json:"title"`
+	Partner     string      `json:"partner"`
+	Category    string      `json:"category"`
+	Description string      `json:"description"`
+	Offer       string      `json:"offer"`
+	Code        string      `json:"code"`
+	Url         string      `json:"url"`
+	ExpiresOn   pgtype.Date `json:"expires_on"`
+	Active      bool        `json:"active"`
+	Claims      int32       `json:"claims"`
+	CreatedBy   *int64      `json:"created_by"`
+	CreatedAt   time.Time   `json:"created_at"`
+	UpdatedAt   time.Time   `json:"updated_at"`
+}
+
 type CompanyPolicy struct {
 	ID                     int64     `json:"id"`
 	CompanyID              int64     `json:"company_id"`
