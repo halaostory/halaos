@@ -14,10 +14,29 @@ const email = ref("");
 const password = ref("");
 const loading = ref(false);
 
+const mfaToken = ref("");
+const mfaCode = ref("");
+
+async function onMfa() {
+  loading.value = true;
+  try {
+    await auth.verifyMfa(mfaToken.value, mfaCode.value);
+    router.replace((route.query.redirect as string) || "/");
+  } catch {
+    showToast({ message: t("login.mfaFailed"), type: "fail" });
+  } finally {
+    loading.value = false;
+  }
+}
+
 async function onSubmit() {
   loading.value = true;
   try {
-    await auth.login(email.value, password.value);
+    const r = await auth.login(email.value, password.value);
+    if (r.mfaToken) {
+      mfaToken.value = r.mfaToken;
+      return;
+    }
     const redirect = (route.query.redirect as string) || "/";
     router.replace(redirect);
   } catch {
@@ -35,7 +54,16 @@ async function onSubmit() {
       <p class="login-subtitle">{{ t("login.subtitle") }}</p>
     </div>
 
-    <Form @submit="onSubmit" class="login-form">
+    <Form v-if="mfaToken" @submit="onMfa" class="login-form">
+      <p class="mfa-help">{{ t("login.mfaHelp") }}</p>
+      <CellGroup inset>
+        <Field v-model="mfaCode" name="code" :label="t('login.mfaCode')" placeholder="123456" inputmode="numeric" autocomplete="one-time-code" :rules="[{ required: true }]" />
+      </CellGroup>
+      <div class="login-actions">
+        <Button round block type="primary" native-type="submit" :loading="loading" size="large">{{ t("login.mfaVerify") }}</Button>
+      </div>
+    </Form>
+    <Form v-else @submit="onSubmit" class="login-form">
       <CellGroup inset>
         <Field
           v-model="email"
@@ -109,4 +137,5 @@ async function onSubmit() {
 .login-actions {
   padding: 24px 16px;
 }
+.mfa-help { padding: 0 16px; font-size: 14px; color: var(--van-text-color-2); }
 </style>

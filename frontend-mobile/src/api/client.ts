@@ -44,7 +44,7 @@ const api = ofetch.create({
     if (response.status === 401) {
       const url =
         typeof request === "string" ? request : request?.toString() || "";
-      if (url.includes("/auth/login")) return;
+      if (url.includes("/auth/login") || url.includes("/auth/mfa/")) return;
       if (url.includes("/auth/refresh")) {
         localStorage.removeItem("token");
         localStorage.removeItem("refresh_token");
@@ -90,6 +90,7 @@ function put<T>(url: string, body?: Record<string, unknown>) {
 export const authAPI = {
   login: (data: { email: string; password: string }) =>
     post("/v1/auth/login", data),
+  mfaVerify: (data: { mfa_token: string; code: string }) => post("/v1/auth/mfa/verify", data),
   me: () => get("/v1/auth/me"),
   changePassword: (data: { current_password: string; new_password: string }) =>
     put("/v1/auth/password", data),
@@ -122,7 +123,17 @@ export const attendanceAPI = {
 // Leave
 export const leaveAPI = {
   listTypes: () => get("/v1/leaves/types"),
-  getBalances: () => get("/v1/leaves/balances"),
+  // The API returns earned/used/carried/adjusted; the app shows totals and what is left.
+  getBalances: async () => {
+    const raw = (await get("/v1/leaves/balances")) as { data?: Record<string, unknown>[] } | Record<string, unknown>[];
+    const rows = (Array.isArray(raw) ? raw : raw.data) || [];
+    const data = rows.map((b) => {
+      const n = (k: string) => Number(b[k] ?? 0);
+      const total = n("earned") + n("carried") + n("adjusted");
+      return { ...b, total, remaining: Math.round((total - n("used")) * 10) / 10 };
+    });
+    return { success: true, data };
+  },
   listRequests: (params?: Record<string, string>) =>
     get("/v1/leaves/requests", params),
   createRequest: (data: Record<string, unknown>) =>
@@ -320,4 +331,12 @@ export const onboardingChecklistAPI = {
     post("/v1/onboarding-checklist/complete-step", { step, persona }),
   dismiss: (persona = "employee") =>
     post("/v1/onboarding-checklist/dismiss", { persona }),
+};
+
+// Expenses (employee self-service)
+export const expenseAPI = {
+  categories: () => get("/v1/expenses/categories"),
+  my: () => get("/v1/expenses/my"),
+  create: (data: Record<string, unknown>) => post("/v1/expenses", data),
+  submit: (id: number) => post(`/v1/expenses/${id}/submit`, {}),
 };

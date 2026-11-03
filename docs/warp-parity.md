@@ -71,7 +71,7 @@ Legend: ✅ shipped · 🟡 partial · ⬜ not yet · — not applicable
 | Policy assignment by location / tenure / department | Time off → Policies: entitlement rules by department, employment type, gender and tenure band with priorities; applied at hire, re-applied daily (tenure upgrades), preview before apply. No work-location attribute yet | ✅ |
 | Time tracking add-on (clock in/out, geofence, shifts, timesheets → payroll) | Suite edition: attendance, geofences, schedules, DTR, overtime → payroll | ✅ |
 | Roles & permissions, MFA, SSO | Roles (super admin / admin / manager / employee); two-factor sign-in with an authenticator app (TOTP) and recovery codes; SSO via JWT. No SAML/OIDC SSO yet | 🟡 |
-| Mobile app for employees | `frontend-mobile` (H5); not yet adapted to editions | 🟡 |
+| Mobile app for employees | `frontend-mobile` (mobile web): edition-aware tabs (Home, Clock in suite, Leave, Pay, Expenses, Me), expense claims, leave balances, payslips, two-factor sign-in. No native store app | 🟡 |
 
 ## Contractors
 

@@ -58,3 +58,9 @@ body {
 .clock-btn-pulse {
   animation: pulse 2s infinite;
 }
+
+/* Vant's hairline border rule (position: relative) is bundled after the
+   tabbar's and would un-pin the bottom tab bar. */
+.van-tabbar--fixed {
+  position: fixed !important;
+}

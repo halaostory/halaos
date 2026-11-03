@@ -82,7 +82,8 @@ async function loadBalance() {
   try {
     const res = (await billingAPI.getBalance()) as ApiResponse<TokenBalance>;
     const data = res.data ?? (res as unknown as TokenBalance);
-    tokenBalance.value = data.balance;
+    // Unmetered deployments (BILLING_ENABLED off) report unlimited: hide the tag.
+    tokenBalance.value = (data as TokenBalance & { unlimited?: boolean }).unlimited ? null : data.balance;
   } catch {
     // ignore
   }

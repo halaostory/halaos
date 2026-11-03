@@ -12,6 +12,7 @@ import {
 } from "vant";
 import { useAuthStore } from "../stores/auth";
 import { attendanceAPI, leaveAPI, notificationAPI } from "../api/client";
+import { hasModule } from "../edition";
 import AiQuickAsk from "../components/ai/AiQuickAsk.vue";
 import OnboardingChecklist from "../components/OnboardingChecklist.vue";
 import { getSuggestions } from "../composables/useAiContext";
@@ -74,7 +75,7 @@ const aiSuggestions = computed(() => {
 
 async function loadData() {
   const [summaryRes, balanceRes, countRes] = await Promise.allSettled([
-    attendanceAPI.getSummary(),
+    hasModule("attendance") ? attendanceAPI.getSummary() : Promise.reject(new Error("no attendance")),
     leaveAPI.getBalances(),
     notificationAPI.unreadCount(),
   ]);
@@ -115,7 +116,7 @@ onMounted(loadData);
 
       <!-- Clock Status Card -->
       <Skeleton :loading="loading" :row="3" class="home-skeleton">
-        <CellGroup inset :title="t('home.clockStatus')">
+        <CellGroup v-if="hasModule('attendance')" inset :title="t('home.clockStatus')">
           <Cell
             :title="clockStatusText"
             is-link
