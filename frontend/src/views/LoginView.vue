@@ -81,6 +81,7 @@ onMounted(() => {
 
 // Second sign-in step for accounts with two-factor sign-in.
 const mfaToken = ref('')
+const companies = ref<{ id: number; name: string }[]>([])
 const mfaCode = ref('')
 async function handleMfa() {
   if (!mfaCode.value.trim()) return
@@ -98,10 +99,10 @@ async function handleMfa() {
   }
 }
 
-async function handleLogin() {
-  if (!formRef.value) return
+async function handleLogin(companyId?: number) {
+  if (!formRef.value && !companyId) return
   try {
-    await formRef.value.validate()
+    if (!companyId) await formRef.value!.validate()
   } catch (errors: unknown) {
     const errArr = errors as Array<Array<{ message?: string }>> | undefined
     const firstMsg = errArr?.[0]?.[0]?.message
@@ -110,7 +111,12 @@ async function handleLogin() {
   }
   loading.value = true
   try {
-    const r = await auth.login(form.value.email, form.value.password)
+    const r = await auth.login(form.value.email, form.value.password, companyId)
+    if (r.companies) {
+      companies.value = r.companies
+      return
+    }
+    companies.value = []
     if (r.mfaToken) {
       mfaToken.value = r.mfaToken
       return
@@ -175,6 +181,12 @@ async function handleLogin() {
         <NButton type="primary" block :loading="loading" style="margin-top: 12px;" data-testid="mfa-submit" @click="handleMfa">{{ t('mfa.verify') }}</NButton>
         <NButton text block style="margin-top: 8px;" @click="mfaToken = ''; mfaCode = ''">{{ t('common.back') }}</NButton>
       </div>
+      <div v-else-if="companies.length" class="mfa-step">
+        <h3 style="margin: 0 0 4px;">{{ t('auth.chooseCompany') }}</h3>
+        <p style="margin: 0 0 12px; opacity: .7; font-size: 13px;">{{ t('auth.chooseCompanyHelp') }}</p>
+        <NButton v-for="co in companies" :key="co.id" block secondary :loading="loading" style="margin-bottom: 8px;" @click="handleLogin(co.id)">{{ co.name }}</NButton>
+        <NButton text block style="margin-top: 4px;" @click="companies = []">{{ t('common.back') }}</NButton>
+      </div>
       <NForm v-else ref="formRef" :model="form" :rules="rules">
         <NFormItem path="email" :label="t('auth.email')">
           <NInput
@@ -201,7 +213,7 @@ async function handleLogin() {
           :loading="loading"
           style="margin-top: 8px;"
           data-testid="login-submit"
-          @click.prevent="handleLogin"
+          @click.prevent="handleLogin()"
         >
           {{ t('auth.login') }}
         </NButton>

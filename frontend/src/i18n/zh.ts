@@ -205,6 +205,8 @@ export default {
     settings: "系统配置",
   },
   auth: {
+    chooseCompany: "选择公司",
+    chooseCompanyHelp: "你的邮箱在多家公司都有账号。",
     passwordTooShort: "密码至少 8 位",
     role: "角色",
     comingSoon: "即将推出",

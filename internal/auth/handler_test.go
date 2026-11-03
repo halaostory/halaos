@@ -90,7 +90,7 @@ func TestLogin_Success(t *testing.T) {
 	h := newTestHandler(mockDB)
 
 	u := activeUser("admin@test.com", "password123")
-	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...))
+	loginLookup(mockDB, u) // ListUsersByEmail + GetUserByID
 	mockDB.OnQueryRow(testutil.NewErrorRow(pgx.ErrNoRows)) // GetUserMFA (none)
 	mockDB.OnExecSuccess()                                 // UpdateLastLogin
 
@@ -153,7 +153,7 @@ func TestLogin_InactiveAccount(t *testing.T) {
 
 	u := activeUser("admin@test.com", "password123")
 	u.Status = "inactive"
-	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...)) // GetUserByEmailAny
+	loginLookup(mockDB, u) // ListUsersByEmail + GetUserByID
 
 	c, w := testutil.NewGinContext("POST", "/auth/login", gin.H{
 		"email": "admin@test.com", "password": "password123",
@@ -785,7 +785,7 @@ func TestLogin_EmailNotVerified_ReturnsSemanticCode(t *testing.T) {
 
 	u := activeUser("admin@test.com", "password123")
 	u.EmailVerified = false
-	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...)) // GetUserByEmailAny
+	loginLookup(mockDB, u) // ListUsersByEmail + GetUserByID
 
 	c, w := testutil.NewGinContext("POST", "/auth/login", gin.H{
 		"email": "admin@test.com", "password": "password123",
@@ -809,7 +809,7 @@ func TestLogin_AccountDisabled_ReturnsSemanticCode(t *testing.T) {
 
 	u := activeUser("admin@test.com", "password123")
 	u.Status = "disabled"
-	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...)) // GetUserByEmailAny
+	loginLookup(mockDB, u) // ListUsersByEmail + GetUserByID
 
 	c, w := testutil.NewGinContext("POST", "/auth/login", gin.H{
 		"email": "admin@test.com", "password": "password123",
@@ -875,4 +875,12 @@ func TestVerifyEmail_AlreadyVerified_ReturnsSuccess(t *testing.T) {
 	if data["status"] != "already_verified" {
 		t.Fatalf("expected status already_verified, got %v", data["status"])
 	}
+}
+
+// loginLookup queues the account lookup Login does: every account with
+// the email (with its company name), then the chosen user.
+func loginLookup(mockDB *testutil.MockDBTX, u store.User) {
+	row := append(userScanValues(u), "Test Co")
+	mockDB.OnQuery(testutil.NewRows([][]interface{}{row}), nil)
+	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...))
 }

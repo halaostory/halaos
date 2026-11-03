@@ -205,6 +205,8 @@ export default {
     settings: "System configuration",
   },
   auth: {
+    chooseCompany: "Choose a company",
+    chooseCompanyHelp: "Your email has an account at more than one company.",
     passwordTooShort: "Password must be at least 8 characters",
     role: "Role",
     comingSoon: "Coming soon",

@@ -7,6 +7,7 @@ package store
 
 import (
 	"context"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -378,6 +379,76 @@ func (q *Queries) ListUsersByCompany(ctx context.Context, arg ListUsersByCompany
 			&i.VerificationTokenExpiresAt,
 			&i.ResetToken,
 			&i.ResetTokenExpiresAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUsersByEmail = `-- name: ListUsersByEmail :many
+SELECT u.id, u.company_id, u.email, u.password_hash, u.first_name, u.last_name, u.role, u.status, u.avatar_url, u.locale, u.last_login_at, u.created_at, u.updated_at, u.email_verified, u.verification_token, u.verification_token_expires_at, u.reset_token, u.reset_token_expires_at, c.name AS company_name
+FROM users u JOIN companies c ON c.id = u.company_id
+WHERE lower(u.email) = lower($1)
+ORDER BY c.name, u.id
+`
+
+type ListUsersByEmailRow struct {
+	ID                         int64              `json:"id"`
+	CompanyID                  int64              `json:"company_id"`
+	Email                      string             `json:"email"`
+	PasswordHash               string             `json:"password_hash"`
+	FirstName                  string             `json:"first_name"`
+	LastName                   string             `json:"last_name"`
+	Role                       string             `json:"role"`
+	Status                     string             `json:"status"`
+	AvatarUrl                  *string            `json:"avatar_url"`
+	Locale                     string             `json:"locale"`
+	LastLoginAt                pgtype.Timestamptz `json:"last_login_at"`
+	CreatedAt                  time.Time          `json:"created_at"`
+	UpdatedAt                  time.Time          `json:"updated_at"`
+	EmailVerified              bool               `json:"email_verified"`
+	VerificationToken          *string            `json:"verification_token"`
+	VerificationTokenExpiresAt pgtype.Timestamptz `json:"verification_token_expires_at"`
+	ResetToken                 *string            `json:"reset_token"`
+	ResetTokenExpiresAt        pgtype.Timestamptz `json:"reset_token_expires_at"`
+	CompanyName                string             `json:"company_name"`
+}
+
+// One person can have an account at several companies (same email).
+func (q *Queries) ListUsersByEmail(ctx context.Context, email string) ([]ListUsersByEmailRow, error) {
+	rows, err := q.db.Query(ctx, listUsersByEmail, email)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListUsersByEmailRow{}
+	for rows.Next() {
+		var i ListUsersByEmailRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CompanyID,
+			&i.Email,
+			&i.PasswordHash,
+			&i.FirstName,
+			&i.LastName,
+			&i.Role,
+			&i.Status,
+			&i.AvatarUrl,
+			&i.Locale,
+			&i.LastLoginAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.EmailVerified,
+			&i.VerificationToken,
+			&i.VerificationTokenExpiresAt,
+			&i.ResetToken,
+			&i.ResetTokenExpiresAt,
+			&i.CompanyName,
 		); err != nil {
 			return nil, err
 		}

@@ -45,6 +45,8 @@ export default {
     status_rejected: "Rejected",
   },
   login: {
+    chooseCompany: "Your email is used at more than one company. Which one do you want to open?",
+    back: "Back",
     title: "HalaPeople",
     mfaHelp: "Enter the 6-digit code from your authenticator app, or a recovery code.",
     mfaCode: "Code",

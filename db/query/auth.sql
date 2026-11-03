@@ -76,3 +76,10 @@ SELECT * FROM users WHERE email = $1 LIMIT 1;
 
 -- name: GetUserByVerificationTokenAny :one
 SELECT * FROM users WHERE verification_token = $1;
+
+-- name: ListUsersByEmail :many
+-- One person can have an account at several companies (same email).
+SELECT u.*, c.name AS company_name
+FROM users u JOIN companies c ON c.id = u.company_id
+WHERE lower(u.email) = lower(@email)
+ORDER BY c.name, u.id;

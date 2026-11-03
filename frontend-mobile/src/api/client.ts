@@ -88,7 +88,7 @@ function put<T>(url: string, body?: Record<string, unknown>) {
 
 // Auth
 export const authAPI = {
-  login: (data: { email: string; password: string }) =>
+  login: (data: { email: string; password: string; company_id?: number }) =>
     post("/v1/auth/login", data),
   mfaVerify: (data: { mfa_token: string; code: string }) => post("/v1/auth/mfa/verify", data),
   me: () => get("/v1/auth/me"),

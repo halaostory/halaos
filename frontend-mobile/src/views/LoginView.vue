@@ -2,7 +2,7 @@
 import { ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
-import { Form, Field, Button, CellGroup, showToast } from "vant";
+import { Form, Field, Button, CellGroup, Cell, showToast } from "vant";
 import { useAuthStore } from "../stores/auth";
 
 const { t } = useI18n();
@@ -15,6 +15,7 @@ const password = ref("");
 const loading = ref(false);
 
 const mfaToken = ref("");
+const companies = ref<{ id: number; name: string }[]>([]);
 const mfaCode = ref("");
 
 async function onMfa() {
@@ -29,10 +30,15 @@ async function onMfa() {
   }
 }
 
-async function onSubmit() {
+async function onSubmit(companyId?: number) {
   loading.value = true;
   try {
-    const r = await auth.login(email.value, password.value);
+    const r = await auth.login(email.value, password.value, companyId);
+    if (r.companies) {
+      companies.value = r.companies;
+      return;
+    }
+    companies.value = [];
     if (r.mfaToken) {
       mfaToken.value = r.mfaToken;
       return;
@@ -63,7 +69,16 @@ async function onSubmit() {
         <Button round block type="primary" native-type="submit" :loading="loading" size="large">{{ t("login.mfaVerify") }}</Button>
       </div>
     </Form>
-    <Form v-else @submit="onSubmit" class="login-form">
+    <div v-else-if="companies.length" class="login-form">
+      <p class="mfa-help">{{ t("login.chooseCompany") }}</p>
+      <CellGroup inset>
+        <Cell v-for="co in companies" :key="co.id" :title="co.name" is-link :clickable="!loading" @click="onSubmit(co.id)" />
+      </CellGroup>
+      <div class="login-actions">
+        <Button round block plain size="large" @click="companies = []">{{ t("login.back") }}</Button>
+      </div>
+    </div>
+    <Form v-else @submit="onSubmit()" class="login-form">
       <CellGroup inset>
         <Field
           v-model="email"

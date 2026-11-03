@@ -1,9 +1,11 @@
 package auth
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -101,6 +103,9 @@ type registerRequest struct {
 type loginRequest struct {
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required"`
+	// CompanyID picks the account when the email exists at several
+	// companies (the employee app is shared by every company).
+	CompanyID int64 `json:"company_id"`
 }
 
 type refreshRequest struct {
@@ -615,9 +620,15 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	user, err := h.queries.GetUserByEmailAny(c.Request.Context(), req.Email)
+	user, choice, err := h.pickLoginAccount(c.Request.Context(), req)
 	if err != nil {
 		response.Error(c, http.StatusUnauthorized, "invalid_credentials", "Invalid email or password")
+		return
+	}
+	if choice != nil {
+		// The password matches accounts at several companies: let the
+		// person choose (only shown after the password is verified).
+		response.OK(c, gin.H{"company_choice_required": true, "companies": choice})
 		return
 	}
 
@@ -1368,4 +1379,35 @@ func (h *Handler) SSOLogin(c *gin.Context) {
 	}
 
 	response.OK(c, resp)
+}
+
+// pickLoginAccount finds the account to sign in to. When the email and
+// password match accounts at more than one company and none was chosen,
+// it returns the companies to choose from instead.
+func (h *Handler) pickLoginAccount(ctx context.Context, req loginRequest) (store.User, []gin.H, error) {
+	rows, err := h.queries.ListUsersByEmail(ctx, strings.TrimSpace(req.Email))
+	if err != nil || len(rows) == 0 {
+		return store.User{}, nil, errors.New("no account")
+	}
+	var matched []store.ListUsersByEmailRow
+	for _, r := range rows {
+		if req.CompanyID != 0 && r.CompanyID != req.CompanyID {
+			continue
+		}
+		if bcrypt.CompareHashAndPassword([]byte(r.PasswordHash), []byte(req.Password)) == nil {
+			matched = append(matched, r)
+		}
+	}
+	if len(matched) == 0 {
+		return store.User{}, nil, errors.New("bad password")
+	}
+	if len(matched) > 1 {
+		var out []gin.H
+		for _, m := range matched {
+			out = append(out, gin.H{"id": m.CompanyID, "name": m.CompanyName})
+		}
+		return store.User{}, out, nil
+	}
+	u, err := h.queries.GetUserByID(ctx, matched[0].ID)
+	return u, nil, err
 }

@@ -112,7 +112,7 @@ export const authAPI = {
   mfaSetup: () => post("/v1/auth/mfa/setup", {}),
   mfaEnable: (code: string) => post("/v1/auth/mfa/enable", { code }),
   mfaDisable: (code: string) => post("/v1/auth/mfa/disable", { code }),
-  login: (data: { email: string; password: string }) =>
+  login: (data: { email: string; password: string; company_id?: number }) =>
     post("/v1/auth/login", data),
   refresh: (refresh_token: string) =>
     post("/v1/auth/refresh", { refresh_token }),

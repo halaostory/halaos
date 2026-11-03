@@ -70,9 +70,12 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   /** Returns an MFA challenge token when the account uses two-factor sign-in. */
-  async function login(email: string, password: string): Promise<{ mfaToken?: string }> {
-    const raw = await authAPI.login({ email, password });
-    const res = extractAuthData(raw) as AuthResponse & { mfa_required?: boolean; mfa_token?: string };
+  // An email with accounts at several companies gets a list to choose
+  // from; login is then repeated with the chosen company.
+  async function login(email: string, password: string, companyId?: number): Promise<{ mfaToken?: string; companies?: { id: number; name: string }[] }> {
+    const raw = await authAPI.login({ email, password, ...(companyId ? { company_id: companyId } : {}) });
+    const res = extractAuthData(raw) as AuthResponse & { mfa_required?: boolean; mfa_token?: string; company_choice_required?: boolean; companies?: { id: number; name: string }[] };
+    if (res.company_choice_required && res.companies) return { companies: res.companies };
     if (res.mfa_required && res.mfa_token) return { mfaToken: res.mfa_token };
     setTokens(res.token, res.refresh_token);
     setUser(res.user);

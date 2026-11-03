@@ -45,6 +45,8 @@ export default {
     status_rejected: "已驳回",
   },
   login: {
+    chooseCompany: "你的邮箱在多家公司都有账号，要进入哪一家？",
+    back: "返回",
     title: "HalaPeople",
     mfaHelp: "输入身份验证器中的 6 位验证码，或一个恢复码。",
     mfaCode: "验证码",
