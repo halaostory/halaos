@@ -22,6 +22,7 @@ import {
   NTimeline,
   NTimelineItem,
   NCheckbox,
+  NDropdown,
   useMessage,
   useDialog,
   type DataTableColumns,
@@ -139,7 +140,14 @@ const columns: DataTableColumns = [
     render(row) {
       const start = row.period_start as string;
       const end = row.period_end as string;
-      return `${formatDate(start)} ~ ${formatDate(end)}`;
+      try {
+        const a = new Date(start), b = new Date(end);
+        return a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear()
+          ? `${format(a, "MMM d")} – ${format(b, "d, yyyy")}`
+          : `${format(a, "MMM d")} – ${format(b, "MMM d, yyyy")}`;
+      } catch {
+        return `${formatDate(start)} – ${formatDate(end)}`;
+      }
     },
   },
   {
@@ -173,107 +181,76 @@ const columns: DataTableColumns = [
     },
   },
   {
-    title: t("common.actions"),
+    title: "",
     key: "actions",
-    width: 320,
+    width: 230,
+    align: "right",
+    // Warp-style: one clear next step per pay run; everything else under "More".
     render(row) {
-      const btns: ReturnType<typeof h>[] = [];
-      if (row.is_locked) {
-        btns.push(
-          h(NTag, { size: "small", type: "error" }, () => t("payroll.locked"))
-        );
-        btns.push(
-          h(NButton, { size: "small", onClick: () => handleViewItems(row) }, () => t("payroll.viewItems"))
-        );
-        btns.push(
-          h(NButton, { size: "small", onClick: () => handleUnlock(row) }, () => t("payroll.unlock"))
-        );
-        return h(NSpace, { size: "small" }, () => btns);
+      const status = row.status as string;
+      const locked = !!row.is_locked;
+      const done = status === "computed" || status === "approved" || status === "paid";
+      let primary: ReturnType<typeof h> | null = null;
+      if (locked) {
+        primary = h(NTag, { size: "small", round: true, bordered: false }, () => t("payroll.locked"));
+      } else if (status === "draft") {
+        primary = h(NButton, { size: "small", type: "primary", onClick: () => handleRunPayroll(row) }, () => t("payroll.run"));
+      } else if (status === "computed") {
+        primary = h(NButton, { size: "small", type: "primary", onClick: () => handleApprove(row) }, () => t("payroll.reviewApprove"));
+      } else if (done) {
+        primary = h(NButton, { size: "small", secondary: true, onClick: () => handleViewItems(row) }, () => t("payroll.viewItems"));
       }
-      if (row.status === "draft") {
-        btns.push(
-          h(
-            NButton,
-            {
-              size: "small",
-              type: "primary",
-              onClick: () => handleRunPayroll(row),
-            },
-            () => t("payroll.run")
-          )
-        );
+      const more: { label: string; key: string; props?: Record<string, unknown> }[] = [];
+      if (done || locked) {
+        more.push({ label: t("payroll.viewItems"), key: "items" });
+        more.push({ label: t("journal.button"), key: "journal" });
+        more.push({ label: t("payroll.bankFile"), key: "bank" });
+        more.push({ label: "CSV", key: "csv" });
+        more.push({ label: t("payroll.aiScan"), key: "scan" });
       }
-      if (
-        row.status === "computed" ||
-        row.status === "approved" ||
-        row.status === "paid"
-      ) {
-        btns.push(
-          h(
-            NButton,
-            { size: "small", onClick: () => handleViewItems(row) },
-            () => t("payroll.viewItems")
-          )
-        );
-        btns.push(
-          h(
-            NButton,
-            { size: "small", onClick: () => handleExportCSV(row) },
-            () => "CSV"
-          )
-        );
-        btns.push(
-          h(
-            NButton,
-            { size: "small", type: "info", onClick: () => handleExportBankFile(row) },
-            () => t("payroll.bankFile")
-          )
-        );
-        btns.push(
-          h(
-            NButton,
-            {
-              size: "small",
-              type: "warning",
-              onClick: () => handleScanAnomalies(row),
-            },
-            () => t("payroll.aiScan")
-          )
-        );
-        btns.push(
-          h(
-            NButton,
-            { size: "small", onClick: () => { journalCycle.value = row; journalOpen.value = true } },
-            () => t("journal.button")
-          )
-        );
+      if (!locked && status === "draft") more.push({ label: t("common.approve"), key: "approve" });
+      if (!locked && (status === "approved" || status === "paid")) more.push({ label: t("payroll.lock"), key: "lock" });
+      if (locked) more.push({ label: t("payroll.unlock"), key: "unlock" });
+      const onSelect = (k: string) => {
+        if (k === "items") handleViewItems(row);
+        else if (k === "journal") { journalCycle.value = row; journalOpen.value = true; }
+        else if (k === "bank") handleExportBankFile(row);
+        else if (k === "csv") handleExportCSV(row);
+        else if (k === "scan") handleScanAnomalies(row);
+        else if (k === "approve") handleApprove(row);
+        else if (k === "lock") handleLock(row);
+        else if (k === "unlock") handleUnlock(row);
+      };
+      const nodes: ReturnType<typeof h>[] = [];
+      if (primary) nodes.push(primary);
+      if (more.length) {
+        nodes.push(h(NDropdown, { options: more, trigger: "click", onSelect }, () =>
+          h(NButton, { size: "small", quaternary: true }, () => t("payroll.more") + " ▾")));
       }
-      if (row.status === "draft" || row.status === "computed") {
-        btns.push(
-          h(
-            NButton,
-            {
-              size: "small",
-              type: "success",
-              onClick: () => handleApprove(row),
-            },
-            () => t("common.approve")
-          )
-        );
-      }
-      if (row.status === "approved" || row.status === "paid") {
-        btns.push(
-          h(
-            NButton,
-            { size: "small", type: "error", onClick: () => handleLock(row) },
-            () => t("payroll.lock")
-          )
-        );
-      }
-      return h(NSpace, { size: "small" }, () => btns);
+      return h(NSpace, { size: "small", justify: "end", wrap: false }, () => nodes);
     },
   },
 ];
+
+// Next pay run: the earliest regular cycle that is not paid yet.
+const steps = ["calculate", "review", "approve", "paid"] as const;
+const nextCycle = computed<Record<string, unknown> | null>(() => {
+  const today = new Date();
+  today.setDate(today.getDate() - 3);
+  const open = data.value
+    .filter((c) => c.cycle_type === "regular" && c.status !== "paid" && new Date(c.pay_date as string) >= today)
+    .sort((a, b) => String(a.pay_date).localeCompare(String(b.pay_date)));
+  return open[0] || null;
+});
+const stepIndex = computed(() => {
+  const st = nextCycle.value?.status as string | undefined;
+  return st === "computed" ? 1 : st === "approved" ? 3 : st === "paid" ? 4 : 0;
+});
+const daysToPay = computed(() => {
+  if (!nextCycle.value) return 0;
+  const d = new Date(nextCycle.value.pay_date as string).getTime() - new Date(new Date().toDateString()).getTime();
+  return Math.round(d / 86400000);
+});
 
 function formatDate(d: string): string {
   if (!d) return "";
@@ -931,11 +908,32 @@ function formatRatingMap(rm: Record<string, number>): string {
     <NTabs type="line" :value="activeTab" @update:value="(v: string) => { activeTab = v; handleTabChange(v); }">
       <!-- Tab 1: Payroll Cycles (existing content) -->
       <NTabPane name="cycles" :tab="t('payroll.title')">
-        <NSpace justify="space-between" style="margin-bottom: 16px">
-          <h2>{{ t("payroll.title") }}</h2>
-          <NButton type="primary" @click="loadScheduleOptions(); showCreateModal = true">{{
-            t("payroll.createCycle")
-          }}</NButton>
+        <!-- Next pay run (Warp-style: one clear next step) -->
+        <section v-if="nextCycle" class="pr-hero">
+          <div class="pr-hero-main">
+            <div class="pr-eyebrow">{{ t("payroll.nextRun") }}</div>
+            <div class="pr-hero-title">{{ nextCycle.name }}</div>
+            <div class="pr-hero-sub">
+              {{ formatDate(nextCycle.period_start as string) }} – {{ formatDate(nextCycle.period_end as string) }} ·
+              {{ t("payroll.payDate") }} {{ formatDate(nextCycle.pay_date as string) }}
+            </div>
+            <ol class="pr-steps">
+              <li v-for="(st, i) in steps" :key="st" :class="{ done: i < stepIndex, current: i === stepIndex }">
+                <span class="pr-dot">{{ i < stepIndex ? "✓" : i + 1 }}</span>{{ t("payroll.step_" + st) }}
+              </li>
+            </ol>
+          </div>
+          <div class="pr-hero-side">
+            <div class="pr-days">{{ Math.max(daysToPay, 0) }}</div>
+            <div class="pr-days-label">{{ daysToPay === 0 ? t("home.payToday") : t("home.daysToPayday") }}</div>
+            <NButton v-if="nextCycle.status === 'draft' && !nextCycle.is_locked" type="primary" @click="handleRunPayroll(nextCycle)">{{ t("payroll.run") }}</NButton>
+            <NButton v-else-if="nextCycle.status === 'computed'" type="primary" @click="handleApprove(nextCycle)">{{ t("payroll.reviewApprove") }}</NButton>
+            <NButton v-else secondary @click="handleViewItems(nextCycle)">{{ t("payroll.viewItems") }}</NButton>
+          </div>
+        </section>
+        <NSpace justify="space-between" align="center" style="margin: 8px 0 12px">
+          <h3 style="margin: 0">{{ t("payroll.allRuns") }}</h3>
+          <NButton @click="loadScheduleOptions(); showCreateModal = true">{{ t("payroll.createCycle") }}</NButton>
         </NSpace>
         <NDataTable :columns="columns" :data="data" :loading="loading" />
       </NTabPane>
@@ -1453,3 +1451,20 @@ function formatRatingMap(rm: Record<string, number>): string {
   </div>
   <JournalEntryModal v-model:show="journalOpen" :cycle-id="journalCycle ? Number(journalCycle.id) : null" :title="String(journalCycle?.name || '')" />
 </template>
+
+<style scoped>
+.pr-hero { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; border: 1px solid rgba(128,128,128,.18); border-radius: 12px; padding: 20px; margin: 4px 0 20px; background: linear-gradient(135deg, rgba(32,128,240,.06), rgba(24,160,88,.05)); }
+.pr-eyebrow { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; opacity: .6; }
+.pr-hero-title { font-size: 22px; font-weight: 650; margin: 2px 0; }
+.pr-hero-sub { font-size: 13px; opacity: .7; }
+.pr-steps { list-style: none; display: flex; gap: 18px; padding: 0; margin: 16px 0 0; flex-wrap: wrap; font-size: 13px; }
+.pr-steps li { display: flex; align-items: center; gap: 6px; opacity: .55; }
+.pr-steps li.done, .pr-steps li.current { opacity: 1; }
+.pr-steps li.current { font-weight: 600; }
+.pr-dot { width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; border: 1px solid rgba(128,128,128,.4); }
+.pr-steps li.done .pr-dot { background: #18a058; color: #fff; border-color: #18a058; }
+.pr-steps li.current .pr-dot { background: #2080f0; color: #fff; border-color: #2080f0; }
+.pr-hero-side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.pr-days { font-size: 36px; font-weight: 700; line-height: 1; }
+.pr-days-label { font-size: 12px; opacity: .65; }
+</style>
