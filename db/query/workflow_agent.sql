@@ -56,7 +56,7 @@ SELECT * FROM workflow_decisions WHERE id = $1;
 
 -- name: GetDecisionForEntity :one
 SELECT * FROM workflow_decisions
-WHERE entity_type = $1 AND entity_id = $2
+WHERE entity_type = $1 AND entity_id = $2 AND company_id = $3
 ORDER BY created_at DESC
 LIMIT 1;
 

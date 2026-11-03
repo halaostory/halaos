@@ -90,3 +90,6 @@ WHERE ps.company_id = $1
 -- name: CountActiveEmployees :one
 SELECT COUNT(*) as count FROM employees
 WHERE company_id = $1 AND status = 'active';
+
+-- name: GetPulseRoundInCompany :one
+SELECT * FROM pulse_rounds WHERE id = $1 AND company_id = $2;

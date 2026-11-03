@@ -74,7 +74,7 @@ func (h *Handler) Approve(c *gin.Context) {
 
 	// Nobody approves their own request (e.g. a leave routed to the first
 	// admin when the requester is that admin).
-	if ent, err := h.queries.GetApprovalWorkflowEntity(c.Request.Context(), id); err == nil && ent.EntityType == "leave_request" {
+	if ent, err := h.queries.GetApprovalWorkflowEntity(c.Request.Context(), store.GetApprovalWorkflowEntityParams{ID: id, CompanyID: companyID}); err == nil && ent.EntityType == "leave_request" {
 		if lr, err := h.queries.GetLeaveRequest(c.Request.Context(), store.GetLeaveRequestParams{ID: ent.EntityID, CompanyID: companyID}); err == nil && lr.EmployeeID == emp.ID {
 			response.Forbidden(c, "You can't approve your own request")
 			return
@@ -86,11 +86,12 @@ func (h *Handler) Approve(c *gin.Context) {
 	}
 	_ = c.ShouldBindJSON(&req)
 
-	if err := h.queries.ApproveWorkflow(c.Request.Context(), store.ApproveWorkflowParams{
+	if n, err := h.queries.ApproveWorkflow(c.Request.Context(), store.ApproveWorkflowParams{
 		ID:         id,
 		ApproverID: emp.ID,
 		Comments:   req.Comments,
-	}); err != nil {
+		CompanyID:  companyID,
+	}); err != nil || n == 0 {
 		response.NotFound(c, "Approval not found or already processed")
 		return
 	}
@@ -129,11 +130,12 @@ func (h *Handler) Reject(c *gin.Context) {
 	}
 	_ = c.ShouldBindJSON(&req)
 
-	if err := h.queries.RejectWorkflow(c.Request.Context(), store.RejectWorkflowParams{
+	if n, err := h.queries.RejectWorkflow(c.Request.Context(), store.RejectWorkflowParams{
 		ID:         id,
 		ApproverID: emp.ID,
 		Comments:   req.Comments,
-	}); err != nil {
+		CompanyID:  companyID,
+	}); err != nil || n == 0 {
 		response.NotFound(c, "Approval not found or already processed")
 		return
 	}
@@ -146,7 +148,7 @@ func (h *Handler) Reject(c *gin.Context) {
 
 // cascadeApproval applies the approval to the underlying entity (e.g., leave_request).
 func (h *Handler) cascadeApproval(ctx context.Context, companyID, approverEmpID, workflowID int64) {
-	entity, err := h.queries.GetApprovalWorkflowEntity(ctx, workflowID)
+	entity, err := h.queries.GetApprovalWorkflowEntity(ctx, store.GetApprovalWorkflowEntityParams{ID: workflowID, CompanyID: companyID})
 	if err != nil {
 		return
 	}
@@ -180,7 +182,7 @@ func (h *Handler) cascadeApproval(ctx context.Context, companyID, approverEmpID,
 // manager's action differs from the AI recommendation.
 func (h *Handler) recordDecisionFeedback(ctx context.Context, companyID, userID, approvalWorkflowID int64, managerAction string) {
 	// Look up the entity associated with this approval workflow
-	entity, err := h.queries.GetApprovalWorkflowEntity(ctx, approvalWorkflowID)
+	entity, err := h.queries.GetApprovalWorkflowEntity(ctx, store.GetApprovalWorkflowEntityParams{ID: approvalWorkflowID, CompanyID: companyID})
 	if err != nil {
 		return
 	}
@@ -189,6 +191,7 @@ func (h *Handler) recordDecisionFeedback(ctx context.Context, companyID, userID,
 	decision, err := h.queries.GetDecisionForEntity(ctx, store.GetDecisionForEntityParams{
 		EntityType: entity.EntityType,
 		EntityID:   entity.EntityID,
+		CompanyID:  companyID,
 	})
 	if err != nil {
 		return // No AI decision exists

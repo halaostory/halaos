@@ -252,6 +252,10 @@ func (h *Handler) ListComments(c *gin.Context) {
 		response.BadRequest(c, "Invalid ID")
 		return
 	}
+	if _, err := h.queries.GetGrievance(c.Request.Context(), store.GetGrievanceParams{ID: id, CompanyID: auth.GetCompanyID(c)}); err != nil {
+		response.NotFound(c, "Grievance not found")
+		return
+	}
 	comments, err := h.queries.ListGrievanceComments(c.Request.Context(), id)
 	if err != nil {
 		response.InternalError(c, "Failed to list comments")
@@ -273,6 +277,10 @@ func (h *Handler) AddComment(c *gin.Context) {
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	if _, err := h.queries.GetGrievance(c.Request.Context(), store.GetGrievanceParams{ID: id, CompanyID: auth.GetCompanyID(c)}); err != nil {
+		response.NotFound(c, "Grievance not found")
 		return
 	}
 	comment, err := h.queries.AddGrievanceComment(c.Request.Context(), store.AddGrievanceCommentParams{

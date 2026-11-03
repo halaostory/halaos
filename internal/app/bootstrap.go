@@ -28,6 +28,7 @@ import (
 	"github.com/halaostory/halaos/internal/approval"
 	"github.com/halaostory/halaos/internal/attendance"
 	"github.com/halaostory/halaos/internal/audit"
+	"github.com/halaostory/halaos/internal/access"
 	"github.com/halaostory/halaos/internal/auth"
 	"github.com/halaostory/halaos/internal/benefits"
 	"github.com/halaostory/halaos/internal/billing"
@@ -375,6 +376,8 @@ func (a *App) setupRoutes() {
 	protected.Use(auth.APIKeyMiddleware(a.Queries))
 	protected.Use(auth.JWTMiddleware(jwtSvc))
 	protected.Use(a.Limiter.APIMiddleware())
+	// Employees named in a request body must be this company's.
+	protected.Use(access.BodyEmployeesInCompany(a.Queries))
 
 	// Register all routes (login rate limiter applied inside auth routes)
 	// Public product configuration (edition, brand, modules, markets) for the web app.

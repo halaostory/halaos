@@ -11,23 +11,32 @@ import (
 	"net/netip"
 )
 
-const approveWorkflow = `-- name: ApproveWorkflow :exec
+const approveWorkflow = `-- name: ApproveWorkflow :execrows
 UPDATE approval_workflows SET
     status = 'approved',
     comments = $3,
     decided_at = NOW()
-WHERE id = $1 AND approver_id = $2 AND status = 'pending'
+WHERE id = $1 AND approver_id = $2 AND status = 'pending' AND company_id = $4
 `
 
 type ApproveWorkflowParams struct {
 	ID         int64   `json:"id"`
 	ApproverID int64   `json:"approver_id"`
 	Comments   *string `json:"comments"`
+	CompanyID  int64   `json:"company_id"`
 }
 
-func (q *Queries) ApproveWorkflow(ctx context.Context, arg ApproveWorkflowParams) error {
-	_, err := q.db.Exec(ctx, approveWorkflow, arg.ID, arg.ApproverID, arg.Comments)
-	return err
+func (q *Queries) ApproveWorkflow(ctx context.Context, arg ApproveWorkflowParams) (int64, error) {
+	result, err := q.db.Exec(ctx, approveWorkflow,
+		arg.ID,
+		arg.ApproverID,
+		arg.Comments,
+		arg.CompanyID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const closeApprovalWorkflows = `-- name: CloseApprovalWorkflows :exec
@@ -55,16 +64,21 @@ func (q *Queries) CloseApprovalWorkflows(ctx context.Context, arg CloseApprovalW
 }
 
 const getApprovalWorkflowEntity = `-- name: GetApprovalWorkflowEntity :one
-SELECT entity_type, entity_id FROM approval_workflows WHERE id = $1
+SELECT entity_type, entity_id FROM approval_workflows WHERE id = $1 AND company_id = $2
 `
+
+type GetApprovalWorkflowEntityParams struct {
+	ID        int64 `json:"id"`
+	CompanyID int64 `json:"company_id"`
+}
 
 type GetApprovalWorkflowEntityRow struct {
 	EntityType string `json:"entity_type"`
 	EntityID   int64  `json:"entity_id"`
 }
 
-func (q *Queries) GetApprovalWorkflowEntity(ctx context.Context, id int64) (GetApprovalWorkflowEntityRow, error) {
-	row := q.db.QueryRow(ctx, getApprovalWorkflowEntity, id)
+func (q *Queries) GetApprovalWorkflowEntity(ctx context.Context, arg GetApprovalWorkflowEntityParams) (GetApprovalWorkflowEntityRow, error) {
+	row := q.db.QueryRow(ctx, getApprovalWorkflowEntity, arg.ID, arg.CompanyID)
 	var i GetApprovalWorkflowEntityRow
 	err := row.Scan(&i.EntityType, &i.EntityID)
 	return i, err
@@ -493,21 +507,30 @@ func (q *Queries) MarkEventProcessed(ctx context.Context, id int64) error {
 	return err
 }
 
-const rejectWorkflow = `-- name: RejectWorkflow :exec
+const rejectWorkflow = `-- name: RejectWorkflow :execrows
 UPDATE approval_workflows SET
     status = 'rejected',
     comments = $3,
     decided_at = NOW()
-WHERE id = $1 AND approver_id = $2 AND status = 'pending'
+WHERE id = $1 AND approver_id = $2 AND status = 'pending' AND company_id = $4
 `
 
 type RejectWorkflowParams struct {
 	ID         int64   `json:"id"`
 	ApproverID int64   `json:"approver_id"`
 	Comments   *string `json:"comments"`
+	CompanyID  int64   `json:"company_id"`
 }
 
-func (q *Queries) RejectWorkflow(ctx context.Context, arg RejectWorkflowParams) error {
-	_, err := q.db.Exec(ctx, rejectWorkflow, arg.ID, arg.ApproverID, arg.Comments)
-	return err
+func (q *Queries) RejectWorkflow(ctx context.Context, arg RejectWorkflowParams) (int64, error) {
+	result, err := q.db.Exec(ctx, rejectWorkflow,
+		arg.ID,
+		arg.ApproverID,
+		arg.Comments,
+		arg.CompanyID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

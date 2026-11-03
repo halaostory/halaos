@@ -22,6 +22,19 @@ const (
 
 func (h *Handler) recordAccess(private bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+		if err != nil {
+			response.BadRequest(c, "Invalid employee ID")
+			c.Abort()
+			return
+		}
+		// The employee must belong to the caller's company — for every role,
+		// admins included (IDs are guessable across tenants).
+		if _, err := h.queries.GetEmployeeByID(c.Request.Context(), store.GetEmployeeByIDParams{ID: id, CompanyID: auth.GetCompanyID(c)}); err != nil {
+			response.NotFound(c, "Employee not found")
+			c.Abort()
+			return
+		}
 		role := auth.GetRole(c)
 		if role == auth.RoleAdmin || role == auth.RoleSuperAdmin {
 			c.Next()
@@ -29,12 +42,6 @@ func (h *Handler) recordAccess(private bool) gin.HandlerFunc {
 		}
 		if role == auth.RoleManager && !private {
 			c.Next()
-			return
-		}
-		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-		if err != nil {
-			response.BadRequest(c, "Invalid employee ID")
-			c.Abort()
 			return
 		}
 		me, err := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{UserID: ptr(auth.GetUserID(c)), CompanyID: auth.GetCompanyID(c)})

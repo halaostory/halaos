@@ -558,7 +558,8 @@ UPDATE training_participants SET
     score = $4,
     completed_at = CASE WHEN $3::varchar = 'completed' THEN NOW() ELSE completed_at END,
     feedback = $5
-WHERE id = $1 AND training_id = $2
+WHERE training_participants.id = $1 AND training_participants.training_id = $2
+  AND training_participants.training_id IN (SELECT t.id FROM trainings t WHERE t.company_id = $6)
 RETURNING id, training_id, employee_id, status, score, feedback, completed_at, created_at
 `
 
@@ -568,6 +569,7 @@ type UpdateParticipantStatusParams struct {
 	Status     string         `json:"status"`
 	Score      pgtype.Numeric `json:"score"`
 	Feedback   *string        `json:"feedback"`
+	CompanyID  int64          `json:"company_id"`
 }
 
 func (q *Queries) UpdateParticipantStatus(ctx context.Context, arg UpdateParticipantStatusParams) (TrainingParticipant, error) {
@@ -577,6 +579,7 @@ func (q *Queries) UpdateParticipantStatus(ctx context.Context, arg UpdatePartici
 		arg.Status,
 		arg.Score,
 		arg.Feedback,
+		arg.CompanyID,
 	)
 	var i TrainingParticipant
 	err := row.Scan(

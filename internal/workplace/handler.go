@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/halaostory/halaos/internal/access"
 	"github.com/halaostory/halaos/internal/auth"
 	"github.com/halaostory/halaos/internal/store"
 	"github.com/halaostory/halaos/pkg/response"
@@ -27,8 +28,8 @@ func (h *Handler) RegisterRoutes(protected *gin.RouterGroup) {
 	protected.GET("/workplaces", auth.ManagerOrAbove(), h.list)
 	protected.POST("/workplaces", auth.AdminOnly(), h.create)
 	protected.PUT("/workplaces/:id", auth.AdminOnly(), h.update)
-	protected.GET("/employees/:id/workplace", auth.ManagerOrAbove(), h.getEmployee)
-	protected.PUT("/employees/:id/workplace", auth.AdminOnly(), h.setEmployee)
+	protected.GET("/employees/:id/workplace", auth.ManagerOrAbove(), access.EmployeeInCompany(h.q, "id"), h.getEmployee)
+	protected.PUT("/employees/:id/workplace", auth.AdminOnly(), access.EmployeeInCompany(h.q, "id"), h.setEmployee)
 }
 
 type request struct {

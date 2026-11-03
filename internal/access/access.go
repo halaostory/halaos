@@ -5,6 +5,7 @@ package access
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -85,4 +86,26 @@ func Decide(c *gin.Context, q interface {
 	}
 	response.Forbidden(c, "Only the employee's manager or HR can decide this request")
 	return nil, false
+}
+
+// EmployeeInCompany is route middleware for /…/:id routes about an
+// employee: 404 unless that employee belongs to the caller's company.
+// Role checks stay with the route; this stops cross-tenant IDs.
+func EmployeeInCompany(q interface {
+	GetEmployeeByID(ctx context.Context, arg store.GetEmployeeByIDParams) (store.Employee, error)
+}, param string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, err := strconv.ParseInt(c.Param(param), 10, 64)
+		if err != nil {
+			response.BadRequest(c, "Invalid employee ID")
+			c.Abort()
+			return
+		}
+		if _, err := q.GetEmployeeByID(c.Request.Context(), store.GetEmployeeByIDParams{ID: id, CompanyID: auth.GetCompanyID(c)}); err != nil {
+			response.NotFound(c, "Employee not found")
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
 }

@@ -58,22 +58,22 @@ SELECT * FROM approval_workflows
 WHERE approver_id = $1 AND status = 'pending'
 ORDER BY created_at ASC;
 
--- name: ApproveWorkflow :exec
+-- name: ApproveWorkflow :execrows
 UPDATE approval_workflows SET
     status = 'approved',
     comments = $3,
     decided_at = NOW()
-WHERE id = $1 AND approver_id = $2 AND status = 'pending';
+WHERE id = $1 AND approver_id = $2 AND status = 'pending' AND company_id = $4;
 
--- name: RejectWorkflow :exec
+-- name: RejectWorkflow :execrows
 UPDATE approval_workflows SET
     status = 'rejected',
     comments = $3,
     decided_at = NOW()
-WHERE id = $1 AND approver_id = $2 AND status = 'pending';
+WHERE id = $1 AND approver_id = $2 AND status = 'pending' AND company_id = $4;
 
 -- name: GetApprovalWorkflowEntity :one
-SELECT entity_type, entity_id FROM approval_workflows WHERE id = $1;
+SELECT entity_type, entity_id FROM approval_workflows WHERE id = $1 AND company_id = $2;
 
 -- name: InsertApprovalWorkflow :one
 INSERT INTO approval_workflows (company_id, entity_type, entity_id, step, approver_id, status)
