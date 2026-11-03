@@ -23,6 +23,8 @@ import {
   NTimeline,
   NTimelineItem,
   NEmpty,
+  NAvatar,
+  NDropdown,
   useMessage,
   type DataTableColumns,
   type UploadFileInfo,
@@ -495,6 +497,21 @@ async function handleDeleteDoc(docId: string) {
   }
 }
 
+// Warp-style header: Edit is the primary action, the rest live under More.
+const headerMore = computed(() => {
+  const opts: { label: string; key: string }[] = []
+  if (authStore.isAdmin && employee.value && !employee.value.user_id) opts.push({ label: t("employee.createAccount"), key: "account" })
+  if (authStore.isAdmin) opts.push({ label: t("employee.changeStatus"), key: "status" })
+  opts.push({ label: t("employee.generateLetter"), key: "letter" }, { label: t("employee.downloadCOE"), key: "coe" })
+  return opts
+})
+function onHeaderMore(k: string) {
+  if (k === "account") { accountForm.value.email = String(employee.value?.email || ""); showAccountModal.value = true }
+  else if (k === "status") openStatusChange()
+  else if (k === "letter") showLetterModal.value = true
+  else downloadCOE()
+}
+
 function downloadCOE() {
   const id = Number(route.params.id);
   const url = employeeAPI.downloadCOEUrl(id);
@@ -599,27 +616,27 @@ async function handleAssignSalary() {
 <template>
   <NSpin :show="loading">
     <NSpace vertical :size="16" v-if="employee">
-      <NSpace justify="space-between">
-        <h2>{{ employee.first_name }} {{ employee.last_name }}</h2>
-        <NSpace>
-          <NButton v-if="authStore.isAdmin && !employee.user_id" type="info" @click="() => { accountForm.email = String(employee?.email || ''); showAccountModal = true; }">{{ t("employee.createAccount") }}</NButton>
-          <NTag v-if="employee.user_id" type="success" size="small">{{ t("employee.hasLoginAccount") }}</NTag>
-          <NButton v-if="authStore.isAdmin" type="warning" @click="openStatusChange">{{ t("employee.changeStatus") }}</NButton>
-          <NButton v-if="authStore.isAdmin || authStore.isManager" @click="showLetterModal = true">{{ t("employee.generateLetter") }}</NButton>
-          <NButton v-if="authStore.isAdmin || authStore.isManager" @click="downloadCOE">{{ t("employee.downloadCOE") }}</NButton>
-          <NButton
-            type="primary"
-            @click="
-              router.push({
-                name: 'employee-edit',
-                params: { id: route.params.id },
-              })
-            "
-            >{{ t("common.edit") }}</NButton
-          >
-          <NButton @click="router.back()">{{ t("common.back") }}</NButton>
-        </NSpace>
-      </NSpace>
+      <div class="emp-head">
+        <NButton text class="emp-back" @click="router.back()">← {{ t("common.back") }}</NButton>
+        <div class="emp-id">
+          <NAvatar round :size="56" class="emp-avatar">{{ String(employee.first_name || '').charAt(0) }}{{ String(employee.last_name || '').charAt(0) }}</NAvatar>
+          <div>
+            <h1>{{ employee.first_name }} {{ employee.last_name }}</h1>
+            <div class="emp-meta">
+              <NTag size="small" round :bordered="false" :type="employee.status === 'active' ? 'success' : employee.status === 'separated' ? 'error' : 'info'">{{ employee.status }}</NTag>
+              <span>{{ employee.employee_no }}</span>
+              <span v-if="employee.email">{{ employee.email }}</span>
+              <NTag v-if="employee.user_id" size="small" round :bordered="false">{{ t("employee.hasLoginAccount") }}</NTag>
+            </div>
+          </div>
+          <NSpace class="emp-actions">
+            <NDropdown v-if="authStore.isAdmin || authStore.isManager" trigger="click" :options="headerMore" @select="onHeaderMore">
+              <NButton>{{ t("payroll.more") }} ▾</NButton>
+            </NDropdown>
+            <NButton v-if="authStore.isAdmin" type="primary" @click="router.push({ name: 'employee-edit', params: { id: route.params.id } })">{{ t("common.edit") }}</NButton>
+          </NSpace>
+        </div>
+      </div>
 
       <NCard :title="t('employee.basicInfo')">
         <NDescriptions label-placement="left" :column="2" bordered>
@@ -934,3 +951,13 @@ async function handleAssignSalary() {
     </NCard>
   </NSpin>
 </template>
+
+<style scoped>
+.emp-head { margin-bottom: 4px; }
+.emp-back { font-size: 13px; opacity: .7; margin-bottom: 10px; }
+.emp-id { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.emp-avatar { background: #2080f0; font-size: 20px; }
+.emp-id h1 { font-size: 24px; font-weight: 650; margin: 0 0 4px; }
+.emp-meta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; opacity: .85; }
+.emp-actions { margin-left: auto; }
+</style>

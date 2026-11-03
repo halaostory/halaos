@@ -14,7 +14,7 @@ const { t } = useI18n()
 const message = useMessage()
 const auth = useAuthStore()
 
-const activeTab = ref('')
+const activeTab = ref('mine')
 const requests = ref<Record<string, unknown>[]>([])
 const balances = ref<Record<string, unknown>[]>([])
 const leaveTypesRaw = ref<Record<string, unknown>[]>([])
@@ -123,7 +123,7 @@ async function loadData() {
 onMounted(loadData)
 
 watch(activeTab, (tab) => {
-  if (tab === t('leave.allBalances') && allBalances.value.length === 0) {
+  if (tab === 'all' && allBalances.value.length === 0) {
     loadAllBalances()
   }
 })
@@ -294,13 +294,13 @@ async function runCarryover() {
     </NSpace>
 
     <NTabs v-model:value="activeTab" type="line">
-      <NTabPane :name="t('leave.myLeaves')">
+      <NTabPane name="mine" :tab="t('leave.myLeaves')">
         <NDataTable :columns="columns" :data="requests" :loading="loading" />
       </NTabPane>
-      <NTabPane :name="t('leave.balance')">
+      <NTabPane name="balance" :tab="t('leave.balance')">
         <NDataTable :columns="balanceColumns" :data="balances" />
       </NTabPane>
-      <NTabPane v-if="auth.isAdmin" :name="t('leave.allBalances')" :tab="t('leave.allBalances')">
+      <NTabPane v-if="auth.isAdmin" name="all" :tab="t('leave.allBalances')">
         <NSpace justify="end" style="margin-bottom: 12px;">
           <NButton type="warning" size="small" :loading="carryoverLoading" @click="runCarryover">
             {{ t('leave.carryover') }}
@@ -308,7 +308,7 @@ async function runCarryover() {
         </NSpace>
         <NDataTable :columns="allBalanceColumns" :data="allBalances" :loading="allBalancesLoading" />
       </NTabPane>
-      <NTabPane v-if="auth.isAdmin" :name="t('leave.manageTypes')" :tab="t('leave.manageTypes')">
+      <NTabPane v-if="auth.isAdmin" name="types" :tab="t('leave.manageTypes')">
         <NSpace justify="end" style="margin-bottom: 12px;">
           <NButton type="primary" size="small" @click="showTypeModal = true">{{ t('common.create') }}</NButton>
         </NSpace>
