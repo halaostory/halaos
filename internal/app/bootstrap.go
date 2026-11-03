@@ -48,6 +48,7 @@ import (
 	"github.com/halaostory/halaos/internal/employee"
 	"github.com/halaostory/halaos/internal/expense"
 	"github.com/halaostory/halaos/internal/finalpay"
+	"github.com/halaostory/halaos/internal/glsync"
 	"github.com/halaostory/halaos/internal/govfiling"
 	"github.com/halaostory/halaos/internal/grievance"
 	"github.com/halaostory/halaos/internal/holiday"
@@ -442,6 +443,10 @@ func (a *App) setupRoutes() {
 
 	// Workplaces (work locations; policies can target them)
 	workplace.NewHandler(a.Queries).RegisterRoutes(a.mod(edition.ModPeople, protected))
+
+	// Direct journal push to Xero / QuickBooks Online
+	glsync.NewFromEnv(a.Queries, a.Cfg.Integration.EncryptionKey, a.Cfg.Resend.BaseURL, a.Logger).
+		RegisterRoutes(a.mod(edition.ModPayroll, protected), a.mod(edition.ModPayroll, api))
 
 	// Rule-based time-off policies (by department, employment type, gender, tenure)
 	leavepolicy.NewService(a.Queries, a.Logger).RegisterRoutes(a.mod(edition.ModTimeOff, protected))

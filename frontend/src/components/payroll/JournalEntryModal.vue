@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { NModal, NButton, NSpin, NTable, NInput, NCollapse, NCollapseItem, NAlert, useMessage } from 'naive-ui'
-import { payrollAPI } from '../../api/client'
+import { payrollAPI, glAPI } from '../../api/client'
 
 interface Line { role: string; account_code: string; account_name: string; description: string; debit: number; credit: number }
 interface Journal { number: string; date: string; memo: string; currency: string; lines: Line[]; total_debit: number; total_credit: number }
@@ -18,6 +18,29 @@ const error = ref('')
 const roles = ref<string[]>([])
 const accounts = ref<Record<string, Account>>({})
 const saving = ref(false)
+interface GLConn { provider: string; available: boolean; connected: boolean; tenant_name?: string }
+const gl = ref<GLConn[]>([])
+const pushing = ref('')
+const glName: Record<string, string> = { xero: 'Xero', quickbooks: 'QuickBooks' }
+async function loadGL() {
+  try { gl.value = ((await glAPI.connections()) as { data: GLConn[] }).data } catch { gl.value = [] }
+}
+async function connectGL(p: string) {
+  const { url } = ((await glAPI.connect(p)) as { data: { url: string } }).data
+  window.location.href = url
+}
+async function pushGL(p: string) {
+  if (!props.cycleId) return
+  pushing.value = p
+  try {
+    const d = ((await glAPI.push(p, props.cycleId)) as { data: { already_pushed: boolean } }).data
+    message.success(d.already_pushed ? t('journal.alreadySent', { app: glName[p] }) : t('journal.sent', { app: glName[p] }))
+  } catch (e) {
+    message.error((e as { data?: { error?: { message?: string } } }).data?.error?.message || t('common.failed'))
+  } finally {
+    pushing.value = ''
+  }
+}
 
 async function load() {
   if (!props.cycleId) return
@@ -35,7 +58,7 @@ async function load() {
     loading.value = false
   }
 }
-watch(() => [props.show, props.cycleId], () => { if (props.show) load() }, { immediate: true })
+watch(() => [props.show, props.cycleId], () => { if (props.show) { load(); loadGL() } }, { immediate: true })
 
 async function saveAccounts() {
   saving.value = true
@@ -86,7 +109,11 @@ const fmt = (v: number) => (v ? v.toLocaleString(undefined, { minimumFractionDig
           </tbody>
         </NTable>
         <div class="actions">
-          <NButton type="primary" @click="download('quickbooks')">{{ t('journal.quickbooks') }}</NButton>
+          <template v-for="g in gl" :key="g.provider">
+            <NButton v-if="g.connected" type="primary" :loading="pushing === g.provider" @click="pushGL(g.provider)">{{ t('journal.sendTo', { app: glName[g.provider] }) }}</NButton>
+            <NButton v-else-if="g.available" secondary @click="connectGL(g.provider)">{{ t('journal.connect', { app: glName[g.provider] }) }}</NButton>
+          </template>
+          <NButton @click="download('quickbooks')">{{ t('journal.quickbooks') }}</NButton>
           <NButton @click="download('xero')">{{ t('journal.xero') }}</NButton>
           <span class="muted small">{{ t('journal.hint') }}</span>
         </div>

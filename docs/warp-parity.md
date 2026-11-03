@@ -46,7 +46,7 @@ Legend: ✅ shipped · 🟡 partial · ⬜ not yet · — not applicable
 | Unlimited off-cycle runs; termination payroll created automatically | Off-cycle runs; final pay computed on termination and released as an off-cycle run after approval | ✅ |
 | Money movement (ACH/wire funding, direct deposit) | Bank files only; no money movement | ⬜ |
 | Payroll history import on migration | Payroll → Import history: CSV of earlier payslips (validated, all-or-nothing, no double counting) becomes locked imported pay runs that year-end forms (BIR 2316, 1604-C alphalist) and YTD reports include; plus employee CSV import | ✅ |
-| GL journal entries to QuickBooks / Xero / NetSuite | Balanced journal per payroll run (wages, employer contributions, statutory payables, withholding, other deductions, net pay) mapped to your chart of accounts; QuickBooks / Xero CSV import files; webhook sync for AIStarlight. No direct API push yet | 🟡 |
+| GL journal entries to QuickBooks / Xero / NetSuite | Balanced journal per payroll run mapped to your chart of accounts; one-click send to Xero (draft manual journal) or QuickBooks Online (journal entry) over OAuth, once per run, tokens refreshed automatically; CSV import files; webhook sync. No NetSuite | ✅ | Needs your own Xero / Intuit developer app (client ID/secret) |
 
 ## Tax and compliance
 
@@ -107,6 +107,5 @@ Legend: ✅ shipped · 🟡 partial · ⬜ not yet · — not applicable
 
 ## Next up
 
-1. Push journals to QuickBooks / Xero through their APIs (CSV import ships today).
-2. Money movement through a licensed payout partner (PH: InstaPay/PESONet via a partner).
-3. Singapore (CPF, IRAS AIS) and Malaysia (EPF, SOCSO, EIS, PCB) payroll and filings.
+1. Money movement through a licensed payout partner (PH: InstaPay/PESONet via a partner).
+2. Singapore (CPF, IRAS AIS) and Malaysia (EPF, SOCSO, EIS, PCB) payroll and filings.

@@ -378,6 +378,13 @@ export const overtimeAPI = {
 };
 
 // Payroll
+export const glAPI = {
+  connections: () => get("/v1/gl/connections"),
+  connect: (provider: string) => post(`/v1/gl/${provider}/connect`, {}),
+  disconnect: (provider: string) => del(`/v1/gl/${provider}`),
+  push: (provider: string, cycleId: number) => post(`/v1/gl/${provider}/push`, { cycle_id: cycleId }),
+};
+
 export const payrollAPI = {
   history: () => get("/v1/payroll/history"),
   importHistory: (form: FormData, dryRun: boolean) =>

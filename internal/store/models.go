@@ -1187,6 +1187,37 @@ type GlAccountMapping struct {
 	UpdatedAt time.Time       `json:"updated_at"`
 }
 
+type GlConnection struct {
+	CompanyID       int64     `json:"company_id"`
+	Provider        string    `json:"provider"`
+	TenantID        string    `json:"tenant_id"`
+	TenantName      string    `json:"tenant_name"`
+	AccessTokenEnc  []byte    `json:"access_token_enc"`
+	RefreshTokenEnc []byte    `json:"refresh_token_enc"`
+	ExpiresAt       time.Time `json:"expires_at"`
+	ConnectedBy     *int64    `json:"connected_by"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
+
+type GlOauthState struct {
+	State     string    `json:"state"`
+	CompanyID int64     `json:"company_id"`
+	UserID    *int64    `json:"user_id"`
+	Provider  string    `json:"provider"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type GlPush struct {
+	ID         int64     `json:"id"`
+	CompanyID  int64     `json:"company_id"`
+	Provider   string    `json:"provider"`
+	RunID      int64     `json:"run_id"`
+	ExternalID string    `json:"external_id"`
+	PushedBy   *int64    `json:"pushed_by"`
+	PushedAt   time.Time `json:"pushed_at"`
+}
+
 type Goal struct {
 	ID            int64              `json:"id"`
 	CompanyID     int64              `json:"company_id"`

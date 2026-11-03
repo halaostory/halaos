@@ -2755,6 +2755,11 @@ export default {
     replySent: "回复已批准并发送",
   },
   journal: {
+    sendTo: "发送到 {app}",
+    connect: "连接 {app}",
+    sent: "分录已发送到 {app}（Xero 中为草稿；QuickBooks 中直接入账）",
+    alreadySent: "这次发薪已发送过 {app}",
+    connected: "会计系统已连接——可在薪资 → 会计分录中发送",
     button: "会计分录",
     title: "会计分录",
     account: "科目",

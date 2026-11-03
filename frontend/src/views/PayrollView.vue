@@ -298,6 +298,10 @@ async function fetchSyncStatus() {
 }
 
 onMounted(() => {
+  // Back from connecting Xero / QuickBooks
+  const q = new URLSearchParams(window.location.search);
+  if (q.get("gl") === "connected") message.success(t("journal.connected"));
+  if (q.get("gl_error")) message.error(q.get("gl_error") as string);
   fetchCycles();
   fetchSyncStatus();
 });

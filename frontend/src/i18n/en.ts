@@ -2788,6 +2788,11 @@ export default {
     replySent: "Reply approved and sent",
   },
   journal: {
+    sendTo: "Send to {app}",
+    connect: "Connect {app}",
+    sent: "Journal sent to {app} (a draft in Xero; posted in QuickBooks)",
+    alreadySent: "This payroll was already sent to {app}",
+    connected: "Accounting connected — send journals from Payroll → Journal",
     button: "Journal",
     title: "Journal entry",
     account: "Account",

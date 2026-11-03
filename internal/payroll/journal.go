@@ -2,6 +2,7 @@ package payroll
 
 import (
 	"bytes"
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
@@ -161,12 +162,13 @@ func amt(v float64) string {
 	return strconv.FormatFloat(v, 'f', 2, 64)
 }
 
-func (h *Handler) glAccounts(c *gin.Context, companyID int64) map[string]GLAccount {
+// LoadGLAccounts returns the company's chart mapping over the defaults.
+func LoadGLAccounts(ctx context.Context, q *store.Queries, companyID int64) map[string]GLAccount {
 	out := map[string]GLAccount{}
 	for k, v := range DefaultGLAccounts {
 		out[k] = v
 	}
-	raw, err := h.queries.GetGLAccountMapping(c.Request.Context(), companyID)
+	raw, err := q.GetGLAccountMapping(ctx, companyID)
 	if err == nil {
 		var saved map[string]GLAccount
 		if json.Unmarshal(raw, &saved) == nil {
@@ -178,6 +180,28 @@ func (h *Handler) glAccounts(c *gin.Context, companyID int64) map[string]GLAccou
 		}
 	}
 	return out
+}
+
+func (h *Handler) glAccounts(c *gin.Context, companyID int64) map[string]GLAccount {
+	return LoadGLAccounts(c.Request.Context(), h.queries, companyID)
+}
+
+// CycleJournal builds the journal for a cycle's latest calculated run.
+func CycleJournal(ctx context.Context, q *store.Queries, companyID, cycleID int64) (*Journal, error) {
+	runID, err := q.LatestCompletedRunForCycle(ctx, store.LatestCompletedRunForCycleParams{CycleID: cycleID, CompanyID: companyID})
+	if err != nil {
+		return nil, err
+	}
+	tot, err := q.GetPayrollRunJournalTotals(ctx, store.GetPayrollRunJournalTotalsParams{ID: runID, CompanyID: companyID})
+	if err != nil {
+		return nil, err
+	}
+	currency := "PHP"
+	if comp, err := q.GetCompanyByID(ctx, companyID); err == nil && comp.Currency != "" {
+		currency = comp.Currency
+	}
+	j := BuildJournal(tot, LoadGLAccounts(ctx, q, companyID), currency)
+	return &j, nil
 }
 
 // GetGLMapping handles GET /payroll/gl-accounts.
