@@ -199,3 +199,66 @@ func TestAIReviewer_OnlyAggregatesAndNeverBlocks(t *testing.T) {
 		}
 	}
 }
+
+func regDataset(code string) *Dataset {
+	label := map[string]string{"sss_r1a": "SSS number", "philhealth_er2": "PhilHealth number", "bir_1902": ""}[code]
+	return &Dataset{
+		FormCode: code, Period: "2026-11", CompanyName: "Acme",
+		EmployerIDs:   map[string]string{"sss_er_no": "03-1234567-8", "philhealth_er_no": "1", "tin": "123456789"},
+		MemberIDLabel: label, Columns: []string{"monthly_salary"}, FieldColumns: []string{"hire_date", "birth_date"},
+		Lines: []Line{
+			{EmployeeNo: "E1", Name: "Cruz, Ana", MemberID: "34-1234567-8", Amounts: map[string]float64{"monthly_salary": 30000}, Fields: map[string]string{"hire_date": "2026-11-02", "birth_date": "1996-04-12"}},
+			{EmployeeNo: "E2", Name: "Lim, Ben", MemberID: "", Amounts: map[string]float64{"monthly_salary": 25000}, Fields: map[string]string{"hire_date": "2026-11-10"}},
+		},
+		Totals: map[string]float64{},
+	}
+}
+
+func TestRegistrationRules(t *testing.T) {
+	today := time.Date(2026, 11, 12, 0, 0, 0, 0, time.UTC)
+	cur := Period{Year: 2026, Month: 11}
+
+	sss, _ := Lookup("sss_r1a")
+	p := RunRules(RuleInput{Spec: sss, Period: cur, Dataset: regDataset("sss_r1a"), Channel: ChannelManual, Today: today})
+	if hasCode(p, "period_open") {
+		t.Error("registrations are filed during the hire month; period_open must not apply")
+	}
+	if !p.Blocking || !hasCode(p, "missing_member_id") {
+		t.Error("R-1A needs an SS number for every employee")
+	}
+
+	ph, _ := Lookup("philhealth_er2")
+	p = RunRules(RuleInput{Spec: ph, Period: cur, Dataset: regDataset("philhealth_er2"), Channel: ChannelManual, Today: today})
+	if p.Blocking {
+		t.Errorf("ER2 registers members without a PIN: missing PIN is a warning, got %+v", p.Issues)
+	}
+
+	bir, _ := Lookup("bir_1902")
+	p = RunRules(RuleInput{Spec: bir, Period: cur, Dataset: regDataset("bir_1902"), Channel: ChannelManual, Today: today})
+	if p.Blocking || hasCode(p, "missing_member_id") {
+		t.Errorf("1902 lists employees without TIN by design: %+v", p.Issues)
+	}
+
+	empty := regDataset("sss_r1a")
+	empty.Lines = nil
+	p = RunRules(RuleInput{Spec: sss, Period: cur, Dataset: empty, Channel: ChannelManual, Today: today})
+	if !p.Blocking {
+		t.Error("nothing to report must not be approvable")
+	}
+}
+
+func TestRenderRegistrationFiles(t *testing.T) {
+	sss, _ := Lookup("sss_r1a")
+	name, _, data, err := RenderFile(sss, regDataset("sss_r1a"))
+	if err != nil || name != "R1A_0312345678_202611.txt" {
+		t.Fatalf("%s %v", name, err)
+	}
+	if !strings.Contains(string(data), "D|3412345678|CRUZ, ANA|1996-04-12|2026-11-02|30000.00") || !strings.HasSuffix(strings.TrimSpace(string(data)), "T|2") {
+		t.Errorf("R-1A file:\n%s", data)
+	}
+	ph, _ := Lookup("philhealth_er2")
+	name, _, data, _ = RenderFile(ph, regDataset("philhealth_er2"))
+	if name != "ER2_202611.csv" || !strings.Contains(string(data), "seq,employee_no,name,philhealth_number,hire_date,birth_date,monthly_salary") || strings.Contains(string(data), "TOTAL") {
+		t.Errorf("ER2 %s:\n%s", name, data)
+	}
+}

@@ -2634,6 +2634,7 @@ export default {
     prevStep: "上一步",
   },
   lifecycle: {
+    step_gov_registration: "政府登记已排队",
     step_offer_letter_sent: "录用通知书已发送电子签署",
     step_self_onboarding_invite: "已生成自助入职链接",
     step_device_recall: "设备已锁定并要求归还",

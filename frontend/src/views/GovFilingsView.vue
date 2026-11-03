@@ -40,7 +40,7 @@ const statusType: Record<string, 'default' | 'info' | 'success' | 'warning' | 'e
 // ── prepare ───────────────────────────────────────────────
 const prep = ref({ form_code: null as string | null, period: '', channel: '' })
 const selectedForm = computed(() => forms.value.find((f) => f.code === prep.value.form_code))
-const periodHint = computed(() => ({ monthly: 'YYYY-MM', quarterly: 'YYYY-Q1', annual: 'YYYY', per_state: 'CA' } as Record<string, string>)[selectedForm.value?.frequency || 'monthly'] || 'YYYY-MM')
+const periodHint = computed(() => ({ monthly: 'YYYY-MM', hire_month: 'YYYY-MM', quarterly: 'YYYY-Q1', annual: 'YYYY', per_state: 'CA' } as Record<string, string>)[selectedForm.value?.frequency || 'monthly'] || 'YYYY-MM')
 const preparing = ref(false)
 async function prepare() {
   if (!prep.value.form_code || !prep.value.period) return

@@ -24,6 +24,7 @@ type Line struct {
 	Name       string             `json:"name"`
 	MemberID   string             `json:"member_id"`
 	Amounts    map[string]float64 `json:"amounts"`
+	Fields     map[string]string  `json:"fields,omitempty"` // text columns (hire date, birth date …)
 }
 
 // Dataset is the normalized content of a return, independent of file layout.
@@ -36,6 +37,9 @@ type Dataset struct {
 	Columns       []string           `json:"columns"`
 	Lines         []Line             `json:"lines"`
 	Totals        map[string]float64 `json:"totals"`
+	FieldColumns  []string           `json:"field_columns,omitempty"`
+	// DueDate is set by registration forms (earliest hire + N days).
+	DueDate *time.Time `json:"due_date,omitempty"`
 }
 
 // ErrNoGenerator means HalaOS cannot build this return's data from payroll yet.
@@ -60,7 +64,7 @@ var (
 func ParsePeriod(frequency, s string) (Period, error) {
 	s = strings.ToUpper(strings.TrimSpace(s))
 	switch frequency {
-	case "monthly":
+	case "monthly", "hire_month":
 		m := reMonth.FindStringSubmatch(s)
 		if m == nil {
 			return Period{}, fmt.Errorf("period must be YYYY-MM")
@@ -205,6 +209,11 @@ func BuildDataset(ctx context.Context, q *store.Queries, companyID int64, spec F
 			"line5a_ss_wages": f.SSWages, "line5c_medicare_wages": f.MedicareWages, "line10_total_taxes": f.TotalTaxes,
 		}
 		return ds, nil
+	case "sss_r1a", "philhealth_er2", "pagibig_registration", "bir_1902":
+		ds.Period = fmt.Sprintf("%04d-%02d", p.Year, p.Month)
+		if err := buildRegistration(ctx, q, companyID, spec, p, ds); err != nil {
+			return nil, err
+		}
 	case "mock_return":
 		ds.Period = fmt.Sprintf("%04d-%02d", p.Year, p.Month)
 		ds.MemberIDLabel, ds.Columns = "Employee no.", []string{"amount"}
@@ -222,6 +231,54 @@ func BuildDataset(ctx context.Context, q *store.Queries, companyID int64, spec F
 		}
 	}
 	return ds, nil
+}
+
+func buildRegistration(ctx context.Context, q *store.Queries, companyID int64, spec FormSpec, p Period, ds *Dataset) error {
+	start := time.Date(p.Year, time.Month(p.Month), 1, 0, 0, 0, 0, time.UTC)
+	rows, err := q.ListNewHiresForRegistration(ctx, store.ListNewHiresForRegistrationParams{
+		CompanyID: companyID, StartDate: start, EndDate: start.AddDate(0, 1, -1),
+	})
+	if err != nil {
+		return err
+	}
+	ds.Columns = []string{"monthly_salary"}
+	ds.FieldColumns = []string{"hire_date", "birth_date"}
+	switch spec.Code {
+	case "sss_r1a":
+		ds.MemberIDLabel = "SSS number"
+	case "philhealth_er2":
+		ds.MemberIDLabel = "PhilHealth number"
+	case "pagibig_registration":
+		ds.MemberIDLabel = "Pag-IBIG MID"
+	case "bir_1902":
+		ds.MemberIDLabel = "" // only employees without a TIN are listed
+	}
+	var earliest time.Time
+	for _, r := range rows {
+		id := map[string]string{"sss_r1a": r.SssNo, "philhealth_er2": r.PhilhealthNo, "pagibig_registration": r.PagibigNo, "bir_1902": ""}[spec.Code]
+		if spec.Code == "bir_1902" && strings.TrimSpace(r.Tin) != "" {
+			continue
+		}
+		name := r.LastName + ", " + r.FirstName
+		if r.MiddleName != nil && *r.MiddleName != "" {
+			name += " " + *r.MiddleName
+		}
+		bd := ""
+		if r.BirthDate.Valid {
+			bd = r.BirthDate.Time.Format("2006-01-02")
+		}
+		ds.Lines = append(ds.Lines, Line{EmployeeNo: r.EmployeeNo, Name: name, MemberID: strings.TrimSpace(id),
+			Amounts: map[string]float64{"monthly_salary": r2(r.MonthlySalary)},
+			Fields:  map[string]string{"hire_date": r.HireDate.Format("2006-01-02"), "birth_date": bd}})
+		if earliest.IsZero() || r.HireDate.Before(earliest) {
+			earliest = r.HireDate
+		}
+	}
+	if !earliest.IsZero() && spec.DueDaysAfterHire > 0 {
+		d := earliest.AddDate(0, 0, spec.DueDaysAfterHire)
+		ds.DueDate = &d
+	}
+	return nil
 }
 
 // RenderFile turns the dataset into the upload file. Layouts follow each
@@ -242,6 +299,15 @@ func RenderFile(spec FormSpec, ds *Dataset) (name, contentType string, data []by
 		}
 		fmt.Fprintf(&b, "T|%d|%.2f|%.2f|%.2f\n", len(ds.Lines), ds.Totals["ee"], ds.Totals["er"], ds.Totals["ec"])
 		return fmt.Sprintf("R3_%s_%s.txt", digits(ds.EmployerIDs["sss_er_no"]), safe), "text/plain", b.Bytes(), nil
+	case "sss_r1a":
+		// R-1A style text: header, one line per new employee, trailer.
+		var b bytes.Buffer
+		fmt.Fprintf(&b, "H|%s|%s|%s\n", digits(ds.EmployerIDs["sss_er_no"]), strings.ToUpper(ds.CompanyName), safe)
+		for _, l := range ds.Lines {
+			fmt.Fprintf(&b, "D|%s|%s|%s|%s|%.2f\n", digits(l.MemberID), strings.ToUpper(l.Name), l.Fields["birth_date"], l.Fields["hire_date"], l.Amounts["monthly_salary"])
+		}
+		fmt.Fprintf(&b, "T|%d\n", len(ds.Lines))
+		return fmt.Sprintf("R1A_%s_%s.txt", digits(ds.EmployerIDs["sss_er_no"]), safe), "text/plain", b.Bytes(), nil
 	case "pagibig_mcrf":
 		var b bytes.Buffer
 		fmt.Fprintf(&b, "%s|%s|%s\n", digits(ds.EmployerIDs["pagibig_er_no"]), strings.ToUpper(ds.CompanyName), safe)
@@ -252,22 +318,32 @@ func RenderFile(spec FormSpec, ds *Dataset) (name, contentType string, data []by
 	default:
 		var b bytes.Buffer
 		w := csv.NewWriter(&b)
-		hdr := append([]string{"seq", "employee_no", "name", strings.ToLower(strings.ReplaceAll(ds.MemberIDLabel, " ", "_"))}, ds.Columns...)
+		idCol := strings.ToLower(strings.ReplaceAll(ds.MemberIDLabel, " ", "_"))
+		if idCol == "" {
+			idCol = "member_id"
+		}
+		hdr := append(append([]string{"seq", "employee_no", "name", idCol}, ds.FieldColumns...), ds.Columns...)
 		_ = w.Write(hdr)
 		for i, l := range ds.Lines {
 			row := []string{strconv.Itoa(i + 1), l.EmployeeNo, l.Name, l.MemberID}
+			for _, f := range ds.FieldColumns {
+				row = append(row, l.Fields[f])
+			}
 			for _, c := range ds.Columns {
 				row = append(row, fmt.Sprintf("%.2f", l.Amounts[c]))
 			}
 			_ = w.Write(row)
 		}
-		tot := []string{"", "", "TOTAL", ""}
-		for _, c := range ds.Columns {
-			tot = append(tot, fmt.Sprintf("%.2f", ds.Totals[c]))
+		if !spec.Registration {
+			tot := []string{"", "", "TOTAL", ""}
+			for _, c := range ds.Columns {
+				tot = append(tot, fmt.Sprintf("%.2f", ds.Totals[c]))
+			}
+			_ = w.Write(tot)
 		}
-		_ = w.Write(tot)
 		w.Flush()
-		prefix := map[string]string{"bir_1601c": "1601C", "bir_1604c": "1604C_ALPHALIST", "philhealth_rf1": "RF1", "mock_return": "MOCK"}[spec.Code]
+		prefix := map[string]string{"bir_1601c": "1601C", "bir_1604c": "1604C_ALPHALIST", "philhealth_rf1": "RF1", "mock_return": "MOCK",
+			"philhealth_er2": "ER2", "pagibig_registration": "PAGIBIG_NEW_MEMBERS", "bir_1902": "BIR1902_NO_TIN"}[spec.Code]
 		if prefix == "" {
 			prefix = strings.ToUpper(spec.Code)
 		}

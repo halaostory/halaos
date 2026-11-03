@@ -227,8 +227,11 @@ func (s *Service) Prepare(ctx context.Context, companyID int64, userID *int64, i
 	} else if err != nil {
 		return nil, invalid("%s", err.Error())
 	}
+	if due == nil && ds.DueDate != nil {
+		due = ds.DueDate // registrations: earliest hire + N days
+	}
 	var prevTotals map[string]float64
-	if period.Month > 0 {
+	if period.Month > 0 && !spec.Registration {
 		pp := Period{Year: period.Year, Month: period.Month - 1}
 		if pp.Month == 0 {
 			pp = Period{Year: period.Year - 1, Month: 12}

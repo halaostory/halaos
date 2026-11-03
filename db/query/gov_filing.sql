@@ -214,3 +214,23 @@ WHERE e.company_id = $1 AND e.status IN ('active', 'probationary')
       WHERE r.company_id = e.company_id AND r.registration_type = 'state_withholding_' || UPPER(ep.state_of_residence)
   )
 ORDER BY 1;
+
+-- name: ListNewHiresForRegistration :many
+-- Employees hired in [start, end] who are still employed, with the IDs agencies ask for.
+SELECT e.id, e.employee_no, e.first_name, e.last_name, e.middle_name, e.hire_date, e.birth_date,
+       COALESCE(ep.tin, '')::text AS tin, COALESCE(ep.sss_no, '')::text AS sss_no,
+       COALESCE(ep.philhealth_no, '')::text AS philhealth_no, COALESCE(ep.pagibig_no, '')::text AS pagibig_no,
+       COALESCE((SELECT es.basic_salary::float8 FROM employee_salaries es
+                 WHERE es.employee_id = e.id ORDER BY es.effective_from DESC LIMIT 1), 0)::float8 AS monthly_salary
+FROM employees e
+LEFT JOIN employee_profiles ep ON ep.employee_id = e.id
+WHERE e.company_id = sqlc.arg(company_id)
+  AND e.hire_date BETWEEN sqlc.arg(start_date)::date AND sqlc.arg(end_date)::date
+  AND e.status IN ('active', 'probationary')
+ORDER BY e.last_name, e.first_name;
+
+-- name: GetLiveGovSubmission :one
+SELECT id, status, created_at FROM gov_submissions
+WHERE company_id = $1 AND agency = $2 AND form_code = $3 AND period = $4
+  AND status NOT IN ('failed', 'cancelled')
+LIMIT 1;

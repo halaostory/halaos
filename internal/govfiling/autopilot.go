@@ -3,6 +3,7 @@ package govfiling
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/halaostory/halaos/internal/store"
 )
@@ -12,6 +13,7 @@ type AutopilotResult struct {
 	Prepared      int `json:"prepared"`
 	Failed        int `json:"failed"`
 	Registrations int `json:"registrations"`
+	NewHireForms  int `json:"new_hire_forms"`
 }
 
 // Autopilot keeps every company's statutory calendar moving, Warp-style:
@@ -35,6 +37,7 @@ func (s *Service) Autopilot(ctx context.Context) AutopilotResult {
 			if err := s.q.GenerateAnnualFilings(ctx, store.GenerateAnnualFilingsParams{CompanyID: c.ID, PeriodYear: year}); err != nil {
 				s.logger.Warn("govfiling autopilot: annual calendar", "company_id", c.ID, "error", err)
 			}
+			res.NewHireForms += s.prepareNewHireRegistrations(ctx, c.ID)
 		case "USA":
 			states, err := s.q.ListUnregisteredWorkStates(ctx, c.ID)
 			if err != nil {
@@ -82,4 +85,41 @@ func periodOf(tf store.TaxFiling) string {
 	default:
 		return fmt.Sprintf("%04d", tf.PeriodYear)
 	}
+}
+
+// registrationForms are prepared automatically for new hires (Philippines).
+var registrationForms = []string{"sss_r1a", "philhealth_er2", "pagibig_registration", "bir_1902"}
+
+// prepareNewHireRegistrations prepares agency registrations for employees
+// hired this month and last month. Months without new hires are skipped; a
+// draft blocked by missing IDs is refreshed at most once a day so IDs that
+// new hires enter through the onboarding portal are picked up.
+func (s *Service) prepareNewHireRegistrations(ctx context.Context, companyID int64) int {
+	now := s.now()
+	months := []Period{
+		{Year: now.Year(), Month: int(now.Month())},
+	}
+	prev := now.AddDate(0, -1, 0)
+	months = append(months, Period{Year: prev.Year(), Month: int(prev.Month())})
+	n := 0
+	for _, code := range registrationForms {
+		spec, _ := Lookup(code)
+		for _, p := range months {
+			period := fmt.Sprintf("%04d-%02d", p.Year, p.Month)
+			live, err := s.q.GetLiveGovSubmission(ctx, store.GetLiveGovSubmissionParams{CompanyID: companyID, Agency: spec.Agency, FormCode: code, Period: period})
+			if err == nil && !(live.Status == "draft" && now.Sub(live.CreatedAt) > 24*time.Hour) {
+				continue // already in progress (or a fresh draft)
+			}
+			ds, err := BuildDataset(ctx, s.q, companyID, spec, p)
+			if err != nil || len(ds.Lines) == 0 {
+				continue
+			}
+			if _, err := s.Prepare(ctx, companyID, nil, PrepareInput{FormCode: code, Period: period}); err != nil {
+				s.logger.Warn("govfiling autopilot: new-hire registration", "company_id", companyID, "form", code, "period", period, "error", err)
+				continue
+			}
+			n++
+		}
+	}
+	return n
 }

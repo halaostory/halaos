@@ -123,7 +123,7 @@ func main() {
 				if time.Since(lastAutopilot) >= time.Hour {
 					lastAutopilot = time.Now()
 					r := govSvc.Autopilot(ctx)
-					logger.Info("gov filing autopilot", "prepared", r.Prepared, "failed", r.Failed, "state_registrations", r.Registrations)
+					logger.Info("gov filing autopilot", "prepared", r.Prepared, "failed", r.Failed, "state_registrations", r.Registrations, "new_hire_forms", r.NewHireForms)
 				}
 				if n := govSvc.ProcessQueue(ctx); n > 0 {
 					logger.Info("gov filing runs started", "count", n)

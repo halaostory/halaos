@@ -290,6 +290,11 @@ func (s *Service) Hire(ctx context.Context, companyID, userID int64, in HireInpu
 
 	res := &HireResult{Employee: emp, Steps: steps}
 	s.afterHireDocuments(ctx, companyID, userID, emp.ID, in, res)
+	if comp, err := s.queries.GetCompanyByID(ctx, companyID); err == nil && comp.Country == "PHL" {
+		// The filing autopilot batches new hires per month and prepares the
+		// agency registrations for approval (see govfiling.prepareNewHireRegistrations).
+		res.Steps = append(res.Steps, Step{Key: "gov_registration", Status: "scheduled", Detail: "SSS R-1A, PhilHealth ER2, Pag-IBIG; BIR 1902 if no TIN"})
+	}
 
 	res.Stage = ComputeStage(StageInput{
 		Status:              emp.Status,

@@ -44,6 +44,13 @@ type FormSpec struct {
 	FileFormat string    `json:"file_format"`
 	Steps      []string  `json:"steps"` // manual / supervised instructions
 	Notes      string    `json:"notes,omitempty"`
+	// Registration forms report new hires to an agency (period = hire month,
+	// due a fixed number of days after the earliest hire in the batch).
+	Registration     bool `json:"registration,omitempty"`
+	DueDaysAfterHire int  `json:"due_days_after_hire,omitempty"`
+	// MemberIDOptional: lines without the agency ID are a warning (the
+	// registration itself issues it), not a blocking error.
+	MemberIDOptional bool `json:"member_id_optional,omitempty"`
 }
 
 // DefaultChannel is the best channel the spec supports.
@@ -124,6 +131,54 @@ var catalog = map[string]FormSpec{
 			"Upload the remittance file, review the schedule and confirm.",
 			"Record the Pag-IBIG reference number in HalaOS.",
 		},
+	},
+	// New-hire registrations (Warp-style "register for you"): batched per hire month.
+	"sss_r1a": {
+		Code: "sss_r1a", Country: "PHL", Agency: "SSS", Frequency: "hire_month", Registration: true, DueDaysAfterHire: 30,
+		Name:     "SSS R-1A Employment Report (new employees)",
+		Channels: []Channel{ChannelBrowser, ChannelManual}, Portal: "my_sss", PortalURL: "https://member.sss.gov.ph",
+		PlaybookID: "sss.mysss.r1a", FileFormat: "R-1A text file",
+		Steps: []string{
+			"Every new employee needs an SS number first (employees without one register online at My.SSS — send them the HalaPeople onboarding link to record it).",
+			"Log in to the My.SSS employer account → Employment Report (R-1A) and upload the file, or encode each employee.",
+			"Submit within 30 days of the employee's start date and record the transaction number in HalaPeople.",
+		},
+	},
+	"philhealth_er2": {
+		Code: "philhealth_er2", Country: "PHL", Agency: "PHILHEALTH", Frequency: "hire_month", Registration: true, DueDaysAfterHire: 30,
+		MemberIDOptional: true,
+		Name:             "PhilHealth ER2 Report of Employee-Members (new employees)",
+		Channels:         []Channel{ChannelBrowser, ChannelManual}, Portal: "eprs", PortalURL: "https://eprs.philhealth.gov.ph",
+		PlaybookID: "philhealth.eprs.er2", FileFormat: "ER2 CSV",
+		Steps: []string{
+			"Report new employees on ER2 within 30 days of hiring (EPRS or PhilHealth office).",
+			"Employees without a PhilHealth Identification Number (PIN) are registered with a PMRF attached to the report.",
+			"Record the acknowledgement number in HalaPeople.",
+		},
+	},
+	"pagibig_registration": {
+		Code: "pagibig_registration", Country: "PHL", Agency: "PAGIBIG", Frequency: "hire_month", Registration: true, DueDaysAfterHire: 30,
+		MemberIDOptional: true,
+		Name:             "Pag-IBIG membership registration of new employees",
+		Channels:         []Channel{ChannelBrowser, ChannelManual}, Portal: "esrs", PortalURL: "https://www.pagibigfundservices.com/OnlineRegistration",
+		PlaybookID: "pagibig.registration", FileFormat: "member list (CSV)",
+		Steps: []string{
+			"Register employees without a Pag-IBIG MID through Virtual Pag-IBIG / online membership registration (MDF).",
+			"Employees who already have a MID are added to the next monthly remittance (MCRF).",
+			"Record the issued MIDs on each employee (HalaPeople onboarding link) and the registration reference here.",
+		},
+	},
+	"bir_1902": {
+		Code: "bir_1902", Country: "PHL", Agency: "BIR", Frequency: "hire_month", Registration: true, DueDaysAfterHire: 10,
+		Name:     "BIR 1902 TIN registration for new employees without a TIN",
+		Channels: []Channel{ChannelManual}, Portal: "orus", PortalURL: "https://orus.bir.gov.ph",
+		FileFormat: "employee list (CSV)",
+		Steps: []string{
+			"For each listed employee, file BIR Form 1902 through ORUS or at the employer's RDO within 10 days of the start date.",
+			"Never apply for a second TIN: confirm the employee has no TIN from a previous employer (penalties apply to duplicate TINs).",
+			"Enter the issued TIN on the employee profile and record the ORUS reference here.",
+		},
+		Notes: "Lists only new hires with no TIN on file.",
 	},
 	// ── Singapore ────────────────────────────────────────────────────────
 	"iras_ir8a": {

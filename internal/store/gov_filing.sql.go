@@ -683,6 +683,38 @@ func (q *Queries) GetGovSubmissionByID(ctx context.Context, id int64) (GovSubmis
 	return i, err
 }
 
+const getLiveGovSubmission = `-- name: GetLiveGovSubmission :one
+SELECT id, status, created_at FROM gov_submissions
+WHERE company_id = $1 AND agency = $2 AND form_code = $3 AND period = $4
+  AND status NOT IN ('failed', 'cancelled')
+LIMIT 1
+`
+
+type GetLiveGovSubmissionParams struct {
+	CompanyID int64  `json:"company_id"`
+	Agency    string `json:"agency"`
+	FormCode  string `json:"form_code"`
+	Period    string `json:"period"`
+}
+
+type GetLiveGovSubmissionRow struct {
+	ID        int64     `json:"id"`
+	Status    string    `json:"status"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (q *Queries) GetLiveGovSubmission(ctx context.Context, arg GetLiveGovSubmissionParams) (GetLiveGovSubmissionRow, error) {
+	row := q.db.QueryRow(ctx, getLiveGovSubmission,
+		arg.CompanyID,
+		arg.Agency,
+		arg.FormCode,
+		arg.Period,
+	)
+	var i GetLiveGovSubmissionRow
+	err := row.Scan(&i.ID, &i.Status, &i.CreatedAt)
+	return i, err
+}
+
 const insertGovSubmissionEvent = `-- name: InsertGovSubmissionEvent :exec
 INSERT INTO gov_submission_events (submission_id, kind, message, data, actor_user_id)
 VALUES ($1, $2, $3, $4, $5)
@@ -974,6 +1006,75 @@ func (q *Queries) ListGovSubmissions(ctx context.Context, arg ListGovSubmissions
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DryRun,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listNewHiresForRegistration = `-- name: ListNewHiresForRegistration :many
+SELECT e.id, e.employee_no, e.first_name, e.last_name, e.middle_name, e.hire_date, e.birth_date,
+       COALESCE(ep.tin, '')::text AS tin, COALESCE(ep.sss_no, '')::text AS sss_no,
+       COALESCE(ep.philhealth_no, '')::text AS philhealth_no, COALESCE(ep.pagibig_no, '')::text AS pagibig_no,
+       COALESCE((SELECT es.basic_salary::float8 FROM employee_salaries es
+                 WHERE es.employee_id = e.id ORDER BY es.effective_from DESC LIMIT 1), 0)::float8 AS monthly_salary
+FROM employees e
+LEFT JOIN employee_profiles ep ON ep.employee_id = e.id
+WHERE e.company_id = $1
+  AND e.hire_date BETWEEN $2::date AND $3::date
+  AND e.status IN ('active', 'probationary')
+ORDER BY e.last_name, e.first_name
+`
+
+type ListNewHiresForRegistrationParams struct {
+	CompanyID int64     `json:"company_id"`
+	StartDate time.Time `json:"start_date"`
+	EndDate   time.Time `json:"end_date"`
+}
+
+type ListNewHiresForRegistrationRow struct {
+	ID            int64       `json:"id"`
+	EmployeeNo    string      `json:"employee_no"`
+	FirstName     string      `json:"first_name"`
+	LastName      string      `json:"last_name"`
+	MiddleName    *string     `json:"middle_name"`
+	HireDate      time.Time   `json:"hire_date"`
+	BirthDate     pgtype.Date `json:"birth_date"`
+	Tin           string      `json:"tin"`
+	SssNo         string      `json:"sss_no"`
+	PhilhealthNo  string      `json:"philhealth_no"`
+	PagibigNo     string      `json:"pagibig_no"`
+	MonthlySalary float64     `json:"monthly_salary"`
+}
+
+// Employees hired in [start, end] who are still employed, with the IDs agencies ask for.
+func (q *Queries) ListNewHiresForRegistration(ctx context.Context, arg ListNewHiresForRegistrationParams) ([]ListNewHiresForRegistrationRow, error) {
+	rows, err := q.db.Query(ctx, listNewHiresForRegistration, arg.CompanyID, arg.StartDate, arg.EndDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListNewHiresForRegistrationRow{}
+	for rows.Next() {
+		var i ListNewHiresForRegistrationRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.EmployeeNo,
+			&i.FirstName,
+			&i.LastName,
+			&i.MiddleName,
+			&i.HireDate,
+			&i.BirthDate,
+			&i.Tin,
+			&i.SssNo,
+			&i.PhilhealthNo,
+			&i.PagibigNo,
+			&i.MonthlySalary,
 		); err != nil {
 			return nil, err
 		}

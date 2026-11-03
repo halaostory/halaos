@@ -2667,6 +2667,7 @@ export default {
     prevStep: "Back",
   },
   lifecycle: {
+    step_gov_registration: "Government registration queued",
     step_offer_letter_sent: "Offer letter sent for e-signature",
     step_self_onboarding_invite: "Self-onboarding link created",
     step_device_recall: "Devices locked & return requested",
