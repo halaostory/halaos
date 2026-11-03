@@ -113,6 +113,7 @@ func TestCLILogin_Success(t *testing.T) {
 	u := activeUser("cli@example.com", "password123")
 	u.EmailVerified = true
 	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...))  // GetUserByEmailAny
+	mockDB.OnQueryRow(testutil.NewErrorRow(pgx.ErrNoRows))    // GetUserMFA (none)
 	mockDB.OnExecSuccess()                                    // UpdateLastLogin
 	mockDB.OnExecSuccess()                                    // RevokeAPIKeyByName
 	mockDB.OnQueryRow(testutil.NewRow(cliTestAPIKeyRow()...)) // CreateAPIKey
@@ -202,6 +203,7 @@ func TestCLILogin_AutoVerifiesUnverifiedEmail(t *testing.T) {
 	u := activeUser("cli@example.com", "password123")
 	u.EmailVerified = false
 	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...))  // GetUserByEmailAny
+	mockDB.OnQueryRow(testutil.NewErrorRow(pgx.ErrNoRows))    // GetUserMFA (none)
 	mockDB.OnExecSuccess()                                    // MarkEmailVerified
 	mockDB.OnExecSuccess()                                    // UpdateLastLogin
 	mockDB.OnExecSuccess()                                    // RevokeAPIKeyByName

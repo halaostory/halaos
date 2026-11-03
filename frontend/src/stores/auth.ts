@@ -69,8 +69,18 @@ export const useAuthStore = defineStore("auth", () => {
     user.value = u;
   }
 
-  async function login(email: string, password: string) {
+  /** Returns an MFA challenge token when the account uses two-factor sign-in. */
+  async function login(email: string, password: string): Promise<{ mfaToken?: string }> {
     const raw = await authAPI.login({ email, password });
+    const res = extractAuthData(raw) as AuthResponse & { mfa_required?: boolean; mfa_token?: string };
+    if (res.mfa_required && res.mfa_token) return { mfaToken: res.mfa_token };
+    setTokens(res.token, res.refresh_token);
+    setUser(res.user);
+    return {};
+  }
+
+  async function verifyMfa(mfaToken: string, code: string) {
+    const raw = await authAPI.mfaVerify({ mfa_token: mfaToken, code });
     const res = extractAuthData(raw);
     setTokens(res.token, res.refresh_token);
     setUser(res.user);
@@ -171,6 +181,7 @@ export const useAuthStore = defineStore("auth", () => {
     setTokens,
     setUser,
     login,
+    verifyMfa,
     register,
     loginWithSSO,
     fetchMe,

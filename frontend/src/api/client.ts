@@ -48,8 +48,8 @@ const api = ofetch.create({
       // Skip refresh for auth endpoints to avoid loops
       const url =
         typeof request === "string" ? request : request?.toString() || "";
-      if (url.includes("/auth/login")) {
-        // Let login 401 errors propagate to the caller for proper error display
+      if (url.includes("/auth/login") || url.includes("/auth/mfa/")) {
+        // Let login / two-factor 401 errors propagate to the caller for proper error display
         return;
       }
       if (url.includes("/auth/refresh")) {
@@ -106,6 +106,11 @@ export const authAPI = {
     first_name?: string;
     last_name?: string;
   }) => post("/v1/auth/register", data),
+  mfaVerify: (data: { mfa_token: string; code: string }) => post("/v1/auth/mfa/verify", data),
+  mfaStatus: () => get("/v1/auth/mfa"),
+  mfaSetup: () => post("/v1/auth/mfa/setup", {}),
+  mfaEnable: (code: string) => post("/v1/auth/mfa/enable", { code }),
+  mfaDisable: (code: string) => post("/v1/auth/mfa/disable", { code }),
   login: (data: { email: string; password: string }) =>
     post("/v1/auth/login", data),
   refresh: (refresh_token: string) =>

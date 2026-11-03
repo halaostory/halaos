@@ -524,6 +524,12 @@ func (h *Handler) CLILogin(c *gin.Context) {
 		response.Error(c, http.StatusUnauthorized, "invalid_credentials", "Invalid email or password")
 		return
 	}
+	// A password alone must not mint an API key for an account protected by
+	// two-factor sign-in; create keys from the web app instead.
+	if on, err := h.mfaEnabled(c.Request.Context(), user.ID); err != nil || on {
+		response.Error(c, http.StatusForbidden, "mfa_required", "This account uses two-factor sign-in. Create an API key in the web app (Profile → API keys).")
+		return
+	}
 
 	// Auto-verify email if not verified (CLI login skips the email verification flow)
 	if !user.EmailVerified {
@@ -629,6 +635,22 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
+	// Two-factor sign-in: hand back a short-lived challenge instead of tokens.
+	mfaOn, err := h.mfaEnabled(c.Request.Context(), user.ID)
+	if err != nil {
+		h.logger.Error("mfa lookup failed", "user_id", user.ID, "error", err)
+		response.InternalError(c, "Login failed")
+		return
+	}
+	if mfaOn {
+		response.OK(c, gin.H{"mfa_required": true, "mfa_token": h.mfaToken(user.ID, time.Now())})
+		return
+	}
+	h.completeLogin(c, user)
+}
+
+// completeLogin issues tokens after every sign-in factor has passed.
+func (h *Handler) completeLogin(c *gin.Context, user store.User) {
 	token, err := h.jwt.GenerateToken(user.ID, user.Email, Role(user.Role), user.CompanyID)
 	if err != nil {
 		h.logger.Error("failed to generate token", "error", err)

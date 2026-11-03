@@ -61,6 +61,25 @@ async function handleResendVerification() {
   }
 }
 
+// Second sign-in step for accounts with two-factor sign-in.
+const mfaToken = ref('')
+const mfaCode = ref('')
+async function handleMfa() {
+  if (!mfaCode.value.trim()) return
+  loading.value = true
+  try {
+    await auth.verifyMfa(mfaToken.value, mfaCode.value)
+    router.push((route.query.redirect as string) || '/dashboard')
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { error?: { code?: string; message?: string } } }; data?: { error?: { code?: string; message?: string } } }
+    const code = err.data?.error?.code || err.response?.data?.error?.code
+    if (code === 'mfa_expired') { mfaToken.value = ''; mfaCode.value = '' }
+    message.error(err.data?.error?.message || err.response?.data?.error?.message || t('auth.loginFailed'))
+  } finally {
+    loading.value = false
+  }
+}
+
 async function handleLogin() {
   if (!formRef.value) return
   try {
@@ -73,7 +92,11 @@ async function handleLogin() {
   }
   loading.value = true
   try {
-    await auth.login(form.value.email, form.value.password)
+    const r = await auth.login(form.value.email, form.value.password)
+    if (r.mfaToken) {
+      mfaToken.value = r.mfaToken
+      return
+    }
     const redirect = (route.query.redirect as string) || '/dashboard'
     router.push(redirect)
   } catch (e: unknown) {
@@ -127,7 +150,14 @@ async function handleLogin() {
           </button>
         </div>
       </div>
-      <NForm ref="formRef" :model="form" :rules="rules">
+      <div v-if="mfaToken" class="mfa-step">
+        <h3 style="margin: 0 0 4px;">{{ t('mfa.loginTitle') }}</h3>
+        <p style="margin: 0 0 12px; opacity: .7; font-size: 13px;">{{ t('mfa.loginHelp') }}</p>
+        <NInput v-model:value="mfaCode" :placeholder="t('mfa.codePh')" autofocus :input-props="{ autocomplete: 'one-time-code', inputmode: 'numeric' }" data-testid="mfa-code" @keyup.enter="handleMfa" />
+        <NButton type="primary" block :loading="loading" style="margin-top: 12px;" data-testid="mfa-submit" @click="handleMfa">{{ t('mfa.verify') }}</NButton>
+        <NButton text block style="margin-top: 8px;" @click="mfaToken = ''; mfaCode = ''">{{ t('common.back') }}</NButton>
+      </div>
+      <NForm v-else ref="formRef" :model="form" :rules="rules">
         <NFormItem path="email" :label="t('auth.email')">
           <NInput
             v-model:value="form.email"

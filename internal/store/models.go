@@ -2348,6 +2348,15 @@ type UserCompany struct {
 	JoinedAt  time.Time `json:"joined_at"`
 }
 
+type UserMfa struct {
+	UserID         int64              `json:"user_id"`
+	SecretEnc      []byte             `json:"secret_enc"`
+	EnabledAt      pgtype.Timestamptz `json:"enabled_at"`
+	LastStep       int64              `json:"last_step"`
+	RecoveryHashes []string           `json:"recovery_hashes"`
+	CreatedAt      time.Time          `json:"created_at"`
+}
+
 type WorkSchedule struct {
 	ID         int64     `json:"id"`
 	CompanyID  int64     `json:"company_id"`

@@ -70,7 +70,7 @@ Legend: ✅ shipped · 🟡 partial · ⬜ not yet · — not applicable
 | PTO policies, accruals, approvals, payroll sync | Leave types, accrual, approvals, encashment, payroll sync | ✅ |
 | Policy assignment by location / tenure / department | Leave types per company. No rule-based assignment | 🟡 |
 | Time tracking add-on (clock in/out, geofence, shifts, timesheets → payroll) | Suite edition: attendance, geofences, schedules, DTR, overtime → payroll | ✅ |
-| Roles & permissions, MFA, SSO | Roles (super admin / admin / manager / employee), SSO via JWT. No MFA | 🟡 |
+| Roles & permissions, MFA, SSO | Roles (super admin / admin / manager / employee); two-factor sign-in with an authenticator app (TOTP) and recovery codes; SSO via JWT. No SAML/OIDC SSO yet | 🟡 |
 | Mobile app for employees | `frontend-mobile` (H5); not yet adapted to editions | 🟡 |
 
 ## Contractors
@@ -108,6 +108,6 @@ Legend: ✅ shipped · 🟡 partial · ⬜ not yet · — not applicable
 
 1. Push journals to QuickBooks / Xero through their APIs (CSV import ships today).
 2. Rule-based policy assignment (leave and time policies by location, tenure, department).
-3. MFA.
+3. SAML / OIDC single sign-on (Google Workspace, Okta).
 4. Money movement through a licensed payout partner (PH: InstaPay/PESONet via a partner).
 5. Singapore (CPF, IRAS AIS) and Malaysia (EPF, SOCSO, EIS, PCB) payroll and filings.

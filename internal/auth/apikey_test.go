@@ -181,7 +181,7 @@ func TestCreateAPIKey_Success(t *testing.T) {
 
 	// Mock CreateAPIKey :one — returns the created row
 	mockDB.OnQueryRow(testutil.NewRow(
-		int64(1),              // id
+		int64(1),             // id
 		"halaos_a1b2c3",      // prefix
 		"My Key",             // name
 		true,                 // is_active
@@ -209,7 +209,7 @@ func TestCreateAPIKey_MissingName(t *testing.T) {
 
 	// Mock CreateAPIKey :one — should use "default" as name
 	mockDB.OnQueryRow(testutil.NewRow(
-		int64(2),              // id
+		int64(2),             // id
 		"halaos_x9y8z7",      // prefix
 		"default",            // name (auto-filled)
 		true,                 // is_active

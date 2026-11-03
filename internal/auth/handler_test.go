@@ -91,7 +91,8 @@ func TestLogin_Success(t *testing.T) {
 
 	u := activeUser("admin@test.com", "password123")
 	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...))
-	mockDB.OnExecSuccess() // UpdateLastLogin
+	mockDB.OnQueryRow(testutil.NewErrorRow(pgx.ErrNoRows)) // GetUserMFA (none)
+	mockDB.OnExecSuccess()                                 // UpdateLastLogin
 
 	c, w := testutil.NewGinContext("POST", "/auth/login", gin.H{
 		"email": "admin@test.com", "password": "password123",
