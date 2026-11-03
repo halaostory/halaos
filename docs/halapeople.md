@@ -1,12 +1,16 @@
 # HalaPeople — payroll, compliance & HR for Southeast Asia
 
-HalaPeople is the HR product carved out of HalaOS: a Warp-style "HR on autopilot" service for
-small and growing companies in Southeast Asia. It is built from this repository as a separate
-**edition** — own domain, database, brand and deployment — while sharing the code (payroll
-engines, filing agent, auth) with HalaOS, so fixes land in both products at once.
+HalaPeople is an open-source, Warp-style "HR on autopilot" platform for small and growing
+companies in Southeast Asia. This repository is HR-only (the former HalaOS extras such as the
+virtual office, referral programme and NPS were removed). It builds two **editions** of the
+same product:
 
-> **HalaPeople** is the product name (default for `APP_EDITION=people`). `PRODUCT_NAME` can still
-> override it, e.g. for a white-label deployment; the UI and API pick it up at runtime.
+- `people` (default): the Warp-style core.
+- `suite`: the core plus attendance, talent, engagement and people analytics. `halaos` is
+  accepted as a legacy alias.
+
+> `PRODUCT_NAME` / `PRODUCT_TAGLINE` override the brand (e.g. white label); the UI and API pick
+> them up at runtime. Feature-by-feature comparison with Warp: [warp-parity.md](warp-parity.md).
 
 ## Positioning
 
@@ -20,39 +24,39 @@ engines, filing agent, auth) with HalaOS, so fixes land in both products at once
 | Contractors | Contractor payments, 1099s | Freelancer invoices with expanded withholding (EWT), bank file, BIR 2307, 0619-E / 1601-EQ + QAP |
 | Pay schedules | Multiple pay schedules | Several schedules per company (monthly, semi-monthly, bi-weekly, weekly) with prorated pay, contributions and tax |
 | IT | Device management, app provisioning | Same (MDM gateway, Google/Slack/GitHub provisioning) |
-| AI | — | Assistant with confirm-before-act tools, inbox brief, pre-flight review of filings |
+| Agent | Warp Agent, Routines with autonomy levels, run logs | Assistant with confirm-before-act tools; routines (New hire, Offboarding, Pre-payroll check, Filing autopilot) with recommend / ask first / autonomous and run logs |
+| Notices | AI triage + response, ~80% auto-resolved | Notices matched to filings: proof-of-filing replies drafted, missing returns prepared, audits escalated |
 
-## What ships in each product
+## What ships in each edition
 
 Modules are defined in `internal/edition` (backend) and `frontend/src/edition.ts` (frontend).
 
-| Module | HalaPeople | HalaOS |
+| Module | people | suite |
 |---|:-:|:-:|
-| core — company, users, approvals, holidays, announcements, self-service, HR requests, policies, billing | ✓ | ✓ |
+| core — home, company, users, approvals, holidays, announcements, self-service, HR requests, policies, billing (off unless `BILLING_ENABLED`) | ✓ | ✓ |
 | people — employees, directory, 201 file, custom fields | ✓ | ✓ |
 | lifecycle — one-step hire/terminate, checklists, clearance, milestones, HR inbox | ✓ | ✓ |
 | payroll — payroll, 13th month, final pay & off-cycle release, loans, reports, accounting sync | ✓ | ✓ |
-| compliance — government forms, tax filings, filing agent & autopilot | ✓ | ✓ |
+| compliance — government forms, tax filings, filing agent & autopilot, notices | ✓ | ✓ |
 | time_off — leave, encashment, overtime requests | ✓ | ✓ |
 | benefits, expenses | ✓ | ✓ |
 | contractors — freelancers, EWT, BIR 2307, 0619-E/1601-EQ | ✓ | ✓ |
 | esign — self-onboarding portal, templates, e-signature | ✓ | ✓ |
 | it — devices/MDM, app provisioning | ✓ | ✓ |
-| ai — assistant, agents, messaging bot (tools filtered to the edition) | ✓ | ✓ |
+| ai — assistant, agents, routines, messaging bot (tools filtered to the edition) | ✓ | ✓ |
 | attendance — clock in/out, breaks, geofences, schedules, DTR | — | ✓ |
 | talent — performance, training, disciplinary, grievance | — | ✓ |
-| engagement — pulse, recognition, referrals | — | ✓ |
+| engagement — pulse, recognition | — | ✓ |
 | intelligence — analytics, org intelligence, knowledge base, workflow automation | — | ✓ |
-| workspace — virtual office | — | ✓ |
 
 How the split is enforced:
 
 - **API**: routes of modules outside the edition are registered on a detached router → 404.
-- **Worker**: periodic jobs of excluded modules (attendance, scorers, pulse, virtual office) do not run.
+- **Worker**: periodic jobs of excluded modules (attendance, scorers, pulse) do not run.
 - **AI**: tool definitions of excluded modules are not offered and are refused if called by name.
 - **Web app**: `GET /api/v1/edition` drives brand, menu, reachable routes, home page and the
-  list of markets on sign-up; UI copy is re-branded at load. HalaPeople admins land on the HR
-  inbox, employees on self-service.
+  list of markets on sign-up; UI copy is re-branded at load. Admins and managers land on Home,
+  employees on self-service.
 - **Sign-up**: only `live` countries can create a company; others get a "coming soon" message.
 
 ## Deploy
@@ -62,9 +66,10 @@ cp .env.example .env.people   # set passwords, JWT_SECRET, INTEGRATION_ENCRYPTIO
 docker compose -f docker-compose.people.yml --env-file .env.people up -d --build
 ```
 
-`docker-compose.people.yml` is its own compose project (`halapeople`): separate Postgres,
-Redis, volumes and network from HalaOS, `APP_EDITION=people`, web on `PEOPLE_HTTP_PORT`
-(default 8081) behind your TLS proxy. Locally: `APP_EDITION=people go run ./cmd/api`.
+`docker-compose.people.yml` is its own compose project (`halapeople`) with Postgres, Redis,
+volumes and network, `APP_EDITION=people`, web on `PEOPLE_HTTP_PORT` (default 8081) behind
+your TLS proxy. Locally: `go run ./cmd/api` (people is the default; `APP_EDITION=suite` for
+the suite).
 
 ## Market roadmap
 
@@ -82,17 +87,9 @@ The filing agent, autopilot calendar and pre-flight framework are country-agnost
 market needs a payroll calculator, form datasets/file renderers and catalog entries
 (`internal/govfiling/catalog.go`).
 
-## Working with HalaOS (later phase)
-
-Companies using both products should not double-enter people. Planned, reusing the existing
-AIStarlight integration pattern (signed JWT SSO + event outbox → signed webhook):
-
-1. SSO between HalaPeople and HalaOS (`INTEGRATION_JWT_SECRET`).
-2. HalaPeople is the system of record for employees, org structure and pay; it emits
-   `employee.upserted`, `employee.terminated`, `payroll.run.completed`.
-3. HalaOS sends attendance/overtime summaries back as payroll inputs.
-
 ## Still missing vs Warp
+
+See [warp-parity.md](warp-parity.md) for the full matrix. The largest gaps:
 
 - **Money movement**: payroll and contractor payments produce bank files; HalaPeople does not
   move money itself yet. Needs a licensed payout partner (e.g. PayMongo / Xendit disbursements).
@@ -103,7 +100,5 @@ AIStarlight integration pattern (signed JWT SSO + event outbox → signed webhoo
 
 ## Open decisions
 
-- Domain and pricing (current `/pricing` page is HalaOS's; `halapeople.com` in the compose file is a placeholder).
-- Whether to move HalaPeople into its own repository later (the edition split keeps that
-  possible: copy the shipped modules + `internal/edition`).
+- Domain and hosted pricing (`halapeople.com` in the compose file is a placeholder).
 - Which SEA market follows the Philippines.
