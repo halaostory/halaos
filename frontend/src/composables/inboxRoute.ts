@@ -41,3 +41,19 @@ export function inboxRoute(item: InboxItem): RouteLocationRaw | null {
   const name = kindRoute[item.kind];
   return name ? { name } : null;
 }
+
+const formLabels: Record<string, string> = {
+  bir_1601c: "1601-C", bir_1604c: "1604-C", bir_0619e: "0619-E", bir_1601eq: "1601-EQ", bir_1902: "1902",
+  bir_2316: "2316", sss_r3: "R-3", sss_r1a: "R-1A", philhealth_rf1: "RF-1", philhealth_er2: "ER2",
+  pagibig_mcrf: "MCRF", pagibig_registration: "registration", iras_ir8a: "IR8A", cpf_contribution: "CPF",
+  irs_941: "941", us_state_registration: "state registration", lk_epf_etf: "EPF/ETF",
+};
+const agencyLabels: Record<string, string> = { PAGIBIG: "Pag-IBIG", PHILHEALTH: "PhilHealth" };
+
+/** Turns "PAGIBIG pagibig_mcrf 2026-09" into "Pag-IBIG MCRF · Sep 2026". */
+export function prettyTitle(title: string): string {
+  let out = title.replace(/\b[a-z]+_[a-z0-9_]+\b/g, (code) => formLabels[code] ?? code);
+  out = out.replace(/\b(PAGIBIG|PHILHEALTH)\b/g, (a) => agencyLabels[a] ?? a);
+  return out.replace(/\b(20\d{2})-(0[1-9]|1[0-2])\b/g, (_m, y: string, mo: string) =>
+    "· " + new Date(Number(y), Number(mo) - 1, 1).toLocaleString("en", { month: "short" }) + " " + y);
+}

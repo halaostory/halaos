@@ -154,7 +154,7 @@ function pushIf(arr: MenuOption[], key: string, titleKey: string, icon: Componen
   if (isEnabled(key)) arr.push(mi(titleKey, key, icon))
 }
 
-const menuOptions = computed<MenuOption[]>(() => {
+const rawGroups = computed<MenuOption[]>(() => {
   const groups: MenuOption[] = []
   const isAdminOrManager = auth.isAdmin || auth.isManager
 
@@ -315,7 +315,49 @@ const menuOptions = computed<MenuOption[]>(() => {
   return groups
 })
 
+// Warp-style sidebar: Home / Inbox / Agent / Routines at the top level, every
+// other area as a collapsible section (one open at a time) instead of ~40
+// always-visible links.
+const sectionIcons: Record<string, Component> = {
+  'g-workspace': PersonCircleOutline, 'g-people': PeopleOutline, 'g-time': CalendarOutline,
+  'g-payroll': WalletOutline, 'g-compliance': ShieldCheckmarkOutline, 'g-talent': RibbonOutline,
+  'g-engagement': StarOutline, 'g-ai': BarChartOutline, 'g-admin': SettingsOutline,
+}
+const menuOptions = computed<MenuOption[]>(() => {
+  const out: MenuOption[] = []
+  for (const g of rawGroups.value) {
+    if (g.key === 'g-top') {
+      out.push(...((g.children as MenuOption[]) || []))
+      continue
+    }
+    const key = String(g.key)
+    out.push({
+      label: key === 'g-admin' ? t('nav.settings') : (g.label as string),
+      key,
+      icon: renderIcon(sectionIcons[key] || GridOutline),
+      children: g.children as MenuOption[],
+    })
+  }
+  return out
+})
+
 const activeKey = computed(() => route.name as string)
+
+function sectionOf(key: string, opts: MenuOption[], parent?: string): string | undefined {
+  for (const o of opts) {
+    if (o.key === key) return parent
+    if (o.children) {
+      const found = sectionOf(key, o.children as MenuOption[], parent ?? (o.type === 'group' ? undefined : String(o.key)))
+      if (found) return found
+    }
+  }
+  return undefined
+}
+const expandedKeys = ref<string[]>([])
+watch([activeKey, menuOptions], () => {
+  const sec = sectionOf(activeKey.value, menuOptions.value)
+  if (sec && !expandedKeys.value.includes(sec)) expandedKeys.value = [sec]
+}, { immediate: true })
 
 const companyOptions = computed(() =>
   (auth.companies || []).map((c: { company_name: string; id: number }) => ({ label: c.company_name, value: c.id }))
@@ -425,6 +467,10 @@ function handleUserAction(key: string) {
         id="sidebar-menu"
         :options="menuOptions"
         :value="activeKey"
+        :expanded-keys="expandedKeys"
+        accordion
+        :indent="18"
+        @update:expanded-keys="(k: string[]) => expandedKeys = k"
         @update:value="handleMenuClick"
       />
     </NLayoutSider>

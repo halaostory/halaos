@@ -11,7 +11,7 @@ import { formatDistanceToNow, format, differenceInCalendarDays } from 'date-fns'
 import { homeAPI } from '../api/client'
 import { useAuthStore } from '../stores/auth'
 import { featureEnabled } from '../edition'
-import { inboxRoute, type InboxItem } from '../composables/inboxRoute'
+import { inboxRoute, prettyTitle, type InboxItem } from '../composables/inboxRoute'
 import { useCurrency } from '../composables/useCurrency'
 
 interface Agency { code: string; name: string; status: string; detail: string; employer_no?: string; employees_registered: number; employees_total: number; link: string }
@@ -166,7 +166,7 @@ onMounted(load)
                 <li v-for="item in data.todos" :key="item.kind + item.ref_id + item.title" class="row clickable" @click="openTodo(item)">
                   <span class="dot" :class="item.priority === 'high' ? 'dot-high' : 'dot-normal'" />
                   <div class="row-main">
-                    <div class="row-title">{{ item.title }}</div>
+                    <div class="row-title">{{ prettyTitle(item.title) }}</div>
                     <div class="row-sub">
                       <template v-if="item.employee_name">{{ item.employee_name }} · </template>{{ t('lifecycle.kind_' + item.kind) }}
                     </div>

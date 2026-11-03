@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { NCard, NSpace, NTag, NButton, NSpin, NEmpty, NList, NListItem, NThing, NAlert, useMessage } from 'naive-ui'
 import { lifecycleAPI } from '../api/client'
-import { inboxRoute, type InboxItem } from '../composables/inboxRoute'
+import { inboxRoute, prettyTitle, type InboxItem } from '../composables/inboxRoute'
 
 interface InboxData {
   items: InboxItem[]
@@ -108,7 +108,7 @@ onMounted(() => { load(); loadBrief() })
                   <NTag size="small" :type="item.priority === 'high' ? 'error' : 'default'">
                     {{ t('lifecycle.kind_' + item.kind) }}
                   </NTag>
-                  <span>{{ item.title }}</span>
+                  <span>{{ prettyTitle(item.title) }}</span>
                 </NSpace>
               </template>
               <template #header-extra>
