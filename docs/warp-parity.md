@@ -46,7 +46,7 @@ Legend: ✅ shipped · 🟡 partial · ⬜ not yet · — not applicable
 | Unlimited off-cycle runs; termination payroll created automatically | Off-cycle runs; final pay computed on termination and released as an off-cycle run after approval | ✅ |
 | Money movement (ACH/wire funding, direct deposit) | Bank files only; no money movement | ⬜ |
 | Payroll history import on migration | Payroll → Import history: CSV of earlier payslips (validated, all-or-nothing, no double counting) becomes locked imported pay runs that year-end forms (BIR 2316, 1604-C alphalist) and YTD reports include; plus employee CSV import | ✅ |
-| GL journal entries to QuickBooks / Xero / NetSuite | Balanced journal per payroll run mapped to your chart of accounts; one-click send to Xero (draft manual journal) or QuickBooks Online (journal entry) over OAuth, once per run, tokens refreshed automatically; CSV import files; webhook sync. No NetSuite | ✅ | Needs your own Xero / Intuit developer app (client ID/secret) |
+| GL journal entries to QuickBooks / Xero / NetSuite | Balanced journal per payroll run mapped to your chart of accounts; one-click send to Xero (draft manual journal) or QuickBooks Online (journal entry) over OAuth, once per run, tokens refreshed automatically; CSV import files; webhook sync. Needs your own Xero / Intuit developer app. No NetSuite | ✅ |
 
 ## Tax and compliance
 
