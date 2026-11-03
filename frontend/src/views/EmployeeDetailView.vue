@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { localDate } from '../utils/date'
 import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
@@ -115,18 +116,27 @@ async function changeWorkplace(v: number | null) {
   }
 }
 
+// Admin-only data is not requested for managers and employees (the API
+// refuses it); the private profile is loaded for HR or the employee.
+const skipped = () => Promise.reject(new Error("not allowed"));
+// HR or the employee themself: the private profile, documents and accounts.
+const canSeePrivate = ref(false);
 onMounted(async () => {
-  loadWorkplace(Number(route.params.id));
+  const admin = authStore.isAdmin;
+  if (admin) loadWorkplace(Number(route.params.id));
   try {
     const id = Number(route.params.id);
-    const [emp, prof, sal, structs, depts, positions] = await Promise.allSettled([
+    const [emp, sal, structs, depts, positions] = await Promise.allSettled([
       employeeAPI.get(id),
-      employeeAPI.getProfile(id),
-      employeeAPI.getSalary(id),
-      salaryAPI.listStructures(),
+      admin ? employeeAPI.getSalary(id) : skipped(),
+      admin ? salaryAPI.listStructures() : skipped(),
       companyAPI.listDepartments(),
       companyAPI.listPositions(),
     ]);
+    const self = emp.status === "fulfilled" &&
+      Number(((emp.value as { data?: { user_id?: number } }).data || {}).user_id) === authStore.user?.id;
+    canSeePrivate.value = admin || self;
+    const [prof] = await Promise.allSettled([admin || self ? employeeAPI.getProfile(id) : skipped()]);
     if (emp.status === "fulfilled") {
       const res = emp.value as {
         success: boolean;
@@ -135,6 +145,7 @@ onMounted(async () => {
       employee.value = res.data || (res as unknown as Record<string, unknown>);
     } else {
       error.value = t("employee.notFound");
+      return;
     }
     if (prof.status === "fulfilled") {
       const res = prof.value as {
@@ -190,9 +201,11 @@ onMounted(async () => {
         managerName.value = "";
       }
     }
-    loadDocuments();
+    if (canSeePrivate.value) {
+      loadDocuments();
+      loadIntegrations();
+    }
     loadTimeline();
-    loadIntegrations();
   } catch {
     error.value = t("employee.loadFailed");
   } finally {
@@ -498,7 +511,7 @@ async function handleUpload({ file }: { file: UploadFileInfo }) {
   formData.append("file", file.file);
   formData.append("doc_type", uploadDocType.value);
   if (uploadExpiryDate.value) {
-    formData.append("expiry_date", new Date(uploadExpiryDate.value).toISOString().split("T")[0]);
+    formData.append("expiry_date", localDate(uploadExpiryDate.value));
   }
   try {
     await employeeAPI.uploadDocument(id, formData);
@@ -809,9 +822,9 @@ async function handleAssignSalary() {
       />
 
       <!-- Documents Card -->
-      <NCard :title="t('employee.documents')">
+      <NCard v-if="canSeePrivate" :title="t('employee.documents')">
         <template #header-extra>
-          <NSpace :size="8" align="center">
+          <NSpace v-if="authStore.isAdmin" :size="8" align="center">
             <NSelect v-model:value="uploadDocType" :options="docTypeOptions" size="small" style="width: 140px;" />
             <NDatePicker v-model:value="uploadExpiryDate" type="date" size="small" :placeholder="t('dashboard.expiryDate')" clearable style="width: 150px;" />
             <NUpload :show-file-list="false" :custom-request="({ file }: any) => handleUpload({ file })">
@@ -824,7 +837,7 @@ async function handleAssignSalary() {
       </NCard>
 
       <!-- Connected Accounts -->
-      <NCard :title="t('integration.connectedAccounts')">
+      <NCard v-if="canSeePrivate" :title="t('integration.connectedAccounts')">
         <NDataTable v-if="integrationIdentities.length" :columns="identityColumns" :data="integrationIdentities" :row-key="(row: IntegrationIdentity) => row.id" size="small" />
         <NEmpty v-else :description="t('integration.noConnectedAccounts')" />
       </NCard>

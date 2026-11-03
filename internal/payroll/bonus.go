@@ -297,7 +297,7 @@ func (h *Handler) CreateBonusAllocation(c *gin.Context) {
 	})
 	if err != nil {
 		h.logger.Error("create bonus allocation failed", "error", err)
-		response.InternalError(c, "Failed to create bonus allocation")
+		response.DBError(c, err, "Bonus structure or employee not found", "Failed to create bonus allocation")
 		return
 	}
 	response.Created(c, alloc)

@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/halaostory/halaos/internal/access"
 	"github.com/halaostory/halaos/internal/auth"
 	"github.com/halaostory/halaos/internal/store"
 	"github.com/halaostory/halaos/pkg/pagination"
@@ -98,7 +99,7 @@ func (h *Handler) UpdateCategory(c *gin.Context) {
 		IsActive:        req.IsActive,
 	})
 	if err != nil {
-		response.InternalError(c, "Failed to update expense category")
+		response.DBError(c, err, "Expense category not found", "Failed to update expense category")
 		return
 	}
 	response.OK(c, cat)
@@ -176,6 +177,9 @@ func (h *Handler) Get(c *gin.Context) {
 	})
 	if err != nil {
 		response.NotFound(c, "Expense claim not found")
+		return
+	}
+	if !access.Check(c, h.queries, claim.EmployeeID, access.SelfOrManager) {
 		return
 	}
 	response.OK(c, claim)

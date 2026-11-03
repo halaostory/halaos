@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import { localDate } from '../utils/date'
 import LeavePoliciesPanel from '../components/leave/LeavePoliciesPanel.vue'
-import { ref, h, onMounted, watch } from 'vue'
+import { ref, h, onMounted, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   NTabs, NTabPane, NDataTable, NButton, NModal, NForm, NFormItem,
-  NInput, NSelect, NDatePicker, NInputNumber, NSpace, NTag, NSwitch, useMessage,
+  NInput, NSelect, NDatePicker, NInputNumber, NSpace, NCheckbox, NTag, NSwitch, useMessage,
   type DataTableColumns,
 } from 'naive-ui'
 import { leaveAPI, formPrefillAPI } from '../api/client'
@@ -40,13 +41,23 @@ const form = ref({
   leave_type_id: null as number | null,
   start_date: null as number | null,
   end_date: null as number | null,
-  days: 1,
+  halfDay: false,
   reason: '',
 })
 
 function resetForm() {
-  form.value = { leave_type_id: null, start_date: null, end_date: null, days: 1, reason: '' }
+  form.value = { leave_type_id: null, start_date: null, end_date: null, halfDay: false, reason: '' }
 }
+// The server counts working days (no weekends or holidays); this is a preview.
+const oneDay = computed(() => !!form.value.start_date && form.value.start_date === form.value.end_date)
+const previewDays = computed(() => {
+  const { start_date: a, end_date: b } = form.value
+  if (!a || !b || b < a) return 0
+  if (oneDay.value && form.value.halfDay) return 0.5
+  let n = 0
+  for (let d = new Date(a); d.getTime() <= b; d.setDate(d.getDate() + 1)) if (d.getDay() !== 0 && d.getDay() !== 6) n++
+  return n
+})
 
 async function openLeaveModal() {
   resetForm()
@@ -58,7 +69,6 @@ async function openLeaveModal() {
       if (d.leave_type_id) form.value.leave_type_id = d.leave_type_id
       if (d.start_date) form.value.start_date = new Date(d.start_date).getTime()
       if (d.end_date) form.value.end_date = new Date(d.end_date).getTime()
-      if (d.days) form.value.days = d.days
     }
   } catch { /* prefill is best-effort */ }
 }
@@ -142,9 +152,9 @@ async function submitRequest() {
   try {
     await leaveAPI.createRequest({
       leave_type_id: form.value.leave_type_id,
-      start_date: new Date(form.value.start_date).toISOString().split('T')[0],
-      end_date: new Date(form.value.end_date).toISOString().split('T')[0],
-      days: String(form.value.days),
+      start_date: localDate(form.value.start_date),
+      end_date: localDate(form.value.end_date),
+      days: oneDay.value && form.value.halfDay ? '0.5' : undefined,
       reason: form.value.reason || undefined,
     })
     message.success(t('leave.submitted'))
@@ -382,7 +392,11 @@ async function runCarryover() {
           <NDatePicker v-model:value="form.end_date" type="date" style="width: 100%;" />
         </NFormItem>
         <NFormItem :label="t('leave.days')">
-          <NInputNumber v-model:value="form.days" :min="0.5" :step="0.5" />
+          <NSpace align="center">
+            <strong>{{ previewDays }}</strong>
+            <span class="muted-hint">{{ t('leave.daysHint') }}</span>
+            <NCheckbox v-if="oneDay" v-model:checked="form.halfDay">{{ t('leave.halfDay') }}</NCheckbox>
+          </NSpace>
         </NFormItem>
         <NFormItem :label="t('leave.reason')">
           <NInput v-model:value="form.reason" type="textarea" />
@@ -395,3 +409,7 @@ async function runCarryover() {
     </NModal>
   </div>
 </template>
+
+<style scoped>
+.muted-hint { font-size: 12px; opacity: .6; }
+</style>

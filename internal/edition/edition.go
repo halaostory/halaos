@@ -91,6 +91,9 @@ type Config struct {
 	Modules     []string  `json:"modules"`
 	Countries   []Country `json:"countries"`
 	AIBilling   bool      `json:"ai_billing"` // BILLING_ENABLED: meter AI usage with prepaid tokens
+	// AIAssistant reports whether an AI provider is configured (the agent
+	// chat and AI tools are served only then).
+	AIAssistant bool `json:"ai_assistant"`
 
 	enabled map[string]bool `json:"-"`
 }

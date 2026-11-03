@@ -3,6 +3,7 @@ package employee
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -332,8 +334,12 @@ func (h *Handler) GetProfile(c *gin.Context) {
 		EmployeeID: id,
 		CompanyID:  companyID,
 	})
-	if err != nil {
-		response.NotFound(c, "Profile not found")
+	if errors.Is(err, pgx.ErrNoRows) {
+		// No profile saved yet: an empty one, not an error.
+		response.OK(c, store.EmployeeProfile{EmployeeID: id})
+		return
+	} else if err != nil {
+		response.InternalError(c, "Failed to load profile")
 		return
 	}
 	response.OK(c, profile)
@@ -356,7 +362,7 @@ func (h *Handler) UpdateProfile(c *gin.Context) {
 	profile, err := h.queries.UpsertEmployeeProfile(c.Request.Context(), req)
 	if err != nil {
 		h.logger.Error("failed to update profile", "error", err)
-		response.InternalError(c, "Failed to update profile")
+		response.DBError(c, err, "Employee not found", "Failed to update profile")
 		return
 	}
 	response.OK(c, profile)

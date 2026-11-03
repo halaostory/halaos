@@ -492,6 +492,7 @@ func (a *App) setupRoutes() {
 	orgIntelHandler := orgintel.NewHandler(a.Queries, a.Pool, a.Logger, briefGen)
 	orgIntelHandler.RegisterRoutes(a.mod(edition.ModIntelligence, protected))
 
+	a.Edition.AIAssistant = aiHandler != nil && a.Edition.Enabled(edition.ModAI)
 	if aiHandler != nil {
 		aiHandler.RegisterRoutes(a.mod(edition.ModAI, protected))
 	}

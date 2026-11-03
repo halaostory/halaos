@@ -1,5 +1,13 @@
 export default {
   common: {
+    next: "Next",
+    updated: "Updated",
+    created: "Created",
+    error: "Something went wrong",
+    fillRequired: "Please fill in the required fields",
+    date: "Date",
+    all: "All",
+    success: "Done",
     save: "Save",
     cancel: "Cancel",
     delete: "Delete",
@@ -43,7 +51,7 @@ export default {
     noData: "No data",
     notFound: "Not found",
     placeholder: {
-      email: "email@company.com",
+      email: "email{'@'}company.com",
       minChars: "Min 8 characters",
       employeeId: "Employee ID",
     },
@@ -197,6 +205,8 @@ export default {
     settings: "System configuration",
   },
   auth: {
+    passwordTooShort: "Password must be at least 8 characters",
+    role: "Role",
     comingSoon: "Coming soon",
     countryComingSoon: "{country} is coming soon — join the waitlist and we will let you know.",
     login: "Login",
@@ -503,6 +513,8 @@ export default {
     codePlaceholder: "e.g. SE-1, MGR-2",
   },
   leave: {
+    daysHint: "working days (weekends and holidays are not counted)",
+    halfDay: "Half day",
     title: "Leave Management",
     myLeaves: "My Leaves",
     balance: "Leave Balance",
@@ -973,7 +985,7 @@ export default {
     botConfig: "Chat Bot Configuration",
     botPlatform: "Platform",
     botToken: "Bot Token",
-    botTokenHint: "Telegram bot token from @BotFather",
+    botTokenHint: "Telegram bot token from {'@'}BotFather",
     botUsername: "Bot Username",
     botActive: "Active",
     botRunning: "Bot is running",
@@ -1490,6 +1502,9 @@ export default {
     totalAmount: "Total Amount",
   },
   disciplinary: {
+    verbalWarning: "Verbal warning",
+    writtenWarning: "Written warning",
+    finalWarning: "Final warning",
     title: "Disciplinary Management",
     incidents: "Incidents",
     actions: "Disciplinary Actions",
@@ -1927,6 +1942,14 @@ export default {
     paid: "Paid",
   },
   billing: {
+    agentName: "Agent",
+    balanceAfter: "Balance after",
+    dateCol: "Date",
+    purchased: "Purchased",
+    granted: "Granted",
+    consumed: "Used",
+    buy: "Buy tokens",
+    buyConfirm: "Confirm purchase",
     title: "Billing & Tokens",
     balance: "Token Balance",
     totalPurchased: "Total Purchased",
@@ -2107,6 +2130,9 @@ export default {
     },
   },
   chat: {
+    notConfiguredTitle: "The AI agent is not set up yet",
+    notConfiguredAdmin: "Set an AI provider key on the server (ANTHROPIC_API_KEY, OPENAI_API_KEY or MINIMAX_API_KEY) and restart it. Everything else in HalaPeople works without it.",
+    notConfiguredUser: "Your HR admin has not turned on the AI agent yet.",
     history: "Chat History",
     historyShort: "History",
     selectAgent: "Select Agent",
@@ -2197,6 +2223,7 @@ export default {
     dismiss: "Dismiss",
   },
   integration: {
+    disconnected: "Disconnected",
     title: "Integrations",
     subtitle: "Connect your tools to automate employee provisioning",
     provider: "Provider",
@@ -2265,7 +2292,7 @@ export default {
     config: "Chat Bot Configuration",
     platform: "Platform",
     token: "Bot Token",
-    tokenHint: "Telegram bot token from @BotFather",
+    tokenHint: "Telegram bot token from {'@'}BotFather",
     username: "Bot Username",
     active: "Active",
     running: "Bot is running",
@@ -2358,6 +2385,10 @@ export default {
     timePending: "Time Pending",
   },
   workflowAnalytics: {
+    totalApprovals: "Total approvals",
+    autoApprovalRate: "Auto-approval rate",
+    approvalBreakdown: "Approval breakdown",
+    pendingAge: "Pending age",
     title: "Workflow Analytics",
     avgApprovalTime: "Avg Approval Time",
     slaCompliance: "SLA Compliance",
@@ -2525,6 +2556,9 @@ export default {
     customerFocus: "Customer Focus",
   },
   hrRequest: {
+    salaryCert: "Salary certificate",
+    idReplacement: "ID replacement",
+    scheduleChange: "Schedule change",
     title: "HR Service Requests",
     subtitle: "Submit and track HR service requests",
     newRequest: "New Request",
@@ -2622,7 +2656,7 @@ export default {
     subtitle: "Set up your Telegram bot for team communication",
     // Admin wizard steps
     step1Title: "Create Bot",
-    step1Desc: "Create a new bot on Telegram via @BotFather",
+    step1Desc: "Create a new bot on Telegram via {'@'}BotFather",
     step2Title: "Enter Token",
     step2Desc: "Paste the bot token and username",
     step3Title: "Test Connection",
@@ -2631,18 +2665,18 @@ export default {
     step4Desc: "Enable the bot and save configuration",
     // BotFather instructions
     botFatherInstructions: "Follow these steps to create your Telegram bot:",
-    botFatherStep1: "Open Telegram and search for @BotFather",
+    botFatherStep1: "Open Telegram and search for {'@'}BotFather",
     botFatherStep2: "Send /newbot command",
     botFatherStep3: "Choose a name for your bot (e.g. \"My Company HR Bot\")",
     botFatherStep4: "Choose a username ending in \"bot\" (e.g. \"mycompany_hr_bot\")",
     botFatherStep5: "Copy the bot token provided by BotFather",
-    openBotFather: "Open @BotFather",
+    openBotFather: "Open {'@'}BotFather",
     // Token input
     tokenLabel: "Bot Token",
     tokenPlaceholder: "Paste your bot token here",
     tokenHint: "Format: 123456789:ABCdefGHIjklMNOpqrSTUvwxYZ",
     usernameLabel: "Bot Username",
-    usernamePlaceholder: "@your_bot_username",
+    usernamePlaceholder: "{'@'}your_bot_username",
     // Test connection
     testToken: "Test Token",
     testSuccess: "Connection successful!",
@@ -2657,7 +2691,7 @@ export default {
     configSaved: "Bot configuration saved — bot is starting automatically",
     configSaveFailed: "Failed to save bot configuration",
     // Shared bot
-    sharedBotExplanation: "Your company uses the shared HalaOS bot (@halaosbot). Link your Telegram account below to get started.",
+    sharedBotExplanation: "Your company uses the shared HalaOS bot ({'@'}halaosbot). Link your Telegram account below to get started.",
     advancedCustomBot: "Advanced: Use Custom Bot",
     optional: "Optional",
     // Employee flow

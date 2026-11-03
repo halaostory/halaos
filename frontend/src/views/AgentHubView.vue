@@ -8,6 +8,7 @@ import {
   NSwitch, NSlider,
 } from 'naive-ui'
 import { agentAPI } from '../api/client'
+import { edition, loadEdition } from '../edition'
 import { useAuthStore } from '../stores/auth'
 
 const { t } = useI18n()
@@ -241,7 +242,10 @@ function confirmDeleteAgent(agent: Agent) {
 
 // --- Mount ---
 
-onMounted(() => {
+const aiReady = computed(() => edition.config.ai_assistant === true)
+onMounted(async () => {
+  await loadEdition()
+  if (!aiReady.value) return
   fetchAgents()
   if (isAdmin.value) {
     fetchTools()
@@ -252,6 +256,10 @@ onMounted(() => {
 <template>
   <NSpin :show="loading">
     <div>
+      <div v-if="!aiReady" class="ai-off-banner">
+        <strong>{{ t('chat.notConfiguredTitle') }}</strong>
+        <p>{{ isAdmin ? t('chat.notConfiguredAdmin') : t('chat.notConfiguredUser') }}</p>
+      </div>
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
         <div>
           <h2 style="margin-bottom: 4px;">{{ t('agentHub.title') }}</h2>
@@ -523,3 +531,8 @@ onMounted(() => {
     </template>
   </NModal>
 </template>
+
+<style scoped>
+.ai-off-banner { padding: 12px 16px; border-radius: 8px; background: rgba(240, 160, 32, .1); margin-bottom: 16px; }
+.ai-off-banner p { margin: 4px 0 0; font-size: 13px; opacity: .8; }
+</style>

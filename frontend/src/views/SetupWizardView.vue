@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { localDate } from '../utils/date'
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import {
@@ -55,7 +56,7 @@ const employeeForm = ref({
   department_id: undefined as number | undefined,
   position_id: undefined as number | undefined,
   employment_type: 'regular',
-  hire_date: new Date().toISOString().split('T')[0],
+  hire_date: localDate(),
 })
 
 const isPH = computed(() => auth.user?.company_country === 'PHL' || !auth.user?.company_country)

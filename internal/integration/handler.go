@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"github.com/halaostory/halaos/internal/access"
 	"github.com/halaostory/halaos/internal/auth"
 	"github.com/halaostory/halaos/internal/store"
 	"github.com/halaostory/halaos/pkg/pagination"
@@ -357,6 +358,9 @@ func (h *Handler) ListEmployeeIntegrations(c *gin.Context) {
 		return
 	}
 
+	if !access.Check(c, h.queries, empID, access.SelfOrAdmin) {
+		return
+	}
 	companyID := auth.GetCompanyID(c)
 	identities, err := h.queries.ListEmployeeIntegrations(c.Request.Context(), store.ListEmployeeIntegrationsParams{
 		EmployeeID: empID,

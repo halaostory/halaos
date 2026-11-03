@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { NCard, NForm, NFormItem, NInput, NInputNumber, NSelect, NButton, NSpace, NUpload, NAvatar, NSwitch, NTag, NPopconfirm, NEmpty, NAlert, NRadioGroup, NRadioButton, useMessage } from 'naive-ui'
 import type { UploadFileInfo } from 'naive-ui'
 import { companyAPI, botAPI, byokAPI, apiKeyAPI, breakAPI } from '../api/client'
+import { featureEnabled, loadEdition } from '../edition'
 import { useAuthStore } from '../stores/auth'
 
 const { t } = useI18n()
@@ -394,8 +395,11 @@ async function saveBreakPolicies() {
   }
 }
 
-onMounted(() => {
-  if (authStore.user?.role === 'admin' || authStore.user?.role === 'super_admin') {
+// Break policies belong to the attendance module (suite edition only).
+const hasAttendance = computed(() => featureEnabled('attendance'))
+onMounted(async () => {
+  await loadEdition()
+  if (hasAttendance.value && (authStore.user?.role === 'admin' || authStore.user?.role === 'super_admin')) {
     loadBreakPolicies()
   }
 })
@@ -522,7 +526,7 @@ onMounted(() => {
       </NForm>
     </NCard>
     <!-- Break Policies (Admin only) -->
-    <NCard v-if="authStore.user?.role === 'admin' || authStore.user?.role === 'super_admin'" :title="t('break.policies')" style="margin-top: 24px;">
+    <NCard v-if="hasAttendance && (authStore.user?.role === 'admin' || authStore.user?.role === 'super_admin')" :title="t('break.policies')" style="margin-top: 24px;">
       <NForm @submit.prevent="saveBreakPolicies" label-placement="left" label-width="140">
         <NFormItem v-for="policy in breakPolicies" :key="policy.break_type" :label="t(breakTypeLabels[policy.break_type] || policy.break_type)">
           <NInputNumber v-model:value="policy.max_minutes" :min="0" :max="480" style="width: 200px;">

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { localDate } from '../utils/date'
 import { ref, h, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import {
@@ -195,7 +196,7 @@ async function downloadDOLERegister() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `DOLE_Register_${new Date().toISOString().slice(0, 10)}.pdf`;
+    a.download = `DOLE_Register_${localDate()}.pdf`;
     a.click();
     URL.revokeObjectURL(url);
     message.success(t("compliance.downloaded"));

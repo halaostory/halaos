@@ -88,7 +88,7 @@ func (h *Handler) Acknowledge(c *gin.Context) {
 		Notes:          &req.Notes,
 	})
 	if err != nil {
-		response.InternalError(c, "Failed to acknowledge milestone")
+		response.DBError(c, err, "Milestone not found", "Failed to acknowledge milestone")
 		return
 	}
 	response.OK(c, milestone)
@@ -112,7 +112,7 @@ func (h *Handler) Action(c *gin.Context) {
 		Notes:     &req.Notes,
 	})
 	if err != nil {
-		response.InternalError(c, "Failed to action milestone")
+		response.DBError(c, err, "Milestone not found", "Failed to action milestone")
 		return
 	}
 	response.OK(c, milestone)

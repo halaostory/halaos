@@ -1,11 +1,13 @@
 package payroll
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/halaostory/halaos/internal/auth"
 	"github.com/halaostory/halaos/internal/store"
@@ -80,8 +82,12 @@ func (h *Handler) GetRunAnomalies(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
 	calculator := NewCalculator(h.queries, h.pool, h.logger)
 	report, err := calculator.DetectAnomalies(c.Request.Context(), runID, companyID)
-	if err != nil {
-		response.InternalError(c, fmt.Sprintf("Anomaly detection failed: %s", err.Error()))
+	if errors.Is(err, pgx.ErrNoRows) {
+		response.NotFound(c, "Payroll run not found")
+		return
+	} else if err != nil {
+		h.logger.Error("anomaly detection failed", "run_id", runID, "error", err)
+		response.InternalError(c, "Anomaly detection failed")
 		return
 	}
 	response.OK(c, report)

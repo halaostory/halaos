@@ -1,10 +1,15 @@
 package integration
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/gin-gonic/gin"
+
+	"github.com/halaostory/halaos/internal/auth"
+)
 
 // RegisterRoutes registers all integration HTTP routes.
 func (h *Handler) RegisterRoutes(protected *gin.RouterGroup) {
-	ig := protected.Group("/integrations")
+	// Connections provision and deprovision accounts: HR admins only.
+	ig := protected.Group("/integrations", auth.AdminOnly())
 
 	// Connection management
 	ig.GET("/connections", h.ListConnections)

@@ -1,3 +1,4 @@
+import { localDate } from '../utils/date'
 import { ofetch } from "ofetch";
 
 let isRefreshing = false;
@@ -594,7 +595,7 @@ export const analyticsAPI = {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `analytics_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `analytics_${localDate()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   },

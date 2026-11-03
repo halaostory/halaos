@@ -77,7 +77,9 @@ UPDATE disciplinary_actions SET
     employee_acknowledged = true,
     acknowledged_at = NOW(),
     updated_at = NOW()
-WHERE id = $1 AND company_id = $2
+WHERE disciplinary_actions.id = $1 AND disciplinary_actions.company_id = $2
+  -- only the employee the action is about acknowledges it
+  AND disciplinary_actions.employee_id IN (SELECT e.id FROM employees e WHERE e.user_id = $3 AND e.company_id = $2)
 RETURNING *;
 
 -- name: AppealDisciplinaryAction :one
@@ -86,7 +88,8 @@ UPDATE disciplinary_actions SET
     appeal_reason = $3,
     appeal_date = NOW(),
     updated_at = NOW()
-WHERE id = $1 AND company_id = $2 AND (appeal_status IS NULL)
+WHERE disciplinary_actions.id = $1 AND disciplinary_actions.company_id = $2 AND (disciplinary_actions.appeal_status IS NULL)
+  AND disciplinary_actions.employee_id IN (SELECT e.id FROM employees e WHERE e.user_id = $4 AND e.company_id = $2)
 RETURNING *;
 
 -- name: ResolveAppeal :one

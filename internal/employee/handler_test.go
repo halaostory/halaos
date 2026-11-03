@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -280,34 +281,34 @@ func TestUpdateEmployee_DBError(t *testing.T) {
 func profileScanValues() []interface{} {
 	now := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	return []interface{}{
-		int64(1),        // EmployeeID
-		(*string)(nil),  // AddressLine1
-		(*string)(nil),  // AddressLine2
-		(*string)(nil),  // City
-		(*string)(nil),  // Province
-		(*string)(nil),  // ZipCode
-		(*string)(nil),  // EmergencyName
-		(*string)(nil),  // EmergencyPhone
-		(*string)(nil),  // EmergencyRelation
-		(*string)(nil),  // BankName
-		(*string)(nil),  // BankAccountNo
-		(*string)(nil),  // BankAccountName
-		(*string)(nil),  // Tin
-		(*string)(nil),  // SssNo
-		(*string)(nil),  // PhilhealthNo
-		(*string)(nil),  // PagibigNo
-		(*string)(nil),  // BloodType
-		(*string)(nil),  // Religion
-		now,             // UpdatedAt
-		[]byte(nil),     // SsnEncrypted
-		(*string)(nil),  // StateOfResidence
-		(*string)(nil),  // W4FilingStatus
+		int64(1),         // EmployeeID
+		(*string)(nil),   // AddressLine1
+		(*string)(nil),   // AddressLine2
+		(*string)(nil),   // City
+		(*string)(nil),   // Province
+		(*string)(nil),   // ZipCode
+		(*string)(nil),   // EmergencyName
+		(*string)(nil),   // EmergencyPhone
+		(*string)(nil),   // EmergencyRelation
+		(*string)(nil),   // BankName
+		(*string)(nil),   // BankAccountNo
+		(*string)(nil),   // BankAccountName
+		(*string)(nil),   // Tin
+		(*string)(nil),   // SssNo
+		(*string)(nil),   // PhilhealthNo
+		(*string)(nil),   // PagibigNo
+		(*string)(nil),   // BloodType
+		(*string)(nil),   // Religion
+		now,              // UpdatedAt
+		[]byte(nil),      // SsnEncrypted
+		(*string)(nil),   // StateOfResidence
+		(*string)(nil),   // W4FilingStatus
 		pgtype.Numeric{}, // W4AdditionalWithholding
-		(*bool)(nil),    // W4MultipleJobs
+		(*bool)(nil),     // W4MultipleJobs
 		pgtype.Numeric{}, // W4DependentsCredit
 		pgtype.Numeric{}, // W4OtherIncome
 		pgtype.Numeric{}, // W4Deductions
-		(*int32)(nil),   // StateAllowances
+		(*int32)(nil),    // StateAllowances
 	}
 }
 
@@ -327,6 +328,7 @@ func TestGetProfile_Success(t *testing.T) {
 	}
 }
 
+// No saved profile yet is not an error: the page gets an empty profile.
 func TestGetProfile_NotFound(t *testing.T) {
 	mockDB := testutil.NewMockDBTX()
 	h := newTestHandler(mockDB)
@@ -338,8 +340,8 @@ func TestGetProfile_NotFound(t *testing.T) {
 
 	h.GetProfile(c)
 
-	if w.Code != http.StatusNotFound {
-		t.Fatalf("expected 404, got %d: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"employee_id":999`) {
+		t.Fatalf("expected an empty profile, got %d: %s", w.Code, w.Body.String())
 	}
 }
 

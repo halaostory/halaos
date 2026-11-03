@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { localDate } from '../utils/date'
 import { ref, computed, h } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
@@ -169,8 +170,8 @@ function exportAttendance() {
     return
   }
   const [startTs, endTs] = attendanceDates.value
-  const start = new Date(startTs).toISOString().split('T')[0]
-  const end = new Date(endTs).toISOString().split('T')[0]
+  const start = localDate(startTs)
+  const end = localDate(endTs)
   downloadWithAuth(exportAPI.attendanceCSV(start, end))
 }
 

@@ -24,7 +24,7 @@ func (h *Handler) RegisterRoutes(protected *gin.RouterGroup) {
 	// Encashment
 	protected.GET("/leaves/encashment/convertible", h.GetConvertibleBalances)
 	protected.POST("/leaves/encashment", h.CreateEncashment)
-	protected.GET("/leaves/encashment", auth.ManagerOrAbove(), h.ListEncashments)
+	protected.GET("/leaves/encashment", h.ListEncashments) // employees: own requests only
 	protected.POST("/leaves/encashment/:id/approve", auth.ManagerOrAbove(), h.ApproveEncashment)
 	protected.POST("/leaves/encashment/:id/reject", auth.ManagerOrAbove(), h.RejectEncashment)
 	protected.POST("/leaves/encashment/:id/paid", auth.AdminOnly(), h.MarkEncashmentPaid)

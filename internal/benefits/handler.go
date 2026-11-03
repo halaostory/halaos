@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/halaostory/halaos/internal/access"
 	"github.com/halaostory/halaos/internal/auth"
 	"github.com/halaostory/halaos/internal/store"
 	"github.com/halaostory/halaos/pkg/response"
@@ -259,7 +260,7 @@ func (h *Handler) CancelEnrollment(c *gin.Context) {
 		ID: enrollmentID, CompanyID: companyID,
 	})
 	if err != nil {
-		response.InternalError(c, "Failed to cancel enrollment")
+		response.DBError(c, err, "Enrollment not found", "Failed to cancel enrollment")
 		return
 	}
 	response.OK(c, enrollment)
@@ -270,6 +271,9 @@ func (h *Handler) ListDependents(c *gin.Context) {
 	enrollmentID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "Invalid ID")
+		return
+	}
+	if !h.ownsEnrollment(c, companyID, enrollmentID) {
 		return
 	}
 	deps, err := h.queries.ListBenefitDependents(c.Request.Context(), store.ListBenefitDependentsParams{
@@ -284,18 +288,18 @@ func (h *Handler) ListDependents(c *gin.Context) {
 
 func (h *Handler) AddDependent(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	userID := auth.GetUserID(c)
-	emp, err := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
-		CompanyID: companyID, UserID: &userID,
-	})
-	if err != nil {
-		response.BadRequest(c, "Employee profile not found")
-		return
-	}
-	employeeID := emp.ID
 	enrollmentID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "Invalid ID")
+		return
+	}
+	// The dependent belongs to the enrollment's employee (HR may add one
+	// for anyone; employees only to their own enrollment).
+	employeeID, err := h.queries.GetBenefitEnrollmentOwner(c.Request.Context(), store.GetBenefitEnrollmentOwnerParams{ID: enrollmentID, CompanyID: companyID})
+	if err != nil || !access.Check(c, h.queries, employeeID, access.SelfOrAdmin) {
+		if err != nil {
+			response.NotFound(c, "Enrollment not found")
+		}
 		return
 	}
 	var req struct {
@@ -336,6 +340,14 @@ func (h *Handler) DeleteDependent(c *gin.Context) {
 	depID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "Invalid ID")
+		return
+	}
+	owner, err := h.queries.GetBenefitDependentOwner(c.Request.Context(), store.GetBenefitDependentOwnerParams{ID: depID, CompanyID: companyID})
+	if err != nil {
+		response.NotFound(c, "Dependent not found")
+		return
+	}
+	if !access.Check(c, h.queries, owner, access.SelfOrAdmin) {
 		return
 	}
 	err = h.queries.DeleteBenefitDependent(c.Request.Context(), store.DeleteBenefitDependentParams{
@@ -430,7 +442,7 @@ func (h *Handler) ApproveClaim(c *gin.Context) {
 		ID: claimID, CompanyID: companyID, ApprovedBy: &userID,
 	})
 	if err != nil {
-		response.InternalError(c, "Failed to approve claim")
+		response.DBError(c, err, "Claim not found or already decided", "Failed to approve claim")
 		return
 	}
 	response.OK(c, claim)
@@ -455,8 +467,18 @@ func (h *Handler) RejectClaim(c *gin.Context) {
 		ID: claimID, CompanyID: companyID, RejectionReason: reason,
 	})
 	if err != nil {
-		response.InternalError(c, "Failed to reject claim")
+		response.DBError(c, err, "Claim not found or already decided", "Failed to reject claim")
 		return
 	}
 	response.OK(c, claim)
+}
+
+// ownsEnrollment checks the caller may see an enrollment's dependents.
+func (h *Handler) ownsEnrollment(c *gin.Context, companyID, enrollmentID int64) bool {
+	owner, err := h.queries.GetBenefitEnrollmentOwner(c.Request.Context(), store.GetBenefitEnrollmentOwnerParams{ID: enrollmentID, CompanyID: companyID})
+	if err != nil {
+		response.NotFound(c, "Enrollment not found")
+		return false
+	}
+	return access.Check(c, h.queries, owner, access.SelfOrManager)
 }

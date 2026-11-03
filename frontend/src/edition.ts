@@ -16,6 +16,7 @@ export interface EditionConfig {
   modules: string[];
   countries: EditionCountry[];
   ai_billing?: boolean;
+  ai_assistant?: boolean;
 }
 
 // Route / nav key → module. Anything not listed belongs to "core".

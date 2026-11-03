@@ -17,17 +17,20 @@ UPDATE disciplinary_actions SET
     employee_acknowledged = true,
     acknowledged_at = NOW(),
     updated_at = NOW()
-WHERE id = $1 AND company_id = $2
+WHERE disciplinary_actions.id = $1 AND disciplinary_actions.company_id = $2
+  -- only the employee the action is about acknowledges it
+  AND disciplinary_actions.employee_id IN (SELECT e.id FROM employees e WHERE e.user_id = $3 AND e.company_id = $2)
 RETURNING id, company_id, employee_id, incident_id, action_type, action_date, issued_by, description, suspension_days, effective_date, end_date, employee_acknowledged, acknowledged_at, appeal_status, appeal_reason, appeal_date, appeal_resolved_at, appeal_resolved_by, appeal_resolution, notes, created_at, updated_at
 `
 
 type AcknowledgeDisciplinaryActionParams struct {
-	ID        int64 `json:"id"`
-	CompanyID int64 `json:"company_id"`
+	ID        int64  `json:"id"`
+	CompanyID int64  `json:"company_id"`
+	UserID    *int64 `json:"user_id"`
 }
 
 func (q *Queries) AcknowledgeDisciplinaryAction(ctx context.Context, arg AcknowledgeDisciplinaryActionParams) (DisciplinaryAction, error) {
-	row := q.db.QueryRow(ctx, acknowledgeDisciplinaryAction, arg.ID, arg.CompanyID)
+	row := q.db.QueryRow(ctx, acknowledgeDisciplinaryAction, arg.ID, arg.CompanyID, arg.UserID)
 	var i DisciplinaryAction
 	err := row.Scan(
 		&i.ID,
@@ -62,7 +65,8 @@ UPDATE disciplinary_actions SET
     appeal_reason = $3,
     appeal_date = NOW(),
     updated_at = NOW()
-WHERE id = $1 AND company_id = $2 AND (appeal_status IS NULL)
+WHERE disciplinary_actions.id = $1 AND disciplinary_actions.company_id = $2 AND (disciplinary_actions.appeal_status IS NULL)
+  AND disciplinary_actions.employee_id IN (SELECT e.id FROM employees e WHERE e.user_id = $4 AND e.company_id = $2)
 RETURNING id, company_id, employee_id, incident_id, action_type, action_date, issued_by, description, suspension_days, effective_date, end_date, employee_acknowledged, acknowledged_at, appeal_status, appeal_reason, appeal_date, appeal_resolved_at, appeal_resolved_by, appeal_resolution, notes, created_at, updated_at
 `
 
@@ -70,10 +74,16 @@ type AppealDisciplinaryActionParams struct {
 	ID           int64   `json:"id"`
 	CompanyID    int64   `json:"company_id"`
 	AppealReason *string `json:"appeal_reason"`
+	UserID       *int64  `json:"user_id"`
 }
 
 func (q *Queries) AppealDisciplinaryAction(ctx context.Context, arg AppealDisciplinaryActionParams) (DisciplinaryAction, error) {
-	row := q.db.QueryRow(ctx, appealDisciplinaryAction, arg.ID, arg.CompanyID, arg.AppealReason)
+	row := q.db.QueryRow(ctx, appealDisciplinaryAction,
+		arg.ID,
+		arg.CompanyID,
+		arg.AppealReason,
+		arg.UserID,
+	)
 	var i DisciplinaryAction
 	err := row.Scan(
 		&i.ID,

@@ -164,6 +164,7 @@ func TestCancelEnrollment_DBError(t *testing.T) {
 func TestListDependents_DBError(t *testing.T) {
 	mockDB := testutil.NewMockDBTX()
 	h := newTestHandler(mockDB)
+	mockDB.OnQueryRow(testutil.NewRow(int64(10))) // enrollment owner
 	mockDB.OnQuery(nil, fmt.Errorf("db error"))
 	c, w := testutil.NewGinContextWithParams("GET", "/benefits/enrollments/1/dependents",
 		gin.Params{{Key: "id", Value: "1"}}, nil, adminAuth)
@@ -175,7 +176,7 @@ func TestListDependents_DBError(t *testing.T) {
 
 // --- AddDependent ---
 
-func TestAddDependent_EmployeeNotFound(t *testing.T) {
+func TestAddDependent_EnrollmentNotFound(t *testing.T) {
 	mockDB := testutil.NewMockDBTX()
 	h := newTestHandler(mockDB)
 	mockDB.OnQueryRow(testutil.NewErrorRow(fmt.Errorf("not found")))
@@ -184,15 +185,15 @@ func TestAddDependent_EmployeeNotFound(t *testing.T) {
 			"name": "John Jr", "relationship": "child",
 		}, adminAuth)
 	h.AddDependent(c)
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", w.Code, w.Body.String())
 	}
 }
 
 func TestAddDependent_ValidationError(t *testing.T) {
 	mockDB := testutil.NewMockDBTX()
 	h := newTestHandler(mockDB)
-	mockDB.OnQueryRow(testutil.NewRow(testutil.EmployeeScanValues(testutil.FixtureEmployee())...))
+	mockDB.OnQueryRow(testutil.NewRow(int64(10))) // enrollment owner
 	c, w := testutil.NewGinContextWithParams("POST", "/benefits/enrollments/1/dependents",
 		gin.Params{{Key: "id", Value: "1"}}, gin.H{}, adminAuth)
 	h.AddDependent(c)

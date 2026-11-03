@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { localDate } from '../utils/date'
 import { ref, h, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
@@ -71,8 +72,8 @@ async function generateReport() {
   }
   loading.value = true
   try {
-    const start = new Date(dateRange.value[0]).toISOString().split('T')[0]
-    const end = new Date(dateRange.value[1]).toISOString().split('T')[0]
+    const start = localDate(dateRange.value[0])
+    const end = localDate(dateRange.value[1])
     const res = await attendanceAPI.getReport(start, end) as { data?: ReportRow[] }
     const data = (res as any)?.data ?? res
     report.value = Array.isArray(data) ? data : []

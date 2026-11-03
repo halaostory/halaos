@@ -148,6 +148,33 @@ func (q *Queries) CountLeaveRequests(ctx context.Context, arg CountLeaveRequests
 	return count, err
 }
 
+const countOverlappingLeave = `-- name: CountOverlappingLeave :one
+SELECT COUNT(*)::int FROM leave_requests
+WHERE company_id = $1 AND employee_id = $2
+  AND status IN ('pending', 'approved')
+  AND start_date <= $3::date AND end_date >= $4::date
+`
+
+type CountOverlappingLeaveParams struct {
+	CompanyID  int64     `json:"company_id"`
+	EmployeeID int64     `json:"employee_id"`
+	EndDate    time.Time `json:"end_date"`
+	StartDate  time.Time `json:"start_date"`
+}
+
+// Pending or approved leave of the employee that overlaps [start, end].
+func (q *Queries) CountOverlappingLeave(ctx context.Context, arg CountOverlappingLeaveParams) (int32, error) {
+	row := q.db.QueryRow(ctx, countOverlappingLeave,
+		arg.CompanyID,
+		arg.EmployeeID,
+		arg.EndDate,
+		arg.StartDate,
+	)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createLeaveRequest = `-- name: CreateLeaveRequest :one
 INSERT INTO leave_requests (
     company_id, employee_id, leave_type_id,

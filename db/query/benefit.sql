@@ -130,3 +130,9 @@ SELECT
     COALESCE(SUM(be.employee_share), 0) as total_employee_cost
 FROM benefit_enrollments be
 WHERE be.company_id = $1 AND be.status = 'active';
+
+-- name: GetBenefitEnrollmentOwner :one
+SELECT employee_id FROM benefit_enrollments WHERE id = $1 AND company_id = $2;
+
+-- name: GetBenefitDependentOwner :one
+SELECT employee_id FROM benefit_dependents WHERE id = $1 AND company_id = $2;

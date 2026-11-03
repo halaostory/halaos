@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { localDate } from '../utils/date'
 import { ref, computed, h, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -232,7 +233,7 @@ async function handleBulkSalaryUpdate() {
   bulkSalaryLoading.value = true
   bulkSalaryResult.value = null
   try {
-    const effDate = new Date(bulkSalaryForm.value.effectiveFrom).toISOString().split('T')[0]
+    const effDate = localDate(bulkSalaryForm.value.effectiveFrom)
     const res = await employeeAPI.bulkSalaryUpdate({
       employee_ids: activeEmployeeIds.value,
       update_type: bulkSalaryForm.value.updateType,
