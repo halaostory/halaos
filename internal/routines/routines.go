@@ -138,7 +138,20 @@ const (
 	ActSkipped  = "skipped"  // not applicable
 	ActFailed   = "failed"
 	ActWaiting  = "waiting" // scheduled / waiting on a date or an agency
+	ActUndone   = "undone"  // rolled back by a person
 )
+
+// Undo kinds: how an action is rolled back.
+const (
+	UndoCancelSubmission    = "cancel_gov_submission"
+	UndoRetractNotification = "retract_notification"
+)
+
+// Undo describes how to roll an action back.
+type Undo struct {
+	Kind string `json:"kind"`
+	ID   int64  `json:"id"`
+}
 
 // Action is one line of a run log.
 type Action struct {
@@ -147,6 +160,8 @@ type Action struct {
 	Status    string `json:"status"`
 	Rationale string `json:"rationale,omitempty"`
 	Link      string `json:"link,omitempty"`
+	Undo      *Undo  `json:"undo,omitempty"`
+	UndoneBy  *int64 `json:"undone_by,omitempty"`
 }
 
 // Run is the outcome of one routine execution.
@@ -244,9 +259,11 @@ func (s *Service) Record(ctx context.Context, companyID int64, key, autonomy str
 
 // Summarize derives a run's status and one-line summary from its actions.
 func Summarize(actions []Action) (status, summary string) {
-	var done, person, proposed, failed int
+	var done, person, proposed, failed, undone int
 	for _, a := range actions {
 		switch a.Status {
+		case ActUndone:
+			undone++
 		case ActDone:
 			done++
 		case ActPerson:
@@ -276,6 +293,9 @@ func Summarize(actions []Action) (status, summary string) {
 	}
 	if failed > 0 {
 		parts = append(parts, plural(failed, "step failed", "steps failed"))
+	}
+	if undone > 0 {
+		parts = append(parts, plural(undone, "undone", "undone"))
 	}
 	if len(parts) == 0 {
 		parts = append(parts, "Nothing to do")

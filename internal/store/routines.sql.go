@@ -351,6 +351,60 @@ func (q *Queries) ListPayrollRunsToCheck(ctx context.Context) ([]ListPayrollRuns
 	return items, nil
 }
 
+const retractNotification = `-- name: RetractNotification :exec
+DELETE FROM notifications WHERE id = $1 AND company_id = $2
+`
+
+type RetractNotificationParams struct {
+	ID        int64 `json:"id"`
+	CompanyID int64 `json:"company_id"`
+}
+
+func (q *Queries) RetractNotification(ctx context.Context, arg RetractNotificationParams) error {
+	_, err := q.db.Exec(ctx, retractNotification, arg.ID, arg.CompanyID)
+	return err
+}
+
+const updateAgentRoutineRunActions = `-- name: UpdateAgentRoutineRunActions :one
+UPDATE agent_routine_runs SET actions = $3, status = $4, summary = $5
+WHERE id = $1 AND company_id = $2
+RETURNING id, company_id, routine_key, trigger, subject_type, subject_id, subject_name, autonomy, status, summary, actions, created_at
+`
+
+type UpdateAgentRoutineRunActionsParams struct {
+	ID        int64           `json:"id"`
+	CompanyID int64           `json:"company_id"`
+	Actions   json.RawMessage `json:"actions"`
+	Status    string          `json:"status"`
+	Summary   string          `json:"summary"`
+}
+
+func (q *Queries) UpdateAgentRoutineRunActions(ctx context.Context, arg UpdateAgentRoutineRunActionsParams) (AgentRoutineRun, error) {
+	row := q.db.QueryRow(ctx, updateAgentRoutineRunActions,
+		arg.ID,
+		arg.CompanyID,
+		arg.Actions,
+		arg.Status,
+		arg.Summary,
+	)
+	var i AgentRoutineRun
+	err := row.Scan(
+		&i.ID,
+		&i.CompanyID,
+		&i.RoutineKey,
+		&i.Trigger,
+		&i.SubjectType,
+		&i.SubjectID,
+		&i.SubjectName,
+		&i.Autonomy,
+		&i.Status,
+		&i.Summary,
+		&i.Actions,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const upsertAgentRoutineSetting = `-- name: UpsertAgentRoutineSetting :one
 INSERT INTO agent_routines (company_id, routine_key, enabled, autonomy, instructions, updated_by)
 VALUES ($1, $2, $3, $4, $5, $6)

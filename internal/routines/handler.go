@@ -2,6 +2,7 @@ package routines
 
 import (
 	"errors"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -28,6 +29,7 @@ func (h *Handler) RegisterRoutes(protected *gin.RouterGroup) {
 	protected.PUT("/routines/:key", auth.AdminOnly(), h.Update)
 	protected.GET("/routines/runs", auth.AdminOnly(), h.ListRuns)
 	protected.GET("/routines/runs/:id", auth.AdminOnly(), h.GetRun)
+	protected.POST("/routines/runs/:id/actions/:idx/undo", auth.AdminOnly(), h.UndoAction)
 }
 
 // RoutineView is a routine with the company's settings and recent activity.
@@ -172,4 +174,27 @@ func (h *Handler) GetRun(c *gin.Context) {
 		return
 	}
 	response.OK(c, row)
+}
+
+// UndoAction handles POST /routines/runs/:id/actions/:idx/undo.
+func (h *Handler) UndoAction(c *gin.Context) {
+	id, err1 := strconv.ParseInt(c.Param("id"), 10, 64)
+	idx, err2 := strconv.Atoi(c.Param("idx"))
+	if err1 != nil || err2 != nil {
+		response.BadRequest(c, "Invalid id")
+		return
+	}
+	run, err := h.engine.UndoAction(c.Request.Context(), auth.GetCompanyID(c), auth.GetUserID(c), id, idx)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrNotUndoable):
+			response.Error(c, http.StatusConflict, "not_undoable", err.Error())
+		case errors.Is(err, pgx.ErrNoRows):
+			response.NotFound(c, "Run not found")
+		default:
+			response.InternalError(c, "Failed to undo")
+		}
+		return
+	}
+	response.OK(c, run)
 }

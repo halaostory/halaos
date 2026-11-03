@@ -20,7 +20,7 @@ Legend: ✅ shipped · 🟡 partial · ⬜ not yet · — not applicable
 | Routines written in plain language | Plain-language extra steps per routine. Each becomes a checklist item in every run | 🟡 | The agent does not yet execute arbitrary free-text steps |
 | Run log: trigger, what it did, what it left for a person | Run log with trigger, actions (done / for you / recommended / waiting / failed), rationale and links | ✅ | Routines → run log; Home → Agent activity |
 | Same permission model as people; hard limits on payroll/payments | Admin-only routines. Submissions, payroll approval and final pay always need a person | ✅ | |
-| Rollback per agent action | — | ⬜ | Actions are drafts or reversible records; no one-click undo yet |
+| Rollback per agent action | One-click Undo in the run log for reversible actions (prepared government returns are cancelled, manager notifications retracted); who undid it is recorded | ✅ | Routines → run log |
 | Pre-payroll variance / anomaly check | Rule-based anomaly detection on every calculated run (gross/net variance, zero contributions/tax, negative net, OT, duplicates), logged as a routine run | ✅ | `internal/payroll/anomaly.go` |
 | MCP access to the agent | MCP server | ✅ | `cmd/mcp` |
 

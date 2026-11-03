@@ -2,6 +2,8 @@ package routines
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -112,7 +114,7 @@ func (e *Engine) AfterHire(ctx context.Context, companyID, _ int64, emp store.Em
 			act := e.Gov.PrepareNewHireRegistrations(ctx, companyID)
 			for _, it := range act.Prepared {
 				extra = append(extra, Action{Key: "gov_registration", Title: fmt.Sprintf("Prepared %s (%s)", it.Name, it.Period), Status: ActDone,
-					Rationale: "Built from the new hire's details and pre-flight checked.", Link: "/gov-filings"})
+					Rationale: "Built from the new hire's details and pre-flight checked.", Link: "/gov-filings", Undo: undoSubmission(it.SubmissionID)})
 			}
 			for _, it := range act.Failed {
 				extra = append(extra, Action{Key: "gov_registration", Title: fmt.Sprintf("Could not prepare %s", it.Name), Status: ActFailed, Rationale: it.Error, Link: "/gov-filings"})
@@ -149,12 +151,13 @@ func (e *Engine) AfterHire(ctx context.Context, companyID, _ int64, emp store.Em
 			title := fmt.Sprintf("Told %s that %s starts on %s", employeeName(mgr), name, emp.HireDate.Format("Jan 2"))
 			if set.Autonomy == Recommend {
 				extra = append(extra, Action{Key: "manager_notice", Title: fmt.Sprintf("Tell %s that %s starts on %s", employeeName(mgr), name, emp.HireDate.Format("Jan 2")), Status: ActProposed})
-			} else if _, err := e.q.CreateNotification(ctx, store.CreateNotificationParams{
+			} else if n, err := e.q.CreateNotification(ctx, store.CreateNotificationParams{
 				CompanyID: companyID, UserID: *mgr.UserID, Category: "onboarding",
 				Title:   "New team member",
 				Message: fmt.Sprintf("%s joins your team on %s. Plan their first week and a 1:1.", name, emp.HireDate.Format("Mon, Jan 2")),
 			}); err == nil {
-				extra = append(extra, Action{Key: "manager_notice", Title: title, Status: ActDone, Rationale: "Managers own the first week."})
+				extra = append(extra, Action{Key: "manager_notice", Title: title, Status: ActDone, Rationale: "Managers own the first week.",
+					Undo: &Undo{Kind: UndoRetractNotification, ID: n.ID}})
 			}
 		}
 	}
@@ -270,7 +273,7 @@ func (e *Engine) RecordAutopilot(ctx context.Context, res govfiling.AutopilotRes
 		var acts []Action
 		for _, it := range act.Prepared {
 			acts = append(acts, Action{Key: it.FormCode, Title: fmt.Sprintf("Prepared %s for %s", it.Name, it.Period), Status: ActDone,
-				Rationale: "File generated from payroll and pre-flight checked.", Link: "/gov-filings"})
+				Rationale: "File generated from payroll and pre-flight checked.", Link: "/gov-filings", Undo: undoSubmission(it.SubmissionID)})
 		}
 		for _, it := range act.Proposed {
 			acts = append(acts, Action{Key: it.FormCode, Title: fmt.Sprintf("Prepare %s for %s", it.Name, it.Period), Status: ActProposed,
@@ -286,4 +289,71 @@ func (e *Engine) RecordAutopilot(ctx context.Context, res govfiling.AutopilotRes
 		set := e.Setting(ctx, companyID, KeyFilingAutopilot)
 		_, _ = e.Record(ctx, companyID, KeyFilingAutopilot, set.Autonomy, Run{Trigger: "Scheduled filing check", Actions: acts})
 	}
+}
+
+func undoSubmission(id int64) *Undo {
+	if id == 0 {
+		return nil
+	}
+	return &Undo{Kind: UndoCancelSubmission, ID: id}
+}
+
+// ErrNotUndoable means the action has no rollback, was already rolled back,
+// or the thing it created has moved on (e.g. a return already submitted).
+var ErrNotUndoable = errors.New("this action can't be undone")
+
+// UndoAction rolls back one action of a run and records who did it.
+func (e *Engine) UndoAction(ctx context.Context, companyID, userID, runID int64, idx int) (*store.AgentRoutineRun, error) {
+	run, err := e.q.GetAgentRoutineRun(ctx, store.GetAgentRoutineRunParams{ID: runID, CompanyID: companyID})
+	if err != nil {
+		return nil, err
+	}
+	var acts []Action
+	if err := json.Unmarshal(run.Actions, &acts); err != nil {
+		return nil, err
+	}
+	if idx < 0 || idx >= len(acts) || acts[idx].Undo == nil || acts[idx].Status == ActUndone {
+		return nil, ErrNotUndoable
+	}
+	u := acts[idx].Undo
+	switch u.Kind {
+	case UndoCancelSubmission:
+		if e.Gov == nil {
+			return nil, ErrNotUndoable
+		}
+		if _, err := e.Gov.Cancel(ctx, companyID, userID, u.ID); err != nil {
+			return nil, fmt.Errorf("%w: %v", ErrNotUndoable, err)
+		}
+	case UndoRetractNotification:
+		if err := e.q.RetractNotification(ctx, store.RetractNotificationParams{ID: u.ID, CompanyID: companyID}); err != nil {
+			return nil, err
+		}
+	default:
+		return nil, ErrNotUndoable
+	}
+	acts[idx].Status = ActUndone
+	acts[idx].UndoneBy = &userID
+	// Approving what was rolled back is no longer needed.
+	if u.Kind == UndoCancelSubmission {
+		pending := 0
+		for _, a := range acts {
+			if a.Status == ActDone && a.Undo != nil && a.Undo.Kind == UndoCancelSubmission {
+				pending++
+			}
+		}
+		if pending == 0 {
+			for i := range acts {
+				if acts[i].Status == ActPerson && (acts[i].Key == "approve" || acts[i].Key == "approve_registrations") {
+					acts[i].Status = ActSkipped
+				}
+			}
+		}
+	}
+	status, summary := Summarize(acts)
+	raw, _ := json.Marshal(acts)
+	out, err := e.q.UpdateAgentRoutineRunActions(ctx, store.UpdateAgentRoutineRunActionsParams{ID: runID, CompanyID: companyID, Actions: raw, Status: status, Summary: summary})
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
 }

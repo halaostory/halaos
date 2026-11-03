@@ -1361,6 +1361,7 @@ export const routinesAPI = {
   update: (key: string, data: { enabled?: boolean; autonomy?: string; instructions?: string }) => put(`/v1/routines/${key}`, data),
   runs: (params?: { routine?: string; limit?: string }) => get("/v1/routines/runs", params),
   run: (id: number) => get(`/v1/routines/runs/${id}`),
+  undo: (runId: number, idx: number) => post(`/v1/routines/runs/${runId}/actions/${idx}/undo`, {}),
 };
 
 // Employee lifecycle (Warp-style one-step hire / terminate), HR inbox, custom fields

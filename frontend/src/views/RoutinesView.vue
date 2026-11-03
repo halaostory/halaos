@@ -14,7 +14,7 @@ interface RunRow {
   id: number; routine_key: string; trigger: string; subject_type: string; subject_id: number; subject_name: string
   autonomy: string; status: string; summary: string; actions: Action[]; created_at: string
 }
-interface Action { key: string; title: string; status: string; rationale?: string; link?: string }
+interface Action { key: string; title: string; status: string; rationale?: string; link?: string; undo?: { kind: string; id: number } }
 interface Routine {
   key: string; name: string; description: string; trigger: string; trigger_type: string; steps: string[]
   hard_limits: string[]; default_autonomy: string; max_autonomy: string
@@ -128,11 +128,24 @@ const statusTone: Record<string, 'success' | 'warning' | 'error' | 'info' | 'def
   completed: 'success', needs_attention: 'warning', failed: 'error',
 }
 const actionTone: Record<string, 'success' | 'warning' | 'error' | 'info' | 'default'> = {
-  done: 'success', person: 'warning', proposed: 'info', failed: 'error', waiting: 'default', skipped: 'default',
+  done: 'success', person: 'warning', proposed: 'info', failed: 'error', waiting: 'default', skipped: 'default', undone: 'default',
 }
 function ago(ts: string) {
   return formatDistanceToNow(new Date(ts), { addSuffix: true })
 }
+async function undo(i: number) {
+  if (!selected.value) return
+  try {
+    const run = ((await routinesAPI.undo(selected.value.id, i)) as { data: RunRow }).data
+    selected.value = run
+    runs.value = runs.value.map((r) => (r.id === run.id ? run : r))
+    message.success(t('routines.undone'))
+    load()
+  } catch (e) {
+    message.error((e as { data?: { error?: { message?: string } } }).data?.error?.message || t('routines.undoFailed'))
+  }
+}
+
 function followLink(a: Action) {
   if (a.link) router.push(a.link)
 }
@@ -267,6 +280,7 @@ watch(() => route.query.run, (id) => { if (id) openRun(Number(id)) })
                     <NTag size="tiny" :bordered="false" :type="actionTone[a.status] || 'default'">{{ t('routines.act_' + a.status) }}</NTag>
                     <span v-if="a.rationale" class="muted small">{{ a.rationale }}</span>
                     <NButton v-if="a.link" text type="primary" size="tiny" @click="followLink(a)">{{ t('routines.open') }}</NButton>
+                    <NButton v-if="a.undo && a.status === 'done'" text type="error" size="tiny" @click="undo(i)">{{ t('routines.undo') }}</NButton>
                   </div>
                 </NTimelineItem>
               </NTimeline>

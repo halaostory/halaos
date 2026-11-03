@@ -2659,6 +2659,10 @@ export default {
     dueIn: "in {n}d",
   },
   routines: {
+    undo: "Undo",
+    undone: "Rolled back",
+    undoFailed: "This action can't be undone any more",
+    act_undone: "Undone",
     title: "Routines",
     subtitle: "Jobs the agent owns end to end. Pick how much it does on its own — every run is logged with what it did, why, and what it left for you.",
     allRuns: "Run log",

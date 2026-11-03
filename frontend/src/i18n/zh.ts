@@ -2626,6 +2626,10 @@ export default {
     dueIn: "{n} 天后",
   },
   routines: {
+    undo: "撤销",
+    undone: "已撤销",
+    undoFailed: "此操作已无法撤销",
+    act_undone: "已撤销",
     title: "自动化例程",
     subtitle: "由 AI 助手全程负责的工作。你来决定它能自主做多少——每次运行都会记录它做了什么、为什么，以及留给你的事。",
     allRuns: "运行记录",

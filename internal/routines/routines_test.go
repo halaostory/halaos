@@ -21,6 +21,7 @@ func TestSummarize(t *testing.T) {
 		{[]Action{{Status: ActProposed}, {Status: ActProposed}}, "needs_attention", "2 recommendations"},
 		{[]Action{{Status: ActFailed}}, "failed", "1 step failed"},
 		{[]Action{{Status: ActDone}, {Status: ActFailed}}, "completed", "1 thing done · 1 step failed"},
+		{[]Action{{Status: ActDone}, {Status: ActUndone}}, "completed", "1 thing done · 1 undone"},
 	}
 	for _, c := range cases {
 		st, sum := Summarize(c.acts)

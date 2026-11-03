@@ -59,3 +59,11 @@ WHERE r.status IN ('completed', 'ready_for_approval') AND c.status NOT IN ('appr
   )
 ORDER BY r.id
 LIMIT 50;
+
+-- name: UpdateAgentRoutineRunActions :one
+UPDATE agent_routine_runs SET actions = $3, status = $4, summary = $5
+WHERE id = $1 AND company_id = $2
+RETURNING *;
+
+-- name: RetractNotification :exec
+DELETE FROM notifications WHERE id = $1 AND company_id = $2;
