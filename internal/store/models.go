@@ -1693,6 +1693,29 @@ type Notification struct {
 	Actions    []byte             `json:"actions"`
 }
 
+type OidcLogin struct {
+	State        string             `json:"state"`
+	CompanyID    int64              `json:"company_id"`
+	Nonce        string             `json:"nonce"`
+	Verifier     string             `json:"verifier"`
+	UserID       *int64             `json:"user_id"`
+	ExchangeHash *string            `json:"exchange_hash"`
+	CompletedAt  pgtype.Timestamptz `json:"completed_at"`
+	UsedAt       pgtype.Timestamptz `json:"used_at"`
+	CreatedAt    time.Time          `json:"created_at"`
+}
+
+type OidcProvider struct {
+	CompanyID       int64     `json:"company_id"`
+	Issuer          string    `json:"issuer"`
+	ClientID        string    `json:"client_id"`
+	ClientSecretEnc []byte    `json:"client_secret_enc"`
+	EmailDomains    []string  `json:"email_domains"`
+	Enabled         bool      `json:"enabled"`
+	UpdatedBy       *int64    `json:"updated_by"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
+
 type OnboardingInvite struct {
 	ID          int64              `json:"id"`
 	CompanyID   int64              `json:"company_id"`

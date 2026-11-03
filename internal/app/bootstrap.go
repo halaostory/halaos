@@ -376,6 +376,7 @@ func (a *App) setupRoutes() {
 	// Public product configuration (edition, brand, modules, markets) for the web app.
 	api.GET("/edition", func(c *gin.Context) { response.OK(c, a.Edition) })
 	authHandler.SetEdition(a.Edition)
+	authHandler.SetOIDC(auth.OIDCConfig{AppURL: a.Cfg.Resend.BaseURL, RedirectURL: os.Getenv("OIDC_REDIRECT_URL")})
 	authHandler.RegisterRoutes(api, protected, a.Limiter.LoginMiddleware())
 	companyHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
 	employeeHandler.RegisterRoutes(a.mod(edition.ModPeople, protected))

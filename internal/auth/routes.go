@@ -11,6 +11,10 @@ func (h *Handler) RegisterRoutes(public, protected *gin.RouterGroup, loginLimite
 		auth.POST("/register", loginLimiter, h.Register)
 		auth.POST("/login", loginLimiter, h.Login)
 		auth.POST("/mfa/verify", loginLimiter, h.MFAVerify)
+		auth.GET("/oidc/check", loginLimiter, h.OIDCCheck)
+		auth.GET("/oidc/start", loginLimiter, h.OIDCStart)
+		auth.GET("/oidc/callback", loginLimiter, h.OIDCCallback)
+		auth.POST("/oidc/exchange", loginLimiter, h.OIDCExchange)
 		auth.POST("/refresh", h.Refresh)
 		auth.GET("/verify-email", h.VerifyEmail)
 		auth.POST("/resend-verification", loginLimiter, h.ResendVerification)
@@ -34,6 +38,9 @@ func (h *Handler) RegisterRoutes(public, protected *gin.RouterGroup, loginLimite
 	protected.POST("/auth/mfa/setup", h.MFASetup)
 	protected.POST("/auth/mfa/enable", h.MFAEnable)
 	protected.POST("/auth/mfa/disable", h.MFADisable)
+	protected.GET("/auth/oidc/provider", AdminOnly(), h.GetOIDCProvider)
+	protected.PUT("/auth/oidc/provider", AdminOnly(), h.SaveOIDCProvider)
+	protected.DELETE("/auth/oidc/provider", AdminOnly(), h.DeleteOIDCProvider)
 
 	// API Key management
 	protected.POST("/api-keys", h.CreateAPIKey)

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import OidcSettingsCard from '../components/OidcSettingsCard.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { NCard, NForm, NFormItem, NInput, NInputNumber, NSelect, NButton, NSpace, NUpload, NAvatar, NSwitch, NTag, NPopconfirm, NEmpty, NAlert, useMessage } from 'naive-ui'
@@ -601,6 +602,8 @@ onMounted(() => {
     </NCard>
 
     <!-- API Key Management -->
+    <OidcSettingsCard v-if="authStore.user?.role === 'admin' || authStore.user?.role === 'super_admin'" />
+
     <NCard :title="t('settings.apiKeysTitle')" style="margin-top: 24px;">
       <template #header-extra>
         <NButton size="small" type="primary" @click="showApiKeyForm = !showApiKeyForm">

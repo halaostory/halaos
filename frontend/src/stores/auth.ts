@@ -113,6 +113,12 @@ export const useAuthStore = defineStore("auth", () => {
     return { emailSent: false };
   }
 
+  async function loginWithOIDC(code: string) {
+    const res = extractAuthData(await authAPI.oidcExchange(code));
+    setTokens(res.token, res.refresh_token);
+    setUser(res.user);
+  }
+
   async function loginWithSSO(ssoToken: string) {
     const raw = await authAPI.ssoLogin(ssoToken);
     const res = extractAuthData(raw);
@@ -184,6 +190,7 @@ export const useAuthStore = defineStore("auth", () => {
     verifyMfa,
     register,
     loginWithSSO,
+    loginWithOIDC,
     fetchMe,
     fetchCompanies,
     switchCompany,

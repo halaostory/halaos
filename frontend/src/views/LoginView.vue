@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { edition } from '../edition'
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { NForm, NFormItem, NInput, NButton, NAlert, useMessage } from 'naive-ui'
@@ -60,6 +60,24 @@ async function handleResendVerification() {
     resendLoading.value = false
   }
 }
+
+// Single sign-on: offer it when the e-mail's domain has an identity provider.
+const ssoAvailable = ref(false)
+let ssoTimer: ReturnType<typeof setTimeout> | undefined
+watch(() => form.value.email, (email) => {
+  clearTimeout(ssoTimer)
+  ssoAvailable.value = false
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email || '')) return
+  ssoTimer = setTimeout(async () => {
+    try { ssoAvailable.value = !!((await authAPI.oidcCheck(email)) as { data: { sso: boolean } }).data.sso } catch { ssoAvailable.value = false }
+  }, 400)
+})
+function startSSO() {
+  window.location.href = (import.meta.env.VITE_API_URL || '/api') + '/v1/auth/oidc/start?email=' + encodeURIComponent(form.value.email)
+}
+onMounted(() => {
+  if (typeof route.query.sso_error === 'string') message.error(route.query.sso_error)
+})
 
 // Second sign-in step for accounts with two-factor sign-in.
 const mfaToken = ref('')
@@ -186,6 +204,9 @@ async function handleLogin() {
           @click.prevent="handleLogin"
         >
           {{ t('auth.login') }}
+        </NButton>
+        <NButton v-if="ssoAvailable" block secondary style="margin-top: 8px;" data-testid="sso-button" @click="startSSO">
+          {{ t('oidc.continue') }}
         </NButton>
       </NForm>
       <!-- Forgot password link -->

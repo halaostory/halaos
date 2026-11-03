@@ -48,7 +48,7 @@ const api = ofetch.create({
       // Skip refresh for auth endpoints to avoid loops
       const url =
         typeof request === "string" ? request : request?.toString() || "";
-      if (url.includes("/auth/login") || url.includes("/auth/mfa/")) {
+      if (url.includes("/auth/login") || url.includes("/auth/mfa/") || url.includes("/auth/oidc/")) {
         // Let login / two-factor 401 errors propagate to the caller for proper error display
         return;
       }
@@ -130,6 +130,11 @@ export const authAPI = {
   uploadAvatar: (formData: FormData) =>
     api("/v1/auth/avatar", { method: "POST", body: formData, headers: {} }),
   ssoLogin: (token: string) => post("/v1/auth/sso", { token }),
+  oidcCheck: (email: string) => get("/v1/auth/oidc/check", { email }),
+  oidcExchange: (code: string) => post("/v1/auth/oidc/exchange", { code }),
+  oidcProvider: () => get("/v1/auth/oidc/provider"),
+  saveOidcProvider: (data: Record<string, unknown>) => put("/v1/auth/oidc/provider", data),
+  deleteOidcProvider: () => del("/v1/auth/oidc/provider"),
   forgotPassword: (email: string) =>
     post("/v1/auth/forgot-password", { email }),
   resetPassword: (token: string, password: string) =>

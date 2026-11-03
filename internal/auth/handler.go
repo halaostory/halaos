@@ -47,6 +47,7 @@ type Handler struct {
 	redis   *redis.Client
 	sso     FinanceSSOValidator
 	edition *edition.Config
+	oidc    *oidcState
 }
 
 // SetEdition restricts sign-up to the markets the product supports.
