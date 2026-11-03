@@ -130,6 +130,11 @@ func TestLeaveRequestRules(t *testing.T) {
 	if code, out := call(uMgr, auth.RoleManager, "POST", fmt.Sprintf("/leaves/requests/%d/approve", id), nil); code != 200 {
 		t.Fatalf("manager approves report: %d %v", code, out)
 	}
+	var stale int
+	must(pool.QueryRow(ctx, `SELECT COUNT(*) FROM approval_workflows WHERE entity_type = 'leave_request' AND entity_id = $1 AND status = 'pending'`, id).Scan(&stale))
+	if stale != 0 {
+		t.Errorf("approved leave still pending in the approvals inbox (%d)", stale)
+	}
 	var used float64
 	must(pool.QueryRow(ctx, `SELECT used::float8 FROM leave_balances WHERE employee_id = $1 AND leave_type_id = $2 AND year = 2027`, eRep, ltID).Scan(&used))
 	if used != 4 {

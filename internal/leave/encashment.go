@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/halaostory/halaos/internal/access"
 	"github.com/halaostory/halaos/internal/auth"
 	"github.com/halaostory/halaos/internal/store"
 	"github.com/halaostory/halaos/pkg/numericutil"
@@ -159,6 +160,14 @@ func (h *Handler) ApproveEncashment(c *gin.Context) {
 		response.BadRequest(c, "Invalid ID")
 		return
 	}
+	owner, oerr := h.queries.GetLeaveEncashmentOwner(c.Request.Context(), store.GetLeaveEncashmentOwnerParams{ID: id, CompanyID: auth.GetCompanyID(c)})
+	if oerr != nil {
+		response.NotFound(c, "Encashment not found")
+		return
+	}
+	if _, ok := access.Decide(c, h.queries, owner); !ok {
+		return
+	}
 	enc, err := h.queries.ApproveLeaveEncashment(c.Request.Context(), store.ApproveLeaveEncashmentParams{
 		ID:         id,
 		CompanyID:  companyID,
@@ -177,6 +186,14 @@ func (h *Handler) RejectEncashment(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "Invalid ID")
+		return
+	}
+	owner, oerr := h.queries.GetLeaveEncashmentOwner(c.Request.Context(), store.GetLeaveEncashmentOwnerParams{ID: id, CompanyID: auth.GetCompanyID(c)})
+	if oerr != nil {
+		response.NotFound(c, "Encashment not found")
+		return
+	}
+	if _, ok := access.Decide(c, h.queries, owner); !ok {
 		return
 	}
 	var req struct {

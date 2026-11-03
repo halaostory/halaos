@@ -992,9 +992,9 @@ func (h *Handler) UpdateProfile(c *gin.Context) {
 	userID := GetUserID(c)
 	user, err := h.queries.UpdateUserProfile(c.Request.Context(), store.UpdateUserProfileParams{
 		ID:        userID,
-		FirstName: req.FirstName,
-		LastName:  req.LastName,
-		Locale:    req.Locale,
+		FirstName: &req.FirstName, // empty keeps the current value
+		LastName:  &req.LastName,
+		Locale:    &req.Locale,
 		CompanyID: GetCompanyID(c),
 	})
 	if err != nil {

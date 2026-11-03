@@ -235,7 +235,7 @@ SELECT COALESCE(MAX(pc.period_end), '0001-01-01'::date)::date AS last_paid_throu
 FROM payroll_items pi
 JOIN payroll_runs pr ON pr.id = pi.run_id
 JOIN payroll_cycles pc ON pc.id = pr.cycle_id
-WHERE pi.employee_id = sqlc.arg(employee_id) AND pr.company_id = sqlc.arg(company_id) AND pr.status = 'completed';
+WHERE pi.employee_id = sqlc.arg(employee_id) AND pr.company_id = sqlc.arg(company_id) AND pr.status IN ('completed', 'ready_for_approval');
 
 -- name: FinalPayExistsForSeparation :one
 SELECT EXISTS (

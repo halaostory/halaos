@@ -282,7 +282,7 @@ const homeLastPayroll = `-- name: HomeLastPayroll :one
 SELECT c.name, c.pay_date, r.total_employees, r.total_gross::float8 AS total_gross, r.total_net::float8 AS total_net
 FROM payroll_runs r
 JOIN payroll_cycles c ON c.id = r.cycle_id
-WHERE r.company_id = $1 AND r.status = 'completed' AND c.status IN ('approved', 'paid') AND c.cycle_type = 'regular'
+WHERE r.company_id = $1 AND r.status IN ('completed', 'ready_for_approval') AND c.status IN ('approved', 'paid') AND c.cycle_type = 'regular'
 ORDER BY c.pay_date DESC, r.id DESC
 LIMIT 1
 `

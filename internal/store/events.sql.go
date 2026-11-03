@@ -30,6 +30,30 @@ func (q *Queries) ApproveWorkflow(ctx context.Context, arg ApproveWorkflowParams
 	return err
 }
 
+const closeApprovalWorkflows = `-- name: CloseApprovalWorkflows :exec
+UPDATE approval_workflows SET status = $1::varchar, decided_at = NOW()
+WHERE company_id = $2 AND entity_type = $3 AND entity_id = $4 AND status = 'pending'
+`
+
+type CloseApprovalWorkflowsParams struct {
+	Status     string `json:"status"`
+	CompanyID  int64  `json:"company_id"`
+	EntityType string `json:"entity_type"`
+	EntityID   int64  `json:"entity_id"`
+}
+
+// Closes the pending approval entries of an entity decided elsewhere
+// (e.g. a leave approved from its own page), so inboxes don't keep it.
+func (q *Queries) CloseApprovalWorkflows(ctx context.Context, arg CloseApprovalWorkflowsParams) error {
+	_, err := q.db.Exec(ctx, closeApprovalWorkflows,
+		arg.Status,
+		arg.CompanyID,
+		arg.EntityType,
+		arg.EntityID,
+	)
+	return err
+}
+
 const getApprovalWorkflowEntity = `-- name: GetApprovalWorkflowEntity :one
 SELECT entity_type, entity_id FROM approval_workflows WHERE id = $1
 `

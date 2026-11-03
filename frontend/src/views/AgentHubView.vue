@@ -245,7 +245,7 @@ function confirmDeleteAgent(agent: Agent) {
 const aiReady = computed(() => edition.config.ai_assistant === true)
 onMounted(async () => {
   await loadEdition()
-  if (!aiReady.value) return
+  if (!aiReady.value) { loading.value = false; return }
   fetchAgents()
   if (isAdmin.value) {
     fetchTools()

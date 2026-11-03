@@ -109,20 +109,20 @@ func (h *Handler) GetMyCompensation(c *gin.Context) {
 		return
 	}
 
-	salary, _ := h.queries.GetMyCompensation(c.Request.Context(), store.GetMyCompensationParams{
+	out := gin.H{"salary": nil, "latest_payslip": nil} // null, not zero values, when there is none
+	if salary, err := h.queries.GetMyCompensation(c.Request.Context(), store.GetMyCompensationParams{
 		CompanyID:  companyID,
 		EmployeeID: emp.ID,
-	})
-
-	payslip, _ := h.queries.GetMyLatestPayslip(c.Request.Context(), store.GetMyLatestPayslipParams{
+	}); err == nil {
+		out["salary"] = salary
+	}
+	if payslip, err := h.queries.GetMyLatestPayslip(c.Request.Context(), store.GetMyLatestPayslipParams{
 		CompanyID:  companyID,
 		EmployeeID: emp.ID,
-	})
-
-	response.OK(c, gin.H{
-		"salary":         salary,
-		"latest_payslip": payslip,
-	})
+	}); err == nil {
+		out["latest_payslip"] = payslip
+	}
+	response.OK(c, out)
 }
 
 // GetMyOnboarding returns onboarding tasks for the employee

@@ -79,7 +79,7 @@ LEFT JOIN employee_profiles ep ON ep.employee_id = e.id
 WHERE pc.company_id = $1
   AND pc.period_start >= $2
   AND pc.period_end <= $3
-  AND pr.status = 'completed'
+  AND pr.status IN ('completed', 'ready_for_approval')
 ORDER BY e.last_name, e.first_name;
 
 -- name: GetPayrollItemsForYear :many
@@ -101,5 +101,5 @@ LEFT JOIN employee_profiles ep ON ep.employee_id = e.id
 WHERE pc.company_id = $1
   AND pc.period_start >= $2
   AND pc.period_start < $3
-  AND pr.status = 'completed'
+  AND pr.status IN ('completed', 'ready_for_approval')
 ORDER BY e.last_name, e.first_name, pc.period_start;

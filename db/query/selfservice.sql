@@ -22,8 +22,10 @@ SELECT es.basic_salary, es.effective_from,
 FROM employee_salaries es
 LEFT JOIN salary_structures ss ON ss.id = es.structure_id
 WHERE es.company_id = $1 AND es.employee_id = $2
-  AND es.effective_from <= NOW()
-ORDER BY es.effective_from DESC
+-- the current salary, or (for a future hire) the upcoming one
+ORDER BY (es.effective_from <= NOW()) DESC,
+    CASE WHEN es.effective_from <= NOW() THEN es.effective_from END DESC,
+    es.effective_from ASC
 LIMIT 1;
 
 -- name: GetMyLatestPayslip :one
@@ -31,7 +33,9 @@ SELECT pi.*, pc.name as cycle_name, pc.period_start, pc.period_end
 FROM payroll_items pi
 JOIN payroll_runs pr ON pr.id = pi.run_id
 JOIN payroll_cycles pc ON pc.id = pr.cycle_id
-WHERE pr.company_id = $1 AND pi.employee_id = $2 AND pr.status = 'completed'
+WHERE pr.company_id = $1 AND pi.employee_id = $2 AND pr.status IN ('completed', 'ready_for_approval')
+  AND pc.status IN ('approved', 'paid')
+  AND pr.id = (SELECT MAX(r2.id) FROM payroll_runs r2 WHERE r2.cycle_id = pr.cycle_id AND r2.status IN ('completed', 'ready_for_approval'))
 ORDER BY pc.period_end DESC
 LIMIT 1;
 

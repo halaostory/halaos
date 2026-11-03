@@ -1,9 +1,11 @@
 // Product edition (modules) for the mobile app. Mirrors internal/edition.
 import { reactive } from "vue";
 
-export const edition = reactive<{ productName: string; modules: string[]; aiBilling: boolean }>({
+export const edition = reactive<{ productName: string; modules: string[]; aiBilling: boolean; aiAssistant: boolean; loaded: boolean }>({
   productName: "HalaPeople",
   modules: [],
+  aiAssistant: false,
+  loaded: false,
   aiBilling: false,
 });
 
@@ -18,10 +20,12 @@ export function loadEdition(): Promise<void> {
           edition.productName = j.data.product_name || edition.productName;
           edition.modules = j.data.modules || [];
           edition.aiBilling = !!j.data.ai_billing;
+          edition.aiAssistant = !!j.data.ai_assistant;
         }
       })
       .catch(() => undefined)
       .finally(() => {
+        edition.loaded = true;
         document.title = edition.productName;
       });
   }

@@ -67,7 +67,7 @@ const clockStatusType = computed(() => {
 const aiSuggestions = computed(() => {
   const base = getSuggestions("home");
   // Add contextual suggestions based on current state
-  if (clockSummary.value?.status !== "clocked_in" && clockSummary.value?.status !== "clocked_out") {
+  if (hasModule("attendance") && clockSummary.value?.status !== "clocked_in" && clockSummary.value?.status !== "clocked_out") {
     return [t("ai.remindClockIn"), ...base];
   }
   return base;

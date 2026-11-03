@@ -136,3 +136,6 @@ SELECT employee_id FROM benefit_enrollments WHERE id = $1 AND company_id = $2;
 
 -- name: GetBenefitDependentOwner :one
 SELECT employee_id FROM benefit_dependents WHERE id = $1 AND company_id = $2;
+
+-- name: GetBenefitClaimOwner :one
+SELECT employee_id FROM benefit_claims WHERE id = $1 AND company_id = $2;

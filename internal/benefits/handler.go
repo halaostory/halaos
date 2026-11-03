@@ -366,8 +366,12 @@ func (h *Handler) ListClaims(c *gin.Context) {
 	employeeID, _ := strconv.ParseInt(c.Query("employee_id"), 10, 64)
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	if page < 1 { page = 1 }
-	if limit < 1 { limit = 50 }
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 50
+	}
 	claims, err := h.queries.ListBenefitClaims(c.Request.Context(), store.ListBenefitClaimsParams{
 		CompanyID:  companyID,
 		Status:     status,
@@ -438,6 +442,14 @@ func (h *Handler) ApproveClaim(c *gin.Context) {
 		response.BadRequest(c, "Invalid ID")
 		return
 	}
+	owner, oerr := h.queries.GetBenefitClaimOwner(c.Request.Context(), store.GetBenefitClaimOwnerParams{ID: claimID, CompanyID: auth.GetCompanyID(c)})
+	if oerr != nil {
+		response.NotFound(c, "Claim not found")
+		return
+	}
+	if _, ok := access.Decide(c, h.queries, owner); !ok {
+		return
+	}
 	claim, err := h.queries.ApproveBenefitClaim(c.Request.Context(), store.ApproveBenefitClaimParams{
 		ID: claimID, CompanyID: companyID, ApprovedBy: &userID,
 	})
@@ -453,6 +465,14 @@ func (h *Handler) RejectClaim(c *gin.Context) {
 	claimID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "Invalid ID")
+		return
+	}
+	owner, oerr := h.queries.GetBenefitClaimOwner(c.Request.Context(), store.GetBenefitClaimOwnerParams{ID: claimID, CompanyID: auth.GetCompanyID(c)})
+	if oerr != nil {
+		response.NotFound(c, "Claim not found")
+		return
+	}
+	if _, ok := access.Decide(c, h.queries, owner); !ok {
 		return
 	}
 	var req struct {

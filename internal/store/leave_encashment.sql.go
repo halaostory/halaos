@@ -187,6 +187,22 @@ func (q *Queries) GetConvertibleLeaveBalances(ctx context.Context, arg GetConver
 	return items, nil
 }
 
+const getLeaveEncashmentOwner = `-- name: GetLeaveEncashmentOwner :one
+SELECT employee_id FROM leave_encashments WHERE id = $1 AND company_id = $2
+`
+
+type GetLeaveEncashmentOwnerParams struct {
+	ID        int64 `json:"id"`
+	CompanyID int64 `json:"company_id"`
+}
+
+func (q *Queries) GetLeaveEncashmentOwner(ctx context.Context, arg GetLeaveEncashmentOwnerParams) (int64, error) {
+	row := q.db.QueryRow(ctx, getLeaveEncashmentOwner, arg.ID, arg.CompanyID)
+	var employee_id int64
+	err := row.Scan(&employee_id)
+	return employee_id, err
+}
+
 const listLeaveEncashments = `-- name: ListLeaveEncashments :many
 SELECT le.id, le.company_id, le.employee_id, le.leave_type_id, le.year, le.days, le.daily_rate, le.total_amount, le.status, le.remarks, le.approved_by, le.approved_at, le.created_at, le.updated_at, lt.name as leave_type_name,
        e.first_name || ' ' || e.last_name as employee_name,

@@ -222,7 +222,7 @@ JOIN payroll_runs pr ON pr.id = pi.run_id
 JOIN payroll_cycles pc ON pc.id = pr.cycle_id
 WHERE pi.employee_id = $1
   AND pr.company_id = $2
-  AND pr.status = 'completed'
+  AND pr.status IN ('completed', 'ready_for_approval')
   AND pc.period_start >= make_date($3, 1, 1)
   AND pc.period_start < make_date($3 + 1, 1, 1)
 `

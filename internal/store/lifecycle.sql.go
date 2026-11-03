@@ -232,7 +232,7 @@ SELECT COALESCE(MAX(pc.period_end), '0001-01-01'::date)::date AS last_paid_throu
 FROM payroll_items pi
 JOIN payroll_runs pr ON pr.id = pi.run_id
 JOIN payroll_cycles pc ON pc.id = pr.cycle_id
-WHERE pi.employee_id = $2 AND pr.company_id = $3 AND pr.status = 'completed'
+WHERE pi.employee_id = $2 AND pr.company_id = $3 AND pr.status IN ('completed', 'ready_for_approval')
 `
 
 type GetEmployeePayrollCoverageParams struct {

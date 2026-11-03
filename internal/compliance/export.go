@@ -40,8 +40,9 @@ func (h *Handler) ExportPayrollCSV(c *gin.Context) {
 
 	// Find latest run for this cycle
 	var runID int64
+	// Scoped to the caller's company: cycle IDs are guessable.
 	row := h.pool.QueryRow(c.Request.Context(),
-		"SELECT id FROM payroll_runs WHERE cycle_id = $1 AND status = 'completed' ORDER BY created_at DESC LIMIT 1", cycleID)
+		"SELECT id FROM payroll_runs WHERE cycle_id = $1 AND company_id = $2 AND status IN ('completed', 'ready_for_approval') ORDER BY created_at DESC LIMIT 1", cycleID, auth.GetCompanyID(c))
 	if err := row.Scan(&runID); err != nil {
 		response.NotFound(c, "No completed payroll run found for this cycle")
 		return
@@ -134,8 +135,9 @@ func (h *Handler) ExportPayrollBankFile(c *gin.Context) {
 	bankFormat := c.DefaultQuery("format", "generic")
 
 	var runID int64
+	// Scoped to the caller's company: cycle IDs are guessable.
 	row := h.pool.QueryRow(c.Request.Context(),
-		"SELECT id FROM payroll_runs WHERE cycle_id = $1 AND status = 'completed' ORDER BY created_at DESC LIMIT 1", cycleID)
+		"SELECT id FROM payroll_runs WHERE cycle_id = $1 AND company_id = $2 AND status IN ('completed', 'ready_for_approval') ORDER BY created_at DESC LIMIT 1", cycleID, auth.GetCompanyID(c))
 	if err := row.Scan(&runID); err != nil {
 		response.NotFound(c, "No completed payroll run found for this cycle")
 		return

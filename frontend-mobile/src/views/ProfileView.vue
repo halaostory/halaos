@@ -179,9 +179,9 @@ onMounted(() => {
     <!-- AI Quick Ask -->
     <AiQuickAsk
       :questions="[
-        'How do I change my password?',
-        'What are my benefits?',
-        'Show company policies',
+        t('ask.profile1'),
+        t('ask.profile2'),
+        t('ask.profile3'),
       ]"
     />
 

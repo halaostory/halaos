@@ -471,31 +471,31 @@ func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPassword
 
 const updateUserProfile = `-- name: UpdateUserProfile :one
 UPDATE users SET
-    first_name = COALESCE($2, first_name),
-    last_name = COALESCE($3, last_name),
-    avatar_url = COALESCE($4, avatar_url),
-    locale = COALESCE($5, locale),
+    first_name = COALESCE(NULLIF($1::varchar, ''), first_name),
+    last_name = COALESCE(NULLIF($2::varchar, ''), last_name),
+    avatar_url = COALESCE($3, avatar_url),
+    locale = COALESCE(NULLIF($4::varchar, ''), locale),
     updated_at = NOW()
-WHERE id = $1 AND company_id = $6
+WHERE id = $5 AND company_id = $6
 RETURNING id, company_id, email, password_hash, first_name, last_name, role, status, avatar_url, locale, last_login_at, created_at, updated_at, email_verified, verification_token, verification_token_expires_at, reset_token, reset_token_expires_at
 `
 
 type UpdateUserProfileParams struct {
-	ID        int64   `json:"id"`
-	FirstName string  `json:"first_name"`
-	LastName  string  `json:"last_name"`
+	FirstName *string `json:"first_name"`
+	LastName  *string `json:"last_name"`
 	AvatarUrl *string `json:"avatar_url"`
-	Locale    string  `json:"locale"`
+	Locale    *string `json:"locale"`
+	ID        int64   `json:"id"`
 	CompanyID int64   `json:"company_id"`
 }
 
 func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error) {
 	row := q.db.QueryRow(ctx, updateUserProfile,
-		arg.ID,
 		arg.FirstName,
 		arg.LastName,
 		arg.AvatarUrl,
 		arg.Locale,
+		arg.ID,
 		arg.CompanyID,
 	)
 	var i User

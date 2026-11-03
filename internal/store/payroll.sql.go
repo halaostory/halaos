@@ -263,6 +263,10 @@ func (q *Queries) CreatePayrollItem(ctx context.Context, arg CreatePayrollItemPa
 }
 
 const createPayrollRun = `-- name: CreatePayrollRun :one
+WITH prev AS (
+    UPDATE payroll_runs SET status = 'superseded'
+    WHERE company_id = $1 AND cycle_id = $2 AND run_type = $3 AND status <> 'superseded'
+)
 INSERT INTO payroll_runs (company_id, cycle_id, run_type, initiated_by)
 VALUES ($1, $2, $3, $4)
 RETURNING id, company_id, cycle_id, run_type, run_number, total_employees, total_gross, total_deductions, total_net, status, error_message, initiated_by, completed_at, created_at
@@ -275,6 +279,8 @@ type CreatePayrollRunParams struct {
 	InitiatedBy *int64 `json:"initiated_by"`
 }
 
+// A new calculation supersedes the cycle's earlier runs of the same type,
+// so reports never count a recalculated cycle twice.
 func (q *Queries) CreatePayrollRun(ctx context.Context, arg CreatePayrollRunParams) (PayrollRun, error) {
 	row := q.db.QueryRow(ctx, createPayrollRun,
 		arg.CompanyID,
@@ -482,7 +488,7 @@ SELECT pi.id, pi.run_id, pi.employee_id, pi.basic_pay, pi.gross_pay, pi.taxable_
 FROM payroll_items pi
 JOIN payroll_runs pr ON pr.id = pi.run_id
 JOIN payroll_cycles pc ON pc.id = pr.cycle_id
-WHERE pr.company_id = $1 AND pi.employee_id = $2 AND pr.status = 'completed'
+WHERE pr.company_id = $1 AND pi.employee_id = $2 AND pr.status IN ('completed', 'ready_for_approval')
 ORDER BY pc.period_start DESC
 LIMIT $3
 `
@@ -601,7 +607,7 @@ func (q *Queries) GetEmployeePayrollHistory(ctx context.Context, arg GetEmployee
 
 const getLatestCompletedRunForCycle = `-- name: GetLatestCompletedRunForCycle :one
 SELECT id FROM payroll_runs
-WHERE cycle_id = $1 AND company_id = $2 AND status = 'completed'
+WHERE cycle_id = $1 AND company_id = $2 AND status IN ('completed', 'ready_for_approval')
 ORDER BY created_at DESC
 LIMIT 1
 `
@@ -891,7 +897,14 @@ func (q *Queries) GetPayrollRun(ctx context.Context, arg GetPayrollRunParams) (P
 }
 
 const getPayslip = `-- name: GetPayslip :one
-SELECT id, company_id, run_id, employee_id, period_start, period_end, pay_date, payload, pdf_path, viewed_at, created_at FROM payslips WHERE id = $1 AND employee_id = $2
+SELECT id, company_id, run_id, employee_id, period_start, period_end, pay_date, payload, pdf_path, viewed_at, created_at FROM payslips WHERE payslips.id = $1 AND payslips.employee_id = $2
+  -- Employees see a payslip once its pay run is approved, and only the
+  -- latest calculation of each cycle.
+  AND EXISTS (
+    SELECT 1 FROM payroll_runs r JOIN payroll_cycles c ON c.id = r.cycle_id
+    WHERE r.id = payslips.run_id AND c.status IN ('approved', 'paid')
+      AND r.id = (SELECT MAX(r2.id) FROM payroll_runs r2 WHERE r2.cycle_id = r.cycle_id AND r2.status IN ('completed', 'ready_for_approval'))
+  )
 `
 
 type GetPayslipParams struct {
@@ -989,7 +1002,7 @@ const listCompletedPayrollRuns = `-- name: ListCompletedPayrollRuns :many
 SELECT pr.id, pr.company_id, pr.cycle_id, pr.run_type, pr.run_number, pr.total_employees, pr.total_gross, pr.total_deductions, pr.total_net, pr.status, pr.error_message, pr.initiated_by, pr.completed_at, pr.created_at, pc.name as cycle_name, pc.period_start, pc.period_end, pc.pay_date
 FROM payroll_runs pr
 JOIN payroll_cycles pc ON pc.id = pr.cycle_id
-WHERE pr.company_id = $1 AND pr.status = 'completed'
+WHERE pr.company_id = $1 AND pr.status IN ('completed', 'ready_for_approval')
 ORDER BY pc.period_start DESC
 LIMIT $2 OFFSET $3
 `
@@ -1432,8 +1445,15 @@ func (q *Queries) ListPayrollItemsWithBank(ctx context.Context, runID int64) ([]
 
 const listPayslips = `-- name: ListPayslips :many
 SELECT id, company_id, run_id, employee_id, period_start, period_end, pay_date, payload, pdf_path, viewed_at, created_at FROM payslips
-WHERE company_id = $1 AND employee_id = $2
-ORDER BY created_at DESC
+WHERE payslips.company_id = $1 AND payslips.employee_id = $2
+  -- Employees see a payslip once its pay run is approved, and only the
+  -- latest calculation of each cycle.
+  AND EXISTS (
+    SELECT 1 FROM payroll_runs r JOIN payroll_cycles c ON c.id = r.cycle_id
+    WHERE r.id = payslips.run_id AND c.status IN ('approved', 'paid')
+      AND r.id = (SELECT MAX(r2.id) FROM payroll_runs r2 WHERE r2.cycle_id = r.cycle_id AND r2.status IN ('completed', 'ready_for_approval'))
+  )
+ORDER BY payslips.pay_date DESC, payslips.created_at DESC
 LIMIT $3 OFFSET $4
 `
 

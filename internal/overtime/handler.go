@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/halaostory/halaos/internal/access"
 	"github.com/halaostory/halaos/internal/auth"
 	"github.com/halaostory/halaos/internal/notification"
 	"github.com/halaostory/halaos/internal/store"
@@ -138,22 +139,28 @@ func (h *Handler) ApproveRequest(c *gin.Context) {
 		response.BadRequest(c, "Invalid ID")
 		return
 	}
-	companyID := auth.GetCompanyID(c)
-	userID := auth.GetUserID(c)
-
-	emp, err := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
-		UserID:    &userID,
-		CompanyID: companyID,
-	})
-	if err != nil {
-		response.BadRequest(c, "Employee profile not found")
+	owner, oerr := func() (int64, error) {
+		r, err := h.queries.GetOvertimeRequest(c.Request.Context(), store.GetOvertimeRequestParams{ID: id, CompanyID: auth.GetCompanyID(c)})
+		return r.EmployeeID, err
+	}()
+	if oerr != nil {
+		response.NotFound(c, "Overtime request not found")
 		return
 	}
+	approver, ok := access.Decide(c, h.queries, owner)
+	if !ok {
+		return
+	}
+	var approverID *int64
+	if approver != nil {
+		approverID = &approver.ID
+	}
+	companyID := auth.GetCompanyID(c)
 
 	ot, err := h.queries.ApproveOvertimeRequest(c.Request.Context(), store.ApproveOvertimeRequestParams{
 		ID:         id,
 		CompanyID:  companyID,
-		ApproverID: &emp.ID,
+		ApproverID: approverID,
 	})
 	if err != nil {
 		response.NotFound(c, "Overtime request not found or already processed")
@@ -178,27 +185,33 @@ func (h *Handler) RejectRequest(c *gin.Context) {
 		response.BadRequest(c, "Invalid ID")
 		return
 	}
+	owner, oerr := func() (int64, error) {
+		r, err := h.queries.GetOvertimeRequest(c.Request.Context(), store.GetOvertimeRequestParams{ID: id, CompanyID: auth.GetCompanyID(c)})
+		return r.EmployeeID, err
+	}()
+	if oerr != nil {
+		response.NotFound(c, "Overtime request not found")
+		return
+	}
+	approver, ok := access.Decide(c, h.queries, owner)
+	if !ok {
+		return
+	}
+	var approverID *int64
+	if approver != nil {
+		approverID = &approver.ID
+	}
 	companyID := auth.GetCompanyID(c)
-	userID := auth.GetUserID(c)
 
 	var req struct {
 		Reason string `json:"reason"`
 	}
 	_ = c.ShouldBindJSON(&req)
 
-	emp, err := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
-		UserID:    &userID,
-		CompanyID: companyID,
-	})
-	if err != nil {
-		response.BadRequest(c, "Employee profile not found")
-		return
-	}
-
 	ot, err := h.queries.RejectOvertimeRequest(c.Request.Context(), store.RejectOvertimeRequestParams{
 		ID:              id,
 		CompanyID:       companyID,
-		ApproverID:      &emp.ID,
+		ApproverID:      approverID,
 		RejectionReason: &req.Reason,
 	})
 	if err != nil {

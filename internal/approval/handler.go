@@ -72,6 +72,15 @@ func (h *Handler) Approve(c *gin.Context) {
 		return
 	}
 
+	// Nobody approves their own request (e.g. a leave routed to the first
+	// admin when the requester is that admin).
+	if ent, err := h.queries.GetApprovalWorkflowEntity(c.Request.Context(), id); err == nil && ent.EntityType == "leave_request" {
+		if lr, err := h.queries.GetLeaveRequest(c.Request.Context(), store.GetLeaveRequestParams{ID: ent.EntityID, CompanyID: companyID}); err == nil && lr.EmployeeID == emp.ID {
+			response.Forbidden(c, "You can't approve your own request")
+			return
+		}
+	}
+
 	var req struct {
 		Comments *string `json:"comments"`
 	}

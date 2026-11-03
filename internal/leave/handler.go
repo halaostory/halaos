@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/halaostory/halaos/internal/access"
 	"github.com/halaostory/halaos/internal/auth"
 	"github.com/halaostory/halaos/internal/email"
 	"github.com/halaostory/halaos/internal/notification"
@@ -354,6 +355,10 @@ func (h *Handler) ApproveRequest(c *gin.Context) {
 		response.InternalError(c, "Failed to approve leave request")
 		return
 	}
+	if err := qt.CloseApprovalWorkflows(c.Request.Context(), store.CloseApprovalWorkflowsParams{Status: "approved", CompanyID: companyID, EntityType: "leave_request", EntityID: lr.ID}); err != nil {
+		response.InternalError(c, "Failed to approve leave request")
+		return
+	}
 	if err := tx.Commit(c.Request.Context()); err != nil {
 		response.InternalError(c, "Failed to approve leave request")
 		return
@@ -419,6 +424,7 @@ func (h *Handler) RejectRequest(c *gin.Context) {
 		response.NotFound(c, "Leave request not found or already processed")
 		return
 	}
+	_ = h.queries.CloseApprovalWorkflows(c.Request.Context(), store.CloseApprovalWorkflowsParams{Status: "rejected", CompanyID: companyID, EntityType: "leave_request", EntityID: lr.ID})
 
 	// Notify employee
 	if reqEmp, err := h.queries.GetEmployeeByID(c.Request.Context(), store.GetEmployeeByIDParams{ID: lr.EmployeeID, CompanyID: companyID}); err == nil && reqEmp.UserID != nil {
@@ -476,41 +482,20 @@ func (h *Handler) CancelRequest(c *gin.Context) {
 		response.NotFound(c, "Leave request not found or cannot be cancelled")
 		return
 	}
+	_ = h.queries.CloseApprovalWorkflows(c.Request.Context(), store.CloseApprovalWorkflowsParams{Status: "cancelled", CompanyID: auth.GetCompanyID(c), EntityType: "leave_request", EntityID: lr.ID})
 	response.OK(c, lr)
 }
 
-// decider checks the caller may approve or reject request id: HR admins
-// may decide any request; a manager only their direct reports'; nobody
-// decides their own. It returns the caller's employee record (nil for an
-// admin without one).
+// decider checks the caller may approve or reject leave request id (see
+// access.Decide: HR anyone's, a manager their direct reports', never your
+// own).
 func (h *Handler) decider(c *gin.Context, id int64) (*store.Employee, bool) {
-	ctx := c.Request.Context()
-	companyID := auth.GetCompanyID(c)
-	lr, err := h.queries.GetLeaveRequest(ctx, store.GetLeaveRequestParams{ID: id, CompanyID: companyID})
+	lr, err := h.queries.GetLeaveRequest(c.Request.Context(), store.GetLeaveRequestParams{ID: id, CompanyID: auth.GetCompanyID(c)})
 	if err != nil {
 		response.NotFound(c, "Leave request not found or already processed")
 		return nil, false
 	}
-	uid := auth.GetUserID(c)
-	var me *store.Employee
-	if e, err := h.queries.GetEmployeeByUserID(ctx, store.GetEmployeeByUserIDParams{UserID: &uid, CompanyID: companyID}); err == nil {
-		me = &e
-	}
-	if me != nil && me.ID == lr.EmployeeID {
-		response.Forbidden(c, "You can't decide your own leave request")
-		return nil, false
-	}
-	role := auth.GetRole(c)
-	if role == auth.RoleAdmin || role == auth.RoleSuperAdmin {
-		return me, true
-	}
-	if me != nil {
-		if req, err := h.queries.GetEmployeeByID(ctx, store.GetEmployeeByIDParams{ID: lr.EmployeeID, CompanyID: companyID}); err == nil && req.ManagerID != nil && *req.ManagerID == me.ID {
-			return me, true
-		}
-	}
-	response.Forbidden(c, "Only the employee's manager or HR can decide this request")
-	return nil, false
+	return access.Decide(c, h.queries, lr.EmployeeID)
 }
 
 func numF(n pgtype.Numeric) float64 {

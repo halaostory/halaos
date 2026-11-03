@@ -43,4 +43,4 @@ SELECT COUNT(*) FROM schedule_templates WHERE company_id = $1;
 SELECT COUNT(*) FROM salary_structures WHERE company_id = $1;
 
 -- name: CountCompletedPayrollRuns :one
-SELECT COUNT(*) FROM payroll_runs WHERE company_id = $1 AND status = 'completed';
+SELECT COUNT(*) FROM payroll_runs WHERE company_id = $1 AND status IN ('completed', 'ready_for_approval');

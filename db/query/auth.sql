@@ -20,12 +20,12 @@ UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2 AND compan
 
 -- name: UpdateUserProfile :one
 UPDATE users SET
-    first_name = COALESCE($2, first_name),
-    last_name = COALESCE($3, last_name),
-    avatar_url = COALESCE($4, avatar_url),
-    locale = COALESCE($5, locale),
+    first_name = COALESCE(NULLIF(sqlc.narg('first_name')::varchar, ''), first_name),
+    last_name = COALESCE(NULLIF(sqlc.narg('last_name')::varchar, ''), last_name),
+    avatar_url = COALESCE(sqlc.narg('avatar_url'), avatar_url),
+    locale = COALESCE(NULLIF(sqlc.narg('locale')::varchar, ''), locale),
     updated_at = NOW()
-WHERE id = $1 AND company_id = $6
+WHERE id = @id AND company_id = @company_id
 RETURNING *;
 
 -- name: UpdateUserRole :exec

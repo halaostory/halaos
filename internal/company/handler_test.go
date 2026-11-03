@@ -119,10 +119,21 @@ func TestGetCompany_NotFound(t *testing.T) {
 
 // --- UpdateCompany ---
 
+func TestUpdateCompany_BadPayFrequency(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+	c, w := testutil.NewGinContext("PUT", "/company", gin.H{"name": "NewCo", "pay_frequency": "daily"}, adminAuth)
+	h.UpdateCompany(c)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
 func TestUpdateCompany_Success(t *testing.T) {
 	mockDB := testutil.NewMockDBTX()
 	h := newTestHandler(mockDB)
-	mockDB.OnQueryRow(testutil.NewRow(companyScanValues()...))
+	mockDB.OnQueryRow(testutil.NewRow(companyScanValues()...)) // current values
+	mockDB.OnQueryRow(testutil.NewRow(companyScanValues()...)) // updated row
 	c, w := testutil.NewGinContext("PUT", "/company", gin.H{"name": "NewCo"}, adminAuth)
 	h.UpdateCompany(c)
 	if w.Code != http.StatusOK {

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { useRouter } from "vue-router";
 import { Tag } from "vant";
+import { edition, loadEdition } from "../../edition";
+
+loadEdition();
 
 const props = defineProps<{
   questions: string[];
@@ -14,7 +17,7 @@ function askAi(question: string) {
 </script>
 
 <template>
-  <div class="ai-quick-ask" v-if="questions.length > 0">
+  <div class="ai-quick-ask" v-if="edition.aiAssistant && questions.length > 0">
     <div class="ask-header">
       <van-icon name="chat-o" size="14" color="var(--brand-color)" />
       <span class="ask-label">AI</span>

@@ -55,3 +55,34 @@ func Check(c *gin.Context, q employeeLookup, employeeID int64, lvl Level) bool {
 	response.NotFound(c, "Not found")
 	return false
 }
+
+// Decide checks the caller may approve or reject a record of employeeID:
+// HR admins decide anyone's; a manager only their direct reports'; nobody
+// decides their own. It returns the caller's employee record (nil for an
+// admin without one) and writes 403 when not allowed.
+func Decide(c *gin.Context, q interface {
+	employeeLookup
+	GetEmployeeByID(ctx context.Context, arg store.GetEmployeeByIDParams) (store.Employee, error)
+}, employeeID int64) (*store.Employee, bool) {
+	ctx := c.Request.Context()
+	companyID := auth.GetCompanyID(c)
+	uid := auth.GetUserID(c)
+	var me *store.Employee
+	if e, err := q.GetEmployeeByUserID(ctx, store.GetEmployeeByUserIDParams{UserID: &uid, CompanyID: companyID}); err == nil {
+		me = &e
+	}
+	if me != nil && me.ID == employeeID {
+		response.Forbidden(c, "You can't approve your own request")
+		return nil, false
+	}
+	if IsAdmin(c) {
+		return me, true
+	}
+	if me != nil && auth.GetRole(c) == auth.RoleManager {
+		if e, err := q.GetEmployeeByID(ctx, store.GetEmployeeByIDParams{ID: employeeID, CompanyID: companyID}); err == nil && e.ManagerID != nil && *e.ManagerID == me.ID {
+			return me, true
+		}
+	}
+	response.Forbidden(c, "Only the employee's manager or HR can decide this request")
+	return nil, false
+}

@@ -151,6 +151,12 @@ func (h *Handler) RunPayroll(c *gin.Context) {
 		response.BadRequest(c, "Payroll cycle is locked and cannot be modified")
 		return
 	}
+	// An approved payroll is final: employees have been told and payslips
+	// are out. Recalculating would silently change them.
+	if cyc, err := h.queries.GetPayrollCycle(c.Request.Context(), store.GetPayrollCycleParams{ID: req.CycleID, CompanyID: companyID}); err == nil && (cyc.Status == "approved" || cyc.Status == "paid") && req.RunType != "simulation" {
+		response.BadRequest(c, "This payroll is already approved and can't be recalculated; run an off-cycle payroll for corrections")
+		return
+	}
 
 	runType := req.RunType
 	if runType == "" {
@@ -256,10 +262,20 @@ func (h *Handler) ApproveCycle(c *gin.Context) {
 		if cycle.CycleType == "final_pay" {
 			return // single leaver; their payslip is shared through the clearance process
 		}
+		// Only the people paid in this cycle (other pay schedules and
+		// employees not in the run get nothing).
+		inRun := map[int64]bool{}
+		if runID, err := h.queries.GetLatestCompletedRunForCycle(ctx, store.GetLatestCompletedRunForCycleParams{CycleID: id, CompanyID: companyID}); err == nil {
+			if items, err := h.queries.ListPayrollItems(ctx, runID); err == nil {
+				for _, it := range items {
+					inRun[it.EmployeeID] = true
+				}
+			}
+		}
 		emps, _ := h.queries.ListActiveEmployees(ctx, companyID)
 		entityType := "payroll"
 		for _, e := range emps {
-			if e.UserID != nil {
+			if e.UserID != nil && inRun[e.ID] {
 				notification.Notify(ctx, h.queries, h.logger, companyID, *e.UserID,
 					"Payslip Available",
 					fmt.Sprintf("Your payslip for %s is now available.", cycle.Name),

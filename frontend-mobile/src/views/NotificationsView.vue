@@ -18,7 +18,7 @@ import { notificationAPI } from "../api/client";
 import { format } from "date-fns";
 import type { Notification, ApiResponse } from "../types";
 
-const { t } = useI18n();
+const { t, te } = useI18n();
 const router = useRouter();
 
 const notifications = ref<Notification[]>([]);
@@ -40,8 +40,8 @@ function typeColor(type: string): "success" | "warning" | "danger" | "primary" {
 }
 
 function typeLabel(type: string) {
-  const key = `notifications.${type}` as const;
-  return t(key) || type;
+  const key = `notifications.cat_${type}`;
+  return te(key) ? t(key) : type ? type.charAt(0).toUpperCase() + type.slice(1) : "";
 }
 
 async function loadNotifications() {
@@ -111,9 +111,9 @@ onMounted(loadNotifications);
     <!-- AI Quick Ask -->
     <AiQuickAsk
       :questions="[
-        'Summarize my notifications',
-        'Any pending approvals?',
-        'What needs my attention?',
+        t('ask.notifications1'),
+        t('ask.notifications2'),
+        t('ask.notifications3'),
       ]"
     />
 
@@ -135,8 +135,8 @@ onMounted(loadNotifications);
           <Cell :class="{ 'notification-unread': !n.is_read }">
             <template #title>
               <div class="notification-header">
-                <Tag :type="typeColor(n.type)" size="medium">
-                  {{ typeLabel(n.type) }}
+                <Tag :type="typeColor(n.category)" size="medium">
+                  {{ typeLabel(n.category) }}
                 </Tag>
                 <span class="notification-time">{{ formatTime(n.created_at) }}</span>
               </div>

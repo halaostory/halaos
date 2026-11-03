@@ -4,7 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { Tabbar, TabbarItem } from "vant";
 import AiFloatingBubble from "./ai/AiFloatingBubble.vue";
-import { hasModule } from "../edition";
+import { edition, hasModule } from "../edition";
 
 const { t } = useI18n();
 const route = useRoute();
@@ -52,7 +52,7 @@ function onTabChange(index: number | string) {
     >
       <TabbarItem v-for="tab in tabs" :key="tab.name" :icon="tab.icon">{{ t(tab.label) }}</TabbarItem>
     </Tabbar>
-    <AiFloatingBubble v-if="route.name !== 'ai-chat' && hasModule('ai')" />
+    <AiFloatingBubble v-if="route.name !== 'ai-chat' && hasModule('ai') && edition.aiAssistant" />
   </div>
 </template>
 

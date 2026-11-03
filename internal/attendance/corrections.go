@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/halaostory/halaos/internal/access"
 	"github.com/halaostory/halaos/internal/auth"
 	"github.com/halaostory/halaos/internal/store"
 	"github.com/halaostory/halaos/pkg/response"
@@ -136,6 +137,17 @@ func (h *Handler) ApproveCorrection(c *gin.Context) {
 		response.BadRequest(c, "Invalid correction ID")
 		return
 	}
+	owner, oerr := func() (int64, error) {
+		r, err := h.queries.GetAttendanceCorrection(c.Request.Context(), store.GetAttendanceCorrectionParams{ID: id, CompanyID: auth.GetCompanyID(c)})
+		return r.EmployeeID, err
+	}()
+	if oerr != nil {
+		response.NotFound(c, "Correction not found")
+		return
+	}
+	if _, ok := access.Decide(c, h.queries, owner); !ok {
+		return
+	}
 	companyID := auth.GetCompanyID(c)
 	userID := auth.GetUserID(c)
 
@@ -200,6 +212,17 @@ func (h *Handler) RejectCorrection(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "Invalid correction ID")
+		return
+	}
+	owner, oerr := func() (int64, error) {
+		r, err := h.queries.GetAttendanceCorrection(c.Request.Context(), store.GetAttendanceCorrectionParams{ID: id, CompanyID: auth.GetCompanyID(c)})
+		return r.EmployeeID, err
+	}()
+	if oerr != nil {
+		response.NotFound(c, "Correction not found")
+		return
+	}
+	if _, ok := access.Decide(c, h.queries, owner); !ok {
 		return
 	}
 	companyID := auth.GetCompanyID(c)

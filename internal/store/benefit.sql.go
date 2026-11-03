@@ -309,6 +309,22 @@ func (q *Queries) DeleteBenefitDependent(ctx context.Context, arg DeleteBenefitD
 	return err
 }
 
+const getBenefitClaimOwner = `-- name: GetBenefitClaimOwner :one
+SELECT employee_id FROM benefit_claims WHERE id = $1 AND company_id = $2
+`
+
+type GetBenefitClaimOwnerParams struct {
+	ID        int64 `json:"id"`
+	CompanyID int64 `json:"company_id"`
+}
+
+func (q *Queries) GetBenefitClaimOwner(ctx context.Context, arg GetBenefitClaimOwnerParams) (int64, error) {
+	row := q.db.QueryRow(ctx, getBenefitClaimOwner, arg.ID, arg.CompanyID)
+	var employee_id int64
+	err := row.Scan(&employee_id)
+	return employee_id, err
+}
+
 const getBenefitDependentOwner = `-- name: GetBenefitDependentOwner :one
 SELECT employee_id FROM benefit_dependents WHERE id = $1 AND company_id = $2
 `

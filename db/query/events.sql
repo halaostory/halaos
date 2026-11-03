@@ -86,3 +86,9 @@ JOIN users u ON u.id = e.user_id
 WHERE e.company_id = $1 AND u.role IN ('super_admin', 'admin') AND e.status = 'active'
 ORDER BY u.role ASC, e.id ASC
 LIMIT 1;
+
+-- name: CloseApprovalWorkflows :exec
+-- Closes the pending approval entries of an entity decided elsewhere
+-- (e.g. a leave approved from its own page), so inboxes don't keep it.
+UPDATE approval_workflows SET status = @status::varchar, decided_at = NOW()
+WHERE company_id = @company_id AND entity_type = @entity_type AND entity_id = @entity_id AND status = 'pending';
