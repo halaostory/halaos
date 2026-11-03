@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   NCard, NSteps, NStep, NForm, NFormItem, NInput, NInputNumber, NSelect, NDatePicker,
@@ -21,6 +21,7 @@ interface Step { key: string; status: string; detail?: string }
 
 const { t } = useI18n()
 const router = useRouter()
+const route = useRoute()
 const message = useMessage()
 
 const current = ref(1)
@@ -163,7 +164,12 @@ function boolOptions() {
   return [{ label: '✓', value: 'true' }, { label: '✗', value: 'false' }]
 }
 
-onMounted(loadLookups)
+onMounted(() => {
+  // Prefill from the home page's "Onboard a new employee" widget.
+  if (typeof route.query.email === 'string') form.value.email = route.query.email
+  if (route.query.invite === '1') form.value.send_invite = true
+  loadLookups()
+})
 </script>
 
 <template>

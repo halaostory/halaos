@@ -144,7 +144,21 @@ const router = createRouter({
         {
           path: "",
           name: "dashboard",
+          component: () => import("../views/HomeView.vue"),
+        },
+        // Workforce insights (attendance & people analytics dashboard)
+        {
+          path: "insights",
+          name: "insights",
           component: () => import("../views/DashboardView.vue"),
+          meta: { roles: ["super_admin", "admin", "manager"] },
+        },
+        // Agent routines
+        {
+          path: "routines",
+          name: "routines",
+          component: () => import("../views/RoutinesView.vue"),
+          meta: { roles: ["super_admin", "admin"] },
         },
         // Employees
         {
@@ -594,11 +608,10 @@ router.beforeEach(async (to) => {
     return auth.isAuthenticated ? { name: "dashboard" } : { name: "home" };
   }
 
-  // HalaPeople has no attendance/analytics dashboard: admins land on the HR
-  // inbox, everyone else on self-service (payslips, leave, documents).
+  // Home is for admins and managers; employees land on self-service.
   if (to.name === "dashboard" && auth.isAuthenticated) {
     if (!auth.user) await auth.fetchMe();
-    return auth.isAdmin ? { name: "inbox" } : { name: "self-service" };
+    if (!auth.isAdmin && !auth.isManager) return { name: "self-service" };
   }
 
   // Auth required but not logged in

@@ -50,6 +50,7 @@ import (
 	"github.com/halaostory/halaos/internal/govfiling"
 	"github.com/halaostory/halaos/internal/grievance"
 	"github.com/halaostory/halaos/internal/holiday"
+	"github.com/halaostory/halaos/internal/home"
 	"github.com/halaostory/halaos/internal/hrrequest"
 	"github.com/halaostory/halaos/internal/importexport"
 	"github.com/halaostory/halaos/internal/integration"
@@ -76,6 +77,7 @@ import (
 	"github.com/halaostory/halaos/internal/ratelimit"
 	"github.com/halaostory/halaos/internal/recognition"
 	"github.com/halaostory/halaos/internal/report"
+	"github.com/halaostory/halaos/internal/routines"
 	"github.com/halaostory/halaos/internal/selfonboard"
 	"github.com/halaostory/halaos/internal/selfservice"
 	"github.com/halaostory/halaos/internal/store"
@@ -416,8 +418,23 @@ func (a *App) setupRoutes() {
 	billingHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
 
 	// Government filing agent (prepare → review → approve → submit)
-	govHandler := govfiling.NewHandler(govfiling.NewService(a.Queries, a.Pool, a.Logger, govfiling.ServiceConfigFromEnv(a.Cfg.Integration.EncryptionKey, aiProvider, a.Email, a.Logger)), a.Queries, a.Logger)
+	govSvc := govfiling.NewService(a.Queries, a.Pool, a.Logger, govfiling.ServiceConfigFromEnv(a.Cfg.Integration.EncryptionKey, aiProvider, a.Email, a.Logger))
+	govHandler := govfiling.NewHandler(govSvc, a.Queries, a.Logger)
 	govHandler.RegisterRoutes(a.mod(edition.ModCompliance, protected))
+
+	// Agent routines (New hire, Offboarding, Pre-payroll check, Filing autopilot)
+	routineEngine := &routines.Engine{
+		Service:    routines.NewService(a.Queries, a.Logger),
+		Gov:        govSvc,
+		Calculator: payroll.NewCalculator(a.Queries, a.Pool, a.Logger),
+		Enabled:    a.Edition.Enabled,
+	}
+	govSvc.SetPolicy(routineEngine.Policy)
+	lifecycleHandler.Service().SetRoutines(routineEngine)
+	routines.NewHandler(routineEngine).RegisterRoutes(a.mod(edition.ModAI, protected))
+
+	// Home dashboard (to-dos, upcoming payroll/filings, agency registrations, agent activity)
+	home.NewHandler(a.Queries, a.Logger, a.Edition.Enabled).RegisterRoutes(a.mod(edition.ModCore, protected))
 
 	// New-hire self-onboarding portal + e-signatures (public token routes are rate limited)
 	selfOnboardHandler := selfonboard.NewHandler(selfonboard.NewService(a.Queries, a.Logger, a.Email, aiProvider, a.Cfg.Resend.BaseURL), a.Queries, a.Logger)

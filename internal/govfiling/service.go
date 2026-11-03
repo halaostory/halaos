@@ -48,6 +48,7 @@ type Service struct {
 	runner  *browser.Runner
 	partner *PartnerClient
 	now     func() time.Time
+	policy  func(ctx context.Context, companyID int64) string
 	// HumanPoll is how often a waiting browser run checks for an answer.
 	HumanPoll time.Duration
 }

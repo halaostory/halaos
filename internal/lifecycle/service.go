@@ -40,8 +40,20 @@ type Service struct {
 	accounting AccountingEmitter
 	onboarding *selfonboard.Service
 	devices    *devices.Service
+	routines   RoutineHook
 	now        func() time.Time
 }
+
+// RoutineHook lets the agent's routines (internal/routines) pick up after a
+// hire or termination has been committed — e.g. the "New hire" routine
+// prepares agency registrations and leaves follow-ups for a person.
+type RoutineHook interface {
+	AfterHire(ctx context.Context, companyID, userID int64, emp store.Employee, steps []Step)
+	AfterTerminate(ctx context.Context, companyID, userID int64, sep store.EmployeeSeparation, steps []Step)
+}
+
+// SetRoutines wires the agent routines (optional).
+func (s *Service) SetRoutines(r RoutineHook) { s.routines = r }
 
 // SetDevices wires device management so terminations lock and recall devices.
 func (s *Service) SetDevices(d *devices.Service) { s.devices = d }
@@ -302,6 +314,9 @@ func (s *Service) Hire(ctx context.Context, companyID, userID int64, in HireInpu
 		OnboardingRemaining: int64(onboardingTasks),
 		Today:               s.now(),
 	})
+	if s.routines != nil {
+		s.routines.AfterHire(ctx, companyID, userID, emp, res.Steps)
+	}
 	return res, nil
 }
 
@@ -459,6 +474,9 @@ func (s *Service) Terminate(ctx context.Context, companyID, userID, employeeID i
 		stage = StageSeparated
 		sep.Status = "completed"
 	}
+	if s.routines != nil {
+		s.routines.AfterTerminate(ctx, companyID, userID, sep, steps)
+	}
 	return &TerminateResult{Separation: sep, Effective: effective, Stage: stage, Steps: steps}, nil
 }
 
@@ -507,10 +525,22 @@ func (s *Service) ProcessDueSeparations(ctx context.Context) int {
 		}
 		applied++
 		s.emitAccountingTerminated(sep.CompanyID, sep)
-		if st := s.autoFinalPay(ctx, sep); st.Status != "done" {
+		steps := []Step{{Key: "status_separated", Status: "done", Detail: "last working day reached"}}
+		st := s.autoFinalPay(ctx, sep)
+		if st.Status != "done" {
 			s.logger.Warn("lifecycle: final pay not computed", "employee_id", sep.EmployeeID, "detail", st.Detail)
 		}
-		s.deviceRecall(ctx, sep)
+		steps = append(steps, st)
+		if dst, ok := s.deviceRecall(ctx, sep); ok {
+			steps = append(steps, dst)
+		}
+		if sep.RevokeAccess {
+			steps = append(steps, Step{Key: "access_revocation", Status: "done", Detail: "queued with employee.terminated"})
+		}
+		if s.routines != nil {
+			sep.Status = "completed"
+			s.routines.AfterTerminate(ctx, sep.CompanyID, 0, sep, steps)
+		}
 	}
 	return applied
 }

@@ -20,6 +20,7 @@ import {
   LinkOutline, PulseOutline, GitBranchOutline, TrendingUpOutline,
   FlashOutline, BulbOutline, HappyOutline, StarOutline, OpenOutline,
   MailUnreadOutline, PersonAddOutline, OptionsOutline, BuildOutline, CreateOutline, LaptopOutline,
+  SparklesOutline, RepeatOutline, SpeedometerOutline,
 } from '@vicons/ionicons5'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
@@ -141,11 +142,10 @@ const features: Record<string, boolean> = {
   'pulse-surveys': true, recognition: true, 'hr-requests': true,
   'bot-setup': true,
   inbox: true, hire: true, 'custom-fields': true, 'gov-filings': true, documents: true, devices: true, contractors: true,
+  routines: true, insights: true,
 }
 
 function isEnabled(key: string): boolean {
-  // HalaPeople's home is the HR inbox / self-service, not the attendance dashboard
-  if (key === 'dashboard' && edition.config.edition === 'people') return false
   return features[key] !== false && featureEnabled(key)
 }
 
@@ -158,15 +158,22 @@ const menuOptions = computed<MenuOption[]>(() => {
   const groups: MenuOption[] = []
   const isAdminOrManager = auth.isAdmin || auth.isManager
 
-  // ── 1. My Workspace (all users) ──
+  // ── 0. Home, inbox and the agent (Warp-style top of the sidebar) ──
+  const top: MenuOption[] = []
+  if (isAdminOrManager) pushIf(top, 'dashboard', 'nav.home', HomeOutline)
+  if (auth.isAdmin) pushIf(top, 'inbox', 'nav.inbox', MailUnreadOutline)
+  pushIf(top, 'agent-hub', 'nav.agent', SparklesOutline)
+  if (auth.isAdmin) pushIf(top, 'routines', 'nav.routines', RepeatOutline)
+  if (top.length) {
+    groups.push({ type: 'group', label: '', key: 'g-top', children: top })
+  }
+
+  // ── 1. Me (all users) ──
   const workspace: MenuOption[] = []
-  pushIf(workspace, 'dashboard', 'nav.dashboard', HomeOutline)
-  if (auth.isAdmin) pushIf(workspace, 'inbox', 'nav.inbox', MailUnreadOutline)
   pushIf(workspace, 'self-service', 'nav.selfService', PersonCircleOutline)
   pushIf(workspace, 'payslips', 'nav.payslips', ReceiptOutline)
   pushIf(workspace, 'announcements', 'nav.announcements', MegaphoneOutline)
   pushIf(workspace, 'hr-requests', 'nav.hrRequests', FileTrayFullOutline)
-  pushIf(workspace, 'bot-setup', 'nav.botSetup', ChatbubblesOutline)
   if (workspace.length) {
     groups.push({ type: 'group', label: t('nav.groupWorkspace'), key: 'g-workspace', children: workspace })
   }
@@ -216,6 +223,17 @@ const menuOptions = computed<MenuOption[]>(() => {
     groups.push({ type: 'group', label: t('nav.groupPayroll'), key: 'g-payroll', children: payComp })
   }
 
+  // ── 4b. Compliance (taxes, government filings & registrations) ──
+  if (auth.isAdmin) {
+    const comp: MenuOption[] = []
+    pushIf(comp, 'gov-filings', 'nav.govFilings', BuildOutline)
+    pushIf(comp, 'tax-filings', 'nav.taxFilings', DocumentTextOutline)
+    pushIf(comp, 'compliance', 'nav.compliance', ShieldCheckmarkOutline)
+    if (comp.length) {
+      groups.push({ type: 'group', label: t('nav.groupCompliance'), key: 'g-compliance', children: comp })
+    }
+  }
+
   // ── 5. Talent & Development ──
   const talent: MenuOption[] = []
   if (isAdminOrManager) pushIf(talent, 'performance', 'nav.performance', RibbonOutline)
@@ -239,13 +257,13 @@ const menuOptions = computed<MenuOption[]>(() => {
     groups.push({ type: 'group', label: t('nav.groupEngagement'), key: 'g-engagement', children: engagement })
   }
 
-  // ── 7. AI & Insights ──
+  // ── 7. Insights ──
   const ai: MenuOption[] = []
-  pushIf(ai, 'agent-hub', 'nav.agentHub', ChatbubblesOutline)
+  if (isAdminOrManager) pushIf(ai, 'insights', 'nav.insights', SpeedometerOutline)
   if (auth.isAdmin) pushIf(ai, 'analytics', 'nav.analytics', BarChartOutline)
   if (isAdminOrManager) pushIf(ai, 'org-intelligence', 'nav.orgIntelligence', PulseOutline)
   if (ai.length) {
-    groups.push({ type: 'group', label: t('nav.groupAI'), key: 'g-ai', children: ai })
+    groups.push({ type: 'group', label: t('nav.groupInsights'), key: 'g-ai', children: ai })
   }
 
   // ── 8. Administration (Admin only) ──
@@ -269,9 +287,6 @@ const menuOptions = computed<MenuOption[]>(() => {
     pushIf(companyItems, 'custom-fields', 'nav.customFields', OptionsOutline)
     pushIf(companyItems, 'salary', 'nav.salary', CashOutline)
     pushIf(companyItems, 'holidays', 'nav.holidays', TodayOutline)
-    pushIf(companyItems, 'compliance', 'nav.compliance', ShieldCheckmarkOutline)
-    pushIf(companyItems, 'gov-filings', 'nav.govFilings', BuildOutline)
-    pushIf(companyItems, 'tax-filings', 'nav.taxFilings', DocumentTextOutline)
     if (companyItems.length) {
       adminItems.push({ type: 'group', label: t('nav.groupAdminCompany'), key: 'g-admin-company', children: companyItems })
     }

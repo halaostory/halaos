@@ -24,6 +24,7 @@ import (
 	"github.com/halaostory/halaos/internal/integration"
 	"github.com/halaostory/halaos/internal/lifecycle"
 	"github.com/halaostory/halaos/internal/payroll"
+	"github.com/halaostory/halaos/internal/routines"
 	"github.com/halaostory/halaos/internal/store"
 	"github.com/halaostory/halaos/internal/workflow"
 )
@@ -109,6 +110,8 @@ func main() {
 	govSvc := govfiling.NewService(queries, pool, logger,
 		govfiling.ServiceConfigFromEnv(cfg.Integration.EncryptionKey, aiProvider, email.NewSender(cfg.SMTP, logger), logger))
 	deviceSvc := devices.NewServiceFromKey(queries, logger, cfg.Integration.EncryptionKey)
+	routineEngine := &routines.Engine{Service: routines.NewService(queries, logger), Gov: govSvc, Calculator: calculator, Enabled: ed.Enabled}
+	govSvc.SetPolicy(routineEngine.Policy)
 	go func() {
 		ticker := time.NewTicker(10 * time.Second)
 		defer ticker.Stop()
@@ -122,6 +125,10 @@ func main() {
 					lastAutopilot = time.Now()
 					r := govSvc.Autopilot(ctx)
 					logger.Info("gov filing autopilot", "prepared", r.Prepared, "failed", r.Failed, "state_registrations", r.Registrations, "new_hire_forms", r.NewHireForms)
+					routineEngine.RecordAutopilot(ctx, r)
+				}
+				if n := routineEngine.CheckPayrollRuns(ctx); n > 0 {
+					logger.Info("pre-payroll check", "runs", n)
 				}
 				if n := govSvc.ProcessQueue(ctx); n > 0 {
 					logger.Info("gov filing runs started", "count", n)
@@ -235,6 +242,7 @@ func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.
 	lifecycleSvc := lifecycle.NewService(queries, pool, logger)
 	lifecycleSvc.SetAccountingEmitter(integration.NewAccountingEmitter(queries, logger))
 	lifecycleSvc.SetDevices(devices.NewServiceFromKey(queries, logger, os.Getenv("INTEGRATION_ENCRYPTION_KEY")))
+	lifecycleSvc.SetRoutines(&routines.Engine{Service: routines.NewService(queries, logger), Enabled: ed.Enabled})
 	if n := lifecycleSvc.ProcessDueSeparations(ctx); n > 0 {
 		logger.Info("applied scheduled separations", "count", n)
 	}

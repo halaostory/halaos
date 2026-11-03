@@ -1323,6 +1323,19 @@ export const companyRegistrationAPI = {
 }
 
 
+// Home dashboard
+export const homeAPI = {
+  get: () => get("/v1/home"),
+};
+
+// Agent routines (New hire, Offboarding, Pre-payroll check, Filing autopilot)
+export const routinesAPI = {
+  list: () => get("/v1/routines"),
+  update: (key: string, data: { enabled?: boolean; autonomy?: string; instructions?: string }) => put(`/v1/routines/${key}`, data),
+  runs: (params?: { routine?: string; limit?: string }) => get("/v1/routines/runs", params),
+  run: (id: number) => get(`/v1/routines/runs/${id}`),
+};
+
 // Employee lifecycle (Warp-style one-step hire / terminate), HR inbox, custom fields
 export const lifecycleAPI = {
   hire: (data: Record<string, unknown>) => post("/v1/lifecycle/hire", data),

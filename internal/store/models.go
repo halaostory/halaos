@@ -95,6 +95,33 @@ type Agent struct {
 	CompanyID      *int64         `json:"company_id"`
 }
 
+type AgentRoutine struct {
+	ID           int64     `json:"id"`
+	CompanyID    int64     `json:"company_id"`
+	RoutineKey   string    `json:"routine_key"`
+	Enabled      bool      `json:"enabled"`
+	Autonomy     string    `json:"autonomy"`
+	Instructions string    `json:"instructions"`
+	UpdatedBy    *int64    `json:"updated_by"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+type AgentRoutineRun struct {
+	ID          int64           `json:"id"`
+	CompanyID   int64           `json:"company_id"`
+	RoutineKey  string          `json:"routine_key"`
+	Trigger     string          `json:"trigger"`
+	SubjectType string          `json:"subject_type"`
+	SubjectID   int64           `json:"subject_id"`
+	SubjectName string          `json:"subject_name"`
+	Autonomy    string          `json:"autonomy"`
+	Status      string          `json:"status"`
+	Summary     string          `json:"summary"`
+	Actions     json.RawMessage `json:"actions"`
+	CreatedAt   time.Time       `json:"created_at"`
+}
+
 type AgentTask struct {
 	ID             int64              `json:"id"`
 	CompanyID      int64              `json:"company_id"`

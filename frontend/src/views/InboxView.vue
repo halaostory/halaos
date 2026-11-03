@@ -4,17 +4,8 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { NCard, NSpace, NTag, NButton, NSpin, NEmpty, NList, NListItem, NThing, NAlert, useMessage } from 'naive-ui'
 import { lifecycleAPI } from '../api/client'
+import { inboxRoute, type InboxItem } from '../composables/inboxRoute'
 
-interface InboxItem {
-  kind: string
-  ref_id: number
-  employee_id: number
-  employee_name: string
-  title: string
-  due_date: string
-  priority: string
-  created_at: string
-}
 interface InboxData {
   items: InboxItem[]
   counts: Record<string, number>
@@ -42,27 +33,6 @@ async function loadBrief() {
   }
 }
 
-// Where each kind of item gets resolved.
-const kindRoute: Record<string, string> = {
-  leave_approval: 'approvals',
-  overtime_approval: 'approvals',
-  attendance_correction: 'approvals',
-  expense_approval: 'expenses',
-  onboarding_task: 'onboarding',
-  offboarding_task: 'onboarding',
-  compliance_alert: 'compliance',
-  contract_milestone: 'milestones',
-  provisioning_approval: 'provisioning-jobs',
-  gov_filing_approval: 'gov-filings',
-  gov_filing_blocked: 'gov-filings',
-  gov_filing_failed: 'gov-filings',
-  gov_filing_manual: 'gov-filings',
-  gov_human_input: 'gov-filings',
-  signature_declined: 'documents',
-  device_action: 'devices',
-  final_pay_approval: 'final-pay',
-}
-
 const kinds = computed(() =>
   Object.entries(data.value.counts).sort((a, b) => b[1] - a[1]),
 )
@@ -86,12 +56,8 @@ async function load() {
 }
 
 function open(item: InboxItem) {
-  if (['document_expiring', 'self_onboarding_review'].includes(item.kind) && item.employee_id) {
-    router.push({ name: 'employee-detail', params: { id: String(item.employee_id) } })
-    return
-  }
-  const name = kindRoute[item.kind]
-  if (name) router.push({ name })
+  const to = inboxRoute(item)
+  if (to) router.push(to)
 }
 
 onMounted(() => { load(); loadBrief() })
