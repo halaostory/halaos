@@ -17,7 +17,7 @@ Legend: ✅ shipped · 🟡 partial · ⬜ not yet · — not applicable
 | Warp Agent chat in the sidebar; answers policy/employee questions and acts | AI assistant with HR tools. Write tools create confirm-before-act drafts | ✅ | `internal/ai`, Agent page |
 | Routines: event/schedule triggered jobs the agent owns | New hire, Offboarding, Pre-payroll check, Filing autopilot | ✅ | `internal/routines`, Routines page |
 | Per-routine autonomy (recommend / act after approval / autonomous) | Recommend / Ask first / Autonomous. Filings and payroll are capped at "ask first" | ✅ | Routines page |
-| Routines written in plain language | Plain-language steps per routine. At Autonomous the agent reads each one (AI, or rules without a model) and does it — adds a checklist task or notifies the manager, employee or HR — with undo; at lower levels they are left for a person | 🟡 | Steps that need other tools (Slack messages, purchasing) become tracked tasks rather than being executed |
+| Routines written in plain language | Plain-language steps per routine. At Autonomous the agent reads each one (AI, or rules without a model) and does it — adds a checklist task or notifies the manager, employee or HR — with undo; at lower levels they are left for a person | 🟡 | "Post in Slack …" steps are posted to the connected channel; steps that need other tools (purchasing, booking) become tracked tasks |
 | Run log: trigger, what it did, what it left for a person | Run log with trigger, actions (done / for you / recommended / waiting / failed), rationale and links | ✅ | Routines → run log; Home → Agent activity |
 | Same permission model as people; hard limits on payroll/payments | Admin-only routines. Submissions, payroll approval and final pay always need a person | ✅ | |
 | Rollback per agent action | One-click Undo in the run log for reversible actions (prepared government returns are cancelled, manager notifications retracted); who undid it is recorded | ✅ | Routines → run log |
@@ -72,7 +72,7 @@ Legend: ✅ shipped · 🟡 partial · ⬜ not yet · — not applicable
 | Policy assignment by location / tenure / department | Time off → Policies: entitlement rules by department, employment type, gender and tenure band with priorities; applied at hire, re-applied daily (tenure upgrades), preview before apply; rules can also target workplaces | ✅ |
 | Time tracking add-on (clock in/out, geofence, shifts, timesheets → payroll) | Suite edition: attendance, geofences, schedules, DTR, overtime → payroll | ✅ |
 | Roles & permissions, MFA, SSO | Roles (super admin / admin / manager / employee); two-factor sign-in (TOTP + recovery codes); single sign-on with any OpenID Connect provider (Google Workspace, Okta, Entra ID) per company e-mail domain. No SAML | ✅ |
-| Mobile app for employees | `frontend-mobile` (mobile web): edition-aware tabs (Home, Clock in suite, Leave, Pay, Expenses, Me), expense claims, leave balances, payslips, two-factor sign-in; installable as an app (PWA: home-screen icon, standalone window, opens offline). Not in the app stores | 🟡 |
+| Mobile app for employees | `frontend-mobile`: one app for every company (company picker at sign-in), Home, Clock in (suite), Leave, Pay, Expenses, Me, two-factor sign-in; installable web app (PWA) and native iOS/Android projects (Capacitor) with phone notifications (Web Push + FCM). Store submission needs your Apple/Google developer accounts — see docs/mobile-app.md | ✅ |
 
 ## Contractors
 

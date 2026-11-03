@@ -2,6 +2,7 @@ package routines
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/halaostory/halaos/internal/ai/provider"
@@ -72,5 +73,56 @@ func TestInstructionLines(t *testing.T) {
 	got := instructionLines("- a\n\n 2) b \n* c")
 	if len(got) != 3 || got[0] != "a" || got[1] != "b" || got[2] != "c" {
 		t.Errorf("%q", got)
+	}
+}
+
+func TestRuleInterpretSlack(t *testing.T) {
+	for line, want := range map[string]string{
+		"Post in Slack that a new teammate joins Monday":      "A new teammate joins Monday",
+		"Announce in #general: welcome our new designer":      "Welcome our new designer",
+		"Share in #team-ops that the laptop has been ordered": "The laptop has been ordered",
+	} {
+		p := RuleInterpret(line)
+		if p.Kind != "slack" || p.Text != want {
+			t.Errorf("%q → %+v, want slack %q", line, p, want)
+		}
+	}
+	if p := RuleInterpret("Notify the manager to plan the first week"); p.Kind != "notify" {
+		t.Errorf("notify step read as %s", p.Kind)
+	}
+}
+
+type fakeSlack struct {
+	posted []string
+	err    error
+}
+
+func (f *fakeSlack) Notify(int64, string, string, string) {}
+func (f *fakeSlack) PostMessage(_ context.Context, _ int64, text, _ string) error {
+	if f.err != nil {
+		return f.err
+	}
+	f.posted = append(f.posted, text)
+	return nil
+}
+
+func TestRunSlackStep(t *testing.T) {
+	ctx := context.Background()
+	plan := StepPlan{Kind: "slack", Text: "Welcome Ana to the team!"}
+	sc := stepContext{companyID: 1, routine: "new_hire", autonomy: Autonomous}
+
+	e := &Engine{Service: &Service{}}
+	if a := e.runStep(ctx, sc, plan, "Post in Slack: welcome Ana", "Ana Cruz"); a.Status != ActPerson {
+		t.Errorf("without Slack the step is left for a person: %+v", a)
+	}
+	slack := &fakeSlack{}
+	e.SetNotifier(slack)
+	a := e.runStep(ctx, sc, plan, "Post in Slack: welcome Ana", "Ana Cruz")
+	if a.Status != ActDone || len(slack.posted) != 1 || slack.posted[0] != "Welcome Ana to the team!" || a.Undo != nil {
+		t.Fatalf("posted: %+v %v", a, slack.posted)
+	}
+	slack.err = errors.New("not connected")
+	if a := e.runStep(ctx, sc, plan, "Post in Slack: welcome Ana", "Ana Cruz"); a.Status != ActPerson {
+		t.Errorf("a failed post is left for a person: %+v", a)
 	}
 }

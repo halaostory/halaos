@@ -187,6 +187,12 @@ type Notifier interface {
 	Notify(companyID int64, event, text, link string)
 }
 
+// SlackPoster posts a message to the company's Slack channel right away
+// (used by plain-language routine steps such as "post in Slack …").
+type SlackPoster interface {
+	PostMessage(ctx context.Context, companyID int64, text, link string) error
+}
+
 // Service runs and records routines.
 type Service struct {
 	q      *store.Queries

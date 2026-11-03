@@ -80,6 +80,26 @@ func (s *Service) Notify(companyID int64, event, text, link string) {
 
 var errNotConfigured = errors.New("slack alerts not configured")
 
+// ErrSlackNotConnected means the company has no enabled Slack channel.
+var ErrSlackNotConnected = errNotConfigured
+
+// PostMessage posts text to the company's Slack channel now, whatever the
+// event subscriptions (a routine step asked for it explicitly).
+func (s *Service) PostMessage(ctx context.Context, companyID int64, text, link string) error {
+	if s == nil || s.q == nil {
+		return errNotConfigured
+	}
+	ch, err := s.q.GetAlertChannel(ctx, companyID)
+	if err != nil || !ch.Enabled || len(ch.SlackWebhookEnc) == 0 || s.enc == nil {
+		return errNotConfigured
+	}
+	url, err := s.enc.Decrypt(ch.SlackWebhookEnc)
+	if err != nil {
+		return err
+	}
+	return s.post(ctx, string(url), s.message(text, link))
+}
+
 func (s *Service) send(ctx context.Context, companyID int64, event, text, link string) error {
 	ch, err := s.q.GetAlertChannel(ctx, companyID)
 	if err != nil || !ch.Enabled || len(ch.SlackWebhookEnc) == 0 || !slices.Contains(ch.Events, event) || s.enc == nil {

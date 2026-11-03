@@ -25,7 +25,7 @@ import (
 
 // StepPlan is how the agent reads one instruction line.
 type StepPlan struct {
-	Kind    string `json:"kind"`     // task, notify, none
+	Kind    string `json:"kind"`     // task, notify, slack, none
 	Target  string `json:"target"`   // hr, manager, employee
 	Text    string `json:"text"`     // task title or message
 	DueDays int    `json:"due_days"` // task due, days from the reference date
@@ -36,9 +36,12 @@ var (
 	reDueDays = regexp.MustCompile(`(?i)\b(?:within|in|by day|on day|before day)\s+(\d{1,3})\s*(?:days?)?\b`)
 	// "Notify the manager to …" → message "…"
 	reNotifyLead = regexp.MustCompile(`(?i)^(notify|tell|remind|message|ping|let|inform|email|e-mail)\s+(the\s+|our\s+)?(manager|team lead|supervisor|boss|employee|new hire|newcomer|hr|hr team|admins?|them|him|her)?\s*(know\s+)?(to|that|about|:)?\s+`)
-	reFirstDay   = regexp.MustCompile(`(?i)\b(first day|day one|day 1|on day one)\b`)
-	reManager    = regexp.MustCompile(`(?i)\b(manager|team lead|supervisor|boss)\b`)
-	reEmployee   = regexp.MustCompile(`(?i)\b(employee|new hire|newcomer|them|the hire|leaver)\b`)
+	// "Post in #general that …", "Announce in Slack …"
+	reSlack     = regexp.MustCompile(`(?i)\bslack\b|^(post|announce|share|shout ?out)\b.*\b(in|on|to)\s+#[\w-]+`)
+	reSlackLead = regexp.MustCompile(`(?i)^(post|announce|share|send|write|shout ?out)\s+(a\s+)?(message\s+|welcome\s+|note\s+)?(in|on|to)\s+(the\s+)?(slack|#[\w-]+)(\s+channel)?\s*(that|:|saying|to say|about)?\s*`)
+	reFirstDay  = regexp.MustCompile(`(?i)\b(first day|day one|day 1|on day one)\b`)
+	reManager   = regexp.MustCompile(`(?i)\b(manager|team lead|supervisor|boss)\b`)
+	reEmployee  = regexp.MustCompile(`(?i)\b(employee|new hire|newcomer|them|the hire|leaver)\b`)
 )
 
 // RuleInterpret reads a step without AI.
@@ -50,6 +53,12 @@ func RuleInterpret(line string) StepPlan {
 		p.DueDays = 0
 	}
 	switch {
+	case reSlack.MatchString(line):
+		p.Kind = "slack"
+		if m := reSlackLead.FindStringIndex(line); m != nil && m[1] < len(line) {
+			rest := strings.TrimSpace(line[m[1]:])
+			p.Text = strings.ToUpper(rest[:1]) + rest[1:]
+		}
 	case reNotify.MatchString(line):
 		p.Kind = "notify"
 		if m := reNotifyLead.FindStringSubmatchIndex(line); m != nil && m[1] < len(line) {
@@ -74,8 +83,9 @@ const stepSystem = `You turn one line of an HR team's routine instructions into 
 The routine runs for one employee (a new hire or a leaver). Choose:
 - "task": add a checklist task (text = short task title; target = who does it: hr, manager or employee; due_days = days after the start/last day, 0 if unspecified)
 - "notify": send an in-app message (text = the message to send; target = manager, employee or hr)
+- "slack": post a message in the company's Slack channel (text = the message, written for the whole team)
 - "none": the line is not an actionable step.
-Respond with JSON only: {"kind":"task|notify|none","target":"hr|manager|employee","text":"...","due_days":0}`
+Respond with JSON only: {"kind":"task|notify|slack|none","target":"hr|manager|employee","text":"...","due_days":0}`
 
 // AIInterpret asks the model; it falls back to the rule reading on error.
 func AIInterpret(ctx context.Context, p provider.Provider, routine, subject, line string) StepPlan {
@@ -104,7 +114,7 @@ func AIInterpret(ctx context.Context, p provider.Provider, routine, subject, lin
 		return base
 	}
 	switch out.Kind {
-	case "task", "notify", "none":
+	case "task", "notify", "slack", "none":
 	default:
 		return base
 	}
@@ -175,6 +185,16 @@ func (e *Engine) runStep(ctx context.Context, sc stepContext, plan StepPlan, lin
 		}
 		return Action{Key: "custom_notify", Title: fmt.Sprintf("Told %s: %s", targetLabel(plan.Target), plan.Text), Status: ActDone,
 			Rationale: why, Undo: &Undo{Kind: UndoRetractNotification, ID: ids[0], IDs: ids}}
+	case "slack":
+		poster, ok := e.alerts.(SlackPoster)
+		if !ok || e.alerts == nil {
+			return Action{Key: "custom", Title: line, Status: ActPerson, Rationale: "Connect Slack (Routines → Slack alerts) so the agent can post it. " + why}
+		}
+		if err := poster.PostMessage(ctx, sc.companyID, plan.Text, ""); err != nil {
+			return Action{Key: "custom", Title: line, Status: ActPerson, Rationale: "Slack is not connected or rejected the message — post it yourself, or connect Slack under Routines. " + why}
+		}
+		return Action{Key: "custom_slack", Title: "Posted in Slack: " + plan.Text, Status: ActDone,
+			Rationale: why + " (Slack messages can't be withdrawn from here.)"}
 	case "task":
 		role := plan.Target
 		due := pgtype.Date{Time: sc.ref.AddDate(0, 0, plan.DueDays), Valid: true}
