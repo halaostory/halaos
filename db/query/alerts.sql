@@ -4,20 +4,24 @@
 SELECT * FROM alert_channels WHERE company_id = $1;
 
 -- name: UpsertAlertChannel :one
-INSERT INTO alert_channels (company_id, slack_webhook_enc, slack_hint, events, enabled, updated_by)
-VALUES ($1, $2, $3, $4, $5, $6)
+-- A NULL secret keeps the stored one (and its hint); kind and target are
+-- always written (the handler passes the current ones when unchanged).
+INSERT INTO alert_channels (company_id, kind, secret_enc, hint, target, events, enabled, updated_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 ON CONFLICT (company_id) DO UPDATE SET
-    slack_webhook_enc = COALESCE(EXCLUDED.slack_webhook_enc, alert_channels.slack_webhook_enc),
-    slack_hint = CASE WHEN EXCLUDED.slack_webhook_enc IS NULL THEN alert_channels.slack_hint ELSE EXCLUDED.slack_hint END,
+    kind = EXCLUDED.kind,
+    secret_enc = COALESCE(EXCLUDED.secret_enc, alert_channels.secret_enc),
+    hint = CASE WHEN EXCLUDED.secret_enc IS NULL THEN alert_channels.hint ELSE EXCLUDED.hint END,
+    target = EXCLUDED.target,
     events = EXCLUDED.events, enabled = EXCLUDED.enabled, updated_by = EXCLUDED.updated_by, updated_at = now()
 RETURNING *;
 
--- name: ClearAlertSlack :exec
-UPDATE alert_channels SET slack_webhook_enc = NULL, slack_hint = '', updated_at = now() WHERE company_id = $1;
+-- name: ClearAlertChannel :exec
+UPDATE alert_channels SET secret_enc = NULL, hint = '', target = '', updated_at = now() WHERE company_id = $1;
 
 -- name: ListCompaniesDueForDigest :many
 SELECT company_id FROM alert_channels
-WHERE enabled AND slack_webhook_enc IS NOT NULL AND 'filing_due' = ANY(events)
+WHERE enabled AND secret_enc IS NOT NULL AND 'filing_due' = ANY(events)
   AND (last_digest_on IS NULL OR last_digest_on < CURRENT_DATE);
 
 -- name: MarkDigestSent :exec

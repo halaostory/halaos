@@ -36,9 +36,11 @@ var (
 	reDueDays = regexp.MustCompile(`(?i)\b(?:within|in|by day|on day|before day)\s+(\d{1,3})\s*(?:days?)?\b`)
 	// "Notify the manager to …" → message "…"
 	reNotifyLead = regexp.MustCompile(`(?i)^(notify|tell|remind|message|ping|let|inform|email|e-mail)\s+(the\s+|our\s+)?(manager|team lead|supervisor|boss|employee|new hire|newcomer|hr|hr team|admins?|them|him|her)?\s*(know\s+)?(to|that|about|:)?\s+`)
-	// "Post in #general that …", "Announce in Slack …"
-	reSlack     = regexp.MustCompile(`(?i)\bslack\b|^(post|announce|share|shout ?out)\b.*\b(in|on|to)\s+#[\w-]+`)
-	reSlackLead = regexp.MustCompile(`(?i)^(post|announce|share|send|write|shout ?out)\s+(a\s+)?(message\s+|welcome\s+|note\s+)?(in|on|to)\s+(the\s+)?(slack|#[\w-]+)(\s+channel)?\s*(that|:|saying|to say|about)?\s*`)
+	// "Post in #general that …", "Announce in Slack …", "Post in the
+	// Telegram group …", "Share in the team chat …" — kind "slack" is the
+	// company's team chat, whichever platform it is.
+	reSlack     = regexp.MustCompile(`(?i)\b(slack|ms teams|microsoft teams|google chat|lark|feishu|telegram|line group|team chat|group chat)\b|^(post|announce|share|shout ?out)\b.*\b(in|on|to)\s+(#[\w-]+|(the\s+)?teams\b)`)
+	reSlackLead = regexp.MustCompile(`(?i)^(post|announce|share|send|write|shout ?out)\s+(a\s+)?(message\s+|welcome\s+|note\s+)?(in|on|to)\s+(the\s+|our\s+)?(slack|ms teams|microsoft teams|teams|google chat|lark|feishu|telegram|line|team chat|group chat|#[\w-]+)(\s+(channel|group|chat|space))?\s*(that|:|saying|to say|about)?\s*`)
 	reFirstDay  = regexp.MustCompile(`(?i)\b(first day|day one|day 1|on day one)\b`)
 	reManager   = regexp.MustCompile(`(?i)\b(manager|team lead|supervisor|boss)\b`)
 	reEmployee  = regexp.MustCompile(`(?i)\b(employee|new hire|newcomer|them|the hire|leaver)\b`)
@@ -74,7 +76,7 @@ func RuleInterpret(line string) StepPlan {
 	case reManager.MatchString(line):
 		p.Target = "manager"
 	}
-	// Steps that need a tool the agent doesn't have (Slack, purchasing,
+	// Steps that need a tool the agent doesn't have (purchasing,
 	// booking) become checklist tasks, so they are still tracked.
 	return p
 }
@@ -83,7 +85,7 @@ const stepSystem = `You turn one line of an HR team's routine instructions into 
 The routine runs for one employee (a new hire or a leaver). Choose:
 - "task": add a checklist task (text = short task title; target = who does it: hr, manager or employee; due_days = days after the start/last day, 0 if unspecified)
 - "notify": send an in-app message (text = the message to send; target = manager, employee or hr)
-- "slack": post a message in the company's Slack channel (text = the message, written for the whole team)
+- "slack": post a message in the company's team chat — Slack, Microsoft Teams, Google Chat, Lark, Telegram or LINE group (text = the message, written for the whole team)
 - "none": the line is not an actionable step.
 Respond with JSON only: {"kind":"task|notify|slack|none","target":"hr|manager|employee","text":"...","due_days":0}`
 
@@ -188,13 +190,19 @@ func (e *Engine) runStep(ctx context.Context, sc stepContext, plan StepPlan, lin
 	case "slack":
 		poster, ok := e.alerts.(SlackPoster)
 		if !ok || e.alerts == nil {
-			return Action{Key: "custom", Title: line, Status: ActPerson, Rationale: "Connect Slack (Routines → Slack alerts) so the agent can post it. " + why}
+			return Action{Key: "custom", Title: line, Status: ActPerson, Rationale: "Connect a team chat (Routines → Team chat alerts) so the agent can post it. " + why}
+		}
+		name := "the team chat"
+		if n, ok := e.alerts.(ChannelNamer); ok {
+			if v := n.ChannelName(ctx, sc.companyID); v != "" {
+				name = v
+			}
 		}
 		if err := poster.PostMessage(ctx, sc.companyID, plan.Text, ""); err != nil {
-			return Action{Key: "custom", Title: line, Status: ActPerson, Rationale: "Slack is not connected or rejected the message — post it yourself, or connect Slack under Routines. " + why}
+			return Action{Key: "custom", Title: line, Status: ActPerson, Rationale: "No team chat is connected, or it rejected the message — post it yourself, or connect one under Routines. " + why}
 		}
-		return Action{Key: "custom_slack", Title: "Posted in Slack: " + plan.Text, Status: ActDone,
-			Rationale: why + " (Slack messages can't be withdrawn from here.)"}
+		return Action{Key: "custom_slack", Title: "Posted in " + name + ": " + plan.Text, Status: ActDone,
+			Rationale: why + " (Chat messages can't be withdrawn from here.)"}
 	case "task":
 		role := plan.Target
 		due := pgtype.Date{Time: sc.ref.AddDate(0, 0, plan.DueDays), Valid: true}

@@ -752,7 +752,7 @@ A small overview map in the sidebar shows the full office layout with colored do
 
 ### 14.1 Available Integrations
 
-- **Slack** — Send HR notifications to Slack channels
+- **Team chat alerts** — Send HR alerts to Slack, Microsoft Teams, Google Chat, Lark/Feishu, a Telegram group or a LINE group (Routines → Team chat alerts)
 - **GitHub** — Sync developer profiles and activity
 - **Google Workspace** — Directory sync and calendar integration
 - **Telegram Bot** — Employee self-service via Telegram

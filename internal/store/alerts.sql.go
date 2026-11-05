@@ -10,18 +10,18 @@ import (
 	"time"
 )
 
-const clearAlertSlack = `-- name: ClearAlertSlack :exec
-UPDATE alert_channels SET slack_webhook_enc = NULL, slack_hint = '', updated_at = now() WHERE company_id = $1
+const clearAlertChannel = `-- name: ClearAlertChannel :exec
+UPDATE alert_channels SET secret_enc = NULL, hint = '', target = '', updated_at = now() WHERE company_id = $1
 `
 
-func (q *Queries) ClearAlertSlack(ctx context.Context, companyID int64) error {
-	_, err := q.db.Exec(ctx, clearAlertSlack, companyID)
+func (q *Queries) ClearAlertChannel(ctx context.Context, companyID int64) error {
+	_, err := q.db.Exec(ctx, clearAlertChannel, companyID)
 	return err
 }
 
 const getAlertChannel = `-- name: GetAlertChannel :one
 
-SELECT company_id, slack_webhook_enc, slack_hint, events, enabled, last_digest_on, updated_by, updated_at FROM alert_channels WHERE company_id = $1
+SELECT company_id, secret_enc, hint, events, enabled, last_digest_on, updated_by, updated_at, kind, target FROM alert_channels WHERE company_id = $1
 `
 
 // Alert channels
@@ -30,20 +30,22 @@ func (q *Queries) GetAlertChannel(ctx context.Context, companyID int64) (AlertCh
 	var i AlertChannel
 	err := row.Scan(
 		&i.CompanyID,
-		&i.SlackWebhookEnc,
-		&i.SlackHint,
+		&i.SecretEnc,
+		&i.Hint,
 		&i.Events,
 		&i.Enabled,
 		&i.LastDigestOn,
 		&i.UpdatedBy,
 		&i.UpdatedAt,
+		&i.Kind,
+		&i.Target,
 	)
 	return i, err
 }
 
 const listCompaniesDueForDigest = `-- name: ListCompaniesDueForDigest :many
 SELECT company_id FROM alert_channels
-WHERE enabled AND slack_webhook_enc IS NOT NULL AND 'filing_due' = ANY(events)
+WHERE enabled AND secret_enc IS NOT NULL AND 'filing_due' = ANY(events)
   AND (last_digest_on IS NULL OR last_digest_on < CURRENT_DATE)
 `
 
@@ -117,29 +119,37 @@ func (q *Queries) MarkDigestSent(ctx context.Context, companyID int64) error {
 }
 
 const upsertAlertChannel = `-- name: UpsertAlertChannel :one
-INSERT INTO alert_channels (company_id, slack_webhook_enc, slack_hint, events, enabled, updated_by)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO alert_channels (company_id, kind, secret_enc, hint, target, events, enabled, updated_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 ON CONFLICT (company_id) DO UPDATE SET
-    slack_webhook_enc = COALESCE(EXCLUDED.slack_webhook_enc, alert_channels.slack_webhook_enc),
-    slack_hint = CASE WHEN EXCLUDED.slack_webhook_enc IS NULL THEN alert_channels.slack_hint ELSE EXCLUDED.slack_hint END,
+    kind = EXCLUDED.kind,
+    secret_enc = COALESCE(EXCLUDED.secret_enc, alert_channels.secret_enc),
+    hint = CASE WHEN EXCLUDED.secret_enc IS NULL THEN alert_channels.hint ELSE EXCLUDED.hint END,
+    target = EXCLUDED.target,
     events = EXCLUDED.events, enabled = EXCLUDED.enabled, updated_by = EXCLUDED.updated_by, updated_at = now()
-RETURNING company_id, slack_webhook_enc, slack_hint, events, enabled, last_digest_on, updated_by, updated_at
+RETURNING company_id, secret_enc, hint, events, enabled, last_digest_on, updated_by, updated_at, kind, target
 `
 
 type UpsertAlertChannelParams struct {
-	CompanyID       int64    `json:"company_id"`
-	SlackWebhookEnc []byte   `json:"slack_webhook_enc"`
-	SlackHint       string   `json:"slack_hint"`
-	Events          []string `json:"events"`
-	Enabled         bool     `json:"enabled"`
-	UpdatedBy       *int64   `json:"updated_by"`
+	CompanyID int64    `json:"company_id"`
+	Kind      string   `json:"kind"`
+	SecretEnc []byte   `json:"secret_enc"`
+	Hint      string   `json:"hint"`
+	Target    string   `json:"target"`
+	Events    []string `json:"events"`
+	Enabled   bool     `json:"enabled"`
+	UpdatedBy *int64   `json:"updated_by"`
 }
 
+// A NULL secret keeps the stored one (and its hint); kind and target are
+// always written (the handler passes the current ones when unchanged).
 func (q *Queries) UpsertAlertChannel(ctx context.Context, arg UpsertAlertChannelParams) (AlertChannel, error) {
 	row := q.db.QueryRow(ctx, upsertAlertChannel,
 		arg.CompanyID,
-		arg.SlackWebhookEnc,
-		arg.SlackHint,
+		arg.Kind,
+		arg.SecretEnc,
+		arg.Hint,
+		arg.Target,
 		arg.Events,
 		arg.Enabled,
 		arg.UpdatedBy,
@@ -147,13 +157,15 @@ func (q *Queries) UpsertAlertChannel(ctx context.Context, arg UpsertAlertChannel
 	var i AlertChannel
 	err := row.Scan(
 		&i.CompanyID,
-		&i.SlackWebhookEnc,
-		&i.SlackHint,
+		&i.SecretEnc,
+		&i.Hint,
 		&i.Events,
 		&i.Enabled,
 		&i.LastDigestOn,
 		&i.UpdatedBy,
 		&i.UpdatedAt,
+		&i.Kind,
+		&i.Target,
 	)
 	return i, err
 }

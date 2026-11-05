@@ -1387,12 +1387,13 @@ export const homeAPI = {
   agencies: () => get("/v1/home/agencies"),
 };
 
-// Slack alerts
+// Team chat alerts (Slack, Teams, Google Chat, Lark, Telegram, LINE)
 export const alertsAPI = {
-  get: () => get("/v1/alerts/slack"),
-  save: (data: { webhook_url?: string; events?: string[]; enabled?: boolean }) => put("/v1/alerts/slack", data),
-  disconnect: () => del("/v1/alerts/slack"),
-  test: () => post("/v1/alerts/slack/test", {}),
+  get: () => get("/v1/alerts/channel"),
+  save: (data: { kind?: string; webhook_url?: string; token?: string; target?: string; events?: string[]; enabled?: boolean }) => put("/v1/alerts/channel", data),
+  disconnect: () => del("/v1/alerts/channel"),
+  test: () => post("/v1/alerts/channel/test", {}),
+  telegramGroups: (token: string) => post("/v1/alerts/channel/telegram/groups", { token }),
 };
 
 // Agent routines (New hire, Offboarding, Pre-payroll check, Filing autopilot)

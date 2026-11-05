@@ -517,7 +517,7 @@ func (s *Service) IntakeNotice(ctx context.Context, companyID int64, userID *int
 		if t.RespondBy != "" {
 			due = " · respond by " + t.RespondBy
 		}
-		s.alerts.Notify(companyID, "notice", fmt.Sprintf(":envelope_with_arrow: *%s notice*: %s%s\n%s", nonEmpty(t.Agency, "Government"), t.Title, due, t.Recommendation), fmt.Sprintf("/notices?id=%d", n.ID))
+		s.alerts.Notify(companyID, "notice", fmt.Sprintf("📩 *%s notice*: %s%s\n%s", nonEmpty(t.Agency, "Government"), t.Title, due, t.Recommendation), fmt.Sprintf("/notices?id=%d", n.ID))
 	}
 	return n, err
 }

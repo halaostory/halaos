@@ -171,14 +171,16 @@ type AiReminder struct {
 }
 
 type AlertChannel struct {
-	CompanyID       int64       `json:"company_id"`
-	SlackWebhookEnc []byte      `json:"slack_webhook_enc"`
-	SlackHint       string      `json:"slack_hint"`
-	Events          []string    `json:"events"`
-	Enabled         bool        `json:"enabled"`
-	LastDigestOn    pgtype.Date `json:"last_digest_on"`
-	UpdatedBy       *int64      `json:"updated_by"`
-	UpdatedAt       time.Time   `json:"updated_at"`
+	CompanyID    int64       `json:"company_id"`
+	SecretEnc    []byte      `json:"secret_enc"`
+	Hint         string      `json:"hint"`
+	Events       []string    `json:"events"`
+	Enabled      bool        `json:"enabled"`
+	LastDigestOn pgtype.Date `json:"last_digest_on"`
+	UpdatedBy    *int64      `json:"updated_by"`
+	UpdatedAt    time.Time   `json:"updated_at"`
+	Kind         string      `json:"kind"`
+	Target       string      `json:"target"`
 }
 
 type Announcement struct {

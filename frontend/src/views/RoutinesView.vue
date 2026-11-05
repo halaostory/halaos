@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   NButton, NSpin, NSwitch, NRadioGroup, NRadioButton, NInput, NTag, NDrawer, NDrawerContent, NTimeline,
-  NTimelineItem, NEmpty, NIcon, NTooltip, NCheckbox, NCheckboxGroup, useMessage,
+  NTimelineItem, NEmpty, NIcon, NTooltip, NCheckbox, NCheckboxGroup, NSelect, useMessage,
 } from 'naive-ui'
 import { SparklesOutline, LockClosedOutline, FlashOutline, TimeOutline } from '@vicons/ionicons5'
 import { formatDistanceToNow, format } from 'date-fns'
@@ -37,33 +37,67 @@ const runs = ref<RunRow[]>([])
 const runsLoading = ref(false)
 const selected = ref<RunRow | null>(null)
 
-// Slack alerts
-interface SlackView { connected: boolean; hint: string; events: string[]; enabled: boolean; all_events: string[]; can_store: boolean }
-const slack = ref<SlackView | null>(null)
-const slackUrl = ref('')
-const slackBusy = ref(false)
-async function loadSlack() {
-  try { slack.value = ((await alertsAPI.get()) as { data: SlackView }).data } catch { slack.value = null }
+// Team chat alerts (Slack, Teams, Google Chat, Lark, Telegram, LINE)
+interface ChatView {
+  kind: string; connected: boolean; hint: string; target: string; events: string[]; enabled: boolean
+  all_events: string[]; kinds: string[]; can_store: boolean
 }
-async function saveSlack(patch: { webhook_url?: string; events?: string[]; enabled?: boolean }) {
-  slackBusy.value = true
+const chat = ref<ChatView | null>(null)
+const chatKind = ref('slack')
+const chatUrl = ref('')
+const chatToken = ref('')
+const chatTarget = ref('')
+const chatBusy = ref(false)
+const tgGroups = ref<{ chat_id: string; title: string }[] | null>(null)
+const usesWebhook = (k: string) => ['slack', 'teams', 'google_chat', 'lark'].includes(k)
+const webhookPh: Record<string, string> = {
+  slack: 'https://hooks.slack.com/services/…',
+  teams: 'https://…logic.azure.com/workflows/…',
+  google_chat: 'https://chat.googleapis.com/v1/spaces/…',
+  lark: 'https://open.larksuite.com/open-apis/bot/v2/hook/…',
+}
+async function loadChat() {
   try {
-    slack.value = ((await alertsAPI.save(patch)) as { data: SlackView }).data
-    slackUrl.value = ''
+    chat.value = ((await alertsAPI.get()) as { data: ChatView }).data
+    chatKind.value = chat.value.kind || 'slack'
+  } catch { chat.value = null }
+}
+async function saveChat(patch: { kind?: string; webhook_url?: string; token?: string; target?: string; events?: string[]; enabled?: boolean }) {
+  chatBusy.value = true
+  try {
+    chat.value = ((await alertsAPI.save(patch)) as { data: ChatView }).data
+    chatUrl.value = ''
+    chatToken.value = ''
+    tgGroups.value = null
     message.success(t('routines.saved'))
   } catch (e) {
     message.error((e as Error).message)
   } finally {
-    slackBusy.value = false
+    chatBusy.value = false
   }
 }
-async function testSlack() {
-  slackBusy.value = true
-  try { await alertsAPI.test(); message.success(t('slack.testSent')) } catch (e) { message.error((e as Error).message) } finally { slackBusy.value = false }
+function connectChat() {
+  const k = chatKind.value
+  if (usesWebhook(k)) saveChat({ kind: k, webhook_url: chatUrl.value })
+  else saveChat({ kind: k, token: chatToken.value, target: chatTarget.value })
 }
-async function disconnectSlack() {
-  slackBusy.value = true
-  try { slack.value = ((await alertsAPI.disconnect()) as { data: SlackView }).data } finally { slackBusy.value = false }
+async function findGroups() {
+  chatBusy.value = true
+  try {
+    tgGroups.value = ((await alertsAPI.telegramGroups(chatToken.value)) as { data: { groups: { chat_id: string; title: string }[] } }).data.groups
+    if (tgGroups.value.length === 1) chatTarget.value = tgGroups.value[0].chat_id
+  } catch (e) { message.error((e as Error).message) } finally { chatBusy.value = false }
+}
+async function testChat() {
+  chatBusy.value = true
+  try { await alertsAPI.test(); message.success(t('slack.testSent')) } catch (e) { message.error((e as Error).message) } finally { chatBusy.value = false }
+}
+async function disconnectChat() {
+  chatBusy.value = true
+  try {
+    chat.value = ((await alertsAPI.disconnect()) as { data: ChatView }).data
+    chatTarget.value = ''
+  } finally { chatBusy.value = false }
 }
 
 const levels = ['recommend', 'approve', 'autonomous'] as const
@@ -151,7 +185,7 @@ function followLink(a: Action) {
 }
 
 onMounted(async () => {
-  loadSlack()
+  loadChat()
   await load()
   if (route.query.run) openRun(Number(route.query.run))
 })
@@ -227,27 +261,50 @@ watch(() => route.query.run, (id) => { if (id) openRun(Number(id)) })
       </div>
     </NSpin>
 
-    <section v-if="slack" class="slack">
+    <section v-if="chat" class="slack">
       <div class="slack-main">
         <h2>{{ t('slack.title') }}</h2>
         <p class="muted small">{{ t('slack.desc') }}</p>
-        <NCheckboxGroup :value="slack.events" :disabled="!slack.connected" @update:value="(v: (string | number)[]) => saveSlack({ events: v.map(String) })">
-          <NCheckbox v-for="e in slack.all_events" :key="e" :value="e" :label="t('slack.event_' + e)" style="margin-right: 14px" />
+        <NCheckboxGroup :value="chat.events" :disabled="!chat.connected" @update:value="(v: (string | number)[]) => saveChat({ events: v.map(String) })">
+          <NCheckbox v-for="e in chat.all_events" :key="e" :value="e" :label="t('slack.event_' + e)" style="margin-right: 14px" />
         </NCheckboxGroup>
       </div>
       <div class="slack-side">
-        <template v-if="slack.connected">
-          <div class="small"><NTag size="small" round type="success" :bordered="false">{{ t('slack.connected') }}</NTag> <span class="muted">{{ slack.hint }}</span></div>
+        <template v-if="chat.connected">
+          <div class="small">
+            <NTag size="small" round type="success" :bordered="false">{{ t('slack.connectedTo', { name: t('slack.kind_' + chat.kind) }) }}</NTag>
+            <span class="muted"> {{ chat.hint }}<template v-if="chat.target"> · {{ chat.target }}</template></span>
+          </div>
           <div class="slack-btns">
-            <NSwitch :value="slack.enabled" @update:value="(v: boolean) => saveSlack({ enabled: v })" />
-            <NButton size="small" :loading="slackBusy" @click="testSlack">{{ t('slack.test') }}</NButton>
-            <NButton size="small" quaternary :loading="slackBusy" @click="disconnectSlack">{{ t('slack.disconnect') }}</NButton>
+            <NSwitch :value="chat.enabled" @update:value="(v: boolean) => saveChat({ enabled: v })" />
+            <NButton size="small" :loading="chatBusy" @click="testChat">{{ t('slack.test') }}</NButton>
+            <NButton size="small" quaternary :loading="chatBusy" @click="disconnectChat">{{ t('slack.disconnect') }}</NButton>
           </div>
         </template>
         <template v-else>
-          <NInput v-model:value="slackUrl" size="small" placeholder="https://hooks.slack.com/services/…" :disabled="!slack.can_store" />
-          <NButton size="small" type="primary" :disabled="!slackUrl" :loading="slackBusy" @click="saveSlack({ webhook_url: slackUrl })">{{ t('slack.connect') }}</NButton>
-          <div v-if="!slack.can_store" class="muted small">{{ t('slack.needKey') }}</div>
+          <NSelect v-model:value="chatKind" size="small" style="width: 280px"
+            :options="chat.kinds.map((k) => ({ label: t('slack.kind_' + k), value: k }))" />
+          <div class="muted small help">{{ t('slack.help_' + chatKind) }}</div>
+          <template v-if="usesWebhook(chatKind)">
+            <NInput v-model:value="chatUrl" size="small" :placeholder="webhookPh[chatKind]" :disabled="!chat.can_store" />
+          </template>
+          <template v-else>
+            <NInput v-model:value="chatToken" size="small" type="password" show-password-on="click"
+              :placeholder="chatKind === 'telegram' ? '123456789:AA…' : t('slack.lineTokenPh')" :disabled="!chat.can_store" />
+            <div class="slack-btns">
+              <NInput v-model:value="chatTarget" size="small" style="width: 200px"
+                :placeholder="chatKind === 'telegram' ? '-1001234567890' : 'C0123…'" :disabled="!chat.can_store" />
+              <NButton v-if="chatKind === 'telegram'" size="small" :disabled="!chatToken" :loading="chatBusy" @click="findGroups">{{ t('slack.findGroup') }}</NButton>
+            </div>
+            <div v-if="tgGroups" class="small">
+              <span v-if="!tgGroups.length" class="muted">{{ t('slack.noGroups') }}</span>
+              <NTag v-for="g in tgGroups" :key="g.chat_id" size="small" round checkable :checked="chatTarget === g.chat_id"
+                style="margin: 0 6px 6px 0" @update:checked="chatTarget = g.chat_id">{{ g.title || g.chat_id }}</NTag>
+            </div>
+          </template>
+          <NButton size="small" type="primary" :loading="chatBusy"
+            :disabled="usesWebhook(chatKind) ? !chatUrl : !chatToken || !chatTarget" @click="connectChat">{{ t('slack.connect') }}</NButton>
+          <div v-if="!chat.can_store" class="muted small">{{ t('slack.needKey') }}</div>
         </template>
       </div>
     </section>
@@ -303,7 +360,8 @@ watch(() => route.query.run, (id) => { if (id) openRun(Number(id)) })
 .slack h2 { font-size: 16px; margin: 0 0 4px; }
 .slack-main { flex: 1; min-width: 280px; }
 .slack-side { display: flex; flex-direction: column; gap: 8px; min-width: 280px; align-items: flex-start; }
-.slack-btns { display: flex; gap: 8px; align-items: center; }
+.slack-btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.slack .help { max-width: 340px; line-height: 1.45; }
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
 .card { border: 1px solid rgba(128, 128, 128, .18); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
 .card.off { opacity: .6; }

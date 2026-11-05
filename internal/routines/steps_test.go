@@ -81,6 +81,10 @@ func TestRuleInterpretSlack(t *testing.T) {
 		"Post in Slack that a new teammate joins Monday":      "A new teammate joins Monday",
 		"Announce in #general: welcome our new designer":      "Welcome our new designer",
 		"Share in #team-ops that the laptop has been ordered": "The laptop has been ordered",
+		"Post in the Telegram group that Ana starts Monday":   "Ana starts Monday",
+		"Announce on LINE group: welcome Budi":                "Welcome Budi",
+		"Share in Microsoft Teams that payroll is out":        "Payroll is out",
+		"Post to the team chat: lunch is on us Friday":        "Lunch is on us Friday",
 	} {
 		p := RuleInterpret(line)
 		if p.Kind != "slack" || p.Text != want {

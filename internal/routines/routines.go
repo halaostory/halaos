@@ -182,15 +182,21 @@ type Setting struct {
 	Instructions string `json:"instructions"`
 }
 
-// Notifier posts alerts (e.g. internal/alerts → Slack).
+// Notifier posts alerts (internal/alerts → the company's team chat).
 type Notifier interface {
 	Notify(companyID int64, event, text, link string)
 }
 
-// SlackPoster posts a message to the company's Slack channel right away
-// (used by plain-language routine steps such as "post in Slack …").
+// SlackPoster posts a message to the company's team chat (Slack, Teams,
+// Google Chat, Lark, Telegram or LINE) right away — used by plain-language
+// routine steps such as "post in the team chat …".
 type SlackPoster interface {
 	PostMessage(ctx context.Context, companyID int64, text, link string) error
+}
+
+// ChannelNamer optionally names the connected chat platform ("Telegram").
+type ChannelNamer interface {
+	ChannelName(ctx context.Context, companyID int64) string
 }
 
 // Service runs and records routines.
@@ -333,12 +339,12 @@ func (s *Service) alert(run store.AgentRoutineRun) {
 	link := fmt.Sprintf("/routines?run=%d", run.ID)
 	switch {
 	case run.Status == "needs_attention" || run.Status == "failed":
-		icon := ":raised_hand:"
+		icon := "✋"
 		if run.Status == "failed" {
-			icon = ":warning:"
+			icon = "⚠️"
 		}
 		s.alerts.Notify(run.CompanyID, "agent_attention", fmt.Sprintf("%s *%s* — %s\n%s", icon, def.Name, run.Trigger, run.Summary), link)
 	case run.RoutineKey == KeyPrePayrollCheck:
-		s.alerts.Notify(run.CompanyID, "payroll_ready", fmt.Sprintf(":white_check_mark: *%s* — no variances found, ready for approval.", run.SubjectName), "/payroll")
+		s.alerts.Notify(run.CompanyID, "payroll_ready", fmt.Sprintf("✅ *%s* — no variances found, ready for approval.", run.SubjectName), "/payroll")
 	}
 }
