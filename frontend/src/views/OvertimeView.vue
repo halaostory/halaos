@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { localDate } from '../utils/date'
 import { ref, h, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
@@ -110,7 +111,7 @@ async function submitRequest() {
   }
   submitting.value = true
   try {
-    const otDate = new Date(form.value.ot_date).toISOString().split('T')[0]
+    const otDate = localDate(form.value.ot_date)
     const startTime = fmtTime(form.value.start_at) || '18:00'
     const endTime = fmtTime(form.value.end_at) || '20:00'
     await overtimeAPI.createRequest({

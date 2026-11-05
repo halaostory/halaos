@@ -44,14 +44,14 @@ RETURNING *;
 SELECT ba.*, e.first_name, e.last_name, e.employee_no
 FROM bonus_allocations ba
 JOIN employees e ON e.id = ba.employee_id
-WHERE ba.structure_id = $1
+WHERE ba.structure_id = $1 AND ba.company_id = $2
 ORDER BY e.last_name, e.first_name;
 
 -- name: UpdateBonusAllocationStatus :exec
 UPDATE bonus_allocations SET
     status = $2,
     approved_by = $3,
-    approved_at = CASE WHEN $2 = 'approved' THEN NOW() ELSE approved_at END,
+    approved_at = CASE WHEN $2::varchar = 'approved' THEN NOW() ELSE approved_at END,
     updated_at = NOW()
 WHERE id = $1;
 
@@ -61,7 +61,7 @@ UPDATE bonus_allocations SET
     approved_by = $2,
     approved_at = NOW(),
     updated_at = NOW()
-WHERE id = ANY($1::bigint[]) AND status = 'pending';
+WHERE id = ANY($1::bigint[]) AND status = 'pending' AND company_id = $3;
 
 -- name: GetApprovedBonusesForPayroll :many
 SELECT ba.employee_id, SUM(

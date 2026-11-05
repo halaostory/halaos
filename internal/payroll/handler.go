@@ -67,6 +67,9 @@ func (h *Handler) CreateCycle(c *gin.Context) {
 		PeriodEnd   string `json:"period_end" binding:"required"`
 		PayDate     string `json:"pay_date" binding:"required"`
 		CycleType   string `json:"cycle_type"`
+		// PayScheduleID limits the cycle to employees on that schedule
+		// (default: the company's default schedule, if any).
+		PayScheduleID *int64 `json:"pay_schedule_id"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, err.Error())
@@ -95,6 +98,12 @@ func (h *Handler) CreateCycle(c *gin.Context) {
 	if cycleType == "" {
 		cycleType = "regular"
 	}
+	if req.PayScheduleID != nil {
+		if _, err := h.queries.GetPaySchedule(c.Request.Context(), store.GetPayScheduleParams{ID: *req.PayScheduleID, CompanyID: companyID}); err != nil {
+			response.BadRequest(c, "Pay schedule not found")
+			return
+		}
+	}
 
 	cycle, err := h.queries.CreatePayrollCycle(c.Request.Context(), store.CreatePayrollCycleParams{
 		CompanyID:   companyID,
@@ -108,6 +117,11 @@ func (h *Handler) CreateCycle(c *gin.Context) {
 	if err != nil {
 		response.InternalError(c, "Failed to create payroll cycle")
 		return
+	}
+	if req.PayScheduleID != nil {
+		if err := h.queries.SetCycleSchedule(c.Request.Context(), store.SetCycleScheduleParams{CycleID: cycle.ID, PayScheduleID: *req.PayScheduleID}); err != nil {
+			h.logger.Error("failed to link cycle to pay schedule", "cycle_id", cycle.ID, "error", err)
+		}
 	}
 	response.Created(c, cycle)
 }
@@ -135,6 +149,12 @@ func (h *Handler) RunPayroll(c *gin.Context) {
 	}
 	if locked {
 		response.BadRequest(c, "Payroll cycle is locked and cannot be modified")
+		return
+	}
+	// An approved payroll is final: employees have been told and payslips
+	// are out. Recalculating would silently change them.
+	if cyc, err := h.queries.GetPayrollCycle(c.Request.Context(), store.GetPayrollCycleParams{ID: req.CycleID, CompanyID: companyID}); err == nil && (cyc.Status == "approved" || cyc.Status == "paid") && req.RunType != "simulation" {
+		response.BadRequest(c, "This payroll is already approved and can't be recalculated; run an off-cycle payroll for corrections")
 		return
 	}
 
@@ -197,7 +217,7 @@ func (h *Handler) ListPayrollItems(c *gin.Context) {
 		response.InternalError(c, "Failed to list payroll items")
 		return
 	}
-	response.OK(c, items)
+	response.OK(c, WithPrevious(c.Request.Context(), h.queries, companyID, runID, items))
 }
 
 func (h *Handler) ApproveCycle(c *gin.Context) {
@@ -239,10 +259,23 @@ func (h *Handler) ApproveCycle(c *gin.Context) {
 		if err != nil {
 			return
 		}
+		if cycle.CycleType == "final_pay" {
+			return // single leaver; their payslip is shared through the clearance process
+		}
+		// Only the people paid in this cycle (other pay schedules and
+		// employees not in the run get nothing).
+		inRun := map[int64]bool{}
+		if runID, err := h.queries.GetLatestCompletedRunForCycle(ctx, store.GetLatestCompletedRunForCycleParams{CycleID: id, CompanyID: companyID}); err == nil {
+			if items, err := h.queries.ListPayrollItems(ctx, runID); err == nil {
+				for _, it := range items {
+					inRun[it.EmployeeID] = true
+				}
+			}
+		}
 		emps, _ := h.queries.ListActiveEmployees(ctx, companyID)
 		entityType := "payroll"
 		for _, e := range emps {
-			if e.UserID != nil {
+			if e.UserID != nil && inRun[e.ID] {
 				notification.Notify(ctx, h.queries, h.logger, companyID, *e.UserID,
 					"Payslip Available",
 					fmt.Sprintf("Your payslip for %s is now available.", cycle.Name),
@@ -524,7 +557,7 @@ func generatePayslipPDF(company store.Company, emp store.Employee, payslip store
 	pdf.SetY(pageH - 10)
 	pdf.SetFont("Arial", "", 7)
 	pdf.SetTextColor(160, 160, 160)
-	pdf.CellFormat(0, 4, "Powered by HalaOS | halaos.com", "", 0, "C", false, 0, "https://halaos.com")
+	pdf.CellFormat(0, 4, "Powered by HalaPeople | open source HR", "", 0, "C", false, 0, "https://github.com/halaostory/halaos")
 	pdf.SetTextColor(0, 0, 0)
 
 	var buf bytes.Buffer

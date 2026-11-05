@@ -26,7 +26,8 @@ func NewHandler(queries *store.Queries, encryptor *crypto.CredentialEncryptor) *
 
 // RegisterRoutes registers BYOK routes.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
-	g := rg.Group("/byok")
+	// AI keys are a company setting (and are billed to whoever owns them): HR admins only.
+	g := rg.Group("/byok", auth.AdminOnly())
 	g.GET("/keys", h.ListKeys)
 	g.POST("/keys", h.CreateKey)
 	g.PUT("/keys/:id", h.UpdateKey)

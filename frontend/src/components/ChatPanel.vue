@@ -4,12 +4,19 @@ import { useI18n } from 'vue-i18n'
 import { useRouter, useRoute } from 'vue-router'
 import { NButton, NInput, NSpin, NSelect, NTag } from 'naive-ui'
 import { aiAPI, billingAPI, feedbackAPI } from '../api/client'
+import { edition, loadEdition } from '../edition'
+import { useAuthStore } from '../stores/auth'
 
 const { t, locale } = useI18n()
 const router = useRouter()
 const currentRoute = useRoute()
 
 const isOpen = ref(false)
+const authStore = useAuthStore()
+// Without an AI provider the server has no chat endpoints: show how to
+// turn it on instead of calling them.
+const aiReady = computed(() => edition.config.ai_assistant === true)
+const billingOn = computed(() => edition.config.ai_billing === true)
 const message = ref('')
 const loading = ref(false)
 const sessionId = ref<string | undefined>()
@@ -32,6 +39,7 @@ const tokenBalance = ref<number | null>(null)
 const insufficientBalance = ref(false)
 
 async function loadAgents() {
+  if (!aiReady.value) return
   try {
     const res = await aiAPI.listAgents()
     agents.value = res.data || []
@@ -42,6 +50,7 @@ async function loadAgents() {
 }
 
 async function loadBalance() {
+  if (!aiReady.value || !billingOn.value) { tokenBalance.value = null; return }
   try {
     const res = await billingAPI.getBalance()
     tokenBalance.value = res.data?.balance ?? null
@@ -129,6 +138,7 @@ const storedSessions = ref<ChatSession[]>([])
 const loadingSessions = ref(false)
 
 async function refreshStoredSessions(): Promise<void> {
+  if (!aiReady.value) { storedSessions.value = []; return }
   loadingSessions.value = true
   try {
     const res = await aiAPI.listSessions()
@@ -160,7 +170,8 @@ function relativeTime(isoString: string): string {
 
 // --- Lifecycle ---
 
-onMounted(() => {
+onMounted(async () => {
+  await loadEdition()
   refreshStoredSessions()
   loadAgents()
   loadBalance()
@@ -192,7 +203,7 @@ function scrollToBottom() {
 
 async function sendMessage() {
   const text = message.value.trim()
-  if (!text || loading.value) return
+  if (!text || loading.value || !aiReady.value) return
 
   // Immutable push — create new array with new user message
   messages.value = [...messages.value, { role: 'user', content: text }]
@@ -449,6 +460,10 @@ function sendSuggestion(text: string) {
         <!-- Main chat area -->
         <div class="chat-main">
           <div ref="messagesContainer" class="chat-messages">
+            <div v-if="!aiReady" class="chat-msg chat-msg-system ai-off">
+              <strong>{{ t('chat.notConfiguredTitle') }}</strong>
+              <p>{{ authStore.isAdmin ? t('chat.notConfiguredAdmin') : t('chat.notConfiguredUser') }}</p>
+            </div>
             <div
               v-for="(msg, i) in messages"
               :key="i"
@@ -558,6 +573,7 @@ function renderMarkdown(text: string): string {
 </script>
 
 <style scoped>
+.ai-off p { margin: 6px 0 0; font-size: 13px; opacity: .8; }
 .chat-fab {
   position: fixed;
   bottom: 24px;

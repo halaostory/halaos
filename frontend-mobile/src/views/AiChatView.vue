@@ -21,6 +21,7 @@ import AiSuggestionChips from "../components/ai/AiSuggestionChips.vue";
 import { useAiChat } from "../composables/useAiChat";
 import { useAiContext, getSuggestions } from "../composables/useAiContext";
 import { aiAPI, billingAPI } from "../api/client";
+import { edition, loadEdition } from "../edition";
 import type { Agent, ChatSession, TokenBalance, ApiResponse } from "../types";
 
 const { t } = useI18n();
@@ -82,7 +83,8 @@ async function loadBalance() {
   try {
     const res = (await billingAPI.getBalance()) as ApiResponse<TokenBalance>;
     const data = res.data ?? (res as unknown as TokenBalance);
-    tokenBalance.value = data.balance;
+    // Unmetered deployments (BILLING_ENABLED off) report unlimited: hide the tag.
+    tokenBalance.value = (data as TokenBalance & { unlimited?: boolean }).unlimited ? null : data.balance;
   } catch {
     // ignore
   }
@@ -161,13 +163,16 @@ watch(
 watch(
   () => chat.streaming.value,
   (streaming) => {
-    if (!streaming) loadBalance();
+    if (!streaming && edition.aiBilling) loadBalance();
   },
 );
 
-onMounted(() => {
+onMounted(async () => {
+  await loadEdition();
+  // No AI provider on the server: explain instead of calling the AI routes.
+  if (!edition.aiAssistant) return;
   loadAgents();
-  loadBalance();
+  if (edition.aiBilling) loadBalance();
   // Auto-send from query param (e.g., from AiQuickAsk)
   const q = router.currentRoute.value.query.q;
   if (typeof q === "string" && q.trim()) {
@@ -206,8 +211,12 @@ onMounted(() => {
 
     <!-- Messages Area -->
     <div ref="messagesEl" class="chat-messages">
+      <div v-if="edition.loaded && !edition.aiAssistant" class="ai-off">
+        <strong>{{ t("ai.notConfiguredTitle") }}</strong>
+        <p>{{ t("ai.notConfiguredUser") }}</p>
+      </div>
       <!-- Empty state with suggestions -->
-      <template v-if="chat.messages.value.length === 0">
+      <template v-else-if="chat.messages.value.length === 0">
         <div class="empty-state">
           <Empty
             image="search"
@@ -238,7 +247,7 @@ onMounted(() => {
     />
 
     <!-- Input -->
-    <AiChatInput :disabled="chat.streaming.value" @send="onSend" />
+    <AiChatInput v-if="edition.aiAssistant" :disabled="chat.streaming.value" @send="onSend" />
 
     <!-- Agent Picker -->
     <ActionSheet
@@ -285,6 +294,8 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.ai-off { margin: 24px 16px; padding: 14px 16px; border-radius: 12px; background: rgba(240, 160, 32, .1); }
+.ai-off p { margin: 6px 0 0; font-size: 13px; opacity: .8; }
 .ai-chat-page {
   display: flex;
   flex-direction: column;

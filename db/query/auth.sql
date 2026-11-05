@@ -20,12 +20,12 @@ UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2 AND compan
 
 -- name: UpdateUserProfile :one
 UPDATE users SET
-    first_name = COALESCE($2, first_name),
-    last_name = COALESCE($3, last_name),
-    avatar_url = COALESCE($4, avatar_url),
-    locale = COALESCE($5, locale),
+    first_name = COALESCE(NULLIF(sqlc.narg('first_name')::varchar, ''), first_name),
+    last_name = COALESCE(NULLIF(sqlc.narg('last_name')::varchar, ''), last_name),
+    avatar_url = COALESCE(sqlc.narg('avatar_url'), avatar_url),
+    locale = COALESCE(NULLIF(sqlc.narg('locale')::varchar, ''), locale),
     updated_at = NOW()
-WHERE id = $1 AND company_id = $6
+WHERE id = @id AND company_id = @company_id
 RETURNING *;
 
 -- name: UpdateUserRole :exec
@@ -76,3 +76,16 @@ SELECT * FROM users WHERE email = $1 LIMIT 1;
 
 -- name: GetUserByVerificationTokenAny :one
 SELECT * FROM users WHERE verification_token = $1;
+
+-- name: ListUsersByEmail :many
+-- One person can have an account at several companies (same email).
+SELECT u.*, c.name AS company_name
+FROM users u JOIN companies c ON c.id = u.company_id
+WHERE lower(u.email) = lower(@email)
+ORDER BY c.name, u.id;
+
+-- name: SetPasswordForEmail :exec
+-- A password reset proves ownership of the email, so it applies to every
+-- account with that email (one person, one password across companies).
+UPDATE users SET password_hash = @password_hash, updated_at = NOW()
+WHERE lower(email) = lower(@email);

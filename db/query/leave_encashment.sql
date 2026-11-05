@@ -62,3 +62,6 @@ WHERE lb.company_id = $1
   AND lt.is_convertible = true
   AND (lb.earned + lb.carried + lb.adjusted - lb.used) > 0
 ORDER BY lt.name;
+
+-- name: GetLeaveEncashmentOwner :one
+SELECT employee_id FROM leave_encashments WHERE id = $1 AND company_id = $2;

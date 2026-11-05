@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"os"
+	"strconv"
 
 	"github.com/jackc/pgx/v5"
 
@@ -23,10 +25,22 @@ type PurchaseResult struct {
 	NewBalance  int64  `json:"new_balance"`
 }
 
+// Unlimited is the balance reported when metering is off.
+const Unlimited int64 = math.MaxInt64
+
+// Enabled reports whether AI token metering is on (BILLING_ENABLED=true).
+// Self-hosted deployments run unmetered by default: the operator pays the
+// LLM provider directly, so there is nothing to sell or deduct.
+func Enabled() bool {
+	v, err := strconv.ParseBool(os.Getenv("BILLING_ENABLED"))
+	return err == nil && v
+}
+
 // Service manages token balances and transactions.
 type Service struct {
 	queries *store.Queries
 	logger  *slog.Logger
+	enabled bool
 }
 
 // NewService creates a new billing service.
@@ -34,12 +48,20 @@ func NewService(queries *store.Queries, logger *slog.Logger) *Service {
 	return &Service{
 		queries: queries,
 		logger:  logger,
+		enabled: Enabled(),
 	}
 }
 
+// Enabled reports whether this service meters usage.
+func (s *Service) Enabled() bool { return s.enabled }
+
 // CheckBalance returns the current token balance for a company.
-// If no balance record exists, it returns 0.
+// If no balance record exists, it returns 0. With metering off it
+// returns Unlimited.
 func (s *Service) CheckBalance(ctx context.Context, companyID int64) (int64, error) {
+	if !s.enabled {
+		return Unlimited, nil
+	}
 	tb, err := s.queries.GetTokenBalance(ctx, companyID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -57,6 +79,9 @@ func (s *Service) CheckBalance(ctx context.Context, companyID int64) (int64, err
 // DeductTokens atomically deducts tokens and writes a transaction record.
 // Returns ErrInsufficientBalance if the company does not have enough tokens.
 func (s *Service) DeductTokens(ctx context.Context, companyID, userID, amount int64, agentSlug, desc string) error {
+	if !s.enabled {
+		return nil
+	}
 	if amount <= 0 {
 		return errors.New("deduction amount must be positive")
 	}

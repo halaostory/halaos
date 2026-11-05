@@ -3,6 +3,7 @@ package ai
 import (
 	"context"
 	"fmt"
+	"github.com/halaostory/halaos/internal/edition"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -12,9 +13,11 @@ import (
 
 // ToolRegistry maps tool names to executors.
 type ToolRegistry struct {
-	queries *store.Queries
-	pool    *pgxpool.Pool
-	tools   map[string]ToolExecutor
+	queries       *store.Queries
+	pool          *pgxpool.Pool
+	tools         map[string]ToolExecutor
+	edition       edition.Config
+	disabledTools map[string]bool // tools of modules not shipped in this edition (read-only after construction)
 }
 
 // ToolExecutor runs a tool and returns the result as a string.
@@ -26,8 +29,10 @@ func NewToolRegistry(queries *store.Queries, pool *pgxpool.Pool) *ToolRegistry {
 		queries: queries,
 		pool:    pool,
 		tools:   make(map[string]ToolExecutor),
+		edition: edition.Load(),
 	}
 	r.registerTools()
+	r.disabledTools = disabledToolsFor(r.edition)
 	return r
 }
 
@@ -50,38 +55,69 @@ func (r *ToolRegistry) DefinitionsForAgent(allowedTools []string) []provider.Too
 	return filtered
 }
 
-// Definitions returns tool definitions for the LLM.
+// toolGroups maps each group of tools to the product module it belongs to,
+// so an edition (e.g. HalaPeople) only exposes tools for features it ships.
+var toolGroups = []struct {
+	module string
+	defs   func() []provider.ToolDefinition
+}{
+	{edition.ModTimeOff, leaveDefs},
+	{edition.ModAttendance, attendanceDefs},
+	{edition.ModPayroll, payrollDefs},
+	{edition.ModCore, knowledgeDefs},
+	{edition.ModPeople, employeeDefs},
+	{edition.ModExpenses, expenseDefs},
+	{edition.ModCore, approvalDefs},
+	{edition.ModPayroll, salarySimDefs},
+	{edition.ModPayroll, loanDefs},
+	{edition.ModBenefits, benefitDefs},
+	{edition.ModTalent, performanceDefs},
+	{edition.ModTalent, trainingDefs},
+	{edition.ModTalent, disciplinaryDefs},
+	{edition.ModCore, analyticsDefs},
+	{edition.ModIntelligence, orgIntelDefs},
+	{edition.ModLifecycle, clearanceDefs},
+	{edition.ModAttendance, scheduleDefs},
+	{edition.ModIntelligence, workflowDefs},
+	{edition.ModIntelligence, blindspotDefs},
+	{edition.ModEngagement, pulseDefs},
+	{edition.ModEngagement, recognitionDefs},
+	{edition.ModCore, hrrequestDefs},
+	{edition.ModLifecycle, lifecycleDefs},
+	{edition.ModContractors, contractorDefs},
+}
+
+// Definitions returns tool definitions for the LLM (only modules shipped in
+// this edition).
 func (r *ToolRegistry) Definitions() []provider.ToolDefinition {
 	var defs []provider.ToolDefinition
-	defs = append(defs, leaveDefs()...)
-	defs = append(defs, attendanceDefs()...)
-	defs = append(defs, payrollDefs()...)
-	defs = append(defs, knowledgeDefs()...)
-	defs = append(defs, employeeDefs()...)
-	defs = append(defs, expenseDefs()...)
-	defs = append(defs, approvalDefs()...)
-	defs = append(defs, salarySimDefs()...)
-	defs = append(defs, loanDefs()...)
-	defs = append(defs, benefitDefs()...)
-	defs = append(defs, performanceDefs()...)
-	defs = append(defs, trainingDefs()...)
-	defs = append(defs, disciplinaryDefs()...)
-	defs = append(defs, analyticsDefs()...)
-	defs = append(defs, orgIntelDefs()...)
-	defs = append(defs, clearanceDefs()...)
-	defs = append(defs, scheduleDefs()...)
-	defs = append(defs, workflowDefs()...)
-	defs = append(defs, blindspotDefs()...)
-	defs = append(defs, pulseDefs()...)
-	defs = append(defs, recognitionDefs()...)
-	defs = append(defs, hrrequestDefs()...)
+	for _, g := range toolGroups {
+		if r.edition.Enabled(g.module) {
+			defs = append(defs, g.defs()...)
+		}
+	}
 	return defs
+}
+
+// toolEnabled reports whether a tool belongs to a module of this edition.
+func (r *ToolRegistry) toolEnabled(name string) bool { return !r.disabledTools[name] }
+
+func disabledToolsFor(e edition.Config) map[string]bool {
+	out := map[string]bool{}
+	for _, g := range toolGroups {
+		if !e.Enabled(g.module) {
+			for _, d := range g.defs() {
+				out[d.Name] = true
+			}
+		}
+	}
+	return out
 }
 
 // Execute runs a tool by name.
 func (r *ToolRegistry) Execute(ctx context.Context, name string, companyID, userID int64, input map[string]any) (string, error) {
 	executor, ok := r.tools[name]
-	if !ok {
+	if !ok || !r.toolEnabled(name) {
 		return "", fmt.Errorf("unknown tool: %s", name)
 	}
 	return executor(ctx, companyID, userID, input)
@@ -110,4 +146,6 @@ func (r *ToolRegistry) registerTools() {
 	r.registerPulseTools()
 	r.registerRecognitionTools()
 	r.registerHRRequestTools()
+	r.registerLifecycleTools()
+	r.registerContractorTools()
 }

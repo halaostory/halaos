@@ -40,7 +40,7 @@ func (q *Queries) CompleteOnboardingChecklist(ctx context.Context, arg CompleteO
 }
 
 const countCompletedPayrollRuns = `-- name: CountCompletedPayrollRuns :one
-SELECT COUNT(*) FROM payroll_runs WHERE company_id = $1 AND status = 'completed'
+SELECT COUNT(*) FROM payroll_runs WHERE company_id = $1 AND status IN ('completed', 'ready_for_approval')
 `
 
 func (q *Queries) CountCompletedPayrollRuns(ctx context.Context, companyID int64) (int64, error) {

@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "../stores/auth";
+import { loadEdition, featureEnabled, edition } from "../edition";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -14,12 +15,21 @@ const router = createRouter({
       component: () => import("../views/SetupWizardView.vue"),
       meta: { requiresAuth: true, roles: ["super_admin", "admin"] },
     },
-    // Virtual Office (standalone, no sidebar)
+    // Public token pages for new hires / signers (no login)
     {
-      path: "/virtual-office",
-      name: "virtual-office",
-      component: () => import("../views/VirtualOfficeView.vue"),
-      meta: { requiresAuth: true },
+      path: "/onboard/:token",
+      name: "onboard-portal",
+      component: () => import("../views/public/OnboardPortalView.vue"),
+    },
+    {
+      path: "/contractor-form/:token",
+      name: "contractor-form",
+      component: () => import("../views/public/ContractorTaxFormView.vue"),
+    },
+    {
+      path: "/sign/:token",
+      name: "sign-document",
+      component: () => import("../views/public/SignDocumentView.vue"),
     },
     // Public marketing pages (guest only)
     {
@@ -30,7 +40,7 @@ const router = createRouter({
         {
           path: "",
           name: "home",
-          component: () => import("../views/public/HomePage.vue"),
+          component: () => import("../views/public/LandingPage.vue"),
         },
         {
           path: "features",
@@ -139,7 +149,21 @@ const router = createRouter({
         {
           path: "",
           name: "dashboard",
+          component: () => import("../views/HomeView.vue"),
+        },
+        // Workforce insights (attendance & people analytics dashboard)
+        {
+          path: "insights",
+          name: "insights",
           component: () => import("../views/DashboardView.vue"),
+          meta: { roles: ["super_admin", "admin", "manager"] },
+        },
+        // Agent routines
+        {
+          path: "routines",
+          name: "routines",
+          component: () => import("../views/RoutinesView.vue"),
+          meta: { roles: ["super_admin", "admin"] },
         },
         // Employees
         {
@@ -147,6 +171,60 @@ const router = createRouter({
           name: "employees",
           component: () => import("../views/EmployeesView.vue"),
           meta: { roles: ["super_admin", "admin", "manager"] },
+        },
+        {
+          path: "contractors",
+          name: "contractors",
+          component: () => import("../views/ContractorsView.vue"),
+          meta: { roles: ["super_admin", "admin"] },
+        },
+        {
+          path: "gov-filings",
+          name: "gov-filings",
+          component: () => import("../views/GovFilingsView.vue"),
+          meta: { roles: ["super_admin", "admin"] },
+        },
+        {
+          path: "workplaces",
+          name: "workplaces",
+          component: () => import("../views/WorkplacesView.vue"),
+          meta: { roles: ["super_admin", "admin"] },
+        },
+        {
+          path: "notices",
+          name: "notices",
+          component: () => import("../views/NoticesView.vue"),
+          meta: { roles: ["super_admin", "admin"] },
+        },
+        {
+          path: "documents",
+          name: "documents",
+          component: () => import("../views/DocumentsView.vue"),
+          meta: { roles: ["super_admin", "admin"] },
+        },
+        {
+          path: "devices",
+          name: "devices",
+          component: () => import("../views/DevicesView.vue"),
+          meta: { roles: ["super_admin", "admin"] },
+        },
+        {
+          path: "hire",
+          name: "hire",
+          component: () => import("../views/HireWizardView.vue"),
+          meta: { roles: ["super_admin", "admin"] },
+        },
+        {
+          path: "inbox",
+          name: "inbox",
+          component: () => import("../views/InboxView.vue"),
+          meta: { roles: ["super_admin", "admin"] },
+        },
+        {
+          path: "custom-fields",
+          name: "custom-fields",
+          component: () => import("../views/CustomFieldsView.vue"),
+          meta: { roles: ["super_admin", "admin"] },
         },
         {
           path: "employees/new",
@@ -441,13 +519,6 @@ const router = createRouter({
           component: () => import("../views/BillingView.vue"),
           meta: { roles: ["super_admin", "admin"] },
         },
-        // Referrals
-        {
-          path: "referrals",
-          name: "referrals",
-          component: () => import("../views/ReferralsView.vue"),
-          meta: { roles: ["super_admin", "admin"] },
-        },
         // Agent Hub
         {
           path: "agent-hub",
@@ -547,6 +618,22 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore();
+  await loadEdition();
+
+  // Pages of modules this product does not ship are not reachable.
+  if (to.name && !featureEnabled(String(to.name))) {
+    return auth.isAuthenticated ? { name: "dashboard" } : { name: "home" };
+  }
+  // AI token billing only exists when the server has BILLING_ENABLED.
+  if (to.name === "billing" && !edition.config.ai_billing) {
+    return { name: "dashboard" };
+  }
+
+  // Home is for admins and managers; employees land on self-service.
+  if (to.name === "dashboard" && auth.isAuthenticated) {
+    if (!auth.user) await auth.fetchMe();
+    if (!auth.isAdmin && !auth.isManager) return { name: "self-service" };
+  }
 
   // Auth required but not logged in
   if (to.meta.requiresAuth && !auth.isAuthenticated) {

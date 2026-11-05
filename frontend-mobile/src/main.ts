@@ -3,6 +3,9 @@ import { createPinia } from "pinia";
 import { createI18n } from "vue-i18n";
 import App from "./App.vue";
 import router from "./router";
+import { loadEdition } from "./edition";
+import { isNative } from "./platform";
+import { listenNativePushTaps } from "./utils/push";
 import en from "./i18n/en";
 import zh from "./i18n/zh";
 import "vant/lib/index.css";
@@ -19,4 +22,12 @@ const app = createApp(App);
 app.use(createPinia());
 app.use(router);
 app.use(i18n);
-app.mount("#app");
+loadEdition().finally(() => app.mount("#app"));
+listenNativePushTaps((path) => router.push(path));
+
+// Installable app: register the service worker in production builds.
+if ("serviceWorker" in navigator && import.meta.env.PROD && !isNative) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/m/sw.js", { scope: "/m/" }).catch(() => undefined);
+  });
+}

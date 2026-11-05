@@ -58,22 +58,22 @@ SELECT * FROM approval_workflows
 WHERE approver_id = $1 AND status = 'pending'
 ORDER BY created_at ASC;
 
--- name: ApproveWorkflow :exec
+-- name: ApproveWorkflow :execrows
 UPDATE approval_workflows SET
     status = 'approved',
     comments = $3,
     decided_at = NOW()
-WHERE id = $1 AND approver_id = $2 AND status = 'pending';
+WHERE id = $1 AND approver_id = $2 AND status = 'pending' AND company_id = $4;
 
--- name: RejectWorkflow :exec
+-- name: RejectWorkflow :execrows
 UPDATE approval_workflows SET
     status = 'rejected',
     comments = $3,
     decided_at = NOW()
-WHERE id = $1 AND approver_id = $2 AND status = 'pending';
+WHERE id = $1 AND approver_id = $2 AND status = 'pending' AND company_id = $4;
 
 -- name: GetApprovalWorkflowEntity :one
-SELECT entity_type, entity_id FROM approval_workflows WHERE id = $1;
+SELECT entity_type, entity_id FROM approval_workflows WHERE id = $1 AND company_id = $2;
 
 -- name: InsertApprovalWorkflow :one
 INSERT INTO approval_workflows (company_id, entity_type, entity_id, step, approver_id, status)
@@ -86,3 +86,9 @@ JOIN users u ON u.id = e.user_id
 WHERE e.company_id = $1 AND u.role IN ('super_admin', 'admin') AND e.status = 'active'
 ORDER BY u.role ASC, e.id ASC
 LIMIT 1;
+
+-- name: CloseApprovalWorkflows :exec
+-- Closes the pending approval entries of an entity decided elsewhere
+-- (e.g. a leave approved from its own page), so inboxes don't keep it.
+UPDATE approval_workflows SET status = @status::varchar, decided_at = NOW()
+WHERE company_id = @company_id AND entity_type = @entity_type AND entity_id = @entity_id AND status = 'pending';

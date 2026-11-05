@@ -26,9 +26,8 @@ import {
   LogoGithub,
   ChatbubblesOutline,
   CloudOutline,
-  WalletOutline,
-  DocumentTextOutline,
   CalculatorOutline,
+  KeyOutline,
 } from "@vicons/ionicons5";
 import { integrationAPI, botAPI } from "../api/client";
 
@@ -55,11 +54,16 @@ const providers = [
   { key: "slack", name: "Slack", icon: LogoSlack, color: "#4A154B" },
   { key: "google", name: "Google Workspace", icon: CloudOutline, color: "#4285F4" },
   { key: "github", name: "GitHub", icon: LogoGithub, color: "#24292e" },
+  { key: "okta", name: "Okta", icon: KeyOutline, color: "#007dc1" },
   { key: "telegram", name: "Telegram", icon: ChatbubblesOutline, color: "#0088cc" },
-  { key: "notion", name: "Notion", icon: DocumentTextOutline, color: "#000000" },
-  { key: "xero", name: "Xero", icon: WalletOutline, color: "#13B5EA" },
-  { key: "wise", name: "Wise", icon: WalletOutline, color: "#9FE870" },
 ];
+
+// What each provider's credentials look like (JSON pasted into the form).
+const credentialHints: Record<string, string> = {
+  okta: '{"api_key": "<Okta API token>", "extra": {"domain": "acme.okta.com"}}',
+  slack: '{"bot_token": "xoxb-…"}',
+  github: '{"access_token": "ghp_…", "extra": {"org": "acme"}}',
+};
 
 const providerStatus = computed(() => {
   const map = new Map<string, Connection>();
@@ -577,7 +581,7 @@ onMounted(() => {
             v-model:value="form.credentials"
             type="textarea"
             :rows="3"
-            :placeholder="t('integration.credentialsHint')"
+            :placeholder="credentialHints[form.provider] || t('integration.credentialsHint')"
           />
         </NFormItem>
         <NSpace>

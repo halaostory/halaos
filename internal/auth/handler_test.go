@@ -90,8 +90,9 @@ func TestLogin_Success(t *testing.T) {
 	h := newTestHandler(mockDB)
 
 	u := activeUser("admin@test.com", "password123")
-	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...))
-	mockDB.OnExecSuccess() // UpdateLastLogin
+	loginLookup(mockDB, u) // ListUsersByEmail + GetUserByID
+	mockDB.OnQueryRow(testutil.NewErrorRow(pgx.ErrNoRows)) // GetUserMFA (none)
+	mockDB.OnExecSuccess()                                 // UpdateLastLogin
 
 	c, w := testutil.NewGinContext("POST", "/auth/login", gin.H{
 		"email": "admin@test.com", "password": "password123",
@@ -152,7 +153,7 @@ func TestLogin_InactiveAccount(t *testing.T) {
 
 	u := activeUser("admin@test.com", "password123")
 	u.Status = "inactive"
-	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...)) // GetUserByEmailAny
+	loginLookup(mockDB, u) // ListUsersByEmail + GetUserByID
 
 	c, w := testutil.NewGinContext("POST", "/auth/login", gin.H{
 		"email": "admin@test.com", "password": "password123",
@@ -523,37 +524,34 @@ func TestSSOLogin_UnverifiedEmail(t *testing.T) {
 func companyScanValues(id int64, name, country, timezone, currency string) []interface{} {
 	now := time.Now()
 	return []interface{}{
-		id,              // ID
-		name,            // Name
-		(*string)(nil),  // LegalName
-		(*string)(nil),  // Tin
-		(*string)(nil),  // BirRdo
-		(*string)(nil),  // Address
-		(*string)(nil),  // City
-		(*string)(nil),  // Province
-		(*string)(nil),  // ZipCode
-		country,         // Country
-		timezone,        // Timezone
-		currency,        // Currency
-		"semi_monthly",  // PayFrequency
-		"active",        // Status
-		(*string)(nil),  // LogoUrl
-		now,             // CreatedAt
-		now,             // UpdatedAt
-		false,           // GeofenceEnabled
-		(*string)(nil),  // SssErNo
-		(*string)(nil),  // PhilhealthErNo
-		(*string)(nil),  // PagibigErNo
-		(*string)(nil),  // BankName
-		(*string)(nil),  // BankBranch
-		(*string)(nil),  // BankAccountNo
-		(*string)(nil),  // BankAccountName
-		(*string)(nil),  // ContactPerson
-		(*string)(nil),  // ContactEmail
-		(*string)(nil),  // ContactPhone
-		(*string)(nil),  // ReferralCode
-		(*string)(nil),  // ReferredByCode
-		false,           // ReferralRewardClaimed
+		id,             // ID
+		name,           // Name
+		(*string)(nil), // LegalName
+		(*string)(nil), // Tin
+		(*string)(nil), // BirRdo
+		(*string)(nil), // Address
+		(*string)(nil), // City
+		(*string)(nil), // Province
+		(*string)(nil), // ZipCode
+		country,        // Country
+		timezone,       // Timezone
+		currency,       // Currency
+		"semi_monthly", // PayFrequency
+		"active",       // Status
+		(*string)(nil), // LogoUrl
+		now,            // CreatedAt
+		now,            // UpdatedAt
+		false,          // GeofenceEnabled
+		(*string)(nil), // SssErNo
+		(*string)(nil), // PhilhealthErNo
+		(*string)(nil), // PagibigErNo
+		(*string)(nil), // BankName
+		(*string)(nil), // BankBranch
+		(*string)(nil), // BankAccountNo
+		(*string)(nil), // BankAccountName
+		(*string)(nil), // ContactPerson
+		(*string)(nil), // ContactEmail
+		(*string)(nil), // ContactPhone
 	}
 }
 
@@ -787,7 +785,7 @@ func TestLogin_EmailNotVerified_ReturnsSemanticCode(t *testing.T) {
 
 	u := activeUser("admin@test.com", "password123")
 	u.EmailVerified = false
-	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...)) // GetUserByEmailAny
+	loginLookup(mockDB, u) // ListUsersByEmail + GetUserByID
 
 	c, w := testutil.NewGinContext("POST", "/auth/login", gin.H{
 		"email": "admin@test.com", "password": "password123",
@@ -811,7 +809,7 @@ func TestLogin_AccountDisabled_ReturnsSemanticCode(t *testing.T) {
 
 	u := activeUser("admin@test.com", "password123")
 	u.Status = "disabled"
-	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...)) // GetUserByEmailAny
+	loginLookup(mockDB, u) // ListUsersByEmail + GetUserByID
 
 	c, w := testutil.NewGinContext("POST", "/auth/login", gin.H{
 		"email": "admin@test.com", "password": "password123",
@@ -877,4 +875,12 @@ func TestVerifyEmail_AlreadyVerified_ReturnsSuccess(t *testing.T) {
 	if data["status"] != "already_verified" {
 		t.Fatalf("expected status already_verified, got %v", data["status"])
 	}
+}
+
+// loginLookup queues the account lookup Login does: every account with
+// the email (with its company name), then the chosen user.
+func loginLookup(mockDB *testutil.MockDBTX, u store.User) {
+	row := append(userScanValues(u), "Test Co")
+	mockDB.OnQuery(testutil.NewRows([][]interface{}{row}), nil)
+	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...))
 }

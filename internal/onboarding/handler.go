@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/halaostory/halaos/internal/access"
 	"github.com/halaostory/halaos/internal/auth"
 	"github.com/halaostory/halaos/internal/store"
 	"github.com/halaostory/halaos/pkg/response"
@@ -226,6 +227,9 @@ func (h *Handler) GetProgress(c *gin.Context) {
 		return
 	}
 
+	if !access.Check(c, h.queries, employeeID, access.SelfOrManager) {
+		return
+	}
 	companyID := auth.GetCompanyID(c)
 	progress, err := h.queries.GetOnboardingProgress(c.Request.Context(), store.GetOnboardingProgressParams{
 		EmployeeID: employeeID,

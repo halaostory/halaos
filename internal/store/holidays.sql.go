@@ -430,7 +430,7 @@ func (q *Queries) ListHolidaysInPeriod(ctx context.Context, arg ListHolidaysInPe
 const update13thMonthStatus = `-- name: Update13thMonthStatus :exec
 UPDATE thirteenth_month_pay SET
     status = $3,
-    paid_at = CASE WHEN $3 = 'paid' THEN NOW() ELSE paid_at END,
+    paid_at = CASE WHEN $3::varchar = 'paid' THEN NOW() ELSE paid_at END,
     updated_at = NOW()
 WHERE company_id = $1 AND year = $2
 `
@@ -449,7 +449,7 @@ func (q *Queries) Update13thMonthStatus(ctx context.Context, arg Update13thMonth
 const updateFinalPayStatus = `-- name: UpdateFinalPayStatus :one
 UPDATE final_pay SET
     status = $3,
-    released_at = CASE WHEN $3 = 'released' THEN NOW() ELSE released_at END
+    released_at = CASE WHEN $3::varchar = 'released' THEN NOW() ELSE released_at END
 WHERE id = $1 AND company_id = $2
 RETURNING id, company_id, employee_id, separation_date, separation_reason, unpaid_salary, prorated_13th, unused_leave_conversion, separation_pay, tax_refund, other_deductions, total_final_pay, payload, status, computed_at, released_at, created_at
 `

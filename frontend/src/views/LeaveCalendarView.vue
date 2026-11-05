@@ -2,7 +2,8 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import { NSpace, NButton, NTag, NSpin } from 'naive-ui'
+import { NSpace, NButton, NTag, NSpin, useDialog, useMessage } from 'naive-ui'
+import { useAuthStore } from '../stores/auth'
 import { leaveAPI } from '../api/client'
 import EmptyState from '../components/EmptyState.vue'
 
@@ -146,6 +147,29 @@ function goToday() {
   currentMonth.value = new Date().getMonth()
 }
 
+const dialog = useDialog()
+const message = useMessage()
+const authStore = useAuthStore()
+// HR can take back an approved leave; the days return to the balance.
+function revoke(l: CalendarLeave) {
+  if (!authStore.isAdmin) return
+  dialog.warning({
+    title: t('leaveCalendar.revokeTitle'),
+    content: t('leaveCalendar.revokeConfirm', { name: getName(l) }),
+    positiveText: t('leaveCalendar.revoke'),
+    negativeText: t('common.cancel'),
+    onPositiveClick: async () => {
+      try {
+        await leaveAPI.revokeRequest(l.id)
+        message.success(t('leaveCalendar.revoked'))
+        await fetchLeaves()
+      } catch (e) {
+        message.error((e as { data?: { error?: { message?: string } } }).data?.error?.message || t('common.failed'))
+      }
+    },
+  })
+}
+
 function getName(l: CalendarLeave) {
   return l.display_name || `${l.first_name} ${l.last_name}`
 }
@@ -201,6 +225,8 @@ onMounted(fetchLeaves)
                   :key="l.id"
                   size="tiny"
                   :type="(getLeaveColor(l.leave_type_code) as any)"
+                  :style="authStore.isAdmin ? 'cursor: pointer' : ''"
+                  @click="revoke(l)"
                   style="display: block; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;"
                 >
                   {{ getName(l) }}

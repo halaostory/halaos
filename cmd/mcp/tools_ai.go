@@ -9,7 +9,7 @@ import (
 
 func aiChatTool() mcp.Tool {
 	return mcp.NewTool("ai_chat",
-		mcp.WithDescription("Chat with the HalaOS AI assistant about HR topics. The AI can answer questions about policies, employees, payroll, compliance, and more using the company's HR data."),
+		mcp.WithDescription("Chat with the HalaPeople AI assistant about HR topics. The AI can answer questions about policies, employees, payroll, compliance, and more using the company's HR data."),
 		mcp.WithString("message", mcp.Description("The message or question to send to the AI assistant"), mcp.Required()),
 		mcp.WithString("session_id", mcp.Description("Optional session ID to continue a previous conversation")),
 	)

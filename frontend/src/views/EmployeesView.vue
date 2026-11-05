@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import { localDate } from '../utils/date'
 import { ref, computed, h, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   NDataTable, NButton, NSpace, NInput, NTag, NPagination, NModal, NForm, NFormItem,
-  NInputNumber, NSelect, NDatePicker, NAlert, useMessage, type DataTableColumns,
+  NInputNumber, NSelect, NDatePicker, NAlert, NAvatar, NDropdown, NRadioGroup, NRadioButton, useMessage, type DataTableColumns,
 } from 'naive-ui'
 import { employeeAPI, exportAPI, companyAPI } from '../api/client'
 import { useAuthStore } from '../stores/auth'
@@ -42,57 +43,74 @@ function formatDate(d: string): string {
   try { return format(new Date(d), 'yyyy-MM-dd') } catch { return d }
 }
 
+const avatarColors = ['#2080f0', '#18a058', '#7c3aed', '#f0a020', '#d03050', '#0e7490']
+function initials(row: Record<string, unknown>) {
+  return `${String(row.first_name || '').charAt(0)}${String(row.last_name || '').charAt(0)}`.toUpperCase()
+}
+
+// Warp-style people list: avatar, name with title underneath, status pill.
 const columns = computed<DataTableColumns>(() => [
-  { title: t('employee.employeeNo'), key: 'employee_no', width: 120 },
-  { title: t('employee.name'), key: 'name', render: (row) => `${row.first_name} ${row.last_name}` },
+  {
+    title: t('employee.name'),
+    key: 'name',
+    render: (row) => h('div', { style: 'display:flex;align-items:center;gap:10px' }, [
+      h(NAvatar, { round: true, size: 32, style: `background:${avatarColors[Number(row.id) % avatarColors.length]};font-size:13px` }, () => initials(row)),
+      h('div', { style: 'min-width:0' }, [
+        h('div', { style: 'font-weight:500' }, `${row.first_name} ${row.last_name}`),
+        h('div', { style: 'font-size:12px;opacity:.6' }, positionMap.value.get(row.position_id as number) || t('employee.noPosition')),
+      ]),
+    ]),
+  },
   {
     title: t('employee.department'),
     key: 'department_id',
-    width: 150,
-    render: (row) => {
-      const id = row.department_id as number
-      return departmentMap.value.get(id) ?? String(id ?? '')
-    },
+    width: 170,
+    render: (row) => departmentMap.value.get(row.department_id as number) ?? '—',
   },
+  { title: t('employee.employeeNo'), key: 'employee_no', width: 130 },
   {
-    title: t('employee.position'),
-    key: 'position_id',
-    width: 150,
-    render: (row) => {
-      const id = row.position_id as number
-      return positionMap.value.get(id) ?? String(id ?? '')
-    },
-  },
-  { title: t('employee.employmentType'), key: 'employment_type', width: 130 },
-  {
-    title: t('common.status'),
-    key: 'status',
-    width: 110,
-    render: (row) => {
-      const s = row.status as string
-      return h(NTag, { type: statusColorMap[s] || 'default', size: 'small' }, () => s)
-    }
+    title: t('employee.employmentType'),
+    key: 'employment_type',
+    width: 130,
+    render: (row) => String(row.employment_type || '').replace(/_/g, ' '),
   },
   {
     title: t('employee.hireDate'),
     key: 'hire_date',
+    width: 130,
+    render: (row) => formatDate(row.hire_date as string),
+  },
+  {
+    title: t('common.status'),
+    key: 'status',
     width: 120,
-    render: (row) => formatDate(row.hire_date as string)
+    render: (row) => {
+      const st = row.status as string
+      return h(NTag, { type: statusColorMap[st] || 'default', size: 'small', round: true, bordered: false }, () => st)
+    },
   },
 ])
+
+const counts = computed(() => {
+  const c: Record<string, number> = { active: 0, probationary: 0, separated: 0 }
+  for (const e of data.value) c[e.status as string] = (c[e.status as string] || 0) + 1
+  return c
+})
+const moreOptions = computed(() => [
+  ...(authStore.isAdmin ? [{ label: t('employee.addNew'), key: 'add' }, { label: t('employee.bulkSalaryUpdate'), key: 'bulk' }] : []),
+  { label: t('employee.exportCsv'), key: 'csv' },
+])
+function onMore(k: string) {
+  if (k === 'add') router.push({ name: 'employee-new' })
+  else if (k === 'bulk') showBulkSalary.value = true
+  else handleExportCSV()
+}
 
 // Department filter options
 const departmentOptions = computed(() =>
   departments.value.map((d) => ({ label: d.name, value: d.id }))
 )
 
-// Status filter options
-const statusOptions = computed(() => [
-  { label: t('employee.active'), value: 'active' },
-  { label: t('employee.probationary'), value: 'probationary' },
-  { label: t('employee.suspended'), value: 'suspended' },
-  { label: t('employee.separated'), value: 'separated' },
-])
 
 // Reset page to 1 when any filter changes
 watch([search, selectedDepartment, selectedStatus], () => {
@@ -215,7 +233,7 @@ async function handleBulkSalaryUpdate() {
   bulkSalaryLoading.value = true
   bulkSalaryResult.value = null
   try {
-    const effDate = new Date(bulkSalaryForm.value.effectiveFrom).toISOString().split('T')[0]
+    const effDate = localDate(bulkSalaryForm.value.effectiveFrom)
     const res = await employeeAPI.bulkSalaryUpdate({
       employee_ids: activeEmployeeIds.value,
       update_type: bulkSalaryForm.value.updateType,
@@ -236,19 +254,28 @@ async function handleBulkSalaryUpdate() {
 
 <template>
   <div>
-    <NSpace justify="space-between" style="margin-bottom: 16px;">
-      <h2>{{ t('employee.title') }}</h2>
+    <div class="people-head">
+      <div>
+        <h1>{{ t('employee.title') }}</h1>
+        <div class="people-sub">{{ t('employee.summary', { active: counts.active, total: data.length }) }}</div>
+      </div>
       <NSpace>
-        <NButton @click="handleExportCSV">CSV</NButton>
-        <NButton v-if="authStore.isAdmin" @click="showBulkSalary = true">
-          {{ t('employee.bulkSalaryUpdate') }}
-        </NButton>
-        <NButton type="primary" @click="router.push({ name: 'employee-new' })">
-          {{ t('employee.addNew') }}
+        <NDropdown trigger="click" :options="moreOptions" @select="onMore">
+          <NButton>{{ t('payroll.more') }} ▾</NButton>
+        </NDropdown>
+        <NButton v-if="authStore.isAdmin" type="primary" @click="router.push({ name: 'hire' })">
+          {{ t('lifecycle.hireTitle') }}
         </NButton>
       </NSpace>
-    </NSpace>
+    </div>
     <NSpace style="margin-bottom: 16px;" align="center">
+      <NInput v-model:value="search" :placeholder="t('common.search')" clearable style="width: 260px;" />
+      <NRadioGroup :value="selectedStatus ?? ''" size="small" @update:value="(v: string) => selectedStatus = v || null">
+        <NRadioButton value="">{{ t('employee.filterAll') }}</NRadioButton>
+        <NRadioButton value="active">{{ t('employee.filterActive') }} · {{ counts.active }}</NRadioButton>
+        <NRadioButton value="probationary">{{ t('employee.filterProbationary') }} · {{ counts.probationary }}</NRadioButton>
+        <NRadioButton value="separated">{{ t('employee.filterSeparated') }} · {{ counts.separated }}</NRadioButton>
+      </NRadioGroup>
       <NSelect
         v-model:value="selectedDepartment"
         :options="departmentOptions"
@@ -258,14 +285,6 @@ async function handleBulkSalaryUpdate() {
         style="min-width: 200px; max-width: 320px;"
         :render-label="(option: any) => h('span', { title: option.label, style: 'display: block; overflow: hidden; text-overflow: ellipsis;' }, option.label)"
       />
-      <NSelect
-        v-model:value="selectedStatus"
-        :options="statusOptions"
-        :placeholder="t('common.status')"
-        clearable
-        style="width: 200px;"
-      />
-      <NInput v-model:value="search" :placeholder="t('common.search')" clearable style="width: 240px;" />
     </NSpace>
     <NDataTable
       :columns="columns"
@@ -311,3 +330,9 @@ async function handleBulkSalaryUpdate() {
     </NModal>
   </div>
 </template>
+
+<style scoped>
+.people-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.people-head h1 { font-size: 24px; font-weight: 650; margin: 0; }
+.people-sub { font-size: 13px; opacity: .65; margin-top: 2px; }
+</style>

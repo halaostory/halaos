@@ -1,8 +1,11 @@
-import { createRouter, createWebHistory } from "vue-router";
+import { createRouter, createWebHistory, createWebHashHistory } from "vue-router";
+import { isNative } from "../platform";
 import { useAuthStore } from "../stores/auth";
+import { hasModule, loadEdition } from "../edition";
 
 const router = createRouter({
-  history: createWebHistory("/m/"),
+  // The native app loads pages from inside the app bundle: hash routing.
+  history: isNative ? createWebHashHistory() : createWebHistory("/m/"),
   routes: [
     {
       path: "/login",
@@ -45,6 +48,11 @@ const router = createRouter({
           component: () => import("../views/NotificationsView.vue"),
         },
         {
+          path: "expenses",
+          name: "expenses",
+          component: () => import("../views/ExpensesView.vue"),
+        },
+        {
           path: "ai-chat",
           name: "ai-chat",
           component: () => import("../views/AiChatView.vue"),
@@ -54,8 +62,14 @@ const router = createRouter({
   ],
 });
 
+// Pages of modules this edition does not ship are not reachable.
+const routeModule: Record<string, string> = { attendance: "attendance", expenses: "expenses", leave: "time_off", payslips: "payroll", "ai-chat": "ai" };
+
 router.beforeEach(async (to) => {
   const auth = useAuthStore();
+  await loadEdition();
+  const mod = routeModule[String(to.name)];
+  if (mod && !hasModule(mod)) return { name: "home" };
 
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     return { name: "login", query: { redirect: to.fullPath } };

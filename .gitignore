@@ -45,3 +45,4 @@ vendor/
 # Claude / MCP
 .claude/
 .mcp.json
+data/

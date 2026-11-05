@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { localDate } from '../utils/date'
 import { ref, h, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import {
@@ -7,6 +8,7 @@ import {
 } from "naive-ui";
 import { complianceAPI, reportsAPI } from "../api/client";
 import { format } from "date-fns";
+import AgenciesPanel from "../components/compliance/AgenciesPanel.vue";
 
 const { t } = useI18n();
 const message = useMessage();
@@ -194,7 +196,7 @@ async function downloadDOLERegister() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `DOLE_Register_${new Date().toISOString().slice(0, 10)}.pdf`;
+    a.download = `DOLE_Register_${localDate()}.pdf`;
     a.click();
     URL.revokeObjectURL(url);
     message.success(t("compliance.downloaded"));
@@ -234,8 +236,11 @@ onMounted(async () => {
 
 <template>
   <div>
-    <h2 style="margin-bottom: 16px">{{ t("compliance.title") }}</h2>
-    <NTabs type="line">
+    <h2 style="margin-bottom: 16px">{{ t("agencies.title") }}</h2>
+    <NTabs type="line" default-value="Agencies">
+      <NTabPane name="Agencies" :tab="t('agencies.tab')">
+        <AgenciesPanel />
+      </NTabPane>
       <NTabPane name="SSS" :tab="t('compliance.sss')">
         <NDataTable :columns="sssColumns" :data="sssData" :loading="loading" size="small" :max-height="500" />
       </NTabPane>

@@ -37,6 +37,7 @@
 </template>
 
 <script setup lang="ts">
+import { edition, hasModule } from '../edition'
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -61,7 +62,8 @@ const stepData = ref<Record<string, { done: boolean; done_at?: string }>>({})
 
 const firstName = computed(() => auth.user?.first_name || '')
 
-const steps = computed<StepDef[]>(() => [
+const steps = computed<StepDef[]>(() => allSteps.value.filter((s) => s.route !== 'attendance' || hasModule('attendance')).filter((s) => s.route !== 'ai-chat' || (hasModule('ai') && edition.aiAssistant)))
+const allSteps = computed<StepDef[]>(() => [
   { key: 'profile', title: t('onboarding.steps.profile'), desc: t('onboarding.steps.profileDesc'), route: 'profile', done: stepData.value.profile?.done ?? false },
   { key: 'first_clock', title: t('onboarding.steps.firstClock'), desc: t('onboarding.steps.firstClockDesc'), route: 'attendance', done: stepData.value.first_clock?.done ?? false },
   { key: 'view_leave', title: t('onboarding.steps.viewLeave'), desc: t('onboarding.steps.viewLeaveDesc'), route: 'leave', done: stepData.value.view_leave?.done ?? false },

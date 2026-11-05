@@ -309,6 +309,54 @@ func (q *Queries) DeleteBenefitDependent(ctx context.Context, arg DeleteBenefitD
 	return err
 }
 
+const getBenefitClaimOwner = `-- name: GetBenefitClaimOwner :one
+SELECT employee_id FROM benefit_claims WHERE id = $1 AND company_id = $2
+`
+
+type GetBenefitClaimOwnerParams struct {
+	ID        int64 `json:"id"`
+	CompanyID int64 `json:"company_id"`
+}
+
+func (q *Queries) GetBenefitClaimOwner(ctx context.Context, arg GetBenefitClaimOwnerParams) (int64, error) {
+	row := q.db.QueryRow(ctx, getBenefitClaimOwner, arg.ID, arg.CompanyID)
+	var employee_id int64
+	err := row.Scan(&employee_id)
+	return employee_id, err
+}
+
+const getBenefitDependentOwner = `-- name: GetBenefitDependentOwner :one
+SELECT employee_id FROM benefit_dependents WHERE id = $1 AND company_id = $2
+`
+
+type GetBenefitDependentOwnerParams struct {
+	ID        int64 `json:"id"`
+	CompanyID int64 `json:"company_id"`
+}
+
+func (q *Queries) GetBenefitDependentOwner(ctx context.Context, arg GetBenefitDependentOwnerParams) (int64, error) {
+	row := q.db.QueryRow(ctx, getBenefitDependentOwner, arg.ID, arg.CompanyID)
+	var employee_id int64
+	err := row.Scan(&employee_id)
+	return employee_id, err
+}
+
+const getBenefitEnrollmentOwner = `-- name: GetBenefitEnrollmentOwner :one
+SELECT employee_id FROM benefit_enrollments WHERE id = $1 AND company_id = $2
+`
+
+type GetBenefitEnrollmentOwnerParams struct {
+	ID        int64 `json:"id"`
+	CompanyID int64 `json:"company_id"`
+}
+
+func (q *Queries) GetBenefitEnrollmentOwner(ctx context.Context, arg GetBenefitEnrollmentOwnerParams) (int64, error) {
+	row := q.db.QueryRow(ctx, getBenefitEnrollmentOwner, arg.ID, arg.CompanyID)
+	var employee_id int64
+	err := row.Scan(&employee_id)
+	return employee_id, err
+}
+
 const getBenefitPlan = `-- name: GetBenefitPlan :one
 SELECT id, company_id, name, category, description, provider, employer_share, employee_share, coverage_amount, eligibility_type, eligibility_months, is_active, created_at, updated_at FROM benefit_plans WHERE id = $1 AND company_id = $2
 `

@@ -1,0 +1,3 @@
+dist-native
+ios/App/Pods
+android/.gradle

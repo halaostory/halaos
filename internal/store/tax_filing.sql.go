@@ -121,31 +121,35 @@ const generateAnnualFilings = `-- name: GenerateAnnualFilings :exec
 INSERT INTO tax_filings (company_id, filing_type, period_type, period_year, period_month, due_date, status)
 SELECT $1, ft.filing_type, ft.period_type, $2, ft.period_month, ft.due_date, 'pending'
 FROM (
-    -- BIR 1601-C (Monthly withholding tax)
+    -- BIR 1601-C: 10th of the following month
     SELECT 'bir_1601c' as filing_type, 'monthly' as period_type, m.n as period_month,
-           make_date($2::int, m.n, 10) as due_date
+           (make_date($2::int, m.n, 1) + INTERVAL '1 month' + INTERVAL '9 days')::date as due_date
     FROM generate_series(1, 12) as m(n)
     UNION ALL
-    -- SSS (Monthly contribution)
+    -- SSS: by the end of the following month (actual day depends on the employer number)
     SELECT 'sss_r3', 'monthly', m.n,
-           make_date($2::int, m.n, CASE WHEN m.n = 12 THEN 31 ELSE 10 END)
+           (make_date($2::int, m.n, 1) + INTERVAL '2 months' - INTERVAL '1 day')::date
     FROM generate_series(1, 12) as m(n)
     UNION ALL
-    -- PhilHealth (Monthly)
+    -- PhilHealth: 15th of the following month (PEN-based schedule may be earlier)
     SELECT 'philhealth_rf1', 'monthly', m.n,
-           make_date($2::int, m.n, 15)
+           (make_date($2::int, m.n, 1) + INTERVAL '1 month' + INTERVAL '14 days')::date
     FROM generate_series(1, 12) as m(n)
     UNION ALL
-    -- Pag-IBIG (Monthly)
+    -- Pag-IBIG: 10th of the following month (10th–15th depending on employer name)
     SELECT 'pagibig_ml1', 'monthly', m.n,
-           make_date($2::int, m.n, 10)
+           (make_date($2::int, m.n, 1) + INTERVAL '1 month' + INTERVAL '9 days')::date
     FROM generate_series(1, 12) as m(n)
     UNION ALL
-    -- BIR 2316 (Annual ITR)
+    -- BIR 2316 for the tax year: issued to employees by Jan 31 of the next year
     SELECT 'bir_2316', 'annual', NULL,
-           make_date($2::int, 1, 31)
+           make_date($2::int + 1, 1, 31)
 ) ft
-ON CONFLICT DO NOTHING
+WHERE NOT EXISTS (
+    SELECT 1 FROM tax_filings t
+    WHERE t.company_id = $1 AND t.filing_type = ft.filing_type AND t.period_year = $2
+      AND t.period_month IS NOT DISTINCT FROM ft.period_month AND t.period_quarter IS NULL
+)
 `
 
 type GenerateAnnualFilingsParams struct {
@@ -153,6 +157,9 @@ type GenerateAnnualFilingsParams struct {
 	PeriodYear int32 `json:"period_year"`
 }
 
+// Idempotent (NOT EXISTS: the table's UNIQUE key contains NULL period columns,
+// so ON CONFLICT never fired and repeated calls duplicated the calendar).
+// Due dates fall in the month AFTER the period (e.g. January 1601-C is due Feb 10).
 func (q *Queries) GenerateAnnualFilings(ctx context.Context, arg GenerateAnnualFilingsParams) error {
 	_, err := q.db.Exec(ctx, generateAnnualFilings, arg.CompanyID, arg.PeriodYear)
 	return err
@@ -494,7 +501,7 @@ func (q *Queries) UpdateTaxFilingAmount(ctx context.Context, arg UpdateTaxFiling
 const updateTaxFilingStatus = `-- name: UpdateTaxFilingStatus :one
 UPDATE tax_filings SET
     status = $3,
-    filing_date = CASE WHEN $3 IN ('submitted', 'filed') THEN CURRENT_DATE ELSE filing_date END,
+    filing_date = CASE WHEN $3::varchar IN ('submitted', 'filed') THEN CURRENT_DATE ELSE filing_date END,
     filed_by = $4,
     reference_no = $5,
     notes = $6,

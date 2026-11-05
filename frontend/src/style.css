@@ -63,3 +63,21 @@ body {
 #app {
   min-height: 100vh;
 }
+
+/* Page titles across back-office pages: same scale as Home and Routines. */
+.n-layout-content h2:first-child,
+.n-layout-content .n-space > div > h2 {
+  font-size: 24px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+/* Quieter table headers and borders. */
+.n-data-table .n-data-table-th {
+  color: var(--n-th-text-color);
+  font-size: 13px;
+  text-transform: none;
+}
+.n-data-table .n-data-table-th .n-data-table-th__title { opacity: .7; }
+.n-data-table { border-radius: 12px; overflow: hidden; }
+.n-card { border-color: rgba(128, 128, 128, 0.18); }

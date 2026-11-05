@@ -9,6 +9,7 @@ import {
 import { benefitAPI } from '../api/client'
 import { useAuthStore } from '../stores/auth'
 import { format } from 'date-fns'
+import PerksPanel from '../components/benefits/PerksPanel.vue'
 
 const { t } = useI18n()
 const message = useMessage()
@@ -436,6 +437,11 @@ onMounted(fetchAll)
           <NButton type="primary" @click="showClaimModal = true">{{ t('benefit.fileClaim') }}</NButton>
         </NSpace>
         <NDataTable :columns="myEnrollmentColumns" :data="myEnrollments" :loading="loading" :bordered="false" />
+      </NTabPane>
+
+      <!-- Perks Tab -->
+      <NTabPane name="perks" :tab="t('perks.tab')">
+        <PerksPanel :admin="isAdmin" />
       </NTabPane>
 
       <!-- Plans Tab -->

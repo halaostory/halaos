@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/halaostory/halaos/internal/access"
 	"github.com/halaostory/halaos/internal/auth"
 	"github.com/halaostory/halaos/internal/email"
 	"github.com/halaostory/halaos/internal/notification"
@@ -122,7 +124,7 @@ func (h *Handler) CreateRequest(c *gin.Context) {
 		LeaveTypeID    int64   `json:"leave_type_id" binding:"required"`
 		StartDate      string  `json:"start_date" binding:"required"`
 		EndDate        string  `json:"end_date" binding:"required"`
-		Days           string  `json:"days" binding:"required"`
+		Days           string  `json:"days"` // only "0.5" (a half day) is honoured; otherwise working days are counted
 		Reason         *string `json:"reason"`
 		AttachmentPath *string `json:"attachment_path"`
 	}
@@ -154,8 +156,55 @@ func (h *Handler) CreateRequest(c *gin.Context) {
 		return
 	}
 
+	if endDate.Before(startDate) {
+		response.BadRequest(c, "The end date is before the start date")
+		return
+	}
+	if endDate.Sub(startDate) > 366*24*time.Hour {
+		response.BadRequest(c, "A leave request can cover at most one year")
+		return
+	}
+	ctx := c.Request.Context()
+	var lt *store.LeaveType
+	if types, err := h.queries.ListLeaveTypes(ctx, companyID); err == nil {
+		for i := range types {
+			if types[i].ID == req.LeaveTypeID && types[i].IsActive {
+				lt = &types[i]
+			}
+		}
+	}
+	if lt == nil {
+		response.BadRequest(c, "Unknown leave type")
+		return
+	}
+	// Days are counted here, not trusted from the client: working days
+	// between the dates, without weekends and non-working holidays.
+	nDays := workingDays(startDate, endDate, holidaysOff(ctx, h.queries, companyID, startDate, endDate))
+	if nDays == 0 {
+		response.BadRequest(c, "There are no working days in this range")
+		return
+	}
+	if strings.TrimSpace(req.Days) == "0.5" && startDate.Equal(endDate) {
+		nDays = 0.5
+	}
+	if n, err := h.queries.CountOverlappingLeave(ctx, store.CountOverlappingLeaveParams{CompanyID: companyID, EmployeeID: emp.ID, StartDate: startDate, EndDate: endDate}); err == nil && n > 0 {
+		response.Conflict(c, "You already have leave on some of these days")
+		return
+	}
+	if lt.IsPaid {
+		bal, err := h.queries.GetLeaveBalance(ctx, store.GetLeaveBalanceParams{CompanyID: companyID, EmployeeID: emp.ID, LeaveTypeID: lt.ID, Year: int32(startDate.Year())})
+		if err != nil {
+			response.BadRequest(c, "You have no "+lt.Name+" balance for "+strconv.Itoa(startDate.Year()))
+			return
+		}
+		left := numF(bal.Earned) + numF(bal.Carried) + numF(bal.Adjusted) - numF(bal.Used)
+		if left+1e-9 < nDays {
+			response.BadRequest(c, fmt.Sprintf("Not enough %s: %g day(s) left, %g requested", lt.Name, left, nDays))
+			return
+		}
+	}
 	var days pgtype.Numeric
-	_ = days.Scan(req.Days)
+	_ = days.Scan(strconv.FormatFloat(nDays, 'f', 1, 64))
 
 	lr, err := h.queries.CreateLeaveRequest(c.Request.Context(), store.CreateLeaveRequestParams{
 		CompanyID:      companyID,
@@ -255,29 +304,47 @@ func (h *Handler) ApproveRequest(c *gin.Context) {
 	}
 
 	companyID := auth.GetCompanyID(c)
-	userID := auth.GetUserID(c)
-
-	emp, empErr := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
-		UserID:    &userID,
-		CompanyID: companyID,
-	})
-
+	approver, ok := h.decider(c, id)
+	if !ok {
+		return
+	}
 	approveParams := store.ApproveLeaveRequestParams{
 		ID:        id,
 		CompanyID: companyID,
 	}
-	if empErr == nil {
-		approveParams.ApproverID = &emp.ID
+	if approver != nil {
+		approveParams.ApproverID = &approver.ID
 	}
 
-	lr, err := h.queries.ApproveLeaveRequest(c.Request.Context(), approveParams)
+	// Approve and deduct in one transaction, so a request is never approved
+	// without its days being taken from the balance.
+	tx, err := h.pool.Begin(c.Request.Context())
+	if err != nil {
+		response.InternalError(c, "Failed to approve leave request")
+		return
+	}
+	defer tx.Rollback(c.Request.Context()) //nolint:errcheck
+	qt := h.queries.WithTx(tx)
+	lr, err := qt.ApproveLeaveRequest(c.Request.Context(), approveParams)
 	if err != nil {
 		response.NotFound(c, "Leave request not found or already processed")
 		return
 	}
-
-	// Deduct leave balance
-	if err := h.queries.DeductLeaveBalance(c.Request.Context(), store.DeductLeaveBalanceParams{
+	paid := true
+	if types, err := qt.ListLeaveTypes(c.Request.Context(), companyID); err == nil {
+		for _, t := range types {
+			if t.ID == lr.LeaveTypeID {
+				paid = t.IsPaid
+			}
+		}
+	}
+	if paid {
+		if _, err := qt.GetLeaveBalance(c.Request.Context(), store.GetLeaveBalanceParams{CompanyID: companyID, EmployeeID: lr.EmployeeID, LeaveTypeID: lr.LeaveTypeID, Year: int32(lr.StartDate.Year())}); err != nil {
+			response.BadRequest(c, "The employee has no balance for this leave type and year — add one in Time off → Balances first")
+			return
+		}
+	}
+	if err := qt.DeductLeaveBalance(c.Request.Context(), store.DeductLeaveBalanceParams{
 		CompanyID:   companyID,
 		EmployeeID:  lr.EmployeeID,
 		LeaveTypeID: lr.LeaveTypeID,
@@ -285,6 +352,16 @@ func (h *Handler) ApproveRequest(c *gin.Context) {
 		Used:        lr.Days,
 	}); err != nil {
 		h.logger.Error("failed to deduct leave balance", "leave_request_id", lr.ID, "employee_id", lr.EmployeeID, "error", err)
+		response.InternalError(c, "Failed to approve leave request")
+		return
+	}
+	if err := qt.CloseApprovalWorkflows(c.Request.Context(), store.CloseApprovalWorkflowsParams{Status: "approved", CompanyID: companyID, EntityType: "leave_request", EntityID: lr.ID}); err != nil {
+		response.InternalError(c, "Failed to approve leave request")
+		return
+	}
+	if err := tx.Commit(c.Request.Context()); err != nil {
+		response.InternalError(c, "Failed to approve leave request")
+		return
 	}
 
 	// Notify employee
@@ -328,26 +405,26 @@ func (h *Handler) RejectRequest(c *gin.Context) {
 	_ = c.ShouldBindJSON(&req)
 
 	companyID := auth.GetCompanyID(c)
-	userID := auth.GetUserID(c)
-	emp, err := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
-		UserID:    &userID,
-		CompanyID: companyID,
-	})
-	if err != nil {
-		response.BadRequest(c, "Employee profile not found")
+	approver, ok := h.decider(c, id)
+	if !ok {
 		return
+	}
+	var approverID *int64
+	if approver != nil {
+		approverID = &approver.ID
 	}
 
 	lr, err := h.queries.RejectLeaveRequest(c.Request.Context(), store.RejectLeaveRequestParams{
 		ID:              id,
 		CompanyID:       companyID,
-		ApproverID:      &emp.ID,
+		ApproverID:      approverID,
 		RejectionReason: &req.Reason,
 	})
 	if err != nil {
 		response.NotFound(c, "Leave request not found or already processed")
 		return
 	}
+	_ = h.queries.CloseApprovalWorkflows(c.Request.Context(), store.CloseApprovalWorkflowsParams{Status: "rejected", CompanyID: companyID, EntityType: "leave_request", EntityID: lr.ID})
 
 	// Notify employee
 	if reqEmp, err := h.queries.GetEmployeeByID(c.Request.Context(), store.GetEmployeeByIDParams{ID: lr.EmployeeID, CompanyID: companyID}); err == nil && reqEmp.UserID != nil {
@@ -404,6 +481,69 @@ func (h *Handler) CancelRequest(c *gin.Context) {
 	if err != nil {
 		response.NotFound(c, "Leave request not found or cannot be cancelled")
 		return
+	}
+	_ = h.queries.CloseApprovalWorkflows(c.Request.Context(), store.CloseApprovalWorkflowsParams{Status: "cancelled", CompanyID: auth.GetCompanyID(c), EntityType: "leave_request", EntityID: lr.ID})
+	response.OK(c, lr)
+}
+
+// decider checks the caller may approve or reject leave request id (see
+// access.Decide: HR anyone's, a manager their direct reports', never your
+// own).
+func (h *Handler) decider(c *gin.Context, id int64) (*store.Employee, bool) {
+	lr, err := h.queries.GetLeaveRequest(c.Request.Context(), store.GetLeaveRequestParams{ID: id, CompanyID: auth.GetCompanyID(c)})
+	if err != nil {
+		response.NotFound(c, "Leave request not found or already processed")
+		return nil, false
+	}
+	return access.Decide(c, h.queries, lr.EmployeeID)
+}
+
+func numF(n pgtype.Numeric) float64 {
+	f, err := n.Float64Value()
+	if err != nil || !f.Valid {
+		return 0
+	}
+	return f.Float64
+}
+
+// RevokeRequest handles POST /leaves/requests/:id/revoke: HR cancels an
+// approved leave and its days go back to the balance, in one transaction.
+func (h *Handler) RevokeRequest(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid request ID")
+		return
+	}
+	ctx := c.Request.Context()
+	companyID := auth.GetCompanyID(c)
+	tx, err := h.pool.Begin(ctx)
+	if err != nil {
+		h.logger.Error("revoke leave: begin", "error", err)
+		response.InternalError(c, "Failed to revoke leave")
+		return
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+	qt := h.queries.WithTx(tx)
+	lr, err := qt.RevokeApprovedLeave(ctx, store.RevokeApprovedLeaveParams{ID: id, CompanyID: companyID})
+	if err != nil {
+		response.NotFound(c, "Approved leave request not found")
+		return
+	}
+	if err := qt.RestoreLeaveBalance(ctx, store.RestoreLeaveBalanceParams{CompanyID: companyID, EmployeeID: lr.EmployeeID, LeaveTypeID: lr.LeaveTypeID, Year: int32(lr.StartDate.Year()), Used: lr.Days}); err != nil {
+		h.logger.Error("revoke leave: restore balance", "leave_id", lr.ID, "error", err)
+		response.InternalError(c, "Failed to revoke leave")
+		return
+	}
+	if err := tx.Commit(ctx); err != nil {
+		h.logger.Error("revoke leave: commit", "error", err)
+		response.InternalError(c, "Failed to revoke leave")
+		return
+	}
+	if e, err := h.queries.GetEmployeeByID(ctx, store.GetEmployeeByIDParams{ID: lr.EmployeeID, CompanyID: companyID}); err == nil && e.UserID != nil {
+		entityType := "leave_request"
+		notification.Notify(ctx, h.queries, h.logger, companyID, *e.UserID, "Leave Cancelled",
+			fmt.Sprintf("HR cancelled your approved leave (%s - %s); the days are back in your balance.", lr.StartDate.Format("Jan 2"), lr.EndDate.Format("Jan 2")),
+			"leave", &entityType, &lr.ID)
 	}
 	response.OK(c, lr)
 }

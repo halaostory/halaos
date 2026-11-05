@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/halaostory/halaos/internal/access"
 	"github.com/halaostory/halaos/internal/auth"
 	"github.com/halaostory/halaos/internal/store"
 	"github.com/halaostory/halaos/pkg/response"
@@ -248,6 +249,11 @@ func (h *Handler) Download(c *gin.Context) {
 	})
 	if err != nil {
 		response.NotFound(c, "Document not found")
+		return
+	}
+	// The 201 file is listed for managers and HR; the employee may
+	// download their own documents.
+	if !access.Check(c, h.queries, doc.EmployeeID, access.SelfOrManager) {
 		return
 	}
 	c.FileAttachment(doc.FilePath, doc.FileName)

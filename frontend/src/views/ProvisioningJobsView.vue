@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { localDate } from '../utils/date'
 import { ref, onMounted, h } from "vue";
 import { useI18n } from "vue-i18n";
 import {
@@ -144,8 +145,8 @@ async function loadJobs() {
     if (statusFilter.value) params.status = statusFilter.value;
     if (providerFilter.value) params.provider = providerFilter.value;
     if (dateRange.value) {
-      params.start = new Date(dateRange.value[0]).toISOString().split("T")[0];
-      params.end = new Date(dateRange.value[1]).toISOString().split("T")[0];
+      params.start = localDate(dateRange.value[0]);
+      params.end = localDate(dateRange.value[1]);
     }
     const res = (await integrationAPI.listJobs(params)) as {
       data?: Job[];

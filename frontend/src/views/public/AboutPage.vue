@@ -5,7 +5,7 @@
       <div class="container">
         <h1>Building the future of HR</h1>
         <p>
-          HalaOS was born from a simple belief: every company deserves
+          {{ edition.config.product_name }} was born from a simple belief: every company deserves
           world-class HR technology that understands local regulations and culture — whether in Southeast Asia or the United States.
         </p>
       </div>
@@ -67,7 +67,7 @@
         <h2 class="section-title">Our Story</h2>
         <div class="story-content">
           <p>
-            Founded in 2025, HalaOS started as a solution to a real problem:
+            Founded in 2025, {{ edition.config.product_name }} started as a solution to a real problem:
             managing HR across multiple Southeast Asian countries with different
             labor laws, tax regulations, and compliance requirements.
           </p>
@@ -78,10 +78,10 @@
             an employee in Manila to processing payroll in Colombo.
           </p>
           <p>
-            Today, HalaOS serves companies across the Philippines, Sri Lanka,
+            Today, {{ edition.config.product_name }} serves companies across the Philippines, Sri Lanka,
             Singapore, Indonesia, and the United States. Our
             AI-powered platform processes thousands of payroll runs monthly
-            and has automated millions of tax calculations. HalaOS is also fully open source on GitHub.
+            and has automated millions of tax calculations. {{ edition.config.product_name }} is also fully open source on GitHub.
           </p>
           <p>
             We're backed by a passionate team of engineers, HR experts, and
@@ -116,7 +116,7 @@
     <section class="about-cta">
       <div class="container">
         <h2>Ready to transform your HR?</h2>
-        <p>Join hundreds of companies already using HalaOS.</p>
+        <p>Join hundreds of companies already using {{ edition.config.product_name }}.</p>
         <router-link to="/register" class="btn-primary btn-lg">Get Started Free</router-link>
       </div>
     </section>
@@ -125,14 +125,15 @@
 
 <script setup lang="ts">
 import { useHead } from '@unhead/vue'
+import { edition } from '../../edition'
 
 useHead({
-  title: 'About - HalaOS',
+  title: 'About - HalaPeople',
   meta: [
-    { name: 'description', content: 'HalaOS was born from a simple belief: every company deserves world-class HR technology that understands local regulations and culture. Open source on GitHub.' },
-    { property: 'og:title', content: 'About HalaOS' },
+    { name: 'description', content: 'HalaPeople was born from a simple belief: every company deserves world-class HR technology that understands local regulations and culture. Open source on GitHub.' },
+    { property: 'og:title', content: 'About HalaPeople' },
     { property: 'og:description', content: 'Building the future of HR in Asia. Learn about our mission, values, and team.' },
-    { property: 'og:url', content: 'https://halaos.com/about' },
+    { property: 'og:url', content: 'https://halapeople.com/about' },
   ],
 })
 
@@ -142,7 +143,7 @@ const values = [
   { icon: '🔒', title: 'Trust & Security', desc: 'Enterprise-grade security with complete data privacy and compliance.' },
   { icon: '🤝', title: 'Customer Obsessed', desc: 'We succeed when our customers succeed. Every feature is built with users in mind.' },
   { icon: '⚡', title: 'Ship Fast', desc: 'We iterate quickly, listen to feedback, and continuously improve the platform.' },
-  { icon: '🌱', title: 'Free for All', desc: 'HalaOS is completely free — because every business deserves great HR tools regardless of size.' },
+  { icon: '🌱', title: 'Free for All', desc: 'HalaPeople is completely free — because every business deserves great HR tools regardless of size.' },
 ]
 
 const stats = [

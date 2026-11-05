@@ -4,7 +4,9 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -55,6 +57,13 @@ func APIKeyMiddleware(queries *store.Queries) gin.HandlerFunc {
 			return
 		}
 
+		if !ScopeAllows(ak.Scopes, c.Request.Method, c.Request.URL.Path) {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+				"error": gin.H{"code": "insufficient_scope", "message": "This API key's scopes do not allow " + c.Request.Method + " " + c.Request.URL.Path},
+			})
+			return
+		}
+
 		c.Set(ContextKeyUserID, ak.UserID)
 		c.Set(ContextKeyEmail, ak.Email)
 		c.Set(ContextKeyRole, Role(ak.Role))
@@ -70,7 +79,57 @@ func APIKeyMiddleware(queries *store.Queries) gin.HandlerFunc {
 }
 
 type createAPIKeyRequest struct {
-	Name string `json:"name"`
+	Name   string   `json:"name"`
+	Scopes []string `json:"scopes"`
+}
+
+// ScopeAllows decides whether a key with these scopes may make a request.
+// No scopes = full access (keys created before scopes existed). "read"
+// allows every read; "<resource>:read" / "<resource>:write" cover one
+// resource — the first path segment after /api/v1/ (employees, leaves,
+// payroll…). Write implies read. Scoped keys can never manage API keys or
+// sign-in settings.
+func ScopeAllows(scopes []string, method, path string) bool {
+	if len(scopes) == 0 {
+		return true
+	}
+	rest := path
+	if i := strings.Index(rest, "/v1/"); i >= 0 {
+		rest = rest[i+4:]
+	}
+	resource := strings.SplitN(strings.Trim(rest, "/"), "/", 2)[0]
+	if resource == "api-keys" || resource == "auth" {
+		return false
+	}
+	read := method == http.MethodGet || method == http.MethodHead || method == http.MethodOptions
+	for _, s := range scopes {
+		switch {
+		case s == "read" && read:
+			return true
+		case s == resource+":write":
+			return true
+		case s == resource+":read" && read:
+			return true
+		}
+	}
+	return false
+}
+
+var scopePattern = regexp.MustCompile(`^(read|[a-z0-9-]+:(read|write))$`)
+
+func cleanScopes(in []string) ([]string, error) {
+	out := []string{}
+	for _, s := range in {
+		s = strings.ToLower(strings.TrimSpace(s))
+		if s == "" {
+			continue
+		}
+		if !scopePattern.MatchString(s) {
+			return nil, fmt.Errorf("invalid scope %q (use read, or <resource>:read / <resource>:write)", s)
+		}
+		out = append(out, s)
+	}
+	return out, nil
 }
 
 // CreateAPIKey handles POST /api-keys
@@ -81,6 +140,12 @@ func (h *Handler) CreateAPIKey(c *gin.Context) {
 	}
 	if req.Name == "" {
 		req.Name = "default"
+	}
+
+	scopes, err := cleanScopes(req.Scopes)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
 	}
 
 	key := generateAPIKey()
@@ -96,6 +161,7 @@ func (h *Handler) CreateAPIKey(c *gin.Context) {
 		Prefix:    prefix,
 		KeyHash:   hash,
 		Name:      req.Name,
+		Scopes:    scopes,
 	})
 	if err != nil {
 		h.logger.Error("failed to create API key", "error", err)
@@ -108,6 +174,7 @@ func (h *Handler) CreateAPIKey(c *gin.Context) {
 		"prefix":     row.Prefix,
 		"name":       row.Name,
 		"key":        key, // Raw key — shown only once
+		"scopes":     row.Scopes,
 		"created_at": row.CreatedAt,
 	})
 }
@@ -129,6 +196,7 @@ func (h *Handler) ListAPIKeys(c *gin.Context) {
 			"id":           k.ID,
 			"prefix":       k.Prefix,
 			"name":         k.Name,
+			"scopes":       k.Scopes,
 			"created_at":   k.CreatedAt,
 			"last_used_at": nil,
 		}

@@ -1,9 +1,11 @@
 package auth
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -20,6 +22,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/halaostory/halaos/internal/edition"
 	"github.com/halaostory/halaos/internal/email"
 	"github.com/halaostory/halaos/internal/store"
 	"github.com/halaostory/halaos/pkg/response"
@@ -45,6 +48,26 @@ type Handler struct {
 	logger  *slog.Logger
 	redis   *redis.Client
 	sso     FinanceSSOValidator
+	edition *edition.Config
+	oidc    *oidcState
+}
+
+// SetEdition restricts sign-up to the markets the product supports.
+func (h *Handler) SetEdition(e edition.Config) { h.edition = &e }
+
+// countryAllowed rejects sign-ups for markets the product does not serve yet.
+func (h *Handler) countryAllowed(c *gin.Context, country string) bool {
+	if h.edition == nil || h.edition.CountryLive(country) {
+		return true
+	}
+	for _, k := range h.edition.Countries {
+		if k.Code == country {
+			response.BadRequest(c, h.edition.ProductName+" is coming soon to "+k.Name+". Join the waitlist on our website and we will let you know when it launches.")
+			return false
+		}
+	}
+	response.BadRequest(c, h.edition.ProductName+" is not available in this country")
+	return false
 }
 
 func NewHandler(queries *store.Queries, pool *pgxpool.Pool, jwt *JWTService, emailSvc *email.Service, logger *slog.Logger, rdb *redis.Client, sso FinanceSSOValidator) *Handler {
@@ -69,18 +92,20 @@ func generateVerificationToken() (string, error) {
 }
 
 type registerRequest struct {
-	CompanyName  string `json:"company_name"` // optional for magic link; derived from email domain if empty
-	Email        string `json:"email" binding:"required,email"`
-	Password     string `json:"password"`     // optional for magic link; random if empty
-	FirstName    string `json:"first_name"`   // optional for magic link; "User" if empty
-	LastName     string `json:"last_name"`    // optional for magic link; "" if empty
-	Country      string `json:"country"`      // PHL (default), LKA, SGP, IDN
-	ReferralCode string `json:"referral_code"` // optional referral code from ?ref= link
+	CompanyName string `json:"company_name"` // optional for magic link; derived from email domain if empty
+	Email       string `json:"email" binding:"required,email"`
+	Password    string `json:"password"`   // optional for magic link; random if empty
+	FirstName   string `json:"first_name"` // optional for magic link; "User" if empty
+	LastName    string `json:"last_name"`  // optional for magic link; "" if empty
+	Country     string `json:"country"`    // PHL (default), LKA, SGP, IDN
 }
 
 type loginRequest struct {
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required"`
+	// CompanyID picks the account when the email exists at several
+	// companies (the employee app is shared by every company).
+	CompanyID int64 `json:"company_id"`
 }
 
 type refreshRequest struct {
@@ -167,6 +192,9 @@ func (h *Handler) Register(c *gin.Context) {
 	if country == "" {
 		country = "PHL"
 	}
+	if !h.countryAllowed(c, country) {
+		return
+	}
 	cc := countryConfig(country)
 
 	// Create company with country-specific settings
@@ -210,23 +238,6 @@ func (h *Handler) Register(c *gin.Context) {
 	// Seed country-specific leave types and holidays
 	if seedErr := seedCountryDefaults(c.Request.Context(), qtx, company.ID, country); seedErr != nil {
 		h.logger.Warn("failed to seed country defaults", "company_id", company.ID, "country", country, "error", seedErr)
-	}
-
-	// Track referral if a referral code was provided
-	if req.ReferralCode != "" {
-		referrer, refErr := qtx.GetCompanyByReferralCode(c.Request.Context(), &req.ReferralCode)
-		if refErr == nil && referrer.ID != company.ID {
-			_ = qtx.SetReferredByCode(c.Request.Context(), store.SetReferredByCodeParams{
-				ID:             company.ID,
-				ReferredByCode: &req.ReferralCode,
-			})
-			_, _ = qtx.CreateReferralEvent(c.Request.Context(), store.CreateReferralEventParams{
-				ReferrerCompanyID: referrer.ID,
-				ReferredCompanyID: company.ID,
-				ReferralCode:      req.ReferralCode,
-			})
-			h.logger.Info("referral tracked", "referrer", referrer.ID, "referred", company.ID, "code", req.ReferralCode)
-		}
 	}
 
 	if err := tx.Commit(c.Request.Context()); err != nil {
@@ -302,19 +313,18 @@ func (h *Handler) Register(c *gin.Context) {
 }
 
 type cliRegisterRequest struct {
-	Email        string `json:"email" binding:"required,email"`
-	Password     string `json:"password" binding:"required,min=8"`
-	CompanyName  string `json:"company_name"`
-	Country      string `json:"country"`
-	ReferralCode string `json:"referral_code"`
+	Email       string `json:"email" binding:"required,email"`
+	Password    string `json:"password" binding:"required,min=8"`
+	CompanyName string `json:"company_name"`
+	Country     string `json:"country"`
 }
 
 type cliRegisterResponse struct {
-	Token          string       `json:"token"`
-	RefreshToken   string       `json:"refresh_token"`
-	APIKey         string       `json:"api_key"`
-	APIKeyPrefix   string       `json:"api_key_prefix"`
-	User           userResponse `json:"user"`
+	Token        string       `json:"token"`
+	RefreshToken string       `json:"refresh_token"`
+	APIKey       string       `json:"api_key"`
+	APIKeyPrefix string       `json:"api_key_prefix"`
+	User         userResponse `json:"user"`
 }
 
 // CLIRegister handles POST /auth/cli-register.
@@ -348,6 +358,9 @@ func (h *Handler) CLIRegister(c *gin.Context) {
 	country := req.Country
 	if country == "" {
 		country = "PHL"
+	}
+	if !h.countryAllowed(c, country) {
+		return
 	}
 
 	// Hash password
@@ -413,23 +426,6 @@ func (h *Handler) CLIRegister(c *gin.Context) {
 	// Seed country-specific leave types and holidays
 	if seedErr := seedCountryDefaults(c.Request.Context(), qtx, company.ID, country); seedErr != nil {
 		h.logger.Warn("failed to seed country defaults", "company_id", company.ID, "country", country, "error", seedErr)
-	}
-
-	// Track referral if a referral code was provided
-	if req.ReferralCode != "" {
-		referrer, refErr := qtx.GetCompanyByReferralCode(c.Request.Context(), &req.ReferralCode)
-		if refErr == nil && referrer.ID != company.ID {
-			_ = qtx.SetReferredByCode(c.Request.Context(), store.SetReferredByCodeParams{
-				ID:             company.ID,
-				ReferredByCode: &req.ReferralCode,
-			})
-			_, _ = qtx.CreateReferralEvent(c.Request.Context(), store.CreateReferralEventParams{
-				ReferrerCompanyID: referrer.ID,
-				ReferredCompanyID: company.ID,
-				ReferralCode:      req.ReferralCode,
-			})
-			h.logger.Info("referral tracked", "referrer", referrer.ID, "referred", company.ID, "code", req.ReferralCode)
-		}
 	}
 
 	// Auto-verify email (CLI registration skips email verification flow)
@@ -534,6 +530,12 @@ func (h *Handler) CLILogin(c *gin.Context) {
 		response.Error(c, http.StatusUnauthorized, "invalid_credentials", "Invalid email or password")
 		return
 	}
+	// A password alone must not mint an API key for an account protected by
+	// two-factor sign-in; create keys from the web app instead.
+	if on, err := h.mfaEnabled(c.Request.Context(), user.ID); err != nil || on {
+		response.Error(c, http.StatusForbidden, "mfa_required", "This account uses two-factor sign-in. Create an API key in the web app (Profile → API keys).")
+		return
+	}
 
 	// Auto-verify email if not verified (CLI login skips the email verification flow)
 	if !user.EmailVerified {
@@ -618,9 +620,15 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	user, err := h.queries.GetUserByEmailAny(c.Request.Context(), req.Email)
+	user, choice, err := h.pickLoginAccount(c.Request.Context(), req)
 	if err != nil {
 		response.Error(c, http.StatusUnauthorized, "invalid_credentials", "Invalid email or password")
+		return
+	}
+	if choice != nil {
+		// The password matches accounts at several companies: let the
+		// person choose (only shown after the password is verified).
+		response.OK(c, gin.H{"company_choice_required": true, "companies": choice})
 		return
 	}
 
@@ -639,6 +647,22 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
+	// Two-factor sign-in: hand back a short-lived challenge instead of tokens.
+	mfaOn, err := h.mfaEnabled(c.Request.Context(), user.ID)
+	if err != nil {
+		h.logger.Error("mfa lookup failed", "user_id", user.ID, "error", err)
+		response.InternalError(c, "Login failed")
+		return
+	}
+	if mfaOn {
+		response.OK(c, gin.H{"mfa_required": true, "mfa_token": h.mfaToken(user.ID, time.Now())})
+		return
+	}
+	h.completeLogin(c, user)
+}
+
+// completeLogin issues tokens after every sign-in factor has passed.
+func (h *Handler) completeLogin(c *gin.Context, user store.User) {
 	token, err := h.jwt.GenerateToken(user.ID, user.Email, Role(user.Role), user.CompanyID)
 	if err != nil {
 		h.logger.Error("failed to generate token", "error", err)
@@ -876,6 +900,11 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 		return
 	}
 
+	// The same person's accounts at other companies get the new password
+	// too, so one password opens all of them (sign-in then asks which).
+	if err := h.queries.SetPasswordForEmail(c.Request.Context(), store.SetPasswordForEmailParams{PasswordHash: hashedPassword, Email: user.Email}); err != nil {
+		h.logger.Error("failed to apply reset to other accounts", "error", err)
+	}
 	err = h.queries.ClearResetToken(c.Request.Context(), user.ID)
 	if err != nil {
 		h.logger.Error("failed to clear reset token", "error", err)
@@ -979,9 +1008,9 @@ func (h *Handler) UpdateProfile(c *gin.Context) {
 	userID := GetUserID(c)
 	user, err := h.queries.UpdateUserProfile(c.Request.Context(), store.UpdateUserProfileParams{
 		ID:        userID,
-		FirstName: req.FirstName,
-		LastName:  req.LastName,
-		Locale:    req.Locale,
+		FirstName: &req.FirstName, // empty keeps the current value
+		LastName:  &req.LastName,
+		Locale:    &req.Locale,
 		CompanyID: GetCompanyID(c),
 	})
 	if err != nil {
@@ -1355,4 +1384,35 @@ func (h *Handler) SSOLogin(c *gin.Context) {
 	}
 
 	response.OK(c, resp)
+}
+
+// pickLoginAccount finds the account to sign in to. When the email and
+// password match accounts at more than one company and none was chosen,
+// it returns the companies to choose from instead.
+func (h *Handler) pickLoginAccount(ctx context.Context, req loginRequest) (store.User, []gin.H, error) {
+	rows, err := h.queries.ListUsersByEmail(ctx, strings.TrimSpace(req.Email))
+	if err != nil || len(rows) == 0 {
+		return store.User{}, nil, errors.New("no account")
+	}
+	var matched []store.ListUsersByEmailRow
+	for _, r := range rows {
+		if req.CompanyID != 0 && r.CompanyID != req.CompanyID {
+			continue
+		}
+		if bcrypt.CompareHashAndPassword([]byte(r.PasswordHash), []byte(req.Password)) == nil {
+			matched = append(matched, r)
+		}
+	}
+	if len(matched) == 0 {
+		return store.User{}, nil, errors.New("bad password")
+	}
+	if len(matched) > 1 {
+		var out []gin.H
+		for _, m := range matched {
+			out = append(out, gin.H{"id": m.CompanyID, "name": m.CompanyName})
+		}
+		return store.User{}, out, nil
+	}
+	u, err := h.queries.GetUserByID(ctx, matched[0].ID)
+	return u, nil, err
 }

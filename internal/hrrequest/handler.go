@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/halaostory/halaos/internal/access"
 	"github.com/halaostory/halaos/internal/auth"
 	"github.com/halaostory/halaos/internal/store"
 	"github.com/halaostory/halaos/pkg/response"
@@ -167,6 +168,9 @@ func (h *Handler) GetRequest(c *gin.Context) {
 	})
 	if err != nil {
 		response.NotFound(c, "Request not found")
+		return
+	}
+	if !access.Check(c, h.queries, hr.EmployeeID, access.SelfOrAdmin) {
 		return
 	}
 	response.OK(c, hr)

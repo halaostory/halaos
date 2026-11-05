@@ -193,7 +193,7 @@ function recommendationTag(rec: string | undefined) {
 <template>
   <div>
     <h2 style="margin-bottom: 16px">{{ t("approval.title") }}</h2>
-    <NDataTable :columns="columns" :data="data" :loading="loading" />
+    <NDataTable v-if="loading || data.length > 0" :columns="columns" :data="data" :loading="loading" />
     <EmptyState
       v-if="!loading && data.length === 0"
       icon="✅"

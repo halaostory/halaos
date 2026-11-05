@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import OidcSettingsCard from '../components/OidcSettingsCard.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { NCard, NForm, NFormItem, NInput, NInputNumber, NSelect, NButton, NSpace, NUpload, NAvatar, NSwitch, NTag, NPopconfirm, NEmpty, NAlert, useMessage } from 'naive-ui'
+import { NCard, NForm, NFormItem, NInput, NInputNumber, NSelect, NButton, NSpace, NUpload, NAvatar, NSwitch, NTag, NPopconfirm, NEmpty, NAlert, NRadioGroup, NRadioButton, useMessage } from 'naive-ui'
 import type { UploadFileInfo } from 'naive-ui'
 import { companyAPI, botAPI, byokAPI, apiKeyAPI, breakAPI } from '../api/client'
+import { featureEnabled, loadEdition } from '../edition'
 import { useAuthStore } from '../stores/auth'
 
 const { t } = useI18n()
@@ -278,9 +280,20 @@ interface ApiKeyItem {
   name: string
   created_at: string
   last_used_at: string | null
+  scopes?: string[]
 }
 
 const apiKeys = ref<ApiKeyItem[]>([])
+// Scopes: full access, read-only, or chosen resources (read or read+write).
+const apiKeyAccess = ref<'full' | 'read' | 'custom'>('full')
+const apiKeyResources = ref<string[]>([])
+const apiKeyWrite = ref(false)
+const apiKeyResourceOptions = ['employees', 'lifecycle', 'leaves', 'payroll', 'workplaces', 'contractors', 'expenses', 'gov', 'documents', 'devices', 'home'].map((r) => ({ label: r, value: r }))
+function apiKeyScopes(): string[] {
+  if (apiKeyAccess.value === 'read') return ['read']
+  if (apiKeyAccess.value === 'custom') return apiKeyResources.value.map((r) => `${r}:${apiKeyWrite.value ? 'write' : 'read'}`)
+  return []
+}
 const showApiKeyForm = ref(false)
 const apiKeyForm = ref({ name: '' })
 const newlyCreatedKey = ref('')
@@ -302,7 +315,7 @@ async function createApiKey() {
   }
   apiKeySaving.value = true
   try {
-    const res = await apiKeyAPI.createKey({ name: apiKeyForm.value.name.trim() }) as { data?: { key?: string } }
+    const res = await apiKeyAPI.createKey({ name: apiKeyForm.value.name.trim(), scopes: apiKeyScopes() }) as { data?: { key?: string } }
     const result = (res.data || res) as { key?: string }
     if (result.key) {
       newlyCreatedKey.value = result.key
@@ -382,8 +395,11 @@ async function saveBreakPolicies() {
   }
 }
 
-onMounted(() => {
-  if (authStore.user?.role === 'admin' || authStore.user?.role === 'super_admin') {
+// Break policies belong to the attendance module (suite edition only).
+const hasAttendance = computed(() => featureEnabled('attendance'))
+onMounted(async () => {
+  await loadEdition()
+  if (hasAttendance.value && (authStore.user?.role === 'admin' || authStore.user?.role === 'super_admin')) {
     loadBreakPolicies()
   }
 })
@@ -510,7 +526,7 @@ onMounted(() => {
       </NForm>
     </NCard>
     <!-- Break Policies (Admin only) -->
-    <NCard v-if="authStore.user?.role === 'admin' || authStore.user?.role === 'super_admin'" :title="t('break.policies')" style="margin-top: 24px;">
+    <NCard v-if="hasAttendance && (authStore.user?.role === 'admin' || authStore.user?.role === 'super_admin')" :title="t('break.policies')" style="margin-top: 24px;">
       <NForm @submit.prevent="saveBreakPolicies" label-placement="left" label-width="140">
         <NFormItem v-for="policy in breakPolicies" :key="policy.break_type" :label="t(breakTypeLabels[policy.break_type] || policy.break_type)">
           <NInputNumber v-model:value="policy.max_minutes" :min="0" :max="480" style="width: 200px;">
@@ -601,6 +617,8 @@ onMounted(() => {
     </NCard>
 
     <!-- API Key Management -->
+    <OidcSettingsCard v-if="authStore.user?.role === 'admin' || authStore.user?.role === 'super_admin'" />
+
     <NCard :title="t('settings.apiKeysTitle')" style="margin-top: 24px;">
       <template #header-extra>
         <NButton size="small" type="primary" @click="showApiKeyForm = !showApiKeyForm">
@@ -625,7 +643,22 @@ onMounted(() => {
           <NFormItem :label="t('settings.apiKeysName')">
             <NInput v-model:value="apiKeyForm.name" :placeholder="t('settings.apiKeysNameHint')" @keyup.enter="createApiKey" />
           </NFormItem>
-          <NButton type="primary" :loading="apiKeySaving" @click="createApiKey">{{ t('settings.apiKeysAddKey') }}</NButton>
+          <NFormItem :label="t('apiScopes.access')">
+            <NRadioGroup v-model:value="apiKeyAccess" size="small">
+              <NRadioButton value="full">{{ t('apiScopes.full') }}</NRadioButton>
+              <NRadioButton value="read">{{ t('apiScopes.read') }}</NRadioButton>
+              <NRadioButton value="custom">{{ t('apiScopes.custom') }}</NRadioButton>
+            </NRadioGroup>
+          </NFormItem>
+          <template v-if="apiKeyAccess === 'custom'">
+            <NFormItem :label="t('apiScopes.resources')">
+              <NSelect v-model:value="apiKeyResources" multiple :options="apiKeyResourceOptions" style="max-width: 420px" />
+            </NFormItem>
+            <NFormItem :label="t('apiScopes.canWrite')">
+              <NSwitch v-model:value="apiKeyWrite" />
+            </NFormItem>
+          </template>
+          <NButton type="primary" :loading="apiKeySaving" :disabled="apiKeyAccess === 'custom' && !apiKeyResources.length" @click="createApiKey">{{ t('settings.apiKeysAddKey') }}</NButton>
         </NForm>
       </div>
 
@@ -636,6 +669,7 @@ onMounted(() => {
             <NTag size="small">{{ t('settings.apiKeysPrefix') }}</NTag>
             <span style="font-family: monospace; font-size: 13px;">{{ key.prefix }}...</span>
             <span v-if="key.name" style="color: #666; font-size: 13px;">{{ key.name }}</span>
+            <NTag size="small" :bordered="false" :type="key.scopes && key.scopes.length ? 'info' : 'warning'">{{ key.scopes && key.scopes.length ? key.scopes.join(', ') : t('apiScopes.full') }}</NTag>
           </div>
           <div style="display: flex; align-items: center; gap: 12px;">
             <span style="color: #999; font-size: 12px;">

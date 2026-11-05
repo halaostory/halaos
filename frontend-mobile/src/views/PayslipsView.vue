@@ -19,6 +19,27 @@ import type { Payslip, ApiResponse } from "../types";
 const { t } = useI18n();
 
 const payslips = ref<Payslip[]>([]);
+
+// The API keeps a payslip's figures in `payload` (with a `breakdown`);
+// flatten them for display.
+const EARN = ["basic_pay", "overtime_pay", "holiday_pay", "night_diff", "bonus_pay", "allowances"];
+const DEDUCT = ["sss_ee", "philhealth_ee", "pagibig_ee", "withholding_tax", "late_deduction", "undertime_deduction", "leave_deduction", "federal_tax", "state_tax", "social_security_ee", "medicare_ee", "epf_ee", "cpf_ee", "loan_deduction", "other_deductions"];
+function fromApi(raw: Payslip & { payload?: Record<string, unknown> }): Payslip {
+  const pl = (raw.payload || {}) as Record<string, unknown>;
+  const bd = (pl.breakdown || {}) as Record<string, unknown>;
+  const num = (v: unknown) => (typeof v === "number" ? v : Number(v) || 0);
+  const items: Payslip["items"] = [];
+  for (const k of EARN) if (num(bd[k] ?? pl[k])) items.push({ component_name: t("payslips.c." + k), component_type: "earning", amount: num(bd[k] ?? pl[k]) });
+  for (const k of DEDUCT) if (num(bd[k])) items.push({ component_name: t("payslips.c." + k), component_type: "deduction", amount: num(bd[k]) });
+  return {
+    ...raw,
+    net_pay: num(raw.net_pay ?? pl.net_pay),
+    gross_pay: num(raw.gross_pay ?? pl.gross_pay),
+    basic_salary: num(raw.basic_salary ?? pl.basic_pay),
+    total_deductions: num(raw.total_deductions ?? pl.deductions),
+    items: raw.items?.length ? raw.items : items,
+  };
+}
 const page = ref(1);
 const finished = ref(false);
 const loading = ref(false);
@@ -36,7 +57,7 @@ async function loadPayslips() {
     })) as ApiResponse<Payslip[]>;
     const items = res.data ?? (res as unknown as Payslip[]);
     if (Array.isArray(items)) {
-      payslips.value = [...payslips.value, ...items];
+      payslips.value = [...payslips.value, ...items.map(fromApi)];
       if (items.length < 20) finished.value = true;
       else page.value++;
     } else {
@@ -54,7 +75,7 @@ async function openDetail(ps: Payslip) {
   detailLoading.value = true;
   try {
     const res = (await payrollAPI.getPayslip(ps.id)) as ApiResponse<Payslip>;
-    selectedPayslip.value = res.data ?? (res as unknown as Payslip);
+    selectedPayslip.value = fromApi(res.data ?? (res as unknown as Payslip));
   } catch {
     showToast({ message: t("common.loadFailed"), type: "fail" });
     selectedPayslip.value = ps;
@@ -63,10 +84,23 @@ async function openDetail(ps: Payslip) {
   }
 }
 
-function downloadPdf(id: string) {
-  const url = payrollAPI.payslipPdfUrl(id);
-  const token = localStorage.getItem("token");
-  window.open(`${url}?token=${token}`, "_blank");
+// The PDF needs the Authorization header (a token in the URL would end up
+// in server and proxy logs), so fetch it and open the downloaded file.
+async function downloadPdf(id: string) {
+  const win = window.open("", "_blank"); // opened in the click, so it isn't blocked
+  try {
+    const res = await fetch(payrollAPI.payslipPdfUrl(id), {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` },
+    });
+    if (!res.ok) throw new Error(String(res.status));
+    const url = URL.createObjectURL(await res.blob());
+    if (win) win.location.href = url;
+    else window.location.href = url;
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch {
+    win?.close();
+    showToast({ message: t("common.loadFailed"), type: "fail" });
+  }
 }
 
 function formatCurrency(n: number) {
@@ -92,9 +126,9 @@ onMounted(() => {
 <template>
   <div class="payslips-page">
     <AiQuickAsk :questions="[
-      'Show my latest payslip',
-      'Why is my pay different this month?',
-      'Simulate my salary with overtime',
+      t('ask.payslips1'),
+      t('ask.payslips2'),
+      t('ask.payslips3'),
     ]" />
 
     <List

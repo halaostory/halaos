@@ -46,9 +46,6 @@ func cliTestCompany() []interface{} {
 		(*string)(nil), // ContactPerson
 		(*string)(nil), // ContactEmail
 		(*string)(nil), // ContactPhone
-		(*string)(nil), // ReferralCode
-		(*string)(nil), // ReferredByCode
-		false,          // ReferralRewardClaimed
 	}
 }
 
@@ -56,12 +53,13 @@ func cliTestCompany() []interface{} {
 // id, prefix, name, is_active, last_used_at, created_at
 func cliTestAPIKeyRow() []interface{} {
 	return []interface{}{
-		int64(1),              // id
+		int64(1),             // id
 		"halaos_a1b2c3",      // prefix
 		"cli-default",        // name
 		true,                 // is_active
 		pgtype.Timestamptz{}, // last_used_at
 		time.Now(),           // created_at
+		[]string{},           // scopes
 	}
 }
 
@@ -115,9 +113,10 @@ func TestCLILogin_Success(t *testing.T) {
 
 	u := activeUser("cli@example.com", "password123")
 	u.EmailVerified = true
-	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...)) // GetUserByEmailAny
-	mockDB.OnExecSuccess()                                   // UpdateLastLogin
-	mockDB.OnExecSuccess()                                   // RevokeAPIKeyByName
+	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...))  // GetUserByEmailAny
+	mockDB.OnQueryRow(testutil.NewErrorRow(pgx.ErrNoRows))    // GetUserMFA (none)
+	mockDB.OnExecSuccess()                                    // UpdateLastLogin
+	mockDB.OnExecSuccess()                                    // RevokeAPIKeyByName
 	mockDB.OnQueryRow(testutil.NewRow(cliTestAPIKeyRow()...)) // CreateAPIKey
 	mockDB.OnQueryRow(testutil.NewRow(cliTestCompany()...))   // GetCompanyByID
 
@@ -204,10 +203,11 @@ func TestCLILogin_AutoVerifiesUnverifiedEmail(t *testing.T) {
 
 	u := activeUser("cli@example.com", "password123")
 	u.EmailVerified = false
-	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...)) // GetUserByEmailAny
-	mockDB.OnExecSuccess()                                   // MarkEmailVerified
-	mockDB.OnExecSuccess()                                   // UpdateLastLogin
-	mockDB.OnExecSuccess()                                   // RevokeAPIKeyByName
+	mockDB.OnQueryRow(testutil.NewRow(userScanValues(u)...))  // GetUserByEmailAny
+	mockDB.OnQueryRow(testutil.NewErrorRow(pgx.ErrNoRows))    // GetUserMFA (none)
+	mockDB.OnExecSuccess()                                    // MarkEmailVerified
+	mockDB.OnExecSuccess()                                    // UpdateLastLogin
+	mockDB.OnExecSuccess()                                    // RevokeAPIKeyByName
 	mockDB.OnQueryRow(testutil.NewRow(cliTestAPIKeyRow()...)) // CreateAPIKey
 	mockDB.OnQueryRow(testutil.NewRow(cliTestCompany()...))   // GetCompanyByID
 

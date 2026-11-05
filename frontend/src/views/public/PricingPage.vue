@@ -5,7 +5,7 @@
       <div class="container">
         <div class="hero-badge">Simple, transparent pricing</div>
         <h1>Start free, scale as you grow</h1>
-        <p>HalaOS is free forever for core HR & payroll. Upgrade only when you need advanced features.</p>
+        <p>{{ edition.config.product_name }} is free forever for core HR & payroll. Upgrade only when you need advanced features.</p>
         <div class="toggle-row">
           <span :class="{ active: !annual }" @click="annual = false">Monthly</span>
           <button class="toggle-btn" :class="{ on: annual }" @click="annual = !annual" aria-label="Toggle billing">
@@ -114,11 +114,11 @@
     <!-- Competitors -->
     <section class="competitors">
       <div class="container">
-        <h2 class="section-title">How HalaOS compares</h2>
-        <p class="section-sub">See why businesses choose HalaOS over other HR platforms.</p>
+        <h2 class="section-title">How {{ edition.config.product_name }} compares</h2>
+        <p class="section-sub">See why businesses choose {{ edition.config.product_name }} over other HR platforms.</p>
         <div class="competitor-grid">
           <div v-for="c in competitors" :key="c.name" class="competitor-card">
-            <h4>HalaOS vs {{ c.name }}</h4>
+            <h4>{{ edition.config.product_name }} vs {{ c.name }}</h4>
             <ul>
               <li v-for="point in c.points" :key="point">{{ point }}</li>
             </ul>
@@ -143,7 +143,7 @@
     <!-- CTA -->
     <section class="price-cta">
       <div class="container">
-        <h2>Start using HalaOS today</h2>
+        <h2>Start using {{ edition.config.product_name }} today</h2>
         <p>No credit card required. Set up in 2 minutes.</p>
         <router-link to="/register" class="btn-primary btn-lg">Create Free Account</router-link>
       </div>
@@ -154,14 +154,15 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useHead } from '@unhead/vue'
+import { edition } from '../../edition'
 
 useHead({
-  title: 'Pricing - HalaOS | Free HR & Payroll Software',
+  title: 'Pricing - HalaPeople | Free HR & Payroll Software',
   meta: [
-    { name: 'description', content: 'HalaOS is free for core HR & payroll. Pro tier starts at $3/employee/month. Compare plans for businesses in the Philippines, Singapore, Sri Lanka, Indonesia, or the US.' },
-    { property: 'og:title', content: 'Pricing - HalaOS | Free HR & Payroll Software' },
+    { name: 'description', content: 'HalaPeople is free for core HR & payroll. Pro tier starts at $3/employee/month. Compare plans for businesses in the Philippines, Singapore, Sri Lanka, Indonesia, or the US.' },
+    { property: 'og:title', content: 'Pricing - HalaPeople | Free HR & Payroll Software' },
     { property: 'og:description', content: 'Free HR, payroll & tax compliance for Southeast Asian and US businesses. Pro features from $3/employee/month.' },
-    { property: 'og:url', content: 'https://halaos.com/pricing' },
+    { property: 'og:url', content: 'https://halapeople.com/pricing' },
   ],
 })
 
@@ -215,10 +216,10 @@ const comparisonRows = [
   { feature: 'Payroll Processing', free: 'Full', pro: 'Full', enterprise: 'Full' },
   { feature: 'Tax Calculation', free: 'Auto', pro: 'Auto', enterprise: 'Auto' },
   { feature: 'Tax Filing', free: 'Generate forms', pro: 'Auto e-file', enterprise: 'Auto + support' },
-  { feature: 'Accounting Integration', free: 'Basic GL', pro: 'Full + reports', enterprise: 'Full + audit' },
+  { feature: 'Accounting journals (QuickBooks / Xero)', free: 'CSV export', pro: 'CSV export', enterprise: 'CSV + webhook sync' },
   { feature: 'AI Features', free: 'Basic chat', pro: 'All AI agents', enterprise: 'Custom agents' },
   { feature: 'Support', free: 'Email', pro: 'Priority email', enterprise: 'Dedicated CSM' },
-  { feature: 'PDF Exports', free: 'HalaOS branding', pro: 'White-label', enterprise: 'Full white-label' },
+  { feature: 'PDF Exports', free: 'HalaPeople branding', pro: 'White-label', enterprise: 'Full white-label' },
   { feature: 'API Access', free: 'Read-only', pro: 'Full CRUD', enterprise: 'Full + webhooks' },
   { feature: 'Data History', free: '1 year', pro: '5 years', enterprise: 'Unlimited' },
   { feature: 'Integrations', free: 'CSV export', pro: 'Banks, Slack, QB', enterprise: 'Custom' },
@@ -231,8 +232,8 @@ const competitors = [
   {
     name: 'Sprout Solutions',
     points: [
-      'HalaOS Free tier = $0; Sprout starts ~P50-150/emp/mo',
-      'Built-in accounting & tax filing; Sprout HR-only',
+      'HalaPeople Free tier = $0; Sprout starts ~P50-150/emp/mo',
+      'Statutory filings prepared and submitted by an agent',
       'AI-powered insights included free',
       'Multi-country support (PH, SG, LK, ID)',
     ],
@@ -240,8 +241,8 @@ const competitors = [
   {
     name: 'Swingvy',
     points: [
-      'HalaOS Free tier = $0; Swingvy ~S$5/emp/mo',
-      'Full payroll + tax; Swingvy limited accounting',
+      'HalaPeople Free tier = $0; Swingvy ~S$5/emp/mo',
+      'Full payroll + statutory filings; agent routines and notice handling',
       'BIR & IRAS compliance built-in',
       'No employee minimums or setup fees',
     ],
@@ -249,7 +250,7 @@ const competitors = [
   {
     name: 'JuanTax',
     points: [
-      'HalaOS combines HR + payroll + tax in one platform',
+      'HalaPeople combines HR, payroll and statutory filings in one platform',
       'JuanTax is tax-filing only, no HR/payroll',
       'Auto-generate all BIR forms from payroll data',
       'No need for separate HR software + tax software',
@@ -261,13 +262,13 @@ const faqs = [
   { q: 'Is the Free tier really free forever?', a: 'Yes. The Free tier includes full HR management, payroll processing, and tax calculations at no cost, with no trial period or credit card required. We believe every company deserves modern HR technology.' },
   { q: 'When should I upgrade to Pro?', a: 'The Free tier handles day-to-day HR and payroll. Upgrade to Pro when you need auto e-filing of tax forms, advanced integrations (banks, QuickBooks), full AI analytics, or longer data retention. Most companies upgrade around 20-30 employees.' },
   { q: 'How does the per-employee pricing work?', a: 'You pay per active employee per month. Inactive or terminated employees are not counted. The price adjusts automatically as you add or remove employees.' },
-  { q: 'Which countries are supported?', a: 'HalaOS supports Philippines (BIR, SSS, PhilHealth, Pag-IBIG), Singapore (IRAS, CPF, MOM), Sri Lanka (EPF/ETF), and Indonesia payroll & tax regulations.' },
+  { q: 'Which countries are supported?', a: 'HalaPeople supports Philippines (BIR, SSS, PhilHealth, Pag-IBIG), Singapore (IRAS, CPF, MOM), Sri Lanka (EPF/ETF), and Indonesia payroll & tax regulations.' },
   { q: 'Is my data secure?', a: 'We use AES-256 encryption, TLS 1.3, role-based access control, and complete audit trails. Data is hosted on secure cloud infrastructure with daily backups.' },
   { q: 'Can I export my data anytime?', a: 'Yes. All plans include data export in Excel, CSV, or PDF format. Your data belongs to you, always.' },
   { q: 'Do you offer discounts for annual billing?', a: 'Yes, annual billing saves 20% on Pro and Enterprise plans.' },
-  { q: 'Is HalaOS PSG-approved in Singapore?', a: 'We are currently applying for PSG (Productivity Solutions Grant) approval. Once approved, Singapore SMEs can claim up to 50% co-funding on Pro and Enterprise plans.' },
-  { q: 'What are CLI and MCP?', a: 'The HalaOS CLI lets you manage employees, run payroll, and generate tax forms from your terminal. MCP (Model Context Protocol) lets AI tools like Claude Code and Cursor connect directly to your HR data, so AI can help you manage HR tasks. Both are included in all plans.' },
-  { q: 'Which messaging bots are supported?', a: 'HalaOS integrates with Lark, Slack, and Telegram. Employees can clock in/out, check leave balances, and submit requests directly from chat. Managers can approve requests without leaving their messaging app.' },
+  { q: 'Is HalaPeople PSG-approved in Singapore?', a: 'We are currently applying for PSG (Productivity Solutions Grant) approval. Once approved, Singapore SMEs can claim up to 50% co-funding on Pro and Enterprise plans.' },
+  { q: 'What are CLI and MCP?', a: 'The HalaPeople CLI lets you manage employees, run payroll, and generate tax forms from your terminal. MCP (Model Context Protocol) lets AI tools like Claude Code and Cursor connect directly to your HR data, so AI can help you manage HR tasks. Both are included in all plans.' },
+  { q: 'Which messaging bots are supported?', a: 'HalaPeople integrates with Lark, Slack, and Telegram. Employees can check leave balances, and submit requests directly from chat. Managers can approve requests without leaving their messaging app.' },
 ]
 </script>
 

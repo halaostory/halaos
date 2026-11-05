@@ -7,6 +7,7 @@ package store
 
 import (
 	"context"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -389,6 +390,76 @@ func (q *Queries) ListUsersByCompany(ctx context.Context, arg ListUsersByCompany
 	return items, nil
 }
 
+const listUsersByEmail = `-- name: ListUsersByEmail :many
+SELECT u.id, u.company_id, u.email, u.password_hash, u.first_name, u.last_name, u.role, u.status, u.avatar_url, u.locale, u.last_login_at, u.created_at, u.updated_at, u.email_verified, u.verification_token, u.verification_token_expires_at, u.reset_token, u.reset_token_expires_at, c.name AS company_name
+FROM users u JOIN companies c ON c.id = u.company_id
+WHERE lower(u.email) = lower($1)
+ORDER BY c.name, u.id
+`
+
+type ListUsersByEmailRow struct {
+	ID                         int64              `json:"id"`
+	CompanyID                  int64              `json:"company_id"`
+	Email                      string             `json:"email"`
+	PasswordHash               string             `json:"password_hash"`
+	FirstName                  string             `json:"first_name"`
+	LastName                   string             `json:"last_name"`
+	Role                       string             `json:"role"`
+	Status                     string             `json:"status"`
+	AvatarUrl                  *string            `json:"avatar_url"`
+	Locale                     string             `json:"locale"`
+	LastLoginAt                pgtype.Timestamptz `json:"last_login_at"`
+	CreatedAt                  time.Time          `json:"created_at"`
+	UpdatedAt                  time.Time          `json:"updated_at"`
+	EmailVerified              bool               `json:"email_verified"`
+	VerificationToken          *string            `json:"verification_token"`
+	VerificationTokenExpiresAt pgtype.Timestamptz `json:"verification_token_expires_at"`
+	ResetToken                 *string            `json:"reset_token"`
+	ResetTokenExpiresAt        pgtype.Timestamptz `json:"reset_token_expires_at"`
+	CompanyName                string             `json:"company_name"`
+}
+
+// One person can have an account at several companies (same email).
+func (q *Queries) ListUsersByEmail(ctx context.Context, email string) ([]ListUsersByEmailRow, error) {
+	rows, err := q.db.Query(ctx, listUsersByEmail, email)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListUsersByEmailRow{}
+	for rows.Next() {
+		var i ListUsersByEmailRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CompanyID,
+			&i.Email,
+			&i.PasswordHash,
+			&i.FirstName,
+			&i.LastName,
+			&i.Role,
+			&i.Status,
+			&i.AvatarUrl,
+			&i.Locale,
+			&i.LastLoginAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.EmailVerified,
+			&i.VerificationToken,
+			&i.VerificationTokenExpiresAt,
+			&i.ResetToken,
+			&i.ResetTokenExpiresAt,
+			&i.CompanyName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const markEmailVerified = `-- name: MarkEmailVerified :exec
 UPDATE users SET email_verified = true, verification_token = NULL, verification_token_expires_at = NULL, updated_at = NOW()
 WHERE id = $1
@@ -410,6 +481,23 @@ type ResetUserPasswordParams struct {
 
 func (q *Queries) ResetUserPassword(ctx context.Context, arg ResetUserPasswordParams) error {
 	_, err := q.db.Exec(ctx, resetUserPassword, arg.ID, arg.PasswordHash)
+	return err
+}
+
+const setPasswordForEmail = `-- name: SetPasswordForEmail :exec
+UPDATE users SET password_hash = $1, updated_at = NOW()
+WHERE lower(email) = lower($2)
+`
+
+type SetPasswordForEmailParams struct {
+	PasswordHash string `json:"password_hash"`
+	Email        string `json:"email"`
+}
+
+// A password reset proves ownership of the email, so it applies to every
+// account with that email (one person, one password across companies).
+func (q *Queries) SetPasswordForEmail(ctx context.Context, arg SetPasswordForEmailParams) error {
+	_, err := q.db.Exec(ctx, setPasswordForEmail, arg.PasswordHash, arg.Email)
 	return err
 }
 
@@ -471,31 +559,31 @@ func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPassword
 
 const updateUserProfile = `-- name: UpdateUserProfile :one
 UPDATE users SET
-    first_name = COALESCE($2, first_name),
-    last_name = COALESCE($3, last_name),
-    avatar_url = COALESCE($4, avatar_url),
-    locale = COALESCE($5, locale),
+    first_name = COALESCE(NULLIF($1::varchar, ''), first_name),
+    last_name = COALESCE(NULLIF($2::varchar, ''), last_name),
+    avatar_url = COALESCE($3, avatar_url),
+    locale = COALESCE(NULLIF($4::varchar, ''), locale),
     updated_at = NOW()
-WHERE id = $1 AND company_id = $6
+WHERE id = $5 AND company_id = $6
 RETURNING id, company_id, email, password_hash, first_name, last_name, role, status, avatar_url, locale, last_login_at, created_at, updated_at, email_verified, verification_token, verification_token_expires_at, reset_token, reset_token_expires_at
 `
 
 type UpdateUserProfileParams struct {
-	ID        int64   `json:"id"`
-	FirstName string  `json:"first_name"`
-	LastName  string  `json:"last_name"`
+	FirstName *string `json:"first_name"`
+	LastName  *string `json:"last_name"`
 	AvatarUrl *string `json:"avatar_url"`
-	Locale    string  `json:"locale"`
+	Locale    *string `json:"locale"`
+	ID        int64   `json:"id"`
 	CompanyID int64   `json:"company_id"`
 }
 
 func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error) {
 	row := q.db.QueryRow(ctx, updateUserProfile,
-		arg.ID,
 		arg.FirstName,
 		arg.LastName,
 		arg.AvatarUrl,
 		arg.Locale,
+		arg.ID,
 		arg.CompanyID,
 	)
 	var i User

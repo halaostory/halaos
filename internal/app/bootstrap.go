@@ -22,63 +22,77 @@ import (
 	aicontext "github.com/halaostory/halaos/internal/ai/context"
 	"github.com/halaostory/halaos/internal/ai/draft"
 	"github.com/halaostory/halaos/internal/ai/provider"
-	"github.com/halaostory/halaos/internal/billing"
-	"github.com/halaostory/halaos/internal/bot"
-	bottelegram "github.com/halaostory/halaos/internal/bot/telegram"
-	"github.com/halaostory/halaos/internal/integration"
-	"github.com/halaostory/halaos/internal/integration/connector"
-	connectorslack "github.com/halaostory/halaos/internal/integration/connector/slack"
-	connectorgoogle "github.com/halaostory/halaos/internal/integration/connector/google"
-	connectorgithub "github.com/halaostory/halaos/internal/integration/connector/github"
-	"github.com/halaostory/halaos/internal/integration/crypto"
+	"github.com/halaostory/halaos/internal/alerts"
 	"github.com/halaostory/halaos/internal/analytics"
-	"github.com/halaostory/halaos/internal/orgintel"
 	"github.com/halaostory/halaos/internal/announcement"
 	"github.com/halaostory/halaos/internal/approval"
 	"github.com/halaostory/halaos/internal/attendance"
-	"github.com/halaostory/halaos/internal/breaks"
 	"github.com/halaostory/halaos/internal/audit"
+	"github.com/halaostory/halaos/internal/access"
 	"github.com/halaostory/halaos/internal/auth"
 	"github.com/halaostory/halaos/internal/benefits"
+	"github.com/halaostory/halaos/internal/billing"
+	"github.com/halaostory/halaos/internal/bot"
+	bottelegram "github.com/halaostory/halaos/internal/bot/telegram"
+	"github.com/halaostory/halaos/internal/breaks"
 	"github.com/halaostory/halaos/internal/clearance"
 	"github.com/halaostory/halaos/internal/company"
 	"github.com/halaostory/halaos/internal/compliance"
 	"github.com/halaostory/halaos/internal/config"
+	"github.com/halaostory/halaos/internal/contractors"
 	"github.com/halaostory/halaos/internal/dashboard"
+	"github.com/halaostory/halaos/internal/devices"
 	"github.com/halaostory/halaos/internal/disciplinary"
 	"github.com/halaostory/halaos/internal/docfile"
+	"github.com/halaostory/halaos/internal/edition"
 	"github.com/halaostory/halaos/internal/email"
 	"github.com/halaostory/halaos/internal/employee"
 	"github.com/halaostory/halaos/internal/expense"
 	"github.com/halaostory/halaos/internal/finalpay"
+	"github.com/halaostory/halaos/internal/glsync"
+	"github.com/halaostory/halaos/internal/govfiling"
 	"github.com/halaostory/halaos/internal/grievance"
 	"github.com/halaostory/halaos/internal/holiday"
+	"github.com/halaostory/halaos/internal/home"
+	"github.com/halaostory/halaos/internal/hrrequest"
 	"github.com/halaostory/halaos/internal/importexport"
+	"github.com/halaostory/halaos/internal/integration"
+	"github.com/halaostory/halaos/internal/integration/connector"
+	connectorgithub "github.com/halaostory/halaos/internal/integration/connector/github"
+	connectorgoogle "github.com/halaostory/halaos/internal/integration/connector/google"
+	connectorokta "github.com/halaostory/halaos/internal/integration/connector/okta"
+	connectorslack "github.com/halaostory/halaos/internal/integration/connector/slack"
+	"github.com/halaostory/halaos/internal/integration/crypto"
 	"github.com/halaostory/halaos/internal/knowledge"
 	"github.com/halaostory/halaos/internal/leave"
+	"github.com/halaostory/halaos/internal/leavepolicy"
+	"github.com/halaostory/halaos/internal/lifecycle"
 	"github.com/halaostory/halaos/internal/loan"
 	"github.com/halaostory/halaos/internal/middleware"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/halaostory/halaos/internal/milestone"
 	"github.com/halaostory/halaos/internal/notification"
 	"github.com/halaostory/halaos/internal/onboarding"
 	onboardingChecklist "github.com/halaostory/halaos/internal/onboarding_checklist"
+	"github.com/halaostory/halaos/internal/orgintel"
 	"github.com/halaostory/halaos/internal/overtime"
+	"github.com/halaostory/halaos/internal/payouts"
+	"github.com/halaostory/halaos/internal/push"
 	"github.com/halaostory/halaos/internal/payroll"
 	"github.com/halaostory/halaos/internal/performance"
 	"github.com/halaostory/halaos/internal/policy"
+	"github.com/halaostory/halaos/internal/pulse"
 	"github.com/halaostory/halaos/internal/ratelimit"
+	"github.com/halaostory/halaos/internal/recognition"
 	"github.com/halaostory/halaos/internal/report"
+	"github.com/halaostory/halaos/internal/routines"
+	"github.com/halaostory/halaos/internal/selfonboard"
 	"github.com/halaostory/halaos/internal/selfservice"
 	"github.com/halaostory/halaos/internal/store"
 	"github.com/halaostory/halaos/internal/training"
-	"github.com/halaostory/halaos/internal/pulse"
-	"github.com/halaostory/halaos/internal/hrrequest"
-	"github.com/halaostory/halaos/internal/recognition"
-	"github.com/halaostory/halaos/internal/nps"
-	"github.com/halaostory/halaos/internal/referral"
-	"github.com/halaostory/halaos/internal/virtualoffice"
 	"github.com/halaostory/halaos/internal/workflow"
+	"github.com/halaostory/halaos/internal/workplace"
+	"github.com/halaostory/halaos/pkg/response"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type App struct {
@@ -89,6 +103,8 @@ type App struct {
 	Router     *gin.Engine
 	Logger     *slog.Logger
 	Email      *email.Sender
+	Edition    edition.Config
+	sink       *gin.RouterGroup // routes of modules not shipped in this edition go here (never served)
 	Resend     *email.Service
 	Limiter    *ratelimit.Limiter
 	BotManager *bot.BotManager
@@ -145,7 +161,14 @@ func New(cfg *config.Config) (*App, error) {
 	for i := range origins {
 		origins[i] = strings.TrimSpace(origins[i])
 	}
+	// The native employee app (Capacitor) calls the API from fixed local
+	// origins. Auth is a bearer token (no cookies), so allowing them does
+	// not expose sessions. NATIVE_APP_ORIGINS=off disables it.
+	if os.Getenv("NATIVE_APP_ORIGINS") != "off" {
+		origins = append(origins, "capacitor://localhost", "https://localhost", "http://localhost")
+	}
 	router.Use(cors.New(cors.Config{
+		CustomSchemas:    []string{"capacitor"},
 		AllowOrigins:     origins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
@@ -164,8 +187,10 @@ func New(cfg *config.Config) (*App, error) {
 		APIWindow:   cfg.RateLimit.APIWindow,
 	})
 
-	// Serve uploaded files (logos, etc.)
-	router.Static("/uploads", "./uploads")
+	// Serve only the uploads that are meant to be public (shown in <img> tags).
+	// Employee documents and 201 files live under ./uploads too but are only
+	// downloadable through authenticated, company-scoped handlers.
+	registerPublicUploads(router, "./uploads")
 
 	// Email sender (optional, SMTP for HR notifications)
 	emailSender := email.NewSender(cfg.SMTP, logger)
@@ -193,7 +218,10 @@ func New(cfg *config.Config) (*App, error) {
 		Email:   emailSender,
 		Resend:  resendSvc,
 		Limiter: limiter,
+		Edition: edition.Load(),
+		sink:    &gin.New().RouterGroup,
 	}
+	logger.Info("product edition", "edition", app.Edition.Edition, "product", app.Edition.ProductName, "modules", app.Edition.Modules)
 
 	app.setupRoutes()
 	return app, nil
@@ -253,12 +281,10 @@ func (a *App) setupRoutes() {
 	acctEmitter := integration.NewAccountingEmitter(a.Queries, a.Logger)
 	payrollHandler.SetAccountingEmitter(acctEmitter)
 	employeeHandler.SetAccountingEmitter(acctEmitter)
+	lifecycleHandler := lifecycle.NewHandler(a.Queries, a.Pool, a.Logger)
+	lifecycleHandler.Service().SetAccountingEmitter(acctEmitter)
 	acctDispatcher := integration.NewAccountingDispatcher(a.Queries, a.Logger)
 	go acctDispatcher.Run(context.Background())
-
-	// Wire brain integration (outbox + dispatcher)
-	brainDispatcher := integration.NewBrainDispatcher(a.Queries, a.Logger)
-	go brainDispatcher.Run(context.Background())
 
 	acctHandler := integration.NewAccountingHandler(a.Queries, acctSSO, a.Logger)
 	complianceHandler := compliance.NewHandler(a.Queries, a.Pool, a.Logger)
@@ -291,7 +317,6 @@ func (a *App) setupRoutes() {
 	pulseHandler := pulse.NewHandler(a.Queries, a.Pool, a.Logger)
 	recognitionHandler := recognition.NewHandler(a.Queries, a.Pool, a.Logger)
 	hrrequestHandler := hrrequest.NewHandler(a.Queries, a.Pool, a.Logger)
-	virtualOfficeHandler := virtualoffice.NewHandler(a.Queries, a.Pool, a.Logger, a.Redis)
 
 	// Billing service
 	billingSvc := billing.NewService(a.Queries, a.Logger)
@@ -359,56 +384,128 @@ func (a *App) setupRoutes() {
 	protected.Use(auth.APIKeyMiddleware(a.Queries))
 	protected.Use(auth.JWTMiddleware(jwtSvc))
 	protected.Use(a.Limiter.APIMiddleware())
+	// Employees named in a request body must be this company's.
+	protected.Use(access.BodyEmployeesInCompany(a.Queries))
 
 	// Register all routes (login rate limiter applied inside auth routes)
+	// Public product configuration (edition, brand, modules, markets) for the web app.
+	api.GET("/edition", func(c *gin.Context) { response.OK(c, a.Edition) })
+	authHandler.SetEdition(a.Edition)
+	authHandler.SetOIDC(auth.OIDCConfig{AppURL: a.Cfg.Resend.BaseURL, RedirectURL: os.Getenv("OIDC_REDIRECT_URL")})
 	authHandler.RegisterRoutes(api, protected, a.Limiter.LoginMiddleware())
-	companyHandler.RegisterRoutes(protected)
-	employeeHandler.RegisterRoutes(protected)
-	attendanceHandler.RegisterRoutes(protected)
-	breaksHandler.RegisterRoutes(protected)
-	leaveHandler.RegisterRoutes(protected)
-	overtimeHandler.RegisterRoutes(protected)
-	payrollHandler.RegisterRoutes(protected)
-	complianceHandler.RegisterRoutes(protected)
-	onboardingHandler.RegisterRoutes(protected)
-	onboardingChecklistHandler.RegisterRoutes(protected)
-	performanceHandler.RegisterRoutes(protected)
-	selfServiceHandler.RegisterRoutes(protected)
-	analyticsHandler.RegisterRoutes(protected)
-	loanHandler.RegisterRoutes(protected)
-	notificationHandler.RegisterRoutes(protected)
-	knowledgeHandler.RegisterRoutes(protected)
-	auditHandler.RegisterRoutes(protected)
-	importExportHandler.RegisterRoutes(protected)
-	benefitsHandler.RegisterRoutes(protected)
-	docfileHandler.RegisterRoutes(protected)
-	policyHandler.RegisterRoutes(protected)
-	disciplinaryHandler.RegisterRoutes(protected)
-	grievanceHandler.RegisterRoutes(protected)
-	expenseHandler.RegisterRoutes(protected)
-	trainingHandler.RegisterRoutes(protected)
-	clearanceHandler.RegisterRoutes(protected)
-	milestoneHandler.RegisterRoutes(protected)
-	reportHandler.RegisterRoutes(protected)
-	finalpayHandler.RegisterRoutes(protected)
-	approvalHandler.RegisterRoutes(protected)
-	holidayHandler.RegisterRoutes(protected)
-	announcementHandler.RegisterRoutes(protected)
-	dashboardHandler.RegisterRoutes(protected)
-	acctHandler.RegisterRoutes(protected)
-	workflowHandler.RegisterRoutes(protected)
-	pulseHandler.RegisterRoutes(protected)
-	recognitionHandler.RegisterRoutes(protected)
-	hrrequestHandler.RegisterRoutes(protected)
-	virtualOfficeHandler.RegisterRoutes(protected)
+	companyHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
+	employeeHandler.RegisterRoutes(a.mod(edition.ModPeople, protected))
+	lifecycleHandler.RegisterRoutes(a.mod(edition.ModLifecycle, protected))
+	attendanceHandler.RegisterRoutes(a.mod(edition.ModAttendance, protected))
+	breaksHandler.RegisterRoutes(a.mod(edition.ModAttendance, protected))
+	leaveHandler.RegisterRoutes(a.mod(edition.ModTimeOff, protected))
+	overtimeHandler.RegisterRoutes(a.mod(edition.ModTimeOff, protected))
+	payrollHandler.RegisterRoutes(a.mod(edition.ModPayroll, protected))
+	complianceHandler.RegisterRoutes(a.mod(edition.ModCompliance, protected))
+	onboardingHandler.RegisterRoutes(a.mod(edition.ModLifecycle, protected))
+	onboardingChecklistHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
+	performanceHandler.RegisterRoutes(a.mod(edition.ModTalent, protected))
+	selfServiceHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
+	analyticsHandler.RegisterRoutes(a.mod(edition.ModIntelligence, protected))
+	loanHandler.RegisterRoutes(a.mod(edition.ModPayroll, protected))
+	notificationHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
+	knowledgeHandler.RegisterRoutes(a.mod(edition.ModIntelligence, protected))
+	auditHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
+	importExportHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
+	benefitsHandler.RegisterRoutes(a.mod(edition.ModBenefits, protected))
+	docfileHandler.RegisterRoutes(a.mod(edition.ModPeople, protected))
+	policyHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
+	disciplinaryHandler.RegisterRoutes(a.mod(edition.ModTalent, protected))
+	grievanceHandler.RegisterRoutes(a.mod(edition.ModTalent, protected))
+	expenseHandler.RegisterRoutes(a.mod(edition.ModExpenses, protected))
+	trainingHandler.RegisterRoutes(a.mod(edition.ModTalent, protected))
+	clearanceHandler.RegisterRoutes(a.mod(edition.ModLifecycle, protected))
+	milestoneHandler.RegisterRoutes(a.mod(edition.ModLifecycle, protected))
+	reportHandler.RegisterRoutes(a.mod(edition.ModPayroll, protected))
+	finalpayHandler.RegisterRoutes(a.mod(edition.ModPayroll, protected))
+	approvalHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
+	holidayHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
+	announcementHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
+	dashboardHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
+	acctHandler.RegisterRoutes(a.mod(edition.ModPayroll, protected))
+	workflowHandler.RegisterRoutes(a.mod(edition.ModIntelligence, protected))
+	pulseHandler.RegisterRoutes(a.mod(edition.ModEngagement, protected))
+	recognitionHandler.RegisterRoutes(a.mod(edition.ModEngagement, protected))
+	hrrequestHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
 
-	billingHandler.RegisterRoutes(protected)
+	billingHandler.RegisterRoutes(a.mod(edition.ModCore, protected))
 
-	referralHandler := referral.NewHandler(a.Queries, a.Logger)
-	referralHandler.RegisterRoutes(protected)
+	// Government filing agent (prepare → review → approve → submit)
+	govSvc := govfiling.NewService(a.Queries, a.Pool, a.Logger, govfiling.ServiceConfigFromEnv(a.Cfg.Integration.EncryptionKey, aiProvider, a.Email, a.Logger))
+	govHandler := govfiling.NewHandler(govSvc, a.Queries, a.Logger)
+	govHandler.RegisterRoutes(a.mod(edition.ModCompliance, protected))
 
-	npsHandler := nps.NewHandler(a.Queries, a.Logger)
-	npsHandler.RegisterRoutes(protected)
+	// Agent routines (New hire, Offboarding, Pre-payroll check, Filing autopilot)
+	routineEngine := &routines.Engine{
+		Service:    routines.NewService(a.Queries, a.Logger),
+		Gov:        govSvc,
+		Calculator: payroll.NewCalculator(a.Queries, a.Pool, a.Logger),
+		Enabled:    a.Edition.Enabled,
+	}
+	if aiProvider != nil {
+		routineEngine.AI = aiProvider
+	}
+	govSvc.SetPolicy(routineEngine.Policy)
+	lifecycleHandler.Service().SetRoutines(routineEngine)
+
+	// Workplaces (work locations; policies can target them)
+	workplace.NewHandler(a.Queries).RegisterRoutes(a.mod(edition.ModPeople, protected))
+
+	// Direct journal push to Xero / QuickBooks Online
+	glsync.NewFromEnv(a.Queries, a.Cfg.Integration.EncryptionKey, a.Cfg.Resend.BaseURL, a.Logger).
+		RegisterRoutes(a.mod(edition.ModPayroll, protected), a.mod(edition.ModPayroll, api))
+
+	// Net pay disbursement through a licensed payout partner (Xendit)
+	payouts.NewFromEnv(a.Queries, a.Pool, a.Logger).RegisterRoutes(a.mod(edition.ModPayroll, protected), a.mod(edition.ModPayroll, api))
+
+	// Rule-based time-off policies (by department, employment type, gender, tenure)
+	leavepolicy.NewService(a.Queries, a.Logger).RegisterRoutes(a.mod(edition.ModTimeOff, protected))
+
+	// Slack alerts (agent needs you, notices, filings due, payroll ready)
+	alertSvc := alerts.NewServiceFromKey(a.Queries, a.Cfg.Integration.EncryptionKey, a.Logger, a.Cfg.Resend.BaseURL)
+	alertSvc.RegisterRoutes(a.mod(edition.ModCore, protected))
+	routineEngine.SetNotifier(alertSvc)
+	govSvc.SetNotifier(alertSvc)
+	routines.NewHandler(routineEngine).RegisterRoutes(a.mod(edition.ModAI, protected))
+
+	// Home dashboard (to-dos, upcoming payroll/filings, agency registrations, agent activity)
+	home.NewHandler(a.Queries, a.Logger, a.Edition.Enabled).RegisterRoutes(a.mod(edition.ModCore, protected))
+	// Phone notifications (Web Push): every in-app notification is also
+	// pushed to the person's subscribed devices.
+	if pushSvc, err := push.New(context.Background(), a.Queries, a.Logger, a.Cfg.Resend.BaseURL); err != nil {
+		a.Logger.Warn("push notifications disabled", "error", err)
+	} else {
+		pushSvc.RegisterRoutes(a.mod(edition.ModCore, protected))
+		notification.Pusher = func(ctx context.Context, companyID, userID int64, title, msg, category string) {
+			pushSvc.Send(ctx, companyID, userID, push.Message{Title: title, Body: msg, URL: push.LinkFor(category), Tag: category})
+		}
+	}
+
+	// New-hire self-onboarding portal + e-signatures (public token routes are rate limited)
+	selfOnboardHandler := selfonboard.NewHandler(selfonboard.NewService(a.Queries, a.Logger, a.Email, aiProvider, a.Cfg.Resend.BaseURL), a.Queries, a.Logger)
+	selfOnboardHandler.RegisterRoutes(a.mod(edition.ModESign, protected))
+	selfOnboardHandler.RegisterPublic(a.mod(edition.ModESign, api), a.Limiter.APIMiddleware(), a.Limiter.LoginMiddleware())
+	lifecycleHandler.Service().SetOnboarding(selfOnboardHandler.Service())
+	if aiProvider != nil {
+		lifecycleHandler.SetAI(aiProvider)
+	}
+
+	// Device inventory + MDM actions
+	deviceSvc := devices.NewServiceFromKey(a.Queries, a.Logger, a.Cfg.Integration.EncryptionKey)
+	devices.NewHandler(deviceSvc, a.Queries).RegisterRoutes(a.mod(edition.ModIT, protected))
+	lifecycleHandler.Service().SetDevices(deviceSvc)
+
+	// Contractors & freelancer payments (EWT, BIR 2307)
+	contractorsHandler := contractors.NewHandler(a.Queries, a.Logger, a.Edition.ProductName)
+	contractorsHandler.SetWise(contractors.WiseFromEnv())
+	contractorsHandler.RegisterRoutes(a.mod(edition.ModContractors, protected))
+	contractorsHandler.SetAppURL(a.Cfg.Resend.BaseURL)
+	contractorsHandler.RegisterTaxFormRoutes(a.mod(edition.ModContractors, protected), a.mod(edition.ModContractors, api), a.Limiter.APIMiddleware(), a.Limiter.LoginMiddleware())
 
 	// Org Intelligence
 	var briefGen *orgintel.BriefingGenerator
@@ -416,10 +513,11 @@ func (a *App) setupRoutes() {
 		briefGen = orgintel.NewBriefingGenerator(a.Queries, aiProvider, a.Logger)
 	}
 	orgIntelHandler := orgintel.NewHandler(a.Queries, a.Pool, a.Logger, briefGen)
-	orgIntelHandler.RegisterRoutes(protected)
+	orgIntelHandler.RegisterRoutes(a.mod(edition.ModIntelligence, protected))
 
+	a.Edition.AIAssistant = aiHandler != nil && a.Edition.Enabled(edition.ModAI)
 	if aiHandler != nil {
-		aiHandler.RegisterRoutes(protected)
+		aiHandler.RegisterRoutes(a.mod(edition.ModAI, protected))
 	}
 
 	// Integration Hub
@@ -438,21 +536,26 @@ func (a *App) setupRoutes() {
 			connRegistry.Register("github", func(creds connector.Credentials) (connector.Connector, error) {
 				return connectorgithub.New(creds)
 			})
+			connRegistry.Register("okta", func(creds connector.Credentials) (connector.Connector, error) {
+				return connectorokta.New(creds)
+			})
 
 			integrationSvc := integration.NewService(a.Queries, connRegistry, encryptor, a.Logger)
 			provisioningSvc := integration.NewProvisioningService(a.Queries, a.Logger)
 			integrationHandler := integration.NewHandler(integrationSvc, provisioningSvc, a.Queries)
-			integrationHandler.RegisterRoutes(protected)
+			integrationHandler.RegisterRoutes(a.mod(edition.ModIT, protected))
 
 			// Start provisioning worker
-			provWorker := integration.NewProvisioningWorker(a.Queries, integrationSvc, a.Logger)
-			go provWorker.Run(context.Background(), 30*time.Second)
+			if a.Edition.Enabled(edition.ModIT) {
+				provWorker := integration.NewProvisioningWorker(a.Queries, integrationSvc, a.Logger)
+				go provWorker.Run(context.Background(), 30*time.Second)
+			}
 
 			a.Logger.Info("integration hub enabled", "providers", connRegistry.Providers())
 
 			// BYOK key management (shares same encryptor)
 			byokHandler := byok.NewHandler(a.Queries, encryptor)
-			byokHandler.RegisterRoutes(protected)
+			byokHandler.RegisterRoutes(a.mod(edition.ModAI, protected))
 			a.Logger.Info("BYOK key management enabled")
 		}
 	} else {
@@ -463,7 +566,7 @@ func (a *App) setupRoutes() {
 	botLinker := bot.NewLinker(a.Queries, a.Logger)
 
 	// Telegram bot (optional) — managed by BotManager with hot reload
-	if executor != nil {
+	if executor != nil && a.Edition.Enabled(edition.ModAI) {
 		botSessionMgr := bot.NewSessionManager(a.Queries, a.Logger)
 		botRateLimiter := bot.NewRateLimiter(a.Redis, 20, 1*time.Minute)
 		dispatcher := bot.NewDispatcher(botLinker, botSessionMgr, executor, draftSvc, a.Queries, botRateLimiter, a.Logger)
@@ -479,7 +582,7 @@ func (a *App) setupRoutes() {
 	}
 
 	botLinkHandler := bot.NewLinkHandler(botLinker, a.Queries, a.Logger, a.BotManager, &a.Cfg.Bot)
-	botLinkHandler.RegisterRoutes(protected)
+	botLinkHandler.RegisterRoutes(a.mod(edition.ModAI, protected))
 }
 
 func (a *App) Run() error {
@@ -555,4 +658,13 @@ func (a *App) handleContactForm(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"message": "Message sent successfully"}})
+}
+
+// mod returns g when the module ships in this edition; otherwise a router
+// group on a detached engine, so the module's routes are never served.
+func (a *App) mod(module string, g *gin.RouterGroup) *gin.RouterGroup {
+	if a.Edition.Enabled(module) {
+		return g
+	}
+	return a.sink
 }

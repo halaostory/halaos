@@ -320,6 +320,26 @@ func (h *Handler) SubmitResponse(c *gin.Context) {
 		return
 	}
 
+	// The round must be this company's and open; each question must belong
+	// to its survey.
+	round, err := h.queries.GetPulseRoundInCompany(ctx, store.GetPulseRoundInCompanyParams{ID: roundID, CompanyID: companyID})
+	if err != nil || round.Status != "open" {
+		response.NotFound(c, "Survey round not found or closed")
+		return
+	}
+	valid := map[int64]bool{}
+	if qs, err := h.queries.ListPulseQuestions(ctx, round.SurveyID); err == nil {
+		for _, q := range qs {
+			valid[q.ID] = true
+		}
+	}
+	for _, r := range req.Responses {
+		if !valid[r.QuestionID] {
+			response.BadRequest(c, "Unknown question")
+			return
+		}
+	}
+
 	// Check not already responded
 	already, _ := h.queries.HasEmployeeRespondedToRound(ctx, store.HasEmployeeRespondedToRoundParams{
 		RoundID:    roundID,
@@ -358,6 +378,10 @@ func (h *Handler) GetResults(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
+	if _, err := h.queries.GetPulseSurvey(ctx, store.GetPulseSurveyParams{ID: surveyID, CompanyID: companyID}); err != nil {
+		response.NotFound(c, "Survey not found")
+		return
+	}
 
 	// Get rounds
 	rounds, err := h.queries.ListPulseRounds(ctx, store.ListPulseRoundsParams{
@@ -410,8 +434,8 @@ func (h *Handler) GetResults(c *gin.Context) {
 			if q.QuestionType == "rating" {
 				// Get average rating
 				rows, err := h.pool.Query(ctx,
-					`SELECT AVG(rating)::float8, COUNT(*) FROM pulse_responses WHERE round_id = $1 AND question_id = $2 AND rating IS NOT NULL`,
-					round.ID, q.ID)
+					`SELECT AVG(rating)::float8, COUNT(*) FROM pulse_responses WHERE round_id = $1 AND question_id = $2 AND rating IS NOT NULL AND company_id = $3`,
+					round.ID, q.ID, companyID)
 				if err == nil {
 					if rows.Next() {
 						var avg *float64

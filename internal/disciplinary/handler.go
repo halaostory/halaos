@@ -1,11 +1,13 @@
 package disciplinary
 
 import (
+	"errors"
 	"log/slog"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -246,11 +248,16 @@ func (h *Handler) AcknowledgeAction(c *gin.Context) {
 		response.BadRequest(c, "Invalid ID")
 		return
 	}
+	uid := auth.GetUserID(c)
 	action, err := h.queries.AcknowledgeDisciplinaryAction(c.Request.Context(), store.AcknowledgeDisciplinaryActionParams{
 		ID:        id,
 		CompanyID: companyID,
+		UserID:    &uid,
 	})
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
+		response.NotFound(c, "Disciplinary action not found")
+		return
+	} else if err != nil {
 		response.InternalError(c, "Failed to acknowledge action")
 		return
 	}
@@ -271,12 +278,17 @@ func (h *Handler) AppealAction(c *gin.Context) {
 		response.BadRequest(c, "Appeal reason is required")
 		return
 	}
+	uid := auth.GetUserID(c)
 	action, err := h.queries.AppealDisciplinaryAction(c.Request.Context(), store.AppealDisciplinaryActionParams{
 		ID:           id,
 		CompanyID:    companyID,
 		AppealReason: &req.Reason,
+		UserID:       &uid,
 	})
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
+		response.NotFound(c, "Disciplinary action not found or already appealed")
+		return
+	} else if err != nil {
 		response.InternalError(c, "Failed to submit appeal")
 		return
 	}

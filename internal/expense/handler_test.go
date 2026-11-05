@@ -182,14 +182,14 @@ func TestSubmit_EmployeeNotFound(t *testing.T) {
 
 // --- Approve ---
 
-func TestApprove_EmployeeNotFound(t *testing.T) {
+func TestApprove_ClaimNotFound(t *testing.T) {
 	mockDB := testutil.NewMockDBTX()
 	h := newTestHandler(mockDB)
 	mockDB.OnQueryRow(testutil.NewErrorRow(fmt.Errorf("not found")))
 	c, w := testutil.NewGinContextWithParams("POST", "/expenses/1/approve",
 		gin.Params{{Key: "id", Value: "1"}}, nil, adminAuth)
 	h.Approve(c)
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", w.Code, w.Body.String())
 	}
 }

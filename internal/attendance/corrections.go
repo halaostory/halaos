@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/halaostory/halaos/internal/access"
 	"github.com/halaostory/halaos/internal/auth"
 	"github.com/halaostory/halaos/internal/store"
 	"github.com/halaostory/halaos/pkg/response"
@@ -68,10 +69,13 @@ func (h *Handler) CreateCorrection(c *gin.Context) {
 			ID:        *req.AttendanceID,
 			CompanyID: companyID,
 		})
-		if err == nil {
-			params.OriginalClockIn = origLog.ClockInAt
-			params.OriginalClockOut = origLog.ClockOutAt
+		// The log must be the employee's own, in this company.
+		if err != nil || origLog.EmployeeID != emp.ID {
+			response.BadRequest(c, "That attendance record is not yours")
+			return
 		}
+		params.OriginalClockIn = origLog.ClockInAt
+		params.OriginalClockOut = origLog.ClockOutAt
 	}
 
 	correction, err := h.queries.CreateAttendanceCorrection(c.Request.Context(), params)
@@ -136,6 +140,17 @@ func (h *Handler) ApproveCorrection(c *gin.Context) {
 		response.BadRequest(c, "Invalid correction ID")
 		return
 	}
+	owner, oerr := func() (int64, error) {
+		r, err := h.queries.GetAttendanceCorrection(c.Request.Context(), store.GetAttendanceCorrectionParams{ID: id, CompanyID: auth.GetCompanyID(c)})
+		return r.EmployeeID, err
+	}()
+	if oerr != nil {
+		response.NotFound(c, "Correction not found")
+		return
+	}
+	if _, ok := access.Decide(c, h.queries, owner); !ok {
+		return
+	}
 	companyID := auth.GetCompanyID(c)
 	userID := auth.GetUserID(c)
 
@@ -169,8 +184,8 @@ func (h *Handler) ApproveCorrection(c *gin.Context) {
 	if correction.AttendanceID != nil {
 		if correction.RequestedClockIn.Valid {
 			if _, err := tx.Exec(c.Request.Context(),
-				"UPDATE attendance_logs SET clock_in_at = $1, is_corrected = true, corrected_by = $2 WHERE id = $3",
-				correction.RequestedClockIn.Time, userID, *correction.AttendanceID); err != nil {
+				"UPDATE attendance_logs SET clock_in_at = $1, is_corrected = true, corrected_by = $2 WHERE id = $3 AND company_id = $4 AND employee_id = $5",
+				correction.RequestedClockIn.Time, userID, *correction.AttendanceID, correction.CompanyID, correction.EmployeeID); err != nil {
 				h.logger.Error("failed to update clock_in", "error", err)
 				response.InternalError(c, "Failed to apply clock-in correction")
 				return
@@ -178,8 +193,8 @@ func (h *Handler) ApproveCorrection(c *gin.Context) {
 		}
 		if correction.RequestedClockOut.Valid {
 			if _, err := tx.Exec(c.Request.Context(),
-				"UPDATE attendance_logs SET clock_out_at = $1, is_corrected = true, corrected_by = $2 WHERE id = $3",
-				correction.RequestedClockOut.Time, userID, *correction.AttendanceID); err != nil {
+				"UPDATE attendance_logs SET clock_out_at = $1, is_corrected = true, corrected_by = $2 WHERE id = $3 AND company_id = $4 AND employee_id = $5",
+				correction.RequestedClockOut.Time, userID, *correction.AttendanceID, correction.CompanyID, correction.EmployeeID); err != nil {
 				h.logger.Error("failed to update clock_out", "error", err)
 				response.InternalError(c, "Failed to apply clock-out correction")
 				return
@@ -200,6 +215,17 @@ func (h *Handler) RejectCorrection(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "Invalid correction ID")
+		return
+	}
+	owner, oerr := func() (int64, error) {
+		r, err := h.queries.GetAttendanceCorrection(c.Request.Context(), store.GetAttendanceCorrectionParams{ID: id, CompanyID: auth.GetCompanyID(c)})
+		return r.EmployeeID, err
+	}()
+	if oerr != nil {
+		response.NotFound(c, "Correction not found")
+		return
+	}
+	if _, ok := access.Decide(c, h.queries, owner); !ok {
 		return
 	}
 	companyID := auth.GetCompanyID(c)

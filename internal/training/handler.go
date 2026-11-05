@@ -134,6 +134,15 @@ func (h *Handler) AddParticipant(c *gin.Context) {
 		response.BadRequest(c, err.Error())
 		return
 	}
+	companyID := auth.GetCompanyID(c)
+	if _, err := h.queries.GetTraining(c.Request.Context(), store.GetTrainingParams{ID: id, CompanyID: companyID}); err != nil {
+		response.NotFound(c, "Training not found")
+		return
+	}
+	if _, err := h.queries.GetEmployeeByID(c.Request.Context(), store.GetEmployeeByIDParams{ID: req.EmployeeID, CompanyID: companyID}); err != nil {
+		response.NotFound(c, "Employee not found")
+		return
+	}
 	p, err := h.queries.AddTrainingParticipant(c.Request.Context(), store.AddTrainingParticipantParams{
 		TrainingID: id, EmployeeID: req.EmployeeID,
 	})

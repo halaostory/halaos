@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -79,7 +80,30 @@ func (h *Handler) UpdateCompany(c *gin.Context) {
 		return
 	}
 
+	// Empty name/timezone/pay frequency keep the current value (a partial
+	// save must not blank the company).
+	switch req.PayFrequency {
+	case "", "weekly", "bi_weekly", "semi_monthly", "monthly":
+	default:
+		response.BadRequest(c, "pay_frequency must be weekly, bi_weekly, semi_monthly or monthly")
+		return
+	}
 	companyID := auth.GetCompanyID(c)
+	if cur, err := h.queries.GetCompanyByID(c.Request.Context(), companyID); err == nil {
+		if strings.TrimSpace(req.Name) == "" {
+			req.Name = cur.Name
+		}
+		if req.Timezone == "" {
+			req.Timezone = cur.Timezone
+		}
+		if req.PayFrequency == "" {
+			req.PayFrequency = cur.PayFrequency
+		}
+	}
+	if strings.TrimSpace(req.Name) == "" {
+		response.BadRequest(c, "Company name is required")
+		return
+	}
 	company, err := h.queries.UpdateCompany(c.Request.Context(), store.UpdateCompanyParams{
 		ID:              companyID,
 		Name:            req.Name,

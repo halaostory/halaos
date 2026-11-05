@@ -186,6 +186,7 @@ func (r *ToolRegistry) toolMarkTrainingComplete(ctx context.Context, companyID, 
 	}
 
 	participant, err := r.queries.UpdateParticipantStatus(ctx, store.UpdateParticipantStatusParams{
+		CompanyID:  companyID,
 		ID:         int64(participantID),
 		TrainingID: int64(trainingID),
 		Status:     "completed",

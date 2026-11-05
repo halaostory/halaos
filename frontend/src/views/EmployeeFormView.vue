@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { localDate } from '../utils/date'
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -117,7 +118,7 @@ async function handleSubmit() {
       employee_no: form.value.employee_no,
       first_name: form.value.first_name,
       last_name: form.value.last_name,
-      hire_date: new Date(form.value.hire_date).toISOString().split('T')[0],
+      hire_date: localDate(form.value.hire_date),
       employment_type: form.value.employment_type,
     }
     if (form.value.middle_name) payload.middle_name = form.value.middle_name
@@ -126,7 +127,7 @@ async function handleSubmit() {
     if (form.value.gender) payload.gender = form.value.gender
     if (form.value.civil_status) payload.civil_status = form.value.civil_status
     if (form.value.nationality) payload.nationality = form.value.nationality
-    if (form.value.birth_date) payload.birth_date = new Date(form.value.birth_date).toISOString().split('T')[0]
+    if (form.value.birth_date) payload.birth_date = localDate(form.value.birth_date)
     if (form.value.department_id) payload.department_id = form.value.department_id
     if (form.value.position_id) payload.position_id = form.value.position_id
 

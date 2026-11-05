@@ -148,6 +148,33 @@ func (q *Queries) CountLeaveRequests(ctx context.Context, arg CountLeaveRequests
 	return count, err
 }
 
+const countOverlappingLeave = `-- name: CountOverlappingLeave :one
+SELECT COUNT(*)::int FROM leave_requests
+WHERE company_id = $1 AND employee_id = $2
+  AND status IN ('pending', 'approved')
+  AND start_date <= $3::date AND end_date >= $4::date
+`
+
+type CountOverlappingLeaveParams struct {
+	CompanyID  int64     `json:"company_id"`
+	EmployeeID int64     `json:"employee_id"`
+	EndDate    time.Time `json:"end_date"`
+	StartDate  time.Time `json:"start_date"`
+}
+
+// Pending or approved leave of the employee that overlaps [start, end].
+func (q *Queries) CountOverlappingLeave(ctx context.Context, arg CountOverlappingLeaveParams) (int32, error) {
+	row := q.db.QueryRow(ctx, countOverlappingLeave,
+		arg.CompanyID,
+		arg.EmployeeID,
+		arg.EndDate,
+		arg.StartDate,
+	)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createLeaveRequest = `-- name: CreateLeaveRequest :one
 INSERT INTO leave_requests (
     company_id, employee_id, leave_type_id,
@@ -923,6 +950,65 @@ func (q *Queries) RejectLeaveRequest(ctx context.Context, arg RejectLeaveRequest
 		arg.ApproverID,
 		arg.RejectionReason,
 	)
+	var i LeaveRequest
+	err := row.Scan(
+		&i.ID,
+		&i.CompanyID,
+		&i.EmployeeID,
+		&i.LeaveTypeID,
+		&i.StartDate,
+		&i.EndDate,
+		&i.Days,
+		&i.Reason,
+		&i.AttachmentPath,
+		&i.Status,
+		&i.ApproverID,
+		&i.ApprovedAt,
+		&i.RejectionReason,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const restoreLeaveBalance = `-- name: RestoreLeaveBalance :exec
+UPDATE leave_balances SET used = GREATEST(used - $5, 0), updated_at = NOW()
+WHERE company_id = $1 AND employee_id = $2 AND leave_type_id = $3 AND year = $4
+`
+
+type RestoreLeaveBalanceParams struct {
+	CompanyID   int64          `json:"company_id"`
+	EmployeeID  int64          `json:"employee_id"`
+	LeaveTypeID int64          `json:"leave_type_id"`
+	Year        int32          `json:"year"`
+	Used        pgtype.Numeric `json:"used"`
+}
+
+func (q *Queries) RestoreLeaveBalance(ctx context.Context, arg RestoreLeaveBalanceParams) error {
+	_, err := q.db.Exec(ctx, restoreLeaveBalance,
+		arg.CompanyID,
+		arg.EmployeeID,
+		arg.LeaveTypeID,
+		arg.Year,
+		arg.Used,
+	)
+	return err
+}
+
+const revokeApprovedLeave = `-- name: RevokeApprovedLeave :one
+UPDATE leave_requests SET status = 'cancelled', updated_at = NOW()
+WHERE id = $1 AND company_id = $2 AND status = 'approved'
+RETURNING id, company_id, employee_id, leave_type_id, start_date, end_date, days, reason, attachment_path, status, approver_id, approved_at, rejection_reason, created_at, updated_at
+`
+
+type RevokeApprovedLeaveParams struct {
+	ID        int64 `json:"id"`
+	CompanyID int64 `json:"company_id"`
+}
+
+// HR takes back an approved leave (plans changed); the days are returned.
+func (q *Queries) RevokeApprovedLeave(ctx context.Context, arg RevokeApprovedLeaveParams) (LeaveRequest, error) {
+	row := q.db.QueryRow(ctx, revokeApprovedLeave, arg.ID, arg.CompanyID)
 	var i LeaveRequest
 	err := row.Scan(
 		&i.ID,

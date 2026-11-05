@@ -17,7 +17,7 @@ import (
 // setupAccountTool returns the MCP tool definition for setup_account.
 func setupAccountTool() mcp.Tool {
 	return mcp.NewTool("setup_account",
-		mcp.WithDescription("Register a new HalaOS account or login to an existing one. Use action=register for new accounts, action=login for existing accounts. Returns an API key for subsequent tool calls."),
+		mcp.WithDescription("Register a new HalaPeople account or login to an existing one. Use action=register for new accounts, action=login for existing accounts. Returns an API key for subsequent tool calls."),
 		mcp.WithString("action",
 			mcp.Description("Action to perform: 'register' for new accounts, 'login' for existing accounts"),
 			mcp.Required(),
@@ -36,9 +36,6 @@ func setupAccountTool() mcp.Tool {
 		),
 		mcp.WithString("country",
 			mcp.Description("Country code, e.g. PH, SG, LK (required for register)"),
-		),
-		mcp.WithString("referral_code",
-			mcp.Description("Optional referral code"),
 		),
 	)
 }
@@ -137,9 +134,6 @@ func makeSetupAccount(baseURL string) server.ToolHandlerFunc {
 			if country := req.GetString("country", ""); country != "" {
 				requestBody["country"] = country
 			}
-			if referralCode := req.GetString("referral_code", ""); referralCode != "" {
-				requestBody["referral_code"] = referralCode
-			}
 		case "login":
 			endpoint = "cli-login"
 		default:
@@ -178,7 +172,7 @@ func makeSetupAccount(baseURL string) server.ToolHandlerFunc {
 			"message":        message,
 			"api_key":        apiKey,
 			"api_key_prefix": apiKeyPrefix,
-			"config_hint":    fmt.Sprintf("Set HALAOS_API_KEY=%s in your environment to use other HalaOS MCP tools.", apiKey),
+			"config_hint":    fmt.Sprintf("Set HALAOS_API_KEY=%s in your environment to use other HalaPeople MCP tools.", apiKey),
 		}
 
 		pretty, err := json.MarshalIndent(output, "", "  ")

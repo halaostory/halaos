@@ -10,7 +10,7 @@ import (
 )
 
 const createCompany = `-- name: CreateCompany :one
-INSERT INTO companies (name) VALUES ($1) RETURNING id, name, legal_name, tin, bir_rdo, address, city, province, zip_code, country, timezone, currency, pay_frequency, status, logo_url, created_at, updated_at, geofence_enabled, sss_er_no, philhealth_er_no, pagibig_er_no, bank_name, bank_branch, bank_account_no, bank_account_name, contact_person, contact_email, contact_phone, referral_code, referred_by_code, referral_reward_claimed
+INSERT INTO companies (name) VALUES ($1) RETURNING id, name, legal_name, tin, bir_rdo, address, city, province, zip_code, country, timezone, currency, pay_frequency, status, logo_url, created_at, updated_at, geofence_enabled, sss_er_no, philhealth_er_no, pagibig_er_no, bank_name, bank_branch, bank_account_no, bank_account_name, contact_person, contact_email, contact_phone
 `
 
 func (q *Queries) CreateCompany(ctx context.Context, name string) (Company, error) {
@@ -45,16 +45,13 @@ func (q *Queries) CreateCompany(ctx context.Context, name string) (Company, erro
 		&i.ContactPerson,
 		&i.ContactEmail,
 		&i.ContactPhone,
-		&i.ReferralCode,
-		&i.ReferredByCode,
-		&i.ReferralRewardClaimed,
 	)
 	return i, err
 }
 
 const createCompanyWithCountry = `-- name: CreateCompanyWithCountry :one
 INSERT INTO companies (name, country, currency, timezone, pay_frequency)
-VALUES ($1, $2, $3, $4, $5) RETURNING id, name, legal_name, tin, bir_rdo, address, city, province, zip_code, country, timezone, currency, pay_frequency, status, logo_url, created_at, updated_at, geofence_enabled, sss_er_no, philhealth_er_no, pagibig_er_no, bank_name, bank_branch, bank_account_no, bank_account_name, contact_person, contact_email, contact_phone, referral_code, referred_by_code, referral_reward_claimed
+VALUES ($1, $2, $3, $4, $5) RETURNING id, name, legal_name, tin, bir_rdo, address, city, province, zip_code, country, timezone, currency, pay_frequency, status, logo_url, created_at, updated_at, geofence_enabled, sss_er_no, philhealth_er_no, pagibig_er_no, bank_name, bank_branch, bank_account_no, bank_account_name, contact_person, contact_email, contact_phone
 `
 
 type CreateCompanyWithCountryParams struct {
@@ -103,9 +100,6 @@ func (q *Queries) CreateCompanyWithCountry(ctx context.Context, arg CreateCompan
 		&i.ContactPerson,
 		&i.ContactEmail,
 		&i.ContactPhone,
-		&i.ReferralCode,
-		&i.ReferredByCode,
-		&i.ReferralRewardClaimed,
 	)
 	return i, err
 }
@@ -209,7 +203,7 @@ func (q *Queries) CreatePosition(ctx context.Context, arg CreatePositionParams) 
 }
 
 const getCompanyByID = `-- name: GetCompanyByID :one
-SELECT id, name, legal_name, tin, bir_rdo, address, city, province, zip_code, country, timezone, currency, pay_frequency, status, logo_url, created_at, updated_at, geofence_enabled, sss_er_no, philhealth_er_no, pagibig_er_no, bank_name, bank_branch, bank_account_no, bank_account_name, contact_person, contact_email, contact_phone, referral_code, referred_by_code, referral_reward_claimed FROM companies WHERE id = $1
+SELECT id, name, legal_name, tin, bir_rdo, address, city, province, zip_code, country, timezone, currency, pay_frequency, status, logo_url, created_at, updated_at, geofence_enabled, sss_er_no, philhealth_er_no, pagibig_er_no, bank_name, bank_branch, bank_account_no, bank_account_name, contact_person, contact_email, contact_phone FROM companies WHERE id = $1
 `
 
 func (q *Queries) GetCompanyByID(ctx context.Context, id int64) (Company, error) {
@@ -244,9 +238,6 @@ func (q *Queries) GetCompanyByID(ctx context.Context, id int64) (Company, error)
 		&i.ContactPerson,
 		&i.ContactEmail,
 		&i.ContactPhone,
-		&i.ReferralCode,
-		&i.ReferredByCode,
-		&i.ReferralRewardClaimed,
 	)
 	return i, err
 }
@@ -356,7 +347,7 @@ func (q *Queries) GetPositionByTitle(ctx context.Context, arg GetPositionByTitle
 }
 
 const listAllCompanies = `-- name: ListAllCompanies :many
-SELECT id, name, legal_name, tin, bir_rdo, address, city, province, zip_code, country, timezone, currency, pay_frequency, status, logo_url, created_at, updated_at, geofence_enabled, sss_er_no, philhealth_er_no, pagibig_er_no, bank_name, bank_branch, bank_account_no, bank_account_name, contact_person, contact_email, contact_phone, referral_code, referred_by_code, referral_reward_claimed FROM companies ORDER BY id
+SELECT id, name, legal_name, tin, bir_rdo, address, city, province, zip_code, country, timezone, currency, pay_frequency, status, logo_url, created_at, updated_at, geofence_enabled, sss_er_no, philhealth_er_no, pagibig_er_no, bank_name, bank_branch, bank_account_no, bank_account_name, contact_person, contact_email, contact_phone FROM companies ORDER BY id
 `
 
 func (q *Queries) ListAllCompanies(ctx context.Context) ([]Company, error) {
@@ -397,9 +388,6 @@ func (q *Queries) ListAllCompanies(ctx context.Context) ([]Company, error) {
 			&i.ContactPerson,
 			&i.ContactEmail,
 			&i.ContactPhone,
-			&i.ReferralCode,
-			&i.ReferredByCode,
-			&i.ReferralRewardClaimed,
 		); err != nil {
 			return nil, err
 		}
@@ -535,7 +523,7 @@ UPDATE companies SET
     contact_phone = COALESCE($22, contact_phone),
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, name, legal_name, tin, bir_rdo, address, city, province, zip_code, country, timezone, currency, pay_frequency, status, logo_url, created_at, updated_at, geofence_enabled, sss_er_no, philhealth_er_no, pagibig_er_no, bank_name, bank_branch, bank_account_no, bank_account_name, contact_person, contact_email, contact_phone, referral_code, referred_by_code, referral_reward_claimed
+RETURNING id, name, legal_name, tin, bir_rdo, address, city, province, zip_code, country, timezone, currency, pay_frequency, status, logo_url, created_at, updated_at, geofence_enabled, sss_er_no, philhealth_er_no, pagibig_er_no, bank_name, bank_branch, bank_account_no, bank_account_name, contact_person, contact_email, contact_phone
 `
 
 type UpdateCompanyParams struct {
@@ -618,9 +606,6 @@ func (q *Queries) UpdateCompany(ctx context.Context, arg UpdateCompanyParams) (C
 		&i.ContactPerson,
 		&i.ContactEmail,
 		&i.ContactPhone,
-		&i.ReferralCode,
-		&i.ReferredByCode,
-		&i.ReferralRewardClaimed,
 	)
 	return i, err
 }

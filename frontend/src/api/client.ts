@@ -1,3 +1,4 @@
+import { localDate } from '../utils/date'
 import { ofetch } from "ofetch";
 
 let isRefreshing = false;
@@ -48,8 +49,8 @@ const api = ofetch.create({
       // Skip refresh for auth endpoints to avoid loops
       const url =
         typeof request === "string" ? request : request?.toString() || "";
-      if (url.includes("/auth/login")) {
-        // Let login 401 errors propagate to the caller for proper error display
+      if (url.includes("/auth/login") || url.includes("/auth/mfa/") || url.includes("/auth/oidc/")) {
+        // Let login / two-factor 401 errors propagate to the caller for proper error display
         return;
       }
       if (url.includes("/auth/refresh")) {
@@ -105,9 +106,13 @@ export const authAPI = {
     password?: string;
     first_name?: string;
     last_name?: string;
-    referral_code?: string;
   }) => post("/v1/auth/register", data),
-  login: (data: { email: string; password: string }) =>
+  mfaVerify: (data: { mfa_token: string; code: string }) => post("/v1/auth/mfa/verify", data),
+  mfaStatus: () => get("/v1/auth/mfa"),
+  mfaSetup: () => post("/v1/auth/mfa/setup", {}),
+  mfaEnable: (code: string) => post("/v1/auth/mfa/enable", { code }),
+  mfaDisable: (code: string) => post("/v1/auth/mfa/disable", { code }),
+  login: (data: { email: string; password: string; company_id?: number }) =>
     post("/v1/auth/login", data),
   refresh: (refresh_token: string) =>
     post("/v1/auth/refresh", { refresh_token }),
@@ -126,6 +131,11 @@ export const authAPI = {
   uploadAvatar: (formData: FormData) =>
     api("/v1/auth/avatar", { method: "POST", body: formData, headers: {} }),
   ssoLogin: (token: string) => post("/v1/auth/sso", { token }),
+  oidcCheck: (email: string) => get("/v1/auth/oidc/check", { email }),
+  oidcExchange: (code: string) => post("/v1/auth/oidc/exchange", { code }),
+  oidcProvider: () => get("/v1/auth/oidc/provider"),
+  saveOidcProvider: (data: Record<string, unknown>) => put("/v1/auth/oidc/provider", data),
+  deleteOidcProvider: () => del("/v1/auth/oidc/provider"),
   forgotPassword: (email: string) =>
     post("/v1/auth/forgot-password", { email }),
   resetPassword: (token: string, password: string) =>
@@ -299,6 +309,24 @@ export const breakAPI = {
 };
 
 // Leave
+export const workplacesAPI = {
+  list: () => get("/v1/workplaces"),
+  create: (data: Record<string, unknown>) => post("/v1/workplaces", data),
+  update: (id: number, data: Record<string, unknown>) => put(`/v1/workplaces/${id}`, data),
+  ofEmployee: (employeeId: number) => get(`/v1/employees/${employeeId}/workplace`),
+  setForEmployee: (employeeId: number, workplaceId: number | null) =>
+    put(`/v1/employees/${employeeId}/workplace`, { workplace_id: workplaceId }),
+};
+
+export const leavePolicyAPI = {
+  rules: () => get("/v1/leave-policies/rules"),
+  create: (data: Record<string, unknown>) => post("/v1/leave-policies/rules", data),
+  update: (id: number, data: Record<string, unknown>) => put(`/v1/leave-policies/rules/${id}`, data),
+  remove: (id: number) => del(`/v1/leave-policies/rules/${id}`),
+  preview: () => post("/v1/leave-policies/preview", {}),
+  apply: () => post("/v1/leave-policies/apply", {}),
+};
+
 export const leaveAPI = {
   listTypes: () => get("/v1/leaves/types"),
   createType: (data: Record<string, unknown>) => post("/v1/leaves/types", data),
@@ -311,6 +339,7 @@ export const leaveAPI = {
   rejectRequest: (id: number, data: { reason?: string }) =>
     post(`/v1/leaves/requests/${id}/reject`, data),
   cancelRequest: (id: number) => post(`/v1/leaves/requests/${id}/cancel`),
+  revokeRequest: (id: number) => post(`/v1/leaves/requests/${id}/revoke`),
   listAllBalances: (params?: Record<string, string>) =>
     get("/v1/leaves/balances/all", params),
   adjustBalance: (data: {
@@ -351,7 +380,35 @@ export const overtimeAPI = {
 };
 
 // Payroll
+export const payoutsAPI = {
+  list: () => get("/v1/payouts"),
+  preview: (cycleId: number) => get("/v1/payouts/preview", { cycle_id: String(cycleId) }),
+  send: (cycleId: number, total: number) => post("/v1/payouts", { cycle_id: cycleId, confirm: true, total }),
+};
+
+export const glAPI = {
+  connections: () => get("/v1/gl/connections"),
+  connect: (provider: string) => post(`/v1/gl/${provider}/connect`, {}),
+  disconnect: (provider: string) => del(`/v1/gl/${provider}`),
+  push: (provider: string, cycleId: number) => post(`/v1/gl/${provider}/push`, { cycle_id: cycleId }),
+  netsuite: (creds: Record<string, unknown>) => put("/v1/gl/netsuite/credentials", creds),
+};
+
 export const payrollAPI = {
+  history: () => get("/v1/payroll/history"),
+  importHistory: (form: FormData, dryRun: boolean) =>
+    api(`/v1/payroll/history/import${dryRun ? "?dry_run=1" : ""}`, { method: "POST", body: form, headers: {} }),
+  deleteHistory: (id: number) => del(`/v1/payroll/history/${id}`),
+  cycleJournal: (cycleId: number) => get(`/v1/payroll/cycles/${cycleId}/journal`),
+  cycleJournalCSV: (cycleId: number, format: string) =>
+    api(`/v1/payroll/cycles/${cycleId}/journal`, { params: { format }, responseType: "blob" }),
+  glAccounts: () => get("/v1/payroll/gl-accounts"),
+  saveGlAccounts: (data: Record<string, { code: string; name: string }>) => put("/v1/payroll/gl-accounts", data),
+  listSchedules: () => get("/v1/payroll/schedules"),
+  createSchedule: (data: Record<string, unknown>) => post("/v1/payroll/schedules", data),
+  updateSchedule: (id: number, data: Record<string, unknown>) => put(`/v1/payroll/schedules/${id}`, data),
+  assignSchedule: (id: number, employee_ids: number[]) =>
+    post(`/v1/payroll/schedules/${id}/assign`, { employee_ids }),
   listCycles: (params?: Record<string, string>) =>
     get("/v1/payroll/cycles", params),
   createCycle: (data: Record<string, unknown>) =>
@@ -539,7 +596,7 @@ export const analyticsAPI = {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `analytics_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `analytics_${localDate()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   },
@@ -850,6 +907,11 @@ export const file201API = {
 
 // Benefits Administration
 export const benefitAPI = {
+  listPerks: () => get("/v1/benefits/perks"),
+  createPerk: (data: Record<string, unknown>) => post("/v1/benefits/perks", data),
+  updatePerk: (id: number, data: Record<string, unknown>) => put(`/v1/benefits/perks/${id}`, data),
+  deletePerk: (id: number) => del(`/v1/benefits/perks/${id}`),
+  claimPerk: (id: number) => post(`/v1/benefits/perks/${id}/claim`, {}),
   listPlans: () => get("/v1/benefits/plans"),
   getPlan: (id: number) => get(`/v1/benefits/plans/${id}`),
   createPlan: (data: Record<string, unknown>) =>
@@ -1224,12 +1286,6 @@ export const recognitionAPI = {
   getStats: () => get("/v1/recognitions/stats"),
 };
 
-// Referrals
-export const referralAPI = {
-  getCode: () => get("/v1/referrals/code"),
-  getStats: () => get("/v1/referrals/stats"),
-  listReferrals: () => get("/v1/referrals/list"),
-};
 
 // Pulse Surveys
 export const pulseAPI = {
@@ -1288,16 +1344,10 @@ export const byokAPI = {
 // API Keys
 export const apiKeyAPI = {
   listKeys: () => get("/v1/api-keys"),
-  createKey: (data: { name: string }) => post("/v1/api-keys", data),
+  createKey: (data: { name: string; scopes?: string[] }) => post("/v1/api-keys", data),
   revokeKey: (id: number) => del(`/v1/api-keys/${id}`),
 }
 
-// NPS Feedback
-export const npsAPI = {
-  submit: (data: { score: number; comment?: string }) => post("/v1/nps", data),
-  status: () => get("/v1/nps/status"),
-  summary: () => get("/v1/nps/summary"),
-};
 
 // Onboarding Checklist (admin getting-started)
 export const onboardingChecklistAPI = {
@@ -1330,19 +1380,155 @@ export const companyRegistrationAPI = {
     del(`/v1/company/registration-numbers/${id}`),
 }
 
-// Virtual Office
-export const virtualOfficeAPI = {
-  getConfig: () => get("/v1/virtual-office/config"),
-  updateConfig: (data: { template: string }) => put("/v1/virtual-office/config", data),
-  listSeats: () => get("/v1/virtual-office/seats"),
-  assignSeat: (data: { employee_id: number; floor: number; zone: string; seat_x: number; seat_y: number }) =>
-    post("/v1/virtual-office/seats/assign", data),
-  autoAssign: () => post("/v1/virtual-office/seats/auto", {}),
-  removeSeat: (employeeId: number) => del(`/v1/virtual-office/seats/${employeeId}`),
-  listUnassigned: () => get("/v1/virtual-office/unassigned"),
-  getSnapshot: () => get("/v1/virtual-office/snapshot"),
-  updateMyStatus: (data: { manual_status?: string | null; meeting_room_zone?: string | null; custom_status?: string | null; custom_emoji?: string | null }) =>
-    put("/v1/virtual-office/my-status", data),
-  updateMyAvatar: (data: { avatar_type: string; avatar_color: string }) =>
-    put("/v1/virtual-office/my-avatar", data),
-}
+
+// Home dashboard
+export const homeAPI = {
+  get: () => get("/v1/home"),
+  agencies: () => get("/v1/home/agencies"),
+};
+
+// Slack alerts
+export const alertsAPI = {
+  get: () => get("/v1/alerts/slack"),
+  save: (data: { webhook_url?: string; events?: string[]; enabled?: boolean }) => put("/v1/alerts/slack", data),
+  disconnect: () => del("/v1/alerts/slack"),
+  test: () => post("/v1/alerts/slack/test", {}),
+};
+
+// Agent routines (New hire, Offboarding, Pre-payroll check, Filing autopilot)
+export const routinesAPI = {
+  list: () => get("/v1/routines"),
+  update: (key: string, data: { enabled?: boolean; autonomy?: string; instructions?: string }) => put(`/v1/routines/${key}`, data),
+  runs: (params?: { routine?: string; limit?: string }) => get("/v1/routines/runs", params),
+  run: (id: number) => get(`/v1/routines/runs/${id}`),
+  undo: (runId: number, idx: number) => post(`/v1/routines/runs/${runId}/actions/${idx}/undo`, {}),
+};
+
+// Employee lifecycle (Warp-style one-step hire / terminate), HR inbox, custom fields
+export const lifecycleAPI = {
+  hire: (data: Record<string, unknown>) => post("/v1/lifecycle/hire", data),
+  overview: (employeeId: number) => get(`/v1/lifecycle/employees/${employeeId}`),
+  terminate: (employeeId: number, data: Record<string, unknown>) =>
+    post(`/v1/lifecycle/employees/${employeeId}/terminate`, data),
+  cancelTermination: (employeeId: number) =>
+    del(`/v1/lifecycle/employees/${employeeId}/terminate`),
+  inbox: (params?: Record<string, string>) => get("/v1/inbox", params),
+  inboxBrief: () => get("/v1/inbox/brief"),
+  listCustomFields: (params?: Record<string, string>) =>
+    get("/v1/custom-fields", params),
+  createCustomField: (data: Record<string, unknown>) =>
+    post("/v1/custom-fields", data),
+  updateCustomField: (id: number, data: Record<string, unknown>) =>
+    put(`/v1/custom-fields/${id}`, data),
+  getEmployeeCustomFields: (employeeId: number) =>
+    get(`/v1/employees/${employeeId}/custom-fields`),
+  updateEmployeeCustomFields: (employeeId: number, values: Record<string, string>) =>
+    put(`/v1/employees/${employeeId}/custom-fields`, { values }),
+};
+
+// Government filing agent
+export const govAPI = {
+  forms: (country?: string) => get("/v1/gov/forms", country ? { country } : undefined),
+  accounts: () => get("/v1/gov/accounts"),
+  saveAccount: (data: Record<string, unknown>) => post("/v1/gov/accounts", data),
+  deleteAccount: (id: number) => del(`/v1/gov/accounts/${id}`),
+  submissions: (params?: Record<string, string>) => get("/v1/gov/submissions", params),
+  prepare: (data: Record<string, unknown>) => post("/v1/gov/submissions", data),
+  submission: (id: number) => get(`/v1/gov/submissions/${id}`),
+  approve: (id: number) => post(`/v1/gov/submissions/${id}/approve`),
+  dryRun: (id: number) => post(`/v1/gov/submissions/${id}/dry-run`),
+  cancel: (id: number) => post(`/v1/gov/submissions/${id}/cancel`),
+  record: (id: number, reference_no: string, note?: string) =>
+    post(`/v1/gov/submissions/${id}/record`, { reference_no, note }),
+  fileBlob: (id: number) => api(`/v1/gov/submissions/${id}/file`, { responseType: "blob" }),
+  notices: (status?: string) => get("/v1/gov/notices", status ? { status } : undefined),
+  notice: (id: number) => get(`/v1/gov/notices/${id}`),
+  createNotice: (form: FormData) => api("/v1/gov/notices", { method: "POST", body: form, headers: {} }),
+  updateNotice: (id: number, data: { status: string; draft_response?: string; resolution_note?: string }) =>
+    put(`/v1/gov/notices/${id}`, data),
+  retriageNotice: (id: number) => post(`/v1/gov/notices/${id}/retriage`, {}),
+  prepareFromNotice: (id: number) => post(`/v1/gov/notices/${id}/prepare`, {}),
+  noticeFileBlob: (id: number) => api(`/v1/gov/notices/${id}/file`, { responseType: "blob" }),
+  evidenceBlob: (id: number, file: string) =>
+    api(`/v1/gov/submissions/${id}/evidence`, { params: { file }, responseType: "blob" }),
+  humanRequests: () => get("/v1/gov/human-requests"),
+  answer: (id: number, answer: string) => post(`/v1/gov/human-requests/${id}/answer`, { answer }),
+  humanScreenshotBlob: (id: number) =>
+    api(`/v1/gov/human-requests/${id}/screenshot`, { responseType: "blob" }),
+  playbooks: () => get("/v1/gov/playbooks"),
+  savePlaybook: (data: Record<string, unknown>) => post("/v1/gov/playbooks", data),
+  verifyPlaybook: (id: number, verified: boolean) =>
+    post(`/v1/gov/playbooks/${id}/verify`, { verified }),
+  deletePlaybook: (id: number) => del(`/v1/gov/playbooks/${id}`),
+};
+
+// Documents & e-signature, self-onboarding invites
+export const documentsAPI = {
+  templates: () => get("/v1/documents/templates"),
+  createTemplate: (data: Record<string, unknown>) => post("/v1/documents/templates", data),
+  updateTemplate: (id: number, data: Record<string, unknown>) =>
+    put(`/v1/documents/templates/${id}`, data),
+  aiDraft: (kind: string, instructions: string) =>
+    post("/v1/documents/templates/ai-draft", { kind, instructions }),
+  mergeFields: () => get("/v1/documents/merge-fields"),
+  requests: (params?: Record<string, string>) => get("/v1/documents/signature-requests", params),
+  createRequest: (data: Record<string, unknown>) => post("/v1/documents/signature-requests", data),
+  voidRequest: (id: number) => post(`/v1/documents/signature-requests/${id}/void`),
+  pdfBlob: (id: number) =>
+    api(`/v1/documents/signature-requests/${id}/pdf`, { responseType: "blob" }),
+  createInvite: (employeeId: number, data: Record<string, unknown>) =>
+    post(`/v1/lifecycle/employees/${employeeId}/onboarding-invite`, data),
+  getInvite: (employeeId: number) => get(`/v1/lifecycle/employees/${employeeId}/onboarding-invite`),
+};
+
+// Public (token) endpoints for new hires / signers — no login
+export const publicAPI = {
+  taxForm: (token: string) => get(`/v1/public/contractor-form/${token}`),
+  submitTaxForm: (token: string, data: Record<string, unknown>) => post(`/v1/public/contractor-form/${token}`, data),
+  portal: (token: string) => get(`/v1/public/onboarding/${token}`),
+  saveProfile: (token: string, data: Record<string, unknown>) =>
+    post(`/v1/public/onboarding/${token}/profile`, data),
+  portalDoc: (token: string, id: number) => get(`/v1/public/onboarding/${token}/documents/${id}`),
+  portalSign: (token: string, id: number, data: Record<string, unknown>) =>
+    post(`/v1/public/onboarding/${token}/documents/${id}/sign`, data),
+  doc: (token: string) => get(`/v1/public/sign/${token}`),
+  sign: (token: string, data: Record<string, unknown>) => post(`/v1/public/sign/${token}`, data),
+};
+
+// Devices & MDM
+export const devicesAPI = {
+  list: (params?: Record<string, string>) => get("/v1/devices", params),
+  create: (data: Record<string, unknown>) => post("/v1/devices", data),
+  update: (id: number, data: Record<string, unknown>) => put(`/v1/devices/${id}`, data),
+  assign: (id: number, employee_id: number) => post(`/v1/devices/${id}/assign`, { employee_id }),
+  unassign: (id: number) => post(`/v1/devices/${id}/unassign`),
+  action: (id: number, action: string) => post(`/v1/devices/${id}/actions`, { action }),
+  actions: (params?: Record<string, string>) => get("/v1/devices/actions", params),
+  approveAction: (id: number) => post(`/v1/devices/actions/${id}/approve`),
+  cancelAction: (id: number) => post(`/v1/devices/actions/${id}/cancel`),
+  completeAction: (id: number, note: string) => post(`/v1/devices/actions/${id}/complete`, { note }),
+  mdm: () => get("/v1/devices/mdm"),
+  saveMdm: (data: Record<string, unknown>) => put("/v1/devices/mdm", data),
+};
+
+// Contractors & freelancer payments (EWT, BIR 2307)
+export const contractorsAPI = {
+  createTaxForm: (id: number) => post(`/v1/contractors/${id}/tax-form`, {}),
+  taxForm: (id: number) => get(`/v1/contractors/${id}/tax-form`),
+  atcs: () => get("/v1/contractors/atcs"),
+  list: () => get("/v1/contractors"),
+  create: (data: Record<string, unknown>) => post("/v1/contractors", data),
+  update: (id: number, data: Record<string, unknown>) => put(`/v1/contractors/${id}`, data),
+  payments: (params?: Record<string, string>) => get("/v1/contractors/payments", params),
+  createPayment: (data: Record<string, unknown>) => post("/v1/contractors/payments", data),
+  approve: (id: number) => post(`/v1/contractors/payments/${id}/approve`),
+  pay: (id: number, data: Record<string, unknown>) => post(`/v1/contractors/payments/${id}/pay`, data),
+  void: (id: number) => post(`/v1/contractors/payments/${id}/void`),
+  payoutAccount: (id: number) => get(`/v1/contractors/${id}/payout-account`),
+  setPayoutAccount: (id: number, data: { recipient_id: number; currency: string; label?: string }) => put(`/v1/contractors/${id}/payout-account`, data),
+  wiseQuote: (paymentId: number) => get(`/v1/contractors/payments/${paymentId}/wise`),
+  wisePay: (paymentId: number, data: Record<string, unknown>) => post(`/v1/contractors/payments/${paymentId}/wise`, data),
+  bankFileBlob: () => api("/v1/contractors/bank-file", { responseType: "blob" }),
+  certificateBlob: (id: number, quarter: string) =>
+    api(`/v1/contractors/${id}/2307`, { params: { quarter }, responseType: "blob" }),
+};

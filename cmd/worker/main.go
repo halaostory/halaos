@@ -15,11 +15,18 @@ import (
 	"github.com/halaostory/halaos/internal/ai"
 	"github.com/halaostory/halaos/internal/ai/agent"
 	"github.com/halaostory/halaos/internal/ai/provider"
+	"github.com/halaostory/halaos/internal/alerts"
 	"github.com/halaostory/halaos/internal/billing"
 	"github.com/halaostory/halaos/internal/config"
+	"github.com/halaostory/halaos/internal/devices"
+	"github.com/halaostory/halaos/internal/edition"
 	"github.com/halaostory/halaos/internal/email"
+	"github.com/halaostory/halaos/internal/govfiling"
 	"github.com/halaostory/halaos/internal/integration"
+	"github.com/halaostory/halaos/internal/leavepolicy"
+	"github.com/halaostory/halaos/internal/lifecycle"
 	"github.com/halaostory/halaos/internal/payroll"
+	"github.com/halaostory/halaos/internal/routines"
 	"github.com/halaostory/halaos/internal/store"
 	"github.com/halaostory/halaos/internal/workflow"
 )
@@ -84,8 +91,6 @@ func main() {
 		triggerDispatcher = workflow.NewTriggerDispatcher(queries, agentEvaluator, workflowEngine, pool, logger)
 	}
 
-	brainEmitter := integration.NewBrainEmitter(queries, logger)
-
 	logger.Info("worker started")
 
 	// Event outbox processor + agent task executor
@@ -103,6 +108,45 @@ func main() {
 		}
 	}()
 
+	// Government filing agent: runs approved submissions (API / e-mail / browser).
+	govSvc := govfiling.NewService(queries, pool, logger,
+		govfiling.ServiceConfigFromEnv(cfg.Integration.EncryptionKey, aiProvider, email.NewSender(cfg.SMTP, logger), logger))
+	deviceSvc := devices.NewServiceFromKey(queries, logger, cfg.Integration.EncryptionKey)
+	routineEngine := &routines.Engine{Service: routines.NewService(queries, logger), Gov: govSvc, Calculator: calculator, Enabled: ed.Enabled}
+	govSvc.SetPolicy(routineEngine.Policy)
+	alertSvc := alerts.NewServiceFromKey(queries, cfg.Integration.EncryptionKey, logger, cfg.Resend.BaseURL)
+	routineEngine.SetNotifier(alertSvc)
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		var lastAutopilot time.Time
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if time.Since(lastAutopilot) >= time.Hour {
+					lastAutopilot = time.Now()
+					r := govSvc.Autopilot(ctx)
+					logger.Info("gov filing autopilot", "prepared", r.Prepared, "failed", r.Failed, "state_registrations", r.Registrations, "new_hire_forms", r.NewHireForms)
+					routineEngine.RecordAutopilot(ctx, r)
+					if n := alertSvc.FilingDigest(ctx); n > 0 {
+						logger.Info("slack filing digests sent", "companies", n)
+					}
+				}
+				if n := routineEngine.CheckPayrollRuns(ctx); n > 0 {
+					logger.Info("pre-payroll check", "runs", n)
+				}
+				if n := govSvc.ProcessQueue(ctx); n > 0 {
+					logger.Info("gov filing runs started", "count", n)
+				}
+				if n := deviceSvc.ProcessQueue(ctx); n > 0 {
+					logger.Info("device actions processed", "count", n)
+				}
+			}
+		}
+	}()
+
 	// Periodic jobs
 	go func() {
 		ticker := time.NewTicker(1 * time.Hour)
@@ -112,7 +156,7 @@ func main() {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				runPeriodicJobs(ctx, queries, pool, rdb, aiProvider, workflowEngine, calculator, emailSvc, brainEmitter, logger)
+				runPeriodicJobs(ctx, queries, pool, rdb, aiProvider, workflowEngine, calculator, emailSvc, logger)
 			}
 		}
 	}()
@@ -171,6 +215,10 @@ func dispatchEvent(ctx context.Context, queries *store.Queries, calculator *payr
 	case "overtime.requested":
 		return dispatcher.DispatchForEvent(ctx, ev.CompanyID, "on_created", "overtime_request", ev.AggregateID)
 
+	case "employee.self_onboarded":
+		logger.Info("new hire completed self-onboarding", "employee_id", ev.AggregateID)
+		return nil
+
 	case "leave.approved", "leave.cancelled":
 		logger.Info("leave event processed", "type", ev.EventType)
 		return nil
@@ -185,14 +233,36 @@ func dispatchEvent(ctx context.Context, queries *store.Queries, calculator *payr
 	}
 }
 
-func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.Pool, _ *redis.Client, aiProvider provider.Provider, workflowEngine *workflow.Engine, calculator *payroll.Calculator, emailSvc *email.Service, brainEmitter *integration.BrainEmitter, logger *slog.Logger) {
+// ed is the product edition; jobs of modules the edition does not ship are skipped.
+var ed = edition.Load()
+
+func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.Pool, _ *redis.Client, aiProvider provider.Provider, workflowEngine *workflow.Engine, calculator *payroll.Calculator, emailSvc *email.Service, logger *slog.Logger) {
 	logger.Info("running periodic jobs")
 
 	// Auto-close open attendance records from previous day
-	autoCloseAttendance(ctx, queries, logger)
+	if ed.Enabled(edition.ModAttendance) {
+		autoCloseAttendance(ctx, queries, logger)
+	}
+
+	// Apply scheduled separations whose last working day has arrived
+	// (marks employee separated + enqueues access revocation).
+	lifecycleSvc := lifecycle.NewService(queries, pool, logger)
+	lifecycleSvc.SetAccountingEmitter(integration.NewAccountingEmitter(queries, logger))
+	lifecycleSvc.SetDevices(devices.NewServiceFromKey(queries, logger, os.Getenv("INTEGRATION_ENCRYPTION_KEY")))
+	lifecycleSvc.SetRoutines(&routines.Engine{Service: routines.NewService(queries, logger), Enabled: ed.Enabled})
+	if n := lifecycleSvc.ProcessDueSeparations(ctx); n > 0 {
+		logger.Info("applied scheduled separations", "count", n)
+	}
 
 	// Check for overdue leave accruals (monthly)
 	accrueLeaveBalances(ctx, queries, logger)
+
+	// Re-apply rule-based leave policies (tenure upgrades, department moves)
+	if ed.Enabled(edition.ModTimeOff) {
+		if n := leavepolicy.NewService(queries, logger).ApplyAll(ctx); n > 0 {
+			logger.Info("leave policy entitlements updated", "changes", n)
+		}
+	}
 
 	// Year-end leave carryover (runs in January)
 	processLeaveCarryover(ctx, queries, logger)
@@ -213,28 +283,44 @@ func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.
 	_ = queries.MarkExpiredDocuments(ctx)
 
 	// Detect no-show employees and send notifications (10 AM only)
-	checkNoShows(ctx, queries, pool, logger)
+	if ed.Enabled(edition.ModAttendance) {
+		checkNoShows(ctx, queries, pool, logger)
+	}
 
 	// Follow up on unresolved absences (3 PM only)
-	checkAbsenceFollowup(ctx, queries, pool, logger)
+	if ed.Enabled(edition.ModAttendance) {
+		checkAbsenceFollowup(ctx, queries, pool, logger)
+	}
 
 	// Calculate flight risk scores (weekly, Monday only)
-	calculateFlightRisk(ctx, queries, pool, brainEmitter, logger)
+	if ed.Enabled(edition.ModIntelligence) {
+		calculateFlightRisk(ctx, queries, pool, logger)
+	}
 
 	// Calculate team health scores (weekly, Monday only)
-	calculateTeamHealth(ctx, queries, pool, brainEmitter, logger)
+	if ed.Enabled(edition.ModIntelligence) {
+		calculateTeamHealth(ctx, queries, pool, logger)
+	}
 
 	// Calculate burnout risk scores (weekly, Monday only)
-	calculateBurnoutScores(ctx, queries, pool, brainEmitter, logger)
+	if ed.Enabled(edition.ModIntelligence) {
+		calculateBurnoutScores(ctx, queries, pool, logger)
+	}
 
 	// Detect manager blind spots (weekly, Monday only, after scorers)
-	detectManagerBlindSpots(ctx, queries, pool, brainEmitter, logger)
+	if ed.Enabled(edition.ModIntelligence) {
+		detectManagerBlindSpots(ctx, queries, pool, logger)
+	}
 
 	// Snapshot score history + org aggregates (weekly, Monday only, after scorers)
-	snapshotScoreHistory(ctx, queries, pool, brainEmitter, logger)
+	if ed.Enabled(edition.ModIntelligence) {
+		snapshotScoreHistory(ctx, queries, pool, logger)
+	}
 
 	// Generate executive briefings (weekly, Monday only, after snapshots)
-	generateExecutiveBriefings(ctx, queries, aiProvider, logger)
+	if ed.Enabled(edition.ModIntelligence) {
+		generateExecutiveBriefings(ctx, queries, aiProvider, logger)
+	}
 
 	// Generate compliance alerts (daily)
 	generateComplianceAlerts(ctx, queries, pool, logger)
@@ -243,13 +329,19 @@ func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.
 	autoRegularize(ctx, queries, pool, logger)
 
 	// Distribute pulse surveys (9 AM, frequency-gated)
-	distributePulseSurveys(ctx, queries, pool, logger)
+	if ed.Enabled(edition.ModEngagement) {
+		distributePulseSurveys(ctx, queries, pool, logger)
+	}
 
 	// Close expired pulse rounds (>7 days old)
-	closeExpiredPulseRounds(ctx, queries, pool, logger)
+	if ed.Enabled(edition.ModEngagement) {
+		closeExpiredPulseRounds(ctx, queries, pool, logger)
+	}
 
 	// Process workflow auto-approvals
-	processAutoApprovals(ctx, queries, pool, workflowEngine, logger)
+	if ed.Enabled(edition.ModIntelligence) {
+		processAutoApprovals(ctx, queries, pool, workflowEngine, logger)
+	}
 
 	// Check approval SLAs (reminders, escalations, auto-actions)
 	checkApprovalSLAs(ctx, queries, pool, logger)
@@ -263,11 +355,8 @@ func runPeriodicJobs(ctx context.Context, queries *store.Queries, pool *pgxpool.
 	// Auto-approve zero-anomaly payroll runs (hourly)
 	autoApprovePayroll(ctx, queries, pool, logger)
 
-	// Send onboarding drip emails (hourly)
-	sendDripEmails(ctx, queries, emailSvc, logger)
-
 	// Clear stale virtual office manual statuses (daily, idempotent)
-	clearStaleVOStatuses(ctx, queries, logger)
+
 }
 
 func autoCloseAttendance(ctx context.Context, queries *store.Queries, logger *slog.Logger) {

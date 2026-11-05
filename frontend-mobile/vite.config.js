@@ -2,8 +2,10 @@ import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import Components from "unplugin-vue-components/vite";
 import { VantResolver } from "@vant/auto-import-resolver";
-export default defineConfig({
-    base: "/m/",
+// `vite build --mode native` builds the Capacitor (iOS/Android) bundle:
+// relative paths, its own output folder.
+export default defineConfig(({ mode }) => ({
+    base: mode === "native" ? "./" : "/m/",
     plugins: [
         vue(),
         Components({
@@ -20,6 +22,7 @@ export default defineConfig({
         },
     },
     build: {
+        outDir: mode === "native" ? "dist-native" : "dist",
         rollupOptions: {
             output: {
                 manualChunks: {
@@ -28,4 +31,4 @@ export default defineConfig({
             },
         },
     },
-});
+}));

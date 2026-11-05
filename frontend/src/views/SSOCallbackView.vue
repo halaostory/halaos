@@ -13,6 +13,18 @@ const error = ref('')
 const loading = ref(true)
 
 onMounted(async () => {
+  // OpenID Connect sign-in: exchange the single-use code for a session.
+  const oidc = route.query.oidc as string
+  if (oidc) {
+    try {
+      await auth.loginWithOIDC(oidc)
+      router.replace('/')
+    } catch {
+      error.value = 'SSO login failed'
+      loading.value = false
+    }
+    return
+  }
   const token = route.query.token as string
   if (!token) {
     error.value = 'No SSO token provided'

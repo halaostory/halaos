@@ -187,9 +187,9 @@ function formatRecordDate(dt: string) {
     </div>
 
     <AiQuickAsk :questions="[
-      'Am I late today?',
-      'Show my attendance this week',
-      'Generate my attendance report',
+      t('ask.attendance1'),
+      t('ask.attendance2'),
+      t('ask.attendance3'),
     ]" />
 
     <!-- Records List -->

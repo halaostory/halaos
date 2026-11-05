@@ -95,6 +95,33 @@ type Agent struct {
 	CompanyID      *int64         `json:"company_id"`
 }
 
+type AgentRoutine struct {
+	ID           int64     `json:"id"`
+	CompanyID    int64     `json:"company_id"`
+	RoutineKey   string    `json:"routine_key"`
+	Enabled      bool      `json:"enabled"`
+	Autonomy     string    `json:"autonomy"`
+	Instructions string    `json:"instructions"`
+	UpdatedBy    *int64    `json:"updated_by"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+type AgentRoutineRun struct {
+	ID          int64           `json:"id"`
+	CompanyID   int64           `json:"company_id"`
+	RoutineKey  string          `json:"routine_key"`
+	Trigger     string          `json:"trigger"`
+	SubjectType string          `json:"subject_type"`
+	SubjectID   int64           `json:"subject_id"`
+	SubjectName string          `json:"subject_name"`
+	Autonomy    string          `json:"autonomy"`
+	Status      string          `json:"status"`
+	Summary     string          `json:"summary"`
+	Actions     json.RawMessage `json:"actions"`
+	CreatedAt   time.Time       `json:"created_at"`
+}
+
 type AgentTask struct {
 	ID             int64              `json:"id"`
 	CompanyID      int64              `json:"company_id"`
@@ -143,6 +170,17 @@ type AiReminder struct {
 	CreatedAt      time.Time          `json:"created_at"`
 }
 
+type AlertChannel struct {
+	CompanyID       int64       `json:"company_id"`
+	SlackWebhookEnc []byte      `json:"slack_webhook_enc"`
+	SlackHint       string      `json:"slack_hint"`
+	Events          []string    `json:"events"`
+	Enabled         bool        `json:"enabled"`
+	LastDigestOn    pgtype.Date `json:"last_digest_on"`
+	UpdatedBy       *int64      `json:"updated_by"`
+	UpdatedAt       time.Time   `json:"updated_at"`
+}
+
 type Announcement struct {
 	ID                int64              `json:"id"`
 	CompanyID         int64              `json:"company_id"`
@@ -167,6 +205,7 @@ type ApiKey struct {
 	IsActive   bool               `json:"is_active"`
 	LastUsedAt pgtype.Timestamptz `json:"last_used_at"`
 	CreatedAt  time.Time          `json:"created_at"`
+	Scopes     []string           `json:"scopes"`
 }
 
 type Applicant struct {
@@ -429,36 +468,6 @@ type BotUserLink struct {
 	UpdatedAt       time.Time          `json:"updated_at"`
 }
 
-type BrainLink struct {
-	ID            int64              `json:"id"`
-	CompanyID     int64              `json:"company_id"`
-	BrainTenantID uuid.UUID          `json:"brain_tenant_id"`
-	ApiEndpoint   string             `json:"api_endpoint"`
-	ApiKeyEnc     string             `json:"api_key_enc"`
-	WebhookSecret string             `json:"webhook_secret"`
-	IsActive      bool               `json:"is_active"`
-	LastSyncedAt  pgtype.Timestamptz `json:"last_synced_at"`
-	CreatedAt     time.Time          `json:"created_at"`
-	UpdatedAt     time.Time          `json:"updated_at"`
-}
-
-type BrainOutbox struct {
-	ID             int64              `json:"id"`
-	CompanyID      int64              `json:"company_id"`
-	EventType      string             `json:"event_type"`
-	AggregateType  string             `json:"aggregate_type"`
-	AggregateID    int64              `json:"aggregate_id"`
-	Payload        json.RawMessage    `json:"payload"`
-	IdempotencyKey string             `json:"idempotency_key"`
-	Status         string             `json:"status"`
-	RetryCount     int32              `json:"retry_count"`
-	MaxRetries     int32              `json:"max_retries"`
-	NextRetryAt    pgtype.Timestamptz `json:"next_retry_at"`
-	SentAt         pgtype.Timestamptz `json:"sent_at"`
-	ErrorMessage   *string            `json:"error_message"`
-	CreatedAt      time.Time          `json:"created_at"`
-}
-
 type BreakLog struct {
 	ID              int64              `json:"id"`
 	CompanyID       int64              `json:"company_id"`
@@ -577,37 +586,69 @@ type ClearanceTemplate struct {
 }
 
 type Company struct {
-	ID                    int64     `json:"id"`
-	Name                  string    `json:"name"`
-	LegalName             *string   `json:"legal_name"`
-	Tin                   *string   `json:"tin"`
-	BirRdo                *string   `json:"bir_rdo"`
-	Address               *string   `json:"address"`
-	City                  *string   `json:"city"`
-	Province              *string   `json:"province"`
-	ZipCode               *string   `json:"zip_code"`
-	Country               string    `json:"country"`
-	Timezone              string    `json:"timezone"`
-	Currency              string    `json:"currency"`
-	PayFrequency          string    `json:"pay_frequency"`
-	Status                string    `json:"status"`
-	LogoUrl               *string   `json:"logo_url"`
-	CreatedAt             time.Time `json:"created_at"`
-	UpdatedAt             time.Time `json:"updated_at"`
-	GeofenceEnabled       bool      `json:"geofence_enabled"`
-	SssErNo               *string   `json:"sss_er_no"`
-	PhilhealthErNo        *string   `json:"philhealth_er_no"`
-	PagibigErNo           *string   `json:"pagibig_er_no"`
-	BankName              *string   `json:"bank_name"`
-	BankBranch            *string   `json:"bank_branch"`
-	BankAccountNo         *string   `json:"bank_account_no"`
-	BankAccountName       *string   `json:"bank_account_name"`
-	ContactPerson         *string   `json:"contact_person"`
-	ContactEmail          *string   `json:"contact_email"`
-	ContactPhone          *string   `json:"contact_phone"`
-	ReferralCode          *string   `json:"referral_code"`
-	ReferredByCode        *string   `json:"referred_by_code"`
-	ReferralRewardClaimed bool      `json:"referral_reward_claimed"`
+	ID              int64     `json:"id"`
+	Name            string    `json:"name"`
+	LegalName       *string   `json:"legal_name"`
+	Tin             *string   `json:"tin"`
+	BirRdo          *string   `json:"bir_rdo"`
+	Address         *string   `json:"address"`
+	City            *string   `json:"city"`
+	Province        *string   `json:"province"`
+	ZipCode         *string   `json:"zip_code"`
+	Country         string    `json:"country"`
+	Timezone        string    `json:"timezone"`
+	Currency        string    `json:"currency"`
+	PayFrequency    string    `json:"pay_frequency"`
+	Status          string    `json:"status"`
+	LogoUrl         *string   `json:"logo_url"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+	GeofenceEnabled bool      `json:"geofence_enabled"`
+	SssErNo         *string   `json:"sss_er_no"`
+	PhilhealthErNo  *string   `json:"philhealth_er_no"`
+	PagibigErNo     *string   `json:"pagibig_er_no"`
+	BankName        *string   `json:"bank_name"`
+	BankBranch      *string   `json:"bank_branch"`
+	BankAccountNo   *string   `json:"bank_account_no"`
+	BankAccountName *string   `json:"bank_account_name"`
+	ContactPerson   *string   `json:"contact_person"`
+	ContactEmail    *string   `json:"contact_email"`
+	ContactPhone    *string   `json:"contact_phone"`
+}
+
+type CompanyDevice struct {
+	ID                 int64              `json:"id"`
+	CompanyID          int64              `json:"company_id"`
+	AssetTag           string             `json:"asset_tag"`
+	Kind               string             `json:"kind"`
+	MakeModel          string             `json:"make_model"`
+	SerialNo           string             `json:"serial_no"`
+	Os                 string             `json:"os"`
+	MdmDeviceID        *string            `json:"mdm_device_id"`
+	AssignedEmployeeID *int64             `json:"assigned_employee_id"`
+	AssignedAt         pgtype.Timestamptz `json:"assigned_at"`
+	Status             string             `json:"status"`
+	Notes              *string            `json:"notes"`
+	CreatedAt          time.Time          `json:"created_at"`
+	UpdatedAt          time.Time          `json:"updated_at"`
+}
+
+type CompanyPerk struct {
+	ID          int64       `json:"id"`
+	CompanyID   int64       `json:"company_id"`
+	Title       string      `json:"title"`
+	Partner     string      `json:"partner"`
+	Category    string      `json:"category"`
+	Description string      `json:"description"`
+	Offer       string      `json:"offer"`
+	Code        string      `json:"code"`
+	Url         string      `json:"url"`
+	ExpiresOn   pgtype.Date `json:"expires_on"`
+	Active      bool        `json:"active"`
+	Claims      int32       `json:"claims"`
+	CreatedBy   *int64      `json:"created_by"`
+	CreatedAt   time.Time   `json:"created_at"`
+	UpdatedAt   time.Time   `json:"updated_at"`
 }
 
 type CompanyPolicy struct {
@@ -665,6 +706,97 @@ type ContractMilestone struct {
 	UpdatedAt      time.Time          `json:"updated_at"`
 }
 
+type Contractor struct {
+	ID              int64          `json:"id"`
+	CompanyID       int64          `json:"company_id"`
+	Kind            string         `json:"kind"`
+	Name            string         `json:"name"`
+	Email           *string        `json:"email"`
+	Tin             string         `json:"tin"`
+	Address         string         `json:"address"`
+	IsVatRegistered bool           `json:"is_vat_registered"`
+	EwtRate         pgtype.Numeric `json:"ewt_rate"`
+	AtcCode         string         `json:"atc_code"`
+	BankName        *string        `json:"bank_name"`
+	BankAccountNo   *string        `json:"bank_account_no"`
+	BankAccountName *string        `json:"bank_account_name"`
+	Status          string         `json:"status"`
+	Notes           *string        `json:"notes"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+}
+
+type ContractorPayment struct {
+	ID            int64              `json:"id"`
+	CompanyID     int64              `json:"company_id"`
+	ContractorID  int64              `json:"contractor_id"`
+	InvoiceNo     string             `json:"invoice_no"`
+	Description   string             `json:"description"`
+	ServiceDate   time.Time          `json:"service_date"`
+	GrossAmount   pgtype.Numeric     `json:"gross_amount"`
+	VatAmount     pgtype.Numeric     `json:"vat_amount"`
+	EwtBase       pgtype.Numeric     `json:"ewt_base"`
+	EwtRate       pgtype.Numeric     `json:"ewt_rate"`
+	EwtAmount     pgtype.Numeric     `json:"ewt_amount"`
+	NetAmount     pgtype.Numeric     `json:"net_amount"`
+	AtcCode       string             `json:"atc_code"`
+	Status        string             `json:"status"`
+	ApprovedBy    *int64             `json:"approved_by"`
+	ApprovedAt    pgtype.Timestamptz `json:"approved_at"`
+	PaidAt        pgtype.Date        `json:"paid_at"`
+	PaidReference *string            `json:"paid_reference"`
+	CreatedBy     *int64             `json:"created_by"`
+	CreatedAt     time.Time          `json:"created_at"`
+	UpdatedAt     time.Time          `json:"updated_at"`
+}
+
+type ContractorPayoutAccount struct {
+	ContractorID int64     `json:"contractor_id"`
+	CompanyID    int64     `json:"company_id"`
+	Provider     string    `json:"provider"`
+	RecipientID  int64     `json:"recipient_id"`
+	Currency     string    `json:"currency"`
+	Label        string    `json:"label"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+type ContractorTaxForm struct {
+	ID              int64              `json:"id"`
+	CompanyID       int64              `json:"company_id"`
+	ContractorID    int64              `json:"contractor_id"`
+	TokenHash       string             `json:"token_hash"`
+	Status          string             `json:"status"`
+	ExpiresAt       time.Time          `json:"expires_at"`
+	TaxCountry      string             `json:"tax_country"`
+	EntityType      string             `json:"entity_type"`
+	Tin             string             `json:"tin"`
+	Address         string             `json:"address"`
+	IsVatRegistered bool               `json:"is_vat_registered"`
+	Declaration     string             `json:"declaration"`
+	SignerName      string             `json:"signer_name"`
+	SignerIp        string             `json:"signer_ip"`
+	SignerAgent     string             `json:"signer_agent"`
+	SubmittedAt     pgtype.Timestamptz `json:"submitted_at"`
+	CreatedBy       *int64             `json:"created_by"`
+	CreatedAt       time.Time          `json:"created_at"`
+}
+
+type ContractorWiseTransfer struct {
+	PaymentID      int64          `json:"payment_id"`
+	CompanyID      int64          `json:"company_id"`
+	QuoteID        string         `json:"quote_id"`
+	TransferID     int64          `json:"transfer_id"`
+	SourceAmount   pgtype.Numeric `json:"source_amount"`
+	SourceCurrency string         `json:"source_currency"`
+	TargetAmount   pgtype.Numeric `json:"target_amount"`
+	TargetCurrency string         `json:"target_currency"`
+	Rate           pgtype.Numeric `json:"rate"`
+	Status         string         `json:"status"`
+	CreatedBy      *int64         `json:"created_by"`
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
+}
+
 type CostCenter struct {
 	ID        int64     `json:"id"`
 	CompanyID int64     `json:"company_id"`
@@ -720,6 +852,23 @@ type Department struct {
 	IsActive       bool      `json:"is_active"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+type DeviceAction struct {
+	ID           int64              `json:"id"`
+	CompanyID    int64              `json:"company_id"`
+	DeviceID     int64              `json:"device_id"`
+	EmployeeID   *int64             `json:"employee_id"`
+	Action       string             `json:"action"`
+	Status       string             `json:"status"`
+	Trigger      string             `json:"trigger"`
+	RequestedBy  *int64             `json:"requested_by"`
+	ApprovedBy   *int64             `json:"approved_by"`
+	Result       *string            `json:"result"`
+	ErrorMessage *string            `json:"error_message"`
+	Attempts     int32              `json:"attempts"`
+	CreatedAt    time.Time          `json:"created_at"`
+	CompletedAt  pgtype.Timestamptz `json:"completed_at"`
 }
 
 type DisciplinaryAction struct {
@@ -788,11 +937,16 @@ type DocumentRequirement struct {
 	CreatedAt    time.Time `json:"created_at"`
 }
 
-type DripEmail struct {
+type DocumentTemplate struct {
 	ID        int64     `json:"id"`
 	CompanyID int64     `json:"company_id"`
-	Step      int32     `json:"step"`
-	SentAt    time.Time `json:"sent_at"`
+	Kind      string    `json:"kind"`
+	Name      string    `json:"name"`
+	Body      string    `json:"body"`
+	IsActive  bool      `json:"is_active"`
+	CreatedBy *int64    `json:"created_by"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type Employee struct {
@@ -848,6 +1002,30 @@ type EmployeeBurnoutScore struct {
 	CalculatedAt time.Time       `json:"calculated_at"`
 }
 
+type EmployeeCustomField struct {
+	ID          int64     `json:"id"`
+	CompanyID   int64     `json:"company_id"`
+	FieldKey    string    `json:"field_key"`
+	Label       string    `json:"label"`
+	FieldType   string    `json:"field_type"`
+	Options     []string  `json:"options"`
+	IsRequired  bool      `json:"is_required"`
+	IsSensitive bool      `json:"is_sensitive"`
+	SortOrder   int32     `json:"sort_order"`
+	IsActive    bool      `json:"is_active"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type EmployeeCustomFieldValue struct {
+	CompanyID  int64     `json:"company_id"`
+	EmployeeID int64     `json:"employee_id"`
+	FieldID    int64     `json:"field_id"`
+	Value      string    `json:"value"`
+	UpdatedBy  *int64    `json:"updated_by"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
 type EmployeeDocument struct {
 	ID         uuid.UUID          `json:"id"`
 	CompanyID  int64              `json:"company_id"`
@@ -870,6 +1048,12 @@ type EmployeeDocument struct {
 	IsRequired bool               `json:"is_required"`
 	Status     string             `json:"status"`
 	UpdatedAt  time.Time          `json:"updated_at"`
+}
+
+type EmployeePaySchedule struct {
+	EmployeeID    int64     `json:"employee_id"`
+	PayScheduleID int64     `json:"pay_schedule_id"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 type EmployeeProfile struct {
@@ -940,6 +1124,30 @@ type EmployeeScheduleAssignment struct {
 	EffectiveFrom time.Time   `json:"effective_from"`
 	EffectiveTo   pgtype.Date `json:"effective_to"`
 	CreatedAt     time.Time   `json:"created_at"`
+}
+
+type EmployeeSeparation struct {
+	ID             int64              `json:"id"`
+	CompanyID      int64              `json:"company_id"`
+	EmployeeID     int64              `json:"employee_id"`
+	SeparationType string             `json:"separation_type"`
+	Reason         *string            `json:"reason"`
+	NoticeDate     time.Time          `json:"notice_date"`
+	LastWorkingDay time.Time          `json:"last_working_day"`
+	RehireEligible bool               `json:"rehire_eligible"`
+	ClearanceID    *int64             `json:"clearance_id"`
+	RevokeAccess   bool               `json:"revoke_access"`
+	Status         string             `json:"status"`
+	CompletedAt    pgtype.Timestamptz `json:"completed_at"`
+	CreatedBy      *int64             `json:"created_by"`
+	CreatedAt      time.Time          `json:"created_at"`
+}
+
+type EmployeeWorkplace struct {
+	EmployeeID  int64     `json:"employee_id"`
+	CompanyID   int64     `json:"company_id"`
+	WorkplaceID int64     `json:"workplace_id"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 type EmploymentHistory struct {
@@ -1037,6 +1245,44 @@ type GeofenceLocation struct {
 	UpdatedAt         time.Time      `json:"updated_at"`
 }
 
+type GlAccountMapping struct {
+	CompanyID int64           `json:"company_id"`
+	Accounts  json.RawMessage `json:"accounts"`
+	UpdatedBy *int64          `json:"updated_by"`
+	UpdatedAt time.Time       `json:"updated_at"`
+}
+
+type GlConnection struct {
+	CompanyID       int64     `json:"company_id"`
+	Provider        string    `json:"provider"`
+	TenantID        string    `json:"tenant_id"`
+	TenantName      string    `json:"tenant_name"`
+	AccessTokenEnc  []byte    `json:"access_token_enc"`
+	RefreshTokenEnc []byte    `json:"refresh_token_enc"`
+	ExpiresAt       time.Time `json:"expires_at"`
+	ConnectedBy     *int64    `json:"connected_by"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
+
+type GlOauthState struct {
+	State     string    `json:"state"`
+	CompanyID int64     `json:"company_id"`
+	UserID    *int64    `json:"user_id"`
+	Provider  string    `json:"provider"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type GlPush struct {
+	ID         int64     `json:"id"`
+	CompanyID  int64     `json:"company_id"`
+	Provider   string    `json:"provider"`
+	RunID      int64     `json:"run_id"`
+	ExternalID string    `json:"external_id"`
+	PushedBy   *int64    `json:"pushed_by"`
+	PushedAt   time.Time `json:"pushed_at"`
+}
+
 type Goal struct {
 	ID            int64              `json:"id"`
 	CompanyID     int64              `json:"company_id"`
@@ -1055,6 +1301,123 @@ type Goal struct {
 	ManagerRating *int32             `json:"manager_rating"`
 	CreatedAt     time.Time          `json:"created_at"`
 	UpdatedAt     time.Time          `json:"updated_at"`
+}
+
+type GovHumanRequest struct {
+	ID             int64              `json:"id"`
+	SubmissionID   int64              `json:"submission_id"`
+	CompanyID      int64              `json:"company_id"`
+	Name           string             `json:"name"`
+	Prompt         string             `json:"prompt"`
+	ScreenshotPath *string            `json:"screenshot_path"`
+	AnswerEnc      *string            `json:"answer_enc"`
+	Status         string             `json:"status"`
+	AnsweredBy     *int64             `json:"answered_by"`
+	AnsweredAt     pgtype.Timestamptz `json:"answered_at"`
+	ExpiresAt      time.Time          `json:"expires_at"`
+	CreatedAt      time.Time          `json:"created_at"`
+}
+
+type GovNotice struct {
+	ID                  int64              `json:"id"`
+	CompanyID           int64              `json:"company_id"`
+	Agency              string             `json:"agency"`
+	NoticeType          string             `json:"notice_type"`
+	FormCode            string             `json:"form_code"`
+	Period              string             `json:"period"`
+	ReferenceNo         string             `json:"reference_no"`
+	Amount              pgtype.Numeric     `json:"amount"`
+	RespondBy           pgtype.Date        `json:"respond_by"`
+	Title               string             `json:"title"`
+	Summary             string             `json:"summary"`
+	Recommendation      string             `json:"recommendation"`
+	ResolutionPath      string             `json:"resolution_path"`
+	DraftResponse       string             `json:"draft_response"`
+	MatchedSubmissionID *int64             `json:"matched_submission_id"`
+	Status              string             `json:"status"`
+	AutoResolvable      bool               `json:"auto_resolvable"`
+	TriagedBy           string             `json:"triaged_by"`
+	SourceText          string             `json:"source_text"`
+	FileName            *string            `json:"file_name"`
+	FilePath            *string            `json:"file_path"`
+	ResolutionNote      string             `json:"resolution_note"`
+	ResolvedBy          *int64             `json:"resolved_by"`
+	ResolvedAt          pgtype.Timestamptz `json:"resolved_at"`
+	CreatedBy           *int64             `json:"created_by"`
+	CreatedAt           time.Time          `json:"created_at"`
+	UpdatedAt           time.Time          `json:"updated_at"`
+}
+
+type GovPlaybook struct {
+	ID          int64              `json:"id"`
+	CompanyID   *int64             `json:"company_id"`
+	PlaybookKey string             `json:"playbook_key"`
+	FormCode    string             `json:"form_code"`
+	Definition  json.RawMessage    `json:"definition"`
+	Verified    bool               `json:"verified"`
+	VerifiedBy  *int64             `json:"verified_by"`
+	VerifiedAt  pgtype.Timestamptz `json:"verified_at"`
+	CreatedBy   *int64             `json:"created_by"`
+	CreatedAt   time.Time          `json:"created_at"`
+	UpdatedAt   time.Time          `json:"updated_at"`
+}
+
+type GovPortalAccount struct {
+	ID             int64              `json:"id"`
+	CompanyID      int64              `json:"company_id"`
+	Agency         string             `json:"agency"`
+	Portal         string             `json:"portal"`
+	Label          string             `json:"label"`
+	Username       string             `json:"username"`
+	CredentialsEnc string             `json:"credentials_enc"`
+	OtpChannel     string             `json:"otp_channel"`
+	Status         string             `json:"status"`
+	LastUsedAt     pgtype.Timestamptz `json:"last_used_at"`
+	LastError      *string            `json:"last_error"`
+	CreatedBy      *int64             `json:"created_by"`
+	CreatedAt      time.Time          `json:"created_at"`
+	UpdatedAt      time.Time          `json:"updated_at"`
+}
+
+type GovSubmission struct {
+	ID              int64              `json:"id"`
+	CompanyID       int64              `json:"company_id"`
+	Agency          string             `json:"agency"`
+	FormCode        string             `json:"form_code"`
+	Period          string             `json:"period"`
+	TaxFilingID     *int64             `json:"tax_filing_id"`
+	Channel         string             `json:"channel"`
+	PlaybookID      *string            `json:"playbook_id"`
+	PortalAccountID *int64             `json:"portal_account_id"`
+	Status          string             `json:"status"`
+	FileName        *string            `json:"file_name"`
+	FilePath        *string            `json:"file_path"`
+	FileSha256      *string            `json:"file_sha256"`
+	Data            json.RawMessage    `json:"data"`
+	Preflight       json.RawMessage    `json:"preflight"`
+	Instructions    *string            `json:"instructions"`
+	DueDate         pgtype.Date        `json:"due_date"`
+	ApprovedBy      *int64             `json:"approved_by"`
+	ApprovedAt      pgtype.Timestamptz `json:"approved_at"`
+	SubmittedAt     pgtype.Timestamptz `json:"submitted_at"`
+	ReferenceNo     *string            `json:"reference_no"`
+	Outputs         json.RawMessage    `json:"outputs"`
+	ErrorMessage    *string            `json:"error_message"`
+	Attempts        int32              `json:"attempts"`
+	CreatedBy       *int64             `json:"created_by"`
+	CreatedAt       time.Time          `json:"created_at"`
+	UpdatedAt       time.Time          `json:"updated_at"`
+	DryRun          bool               `json:"dry_run"`
+}
+
+type GovSubmissionEvent struct {
+	ID           int64           `json:"id"`
+	SubmissionID int64           `json:"submission_id"`
+	Kind         string          `json:"kind"`
+	Message      string          `json:"message"`
+	Data         json.RawMessage `json:"data"`
+	ActorUserID  *int64          `json:"actor_user_id"`
+	CreatedAt    time.Time       `json:"created_at"`
 }
 
 type GovernmentForm struct {
@@ -1286,6 +1649,24 @@ type LeaveEncashment struct {
 	UpdatedAt   time.Time          `json:"updated_at"`
 }
 
+type LeavePolicyRule struct {
+	ID              int64          `json:"id"`
+	CompanyID       int64          `json:"company_id"`
+	LeaveTypeID     int64          `json:"leave_type_id"`
+	Name            string         `json:"name"`
+	Priority        int32          `json:"priority"`
+	DepartmentIds   []int64        `json:"department_ids"`
+	EmploymentTypes []string       `json:"employment_types"`
+	Gender          string         `json:"gender"`
+	MinTenureMonths int32          `json:"min_tenure_months"`
+	MaxTenureMonths *int32         `json:"max_tenure_months"`
+	Days            pgtype.Numeric `json:"days"`
+	IsActive        bool           `json:"is_active"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+	WorkplaceIds    []int64        `json:"workplace_ids"`
+}
+
 type LeaveRequest struct {
 	ID              int64              `json:"id"`
 	CompanyID       int64              `json:"company_id"`
@@ -1393,6 +1774,25 @@ type ManagerBlindSpot struct {
 	CreatedAt   time.Time          `json:"created_at"`
 }
 
+type MdmConnection struct {
+	CompanyID             int64     `json:"company_id"`
+	Provider              string    `json:"provider"`
+	Url                   string    `json:"url"`
+	SecretEnc             string    `json:"secret_enc"`
+	AutoLockOnTermination bool      `json:"auto_lock_on_termination"`
+	UpdatedAt             time.Time `json:"updated_at"`
+}
+
+type NativePushToken struct {
+	ID         int64              `json:"id"`
+	CompanyID  int64              `json:"company_id"`
+	UserID     int64              `json:"user_id"`
+	Token      string             `json:"token"`
+	Platform   string             `json:"platform"`
+	CreatedAt  time.Time          `json:"created_at"`
+	LastUsedAt pgtype.Timestamptz `json:"last_used_at"`
+}
+
 type Notification struct {
 	ID         int64              `json:"id"`
 	CompanyID  int64              `json:"company_id"`
@@ -1408,13 +1808,41 @@ type Notification struct {
 	Actions    []byte             `json:"actions"`
 }
 
-type NpsFeedback struct {
-	ID        int64     `json:"id"`
-	CompanyID int64     `json:"company_id"`
-	UserID    int64     `json:"user_id"`
-	Score     int16     `json:"score"`
-	Comment   string    `json:"comment"`
-	CreatedAt time.Time `json:"created_at"`
+type OidcLogin struct {
+	State        string             `json:"state"`
+	CompanyID    int64              `json:"company_id"`
+	Nonce        string             `json:"nonce"`
+	Verifier     string             `json:"verifier"`
+	UserID       *int64             `json:"user_id"`
+	ExchangeHash *string            `json:"exchange_hash"`
+	CompletedAt  pgtype.Timestamptz `json:"completed_at"`
+	UsedAt       pgtype.Timestamptz `json:"used_at"`
+	CreatedAt    time.Time          `json:"created_at"`
+}
+
+type OidcProvider struct {
+	CompanyID       int64     `json:"company_id"`
+	Issuer          string    `json:"issuer"`
+	ClientID        string    `json:"client_id"`
+	ClientSecretEnc []byte    `json:"client_secret_enc"`
+	EmailDomains    []string  `json:"email_domains"`
+	Enabled         bool      `json:"enabled"`
+	UpdatedBy       *int64    `json:"updated_by"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
+
+type OnboardingInvite struct {
+	ID          int64              `json:"id"`
+	CompanyID   int64              `json:"company_id"`
+	EmployeeID  int64              `json:"employee_id"`
+	TokenHash   string             `json:"token_hash"`
+	Email       *string            `json:"email"`
+	Status      string             `json:"status"`
+	OpenedAt    pgtype.Timestamptz `json:"opened_at"`
+	SubmittedAt pgtype.Timestamptz `json:"submitted_at"`
+	ExpiresAt   time.Time          `json:"expires_at"`
+	CreatedBy   *int64             `json:"created_by"`
+	CreatedAt   time.Time          `json:"created_at"`
 }
 
 type OnboardingProgress struct {
@@ -1510,6 +1938,44 @@ type PagibigContributionTable struct {
 	MaxEr         pgtype.Numeric `json:"max_er"`
 }
 
+type PaySchedule struct {
+	ID        int64     `json:"id"`
+	CompanyID int64     `json:"company_id"`
+	Name      string    `json:"name"`
+	Frequency string    `json:"frequency"`
+	IsDefault bool      `json:"is_default"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type PayoutBatch struct {
+	ID         int64          `json:"id"`
+	CompanyID  int64          `json:"company_id"`
+	CycleID    int64          `json:"cycle_id"`
+	RunID      int64          `json:"run_id"`
+	Provider   string         `json:"provider"`
+	ExternalID string         `json:"external_id"`
+	Status     string         `json:"status"`
+	Total      pgtype.Numeric `json:"total"`
+	ItemCount  int32          `json:"item_count"`
+	CreatedBy  *int64         `json:"created_by"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
+}
+
+type PayoutItem struct {
+	ID          int64          `json:"id"`
+	BatchID     int64          `json:"batch_id"`
+	EmployeeID  int64          `json:"employee_id"`
+	ExternalID  string         `json:"external_id"`
+	Amount      pgtype.Numeric `json:"amount"`
+	BankCode    string         `json:"bank_code"`
+	AccountNo   string         `json:"account_no"`
+	AccountName string         `json:"account_name"`
+	Status      string         `json:"status"`
+	FailureCode string         `json:"failure_code"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+}
+
 type PayrollAutoConfig struct {
 	ID                   int64          `json:"id"`
 	CompanyID            int64          `json:"company_id"`
@@ -1549,6 +2015,11 @@ type PayrollCycle struct {
 	IsLocked    bool               `json:"is_locked"`
 	LockedAt    pgtype.Timestamptz `json:"locked_at"`
 	LockedBy    *int64             `json:"locked_by"`
+}
+
+type PayrollCycleSchedule struct {
+	CycleID       int64 `json:"cycle_id"`
+	PayScheduleID int64 `json:"pay_schedule_id"`
 }
 
 type PayrollItem struct {
@@ -1760,6 +2231,25 @@ type PulseSurvey struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
+type PushSubscription struct {
+	ID         int64              `json:"id"`
+	CompanyID  int64              `json:"company_id"`
+	UserID     int64              `json:"user_id"`
+	Endpoint   string             `json:"endpoint"`
+	P256dh     string             `json:"p256dh"`
+	Auth       string             `json:"auth"`
+	UserAgent  string             `json:"user_agent"`
+	CreatedAt  time.Time          `json:"created_at"`
+	LastUsedAt pgtype.Timestamptz `json:"last_used_at"`
+}
+
+type PushVapidKey struct {
+	ID         int16     `json:"id"`
+	PublicKey  string    `json:"public_key"`
+	PrivateKey string    `json:"private_key"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
 type Recognition struct {
 	ID             int64     `json:"id"`
 	CompanyID      int64     `json:"company_id"`
@@ -1770,17 +2260,6 @@ type Recognition struct {
 	IsPublic       bool      `json:"is_public"`
 	Points         int32     `json:"points"`
 	CreatedAt      time.Time `json:"created_at"`
-}
-
-type ReferralEvent struct {
-	ID                int64              `json:"id"`
-	ReferrerCompanyID int64              `json:"referrer_company_id"`
-	ReferredCompanyID int64              `json:"referred_company_id"`
-	ReferralCode      string             `json:"referral_code"`
-	Status            string             `json:"status"`
-	RewardType        *string            `json:"reward_type"`
-	CreatedAt         time.Time          `json:"created_at"`
-	ActivatedAt       pgtype.Timestamptz `json:"activated_at"`
 }
 
 type RemittanceRecord struct {
@@ -1892,6 +2371,33 @@ type Shift struct {
 	IsActive     bool        `json:"is_active"`
 	CreatedAt    time.Time   `json:"created_at"`
 	UpdatedAt    time.Time   `json:"updated_at"`
+}
+
+type SignatureRequest struct {
+	ID              int64              `json:"id"`
+	CompanyID       int64              `json:"company_id"`
+	EmployeeID      int64              `json:"employee_id"`
+	TemplateID      *int64             `json:"template_id"`
+	Kind            string             `json:"kind"`
+	Title           string             `json:"title"`
+	Body            string             `json:"body"`
+	BodySha256      string             `json:"body_sha256"`
+	SignerName      string             `json:"signer_name"`
+	SignerEmail     *string            `json:"signer_email"`
+	TokenHash       string             `json:"token_hash"`
+	Status          string             `json:"status"`
+	SignedName      *string            `json:"signed_name"`
+	SignatureImage  *string            `json:"signature_image"`
+	SignedAt        pgtype.Timestamptz `json:"signed_at"`
+	SignedIp        *string            `json:"signed_ip"`
+	SignedUserAgent *string            `json:"signed_user_agent"`
+	DeclinedReason  *string            `json:"declined_reason"`
+	SignedPdfPath   *string            `json:"signed_pdf_path"`
+	SignedPdfSha256 *string            `json:"signed_pdf_sha256"`
+	ViewedAt        pgtype.Timestamptz `json:"viewed_at"`
+	ExpiresAt       time.Time          `json:"expires_at"`
+	CreatedBy       *int64             `json:"created_by"`
+	CreatedAt       time.Time          `json:"created_at"`
 }
 
 type SssContributionTable struct {
@@ -2045,29 +2551,13 @@ type UserCompany struct {
 	JoinedAt  time.Time `json:"joined_at"`
 }
 
-type VirtualOfficeConfig struct {
-	CompanyID int64     `json:"company_id"`
-	Template  string    `json:"template"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-type VirtualOfficeSeat struct {
-	ID              int64     `json:"id"`
-	CompanyID       int64     `json:"company_id"`
-	EmployeeID      int64     `json:"employee_id"`
-	Floor           int32     `json:"floor"`
-	Zone            string    `json:"zone"`
-	SeatX           int32     `json:"seat_x"`
-	SeatY           int32     `json:"seat_y"`
-	AvatarType      string    `json:"avatar_type"`
-	AvatarColor     string    `json:"avatar_color"`
-	CustomStatus    *string   `json:"custom_status"`
-	CustomEmoji     *string   `json:"custom_emoji"`
-	ManualStatus    *string   `json:"manual_status"`
-	MeetingRoomZone *string   `json:"meeting_room_zone"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+type UserMfa struct {
+	UserID         int64              `json:"user_id"`
+	SecretEnc      []byte             `json:"secret_enc"`
+	EnabledAt      pgtype.Timestamptz `json:"enabled_at"`
+	LastStep       int64              `json:"last_step"`
+	RecoveryHashes []string           `json:"recovery_hashes"`
+	CreatedAt      time.Time          `json:"created_at"`
 }
 
 type WorkSchedule struct {
@@ -2144,4 +2634,17 @@ type WorkflowTrigger struct {
 	CreatedBy     *int64          `json:"created_by"`
 	CreatedAt     time.Time       `json:"created_at"`
 	UpdatedAt     time.Time       `json:"updated_at"`
+}
+
+type Workplace struct {
+	ID        int64     `json:"id"`
+	CompanyID int64     `json:"company_id"`
+	Name      string    `json:"name"`
+	Address   string    `json:"address"`
+	City      string    `json:"city"`
+	Region    string    `json:"region"`
+	Country   string    `json:"country"`
+	IsRemote  bool      `json:"is_remote"`
+	IsActive  bool      `json:"is_active"`
+	CreatedAt time.Time `json:"created_at"`
 }

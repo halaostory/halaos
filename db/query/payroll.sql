@@ -86,6 +86,12 @@ UPDATE payroll_cycles SET
 WHERE id = $1 AND company_id = $2;
 
 -- name: CreatePayrollRun :one
+-- A new calculation supersedes the cycle's earlier runs of the same type,
+-- so reports never count a recalculated cycle twice.
+WITH prev AS (
+    UPDATE payroll_runs SET status = 'superseded'
+    WHERE company_id = $1 AND cycle_id = $2 AND run_type = $3 AND status <> 'superseded'
+)
 INSERT INTO payroll_runs (company_id, cycle_id, run_type, initiated_by)
 VALUES ($1, $2, $3, $4)
 RETURNING *;
@@ -98,7 +104,7 @@ UPDATE payroll_runs SET
     total_net = $5,
     status = $6,
     error_message = $7,
-    completed_at = CASE WHEN $6 IN ('completed', 'failed') THEN NOW() ELSE completed_at END
+    completed_at = CASE WHEN $6::varchar IN ('completed', 'failed') THEN NOW() ELSE completed_at END
 WHERE id = $1;
 
 -- name: CreatePayrollItem :one
@@ -130,7 +136,14 @@ VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
 -- name: GetPayslip :one
-SELECT * FROM payslips WHERE id = $1 AND employee_id = $2;
+SELECT * FROM payslips WHERE payslips.id = $1 AND payslips.employee_id = $2
+  -- Employees see a payslip once its pay run is approved, and only the
+  -- latest calculation of each cycle.
+  AND EXISTS (
+    SELECT 1 FROM payroll_runs r JOIN payroll_cycles c ON c.id = r.cycle_id
+    WHERE r.id = payslips.run_id AND c.status IN ('approved', 'paid')
+      AND r.id = (SELECT MAX(r2.id) FROM payroll_runs r2 WHERE r2.cycle_id = r.cycle_id AND r2.status IN ('completed', 'ready_for_approval'))
+  );
 
 -- name: GetPayrollRun :one
 SELECT * FROM payroll_runs WHERE id = $1 AND company_id = $2;
@@ -144,8 +157,15 @@ ORDER BY es.employee_id, es.effective_from DESC;
 
 -- name: ListPayslips :many
 SELECT * FROM payslips
-WHERE company_id = $1 AND employee_id = $2
-ORDER BY created_at DESC
+WHERE payslips.company_id = $1 AND payslips.employee_id = $2
+  -- Employees see a payslip once its pay run is approved, and only the
+  -- latest calculation of each cycle.
+  AND EXISTS (
+    SELECT 1 FROM payroll_runs r JOIN payroll_cycles c ON c.id = r.cycle_id
+    WHERE r.id = payslips.run_id AND c.status IN ('approved', 'paid')
+      AND r.id = (SELECT MAX(r2.id) FROM payroll_runs r2 WHERE r2.cycle_id = r.cycle_id AND r2.status IN ('completed', 'ready_for_approval'))
+  )
+ORDER BY payslips.pay_date DESC, payslips.created_at DESC
 LIMIT $3 OFFSET $4;
 
 -- name: GetPayrollItemsForRun :many
@@ -160,13 +180,13 @@ SELECT pi.*, pr.cycle_id, pc.name as cycle_name, pc.period_start, pc.period_end
 FROM payroll_items pi
 JOIN payroll_runs pr ON pr.id = pi.run_id
 JOIN payroll_cycles pc ON pc.id = pr.cycle_id
-WHERE pr.company_id = $1 AND pi.employee_id = $2 AND pr.status = 'completed'
+WHERE pr.company_id = $1 AND pi.employee_id = $2 AND pr.status IN ('completed', 'ready_for_approval')
 ORDER BY pc.period_start DESC
 LIMIT $3;
 
 -- name: GetLatestCompletedRunForCycle :one
 SELECT id FROM payroll_runs
-WHERE cycle_id = $1 AND company_id = $2 AND status = 'completed'
+WHERE cycle_id = $1 AND company_id = $2 AND status IN ('completed', 'ready_for_approval')
 ORDER BY created_at DESC
 LIMIT 1;
 
@@ -217,6 +237,19 @@ ORDER BY e.department_id, e.last_name;
 SELECT pr.*, pc.name as cycle_name, pc.period_start, pc.period_end, pc.pay_date
 FROM payroll_runs pr
 JOIN payroll_cycles pc ON pc.id = pr.cycle_id
-WHERE pr.company_id = $1 AND pr.status = 'completed'
+WHERE pr.company_id = $1 AND pr.status IN ('completed', 'ready_for_approval')
 ORDER BY pc.period_start DESC
 LIMIT $2 OFFSET $3;
+
+-- name: PreviousPayForRun :many
+-- Each employee's pay in their latest earlier regular (or imported) run, for
+-- the "vs last run" column when reviewing a payroll.
+SELECT DISTINCT ON (pi.employee_id) pi.employee_id, pi.gross_pay::float8 AS gross_pay, pi.net_pay::float8 AS net_pay, c.pay_date
+FROM payroll_items pi
+JOIN payroll_runs r ON r.id = pi.run_id
+JOIN payroll_cycles c ON c.id = r.cycle_id
+WHERE r.company_id = @company_id AND r.status IN ('completed', 'ready_for_approval') AND r.id <> @run_id
+  AND c.cycle_type IN ('regular', 'imported') AND c.status IN ('approved', 'paid')
+  AND c.pay_date < (SELECT c2.pay_date FROM payroll_runs r2 JOIN payroll_cycles c2 ON c2.id = r2.cycle_id WHERE r2.id = @run_id AND r2.company_id = @company_id)
+  AND pi.employee_id IN (SELECT employee_id FROM payroll_items WHERE run_id = @run_id)
+ORDER BY pi.employee_id, c.pay_date DESC, r.id DESC;

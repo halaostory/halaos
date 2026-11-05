@@ -157,3 +157,20 @@ JOIN leave_types lt ON lt.id = lb.leave_type_id
 JOIN employees e ON e.id = lb.employee_id
 WHERE lb.company_id = $1 AND lb.year = $2
 ORDER BY e.last_name, e.first_name, lt.name;
+
+-- name: CountOverlappingLeave :one
+-- Pending or approved leave of the employee that overlaps [start, end].
+SELECT COUNT(*)::int FROM leave_requests
+WHERE company_id = @company_id AND employee_id = @employee_id
+  AND status IN ('pending', 'approved')
+  AND start_date <= @end_date::date AND end_date >= @start_date::date;
+
+-- name: RevokeApprovedLeave :one
+-- HR takes back an approved leave (plans changed); the days are returned.
+UPDATE leave_requests SET status = 'cancelled', updated_at = NOW()
+WHERE id = $1 AND company_id = $2 AND status = 'approved'
+RETURNING *;
+
+-- name: RestoreLeaveBalance :exec
+UPDATE leave_balances SET used = GREATEST(used - $5, 0), updated_at = NOW()
+WHERE company_id = $1 AND employee_id = $2 AND leave_type_id = $3 AND year = $4;

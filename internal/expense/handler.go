@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/halaostory/halaos/internal/access"
 	"github.com/halaostory/halaos/internal/auth"
 	"github.com/halaostory/halaos/internal/store"
 	"github.com/halaostory/halaos/pkg/pagination"
@@ -98,7 +99,7 @@ func (h *Handler) UpdateCategory(c *gin.Context) {
 		IsActive:        req.IsActive,
 	})
 	if err != nil {
-		response.InternalError(c, "Failed to update expense category")
+		response.DBError(c, err, "Expense category not found", "Failed to update expense category")
 		return
 	}
 	response.OK(c, cat)
@@ -176,6 +177,9 @@ func (h *Handler) Get(c *gin.Context) {
 	})
 	if err != nil {
 		response.NotFound(c, "Expense claim not found")
+		return
+	}
+	if !access.Check(c, h.queries, claim.EmployeeID, access.SelfOrManager) {
 		return
 	}
 	response.OK(c, claim)
@@ -274,24 +278,31 @@ func (h *Handler) Submit(c *gin.Context) {
 
 func (h *Handler) Approve(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	userID := auth.GetUserID(c)
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "Invalid expense claim ID")
 		return
 	}
-	emp, err := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
-		CompanyID: companyID,
-		UserID:    &userID,
-	})
-	if err != nil {
-		response.BadRequest(c, "Employee profile not found")
+	owner, oerr := func() (int64, error) {
+		r, err := h.queries.GetExpenseClaim(c.Request.Context(), store.GetExpenseClaimParams{ID: id, CompanyID: auth.GetCompanyID(c)})
+		return r.EmployeeID, err
+	}()
+	if oerr != nil {
+		response.NotFound(c, "Expense claim not found")
 		return
+	}
+	approver, ok := access.Decide(c, h.queries, owner)
+	if !ok {
+		return
+	}
+	var approverID *int64
+	if approver != nil {
+		approverID = &approver.ID
 	}
 	claim, err := h.queries.ApproveExpenseClaim(c.Request.Context(), store.ApproveExpenseClaimParams{
 		ID:         id,
 		CompanyID:  companyID,
-		ApproverID: &emp.ID,
+		ApproverID: approverID,
 	})
 	if err != nil {
 		response.BadRequest(c, "Failed to approve expense claim")
@@ -302,28 +313,35 @@ func (h *Handler) Approve(c *gin.Context) {
 
 func (h *Handler) Reject(c *gin.Context) {
 	companyID := auth.GetCompanyID(c)
-	userID := auth.GetUserID(c)
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "Invalid expense claim ID")
 		return
 	}
+	owner, oerr := func() (int64, error) {
+		r, err := h.queries.GetExpenseClaim(c.Request.Context(), store.GetExpenseClaimParams{ID: id, CompanyID: auth.GetCompanyID(c)})
+		return r.EmployeeID, err
+	}()
+	if oerr != nil {
+		response.NotFound(c, "Expense claim not found")
+		return
+	}
+	approver, ok := access.Decide(c, h.queries, owner)
+	if !ok {
+		return
+	}
+	var approverID *int64
+	if approver != nil {
+		approverID = &approver.ID
+	}
 	var req struct {
 		Reason string `json:"reason"`
 	}
 	_ = c.ShouldBindJSON(&req)
-	emp, err := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{
-		CompanyID: companyID,
-		UserID:    &userID,
-	})
-	if err != nil {
-		response.BadRequest(c, "Employee profile not found")
-		return
-	}
 	claim, err := h.queries.RejectExpenseClaim(c.Request.Context(), store.RejectExpenseClaimParams{
 		ID:              id,
 		CompanyID:       companyID,
-		ApproverID:      &emp.ID,
+		ApproverID:      approverID,
 		RejectionReason: &req.Reason,
 	})
 	if err != nil {

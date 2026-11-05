@@ -1,3 +1,4 @@
+import { apiBase } from "../platform";
 import { ofetch } from "ofetch";
 
 let isRefreshing = false;
@@ -10,7 +11,7 @@ async function tryRefreshToken(): Promise<boolean> {
   try {
     const res = await ofetch<{
       data?: { token: string; refresh_token: string };
-    }>((import.meta.env.VITE_API_URL || "/api") + "/v1/auth/refresh", {
+    }>(apiBase() + "/v1/auth/refresh", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: { refresh_token: refreshToken },
@@ -30,7 +31,7 @@ async function tryRefreshToken(): Promise<boolean> {
 }
 
 const api = ofetch.create({
-  baseURL: import.meta.env.VITE_API_URL || "/api",
+  baseURL: apiBase(),
   headers: { "Content-Type": "application/json" },
   onRequest({ options }) {
     const token = localStorage.getItem("token");
@@ -44,7 +45,7 @@ const api = ofetch.create({
     if (response.status === 401) {
       const url =
         typeof request === "string" ? request : request?.toString() || "";
-      if (url.includes("/auth/login")) return;
+      if (url.includes("/auth/login") || url.includes("/auth/mfa/")) return;
       if (url.includes("/auth/refresh")) {
         localStorage.removeItem("token");
         localStorage.removeItem("refresh_token");
@@ -88,8 +89,9 @@ function put<T>(url: string, body?: Record<string, unknown>) {
 
 // Auth
 export const authAPI = {
-  login: (data: { email: string; password: string }) =>
+  login: (data: { email: string; password: string; company_id?: number }) =>
     post("/v1/auth/login", data),
+  mfaVerify: (data: { mfa_token: string; code: string }) => post("/v1/auth/mfa/verify", data),
   me: () => get("/v1/auth/me"),
   changePassword: (data: { current_password: string; new_password: string }) =>
     put("/v1/auth/password", data),
@@ -122,7 +124,17 @@ export const attendanceAPI = {
 // Leave
 export const leaveAPI = {
   listTypes: () => get("/v1/leaves/types"),
-  getBalances: () => get("/v1/leaves/balances"),
+  // The API returns earned/used/carried/adjusted; the app shows totals and what is left.
+  getBalances: async () => {
+    const raw = (await get("/v1/leaves/balances")) as { data?: Record<string, unknown>[] } | Record<string, unknown>[];
+    const rows = (Array.isArray(raw) ? raw : raw.data) || [];
+    const data = rows.map((b) => {
+      const n = (k: string) => Number(b[k] ?? 0);
+      const total = n("earned") + n("carried") + n("adjusted");
+      return { ...b, total, remaining: Math.round((total - n("used")) * 10) / 10 };
+    });
+    return { success: true, data };
+  },
   listRequests: (params?: Record<string, string>) =>
     get("/v1/leaves/requests", params),
   createRequest: (data: Record<string, unknown>) =>
@@ -136,7 +148,7 @@ export const payrollAPI = {
     get("/v1/payroll/payslips", params),
   getPayslip: (id: string) => get(`/v1/payroll/payslips/${id}`),
   payslipPdfUrl: (id: string) =>
-    `${import.meta.env.VITE_API_URL || "/api"}/v1/payroll/payslips/${id}/pdf`,
+    `${apiBase()}/v1/payroll/payslips/${id}/pdf`,
 };
 
 // Self-Service
@@ -168,7 +180,7 @@ export const geofenceAPI = {
 
 // AI Chat
 function getBaseURL() {
-  return import.meta.env.VITE_API_URL || "/api";
+  return apiBase();
 }
 
 function getToken() {
@@ -320,4 +332,21 @@ export const onboardingChecklistAPI = {
     post("/v1/onboarding-checklist/complete-step", { step, persona }),
   dismiss: (persona = "employee") =>
     post("/v1/onboarding-checklist/dismiss", { persona }),
+};
+
+// Expenses (employee self-service)
+export const expenseAPI = {
+  categories: () => get("/v1/expenses/categories"),
+  my: () => get("/v1/expenses/my"),
+  create: (data: Record<string, unknown>) => post("/v1/expenses", data),
+  submit: (id: number) => post(`/v1/expenses/${id}/submit`, {}),
+};
+
+// Phone notifications (Web Push)
+export const pushAPI = {
+  key: () => get("/v1/push/key"),
+  subscribe: (sub: Record<string, unknown>) => post("/v1/push/subscribe", sub),
+  unsubscribe: (endpoint: string) => post("/v1/push/unsubscribe", { endpoint }),
+  registerNative: (token: string, platform: string) => post("/v1/push/native", { token, platform }),
+  removeNative: (token: string) => post("/v1/push/native/remove", { token }),
 };

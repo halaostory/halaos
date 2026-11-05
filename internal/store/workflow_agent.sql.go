@@ -219,7 +219,7 @@ func (q *Queries) GetDecisionAccuracyRate(ctx context.Context, companyID int64) 
 
 const getDecisionForEntity = `-- name: GetDecisionForEntity :one
 SELECT id, company_id, trigger_id, entity_type, entity_id, decision, confidence, reasoning, context_snapshot, ai_agent_slug, tokens_used, executed, executed_at, execution_result, overridden_by, override_action, override_reason, overridden_at, created_at FROM workflow_decisions
-WHERE entity_type = $1 AND entity_id = $2
+WHERE entity_type = $1 AND entity_id = $2 AND company_id = $3
 ORDER BY created_at DESC
 LIMIT 1
 `
@@ -227,10 +227,11 @@ LIMIT 1
 type GetDecisionForEntityParams struct {
 	EntityType string `json:"entity_type"`
 	EntityID   int64  `json:"entity_id"`
+	CompanyID  int64  `json:"company_id"`
 }
 
 func (q *Queries) GetDecisionForEntity(ctx context.Context, arg GetDecisionForEntityParams) (WorkflowDecision, error) {
-	row := q.db.QueryRow(ctx, getDecisionForEntity, arg.EntityType, arg.EntityID)
+	row := q.db.QueryRow(ctx, getDecisionForEntity, arg.EntityType, arg.EntityID, arg.CompanyID)
 	var i WorkflowDecision
 	err := row.Scan(
 		&i.ID,

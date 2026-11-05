@@ -1,22 +1,33 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { Tabbar, TabbarItem } from "vant";
 import AiFloatingBubble from "./ai/AiFloatingBubble.vue";
+import { edition, hasModule } from "../edition";
 
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 
-const tabRoutes = ["home", "attendance", "leave", "payslips", "profile"];
+// Warp-style employee app: home, (clock), time off, pay, expenses, me.
+const allTabs = [
+  { name: "home", icon: "home-o", label: "tab.home", module: "" },
+  { name: "attendance", icon: "clock-o", label: "tab.attendance", module: "attendance" },
+  { name: "leave", icon: "calendar-o", label: "tab.leave", module: "time_off" },
+  { name: "payslips", icon: "bill-o", label: "tab.payslips", module: "payroll" },
+  { name: "expenses", icon: "balance-list-o", label: "tab.expenses", module: "expenses" },
+  { name: "profile", icon: "user-o", label: "tab.profile", module: "" },
+];
+const tabs = computed(() => allTabs.filter((t) => !t.module || hasModule(t.module)));
+const tabRoutes = computed(() => tabs.value.map((t) => t.name));
 
 const active = ref(0);
 
 watch(
   () => route.name,
   (name) => {
-    const idx = tabRoutes.indexOf(name as string);
+    const idx = tabRoutes.value.indexOf(name as string);
     if (idx >= 0) active.value = idx;
   },
   { immediate: true },
@@ -24,7 +35,7 @@ watch(
 
 function onTabChange(index: number | string) {
   const idx = typeof index === "string" ? parseInt(index) : index;
-  router.push({ name: tabRoutes[idx] });
+  router.push({ name: tabRoutes.value[idx] });
 }
 </script>
 
@@ -39,13 +50,9 @@ function onTabChange(index: number | string) {
       safe-area-inset-bottom
       @change="onTabChange"
     >
-      <TabbarItem icon="home-o">{{ t("tab.home") }}</TabbarItem>
-      <TabbarItem icon="clock-o">{{ t("tab.attendance") }}</TabbarItem>
-      <TabbarItem icon="calendar-o">{{ t("tab.leave") }}</TabbarItem>
-      <TabbarItem icon="bill-o">{{ t("tab.payslips") }}</TabbarItem>
-      <TabbarItem icon="user-o">{{ t("tab.profile") }}</TabbarItem>
+      <TabbarItem v-for="tab in tabs" :key="tab.name" :icon="tab.icon">{{ t(tab.label) }}</TabbarItem>
     </Tabbar>
-    <AiFloatingBubble v-if="route.name !== 'ai-chat'" />
+    <AiFloatingBubble v-if="route.name !== 'ai-chat' && hasModule('ai') && edition.aiAssistant" />
   </div>
 </template>
 

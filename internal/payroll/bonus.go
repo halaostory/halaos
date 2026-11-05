@@ -140,7 +140,7 @@ func (h *Handler) ListBonusAllocations(c *gin.Context) {
 		return
 	}
 
-	allocations, err := h.queries.ListBonusAllocations(c.Request.Context(), id)
+	allocations, err := h.queries.ListBonusAllocations(c.Request.Context(), store.ListBonusAllocationsParams{StructureID: id, CompanyID: auth.GetCompanyID(c)})
 	if err != nil {
 		response.InternalError(c, "Failed to list bonus allocations")
 		return
@@ -278,6 +278,15 @@ func (h *Handler) CreateBonusAllocation(c *gin.Context) {
 	}
 
 	companyID := auth.GetCompanyID(c)
+	// Both the structure and the employee must be this company's.
+	if _, err := h.queries.GetBonusStructure(c.Request.Context(), store.GetBonusStructureParams{ID: structureID, CompanyID: companyID}); err != nil {
+		response.NotFound(c, "Bonus structure not found")
+		return
+	}
+	if _, err := h.queries.GetEmployeeByID(c.Request.Context(), store.GetEmployeeByIDParams{ID: req.EmployeeID, CompanyID: companyID}); err != nil {
+		response.NotFound(c, "Employee not found")
+		return
+	}
 
 	manualOverride := pgtype.Numeric{Valid: false}
 	if req.ManualOverride != nil {
@@ -297,7 +306,7 @@ func (h *Handler) CreateBonusAllocation(c *gin.Context) {
 	})
 	if err != nil {
 		h.logger.Error("create bonus allocation failed", "error", err)
-		response.InternalError(c, "Failed to create bonus allocation")
+		response.DBError(c, err, "Bonus structure or employee not found", "Failed to create bonus allocation")
 		return
 	}
 	response.Created(c, alloc)
@@ -316,6 +325,7 @@ func (h *Handler) ApproveBonusAllocations(c *gin.Context) {
 
 	err := h.queries.BulkApproveBonusAllocations(c.Request.Context(), store.BulkApproveBonusAllocationsParams{
 		Column1:    req.IDs,
+		CompanyID:  auth.GetCompanyID(c),
 		ApprovedBy: &userID,
 	})
 	if err != nil {

@@ -27,8 +27,17 @@ func (h *Handler) GetSalary(c *gin.Context) {
 		EffectiveFrom: time.Now(),
 	})
 	if err != nil {
-		response.OK(c, nil)
-		return
+		// Not in effect yet (e.g. a new hire who starts next week): show the
+		// upcoming salary rather than "no salary record".
+		salary, err = h.queries.GetCurrentSalary(c.Request.Context(), store.GetCurrentSalaryParams{
+			CompanyID:     companyID,
+			EmployeeID:    id,
+			EffectiveFrom: time.Now().AddDate(1, 0, 0),
+		})
+		if err != nil {
+			response.OK(c, nil)
+			return
+		}
 	}
 	response.OK(c, salary)
 }

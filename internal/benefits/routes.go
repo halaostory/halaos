@@ -23,4 +23,9 @@ func (h *Handler) RegisterRoutes(protected *gin.RouterGroup) {
 	protected.POST("/benefits/claims", h.CreateClaim)
 	protected.POST("/benefits/claims/:id/approve", auth.ManagerOrAbove(), h.ApproveClaim)
 	protected.POST("/benefits/claims/:id/reject", auth.ManagerOrAbove(), h.RejectClaim)
+	protected.GET("/benefits/perks", h.ListPerks)
+	protected.POST("/benefits/perks", auth.AdminOnly(), h.CreatePerk)
+	protected.PUT("/benefits/perks/:id", auth.AdminOnly(), h.UpdatePerk)
+	protected.DELETE("/benefits/perks/:id", auth.AdminOnly(), h.DeletePerk)
+	protected.POST("/benefits/perks/:id/claim", h.ClaimPerk)
 }

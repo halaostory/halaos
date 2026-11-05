@@ -18,15 +18,17 @@ import {
   GridOutline, FileTrayFullOutline, CloudDownloadOutline, BookOutline, CalendarNumberOutline,
   MegaphoneOutline, DocumentTextOutline, SchoolOutline, AlertCircleOutline, MedkitOutline, FolderOpenOutline, ChatbubblesOutline, LocationOutline,
   LinkOutline, PulseOutline, GitBranchOutline, TrendingUpOutline,
-  FlashOutline, BulbOutline, HappyOutline, StarOutline, OpenOutline,
+  FlashOutline, BulbOutline, HappyOutline, StarOutline,
+  MailUnreadOutline, PersonAddOutline, OptionsOutline, BuildOutline, CreateOutline, LaptopOutline,
+  SparklesOutline, RepeatOutline, SpeedometerOutline, MailOpenOutline,
 } from '@vicons/ionicons5'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
-import { notificationAPI, integrationAPI } from '../api/client'
+import { notificationAPI } from '../api/client'
 import ChatPanel from './ChatPanel.vue'
 import CommandPalette from './CommandPalette.vue'
-import NPSModal from './NPSModal.vue'
 import { useTour } from '../composables/useTour'
+import { edition, featureEnabled } from '../edition'
 
 const router = useRouter()
 const route = useRoute()
@@ -135,15 +137,16 @@ const features: Record<string, boolean> = {
   expenses: true, disciplinary: true, grievance: true, clearance: true,
   'final-pay': true, '201file': true, milestones: true, geofences: true,
   'import-export': true, audit: true, policies: true, 'self-service': true,
-  holidays: true, 'org-intelligence': true, 'workflow-rules': true, accounting: true,
+  holidays: true, 'org-intelligence': true, 'workflow-rules': true,
   'workflow-analytics': true, 'workflow-triggers': true, 'workflow-decisions': true,
   'pulse-surveys': true, recognition: true, 'hr-requests': true,
-  'virtual-office': true,
   'bot-setup': true,
+  inbox: true, hire: true, 'custom-fields': true, 'gov-filings': true, documents: true, devices: true, contractors: true,
+  routines: true, insights: true, notices: true, workplaces: true,
 }
 
 function isEnabled(key: string): boolean {
-  return features[key] !== false
+  return features[key] !== false && featureEnabled(key)
 }
 
 /** Push item to array if feature is enabled */
@@ -151,18 +154,26 @@ function pushIf(arr: MenuOption[], key: string, titleKey: string, icon: Componen
   if (isEnabled(key)) arr.push(mi(titleKey, key, icon))
 }
 
-const menuOptions = computed<MenuOption[]>(() => {
+const rawGroups = computed<MenuOption[]>(() => {
   const groups: MenuOption[] = []
   const isAdminOrManager = auth.isAdmin || auth.isManager
 
-  // ── 1. My Workspace (all users) ──
+  // ── 0. Home, inbox and the agent (Warp-style top of the sidebar) ──
+  const top: MenuOption[] = []
+  if (isAdminOrManager) pushIf(top, 'dashboard', 'nav.home', HomeOutline)
+  if (auth.isAdmin) pushIf(top, 'inbox', 'nav.inbox', MailUnreadOutline)
+  pushIf(top, 'agent-hub', 'nav.agent', SparklesOutline)
+  if (auth.isAdmin) pushIf(top, 'routines', 'nav.routines', RepeatOutline)
+  if (top.length) {
+    groups.push({ type: 'group', label: '', key: 'g-top', children: top })
+  }
+
+  // ── 1. Me (all users) ──
   const workspace: MenuOption[] = []
-  pushIf(workspace, 'dashboard', 'nav.dashboard', HomeOutline)
   pushIf(workspace, 'self-service', 'nav.selfService', PersonCircleOutline)
   pushIf(workspace, 'payslips', 'nav.payslips', ReceiptOutline)
   pushIf(workspace, 'announcements', 'nav.announcements', MegaphoneOutline)
   pushIf(workspace, 'hr-requests', 'nav.hrRequests', FileTrayFullOutline)
-  pushIf(workspace, 'bot-setup', 'nav.botSetup', ChatbubblesOutline)
   if (workspace.length) {
     groups.push({ type: 'group', label: t('nav.groupWorkspace'), key: 'g-workspace', children: workspace })
   }
@@ -170,6 +181,9 @@ const menuOptions = computed<MenuOption[]>(() => {
   // ── 2. People (Manager+, Directory visible to all) ──
   const people: MenuOption[] = []
   if (isAdminOrManager) pushIf(people, 'employees', 'nav.employees', PeopleOutline)
+  if (auth.isAdmin) pushIf(people, 'hire', 'nav.hire', PersonAddOutline)
+  if (auth.isAdmin) pushIf(people, 'documents', 'nav.documents', CreateOutline)
+  if (auth.isAdmin) pushIf(people, 'devices', 'nav.devices', LaptopOutline)
   pushIf(people, 'directory', 'nav.directory', BookOutline)
   if (isAdminOrManager) {
     pushIf(people, 'onboarding', 'nav.onboarding', ClipboardOutline)
@@ -193,7 +207,7 @@ const menuOptions = computed<MenuOption[]>(() => {
     pushIf(timeAtt, 'dtr', 'nav.dtr', ClipboardOutline)
   }
   if (timeAtt.length) {
-    groups.push({ type: 'group', label: t('nav.groupTimeAttendance'), key: 'g-time', children: timeAtt })
+    groups.push({ type: 'group', label: t(featureEnabled('attendance') ? 'nav.groupTimeAttendance' : 'nav.groupTimeOff'), key: 'g-time', children: timeAtt })
   }
 
   // ── 4. Payroll & Compensation ──
@@ -203,9 +217,21 @@ const menuOptions = computed<MenuOption[]>(() => {
   pushIf(payComp, 'expenses', 'nav.expenses', ReceiptOutline)
   pushIf(payComp, 'benefits', 'nav.benefits', MedkitOutline)
   if (auth.isAdmin) pushIf(payComp, 'final-pay', 'nav.finalPay', WalletOutline)
-  if (auth.isAdmin) pushIf(payComp, 'accounting', 'nav.accounting', OpenOutline)
+  if (auth.isAdmin) pushIf(payComp, 'contractors', 'nav.contractors', BriefcaseOutline)
   if (payComp.length) {
     groups.push({ type: 'group', label: t('nav.groupPayroll'), key: 'g-payroll', children: payComp })
+  }
+
+  // ── 4b. Compliance (taxes, government filings & registrations) ──
+  if (auth.isAdmin) {
+    const comp: MenuOption[] = []
+    pushIf(comp, 'gov-filings', 'nav.govFilings', BuildOutline)
+    pushIf(comp, 'notices', 'nav.notices', MailOpenOutline)
+    pushIf(comp, 'tax-filings', 'nav.taxFilings', DocumentTextOutline)
+    pushIf(comp, 'compliance', 'nav.agencies', ShieldCheckmarkOutline)
+    if (comp.length) {
+      groups.push({ type: 'group', label: t('nav.groupCompliance'), key: 'g-compliance', children: comp })
+    }
   }
 
   // ── 5. Talent & Development ──
@@ -226,19 +252,18 @@ const menuOptions = computed<MenuOption[]>(() => {
   const engagement: MenuOption[] = []
   pushIf(engagement, 'recognition', 'nav.recognition', StarOutline)
   pushIf(engagement, 'pulse-surveys', 'nav.pulseSurveys', HappyOutline)
-  pushIf(engagement, 'virtual-office', 'nav.virtualOffice', BusinessOutline)
   pushIf(engagement, 'policies', 'nav.policies', DocumentTextOutline)
   if (engagement.length) {
     groups.push({ type: 'group', label: t('nav.groupEngagement'), key: 'g-engagement', children: engagement })
   }
 
-  // ── 7. AI & Insights ──
+  // ── 7. Insights ──
   const ai: MenuOption[] = []
-  pushIf(ai, 'agent-hub', 'nav.agentHub', ChatbubblesOutline)
+  if (isAdminOrManager) pushIf(ai, 'insights', 'nav.insights', SpeedometerOutline)
   if (auth.isAdmin) pushIf(ai, 'analytics', 'nav.analytics', BarChartOutline)
   if (isAdminOrManager) pushIf(ai, 'org-intelligence', 'nav.orgIntelligence', PulseOutline)
   if (ai.length) {
-    groups.push({ type: 'group', label: t('nav.groupAI'), key: 'g-ai', children: ai })
+    groups.push({ type: 'group', label: t('nav.groupInsights'), key: 'g-ai', children: ai })
   }
 
   // ── 8. Administration (Admin only) ──
@@ -259,10 +284,10 @@ const menuOptions = computed<MenuOption[]>(() => {
     const companyItems: MenuOption[] = []
     pushIf(companyItems, 'departments', 'nav.departments', BusinessOutline)
     pushIf(companyItems, 'positions', 'nav.positions', BriefcaseOutline)
+    pushIf(companyItems, 'workplaces', 'nav.workplaces', LocationOutline)
+    pushIf(companyItems, 'custom-fields', 'nav.customFields', OptionsOutline)
     pushIf(companyItems, 'salary', 'nav.salary', CashOutline)
     pushIf(companyItems, 'holidays', 'nav.holidays', TodayOutline)
-    pushIf(companyItems, 'compliance', 'nav.compliance', ShieldCheckmarkOutline)
-    pushIf(companyItems, 'tax-filings', 'nav.taxFilings', DocumentTextOutline)
     if (companyItems.length) {
       adminItems.push({ type: 'group', label: t('nav.groupAdminCompany'), key: 'g-admin-company', children: companyItems })
     }
@@ -275,8 +300,7 @@ const menuOptions = computed<MenuOption[]>(() => {
     pushIf(sysItems, 'geofences', 'nav.geofences', LocationOutline)
     pushIf(sysItems, 'import-export', 'nav.importExport', CloudDownloadOutline)
     pushIf(sysItems, 'audit', 'nav.audit', FileTrayFullOutline)
-    pushIf(sysItems, 'billing', 'nav.billing', WalletOutline)
-    pushIf(sysItems, 'referrals', 'nav.referrals', GitBranchOutline)
+    if (edition.config.ai_billing) pushIf(sysItems, 'billing', 'nav.billing', WalletOutline)
     pushIf(sysItems, 'bot-setup', 'nav.botSetup', ChatbubblesOutline)
     pushIf(sysItems, 'settings', 'nav.settings', SettingsOutline)
     if (sysItems.length) {
@@ -291,7 +315,49 @@ const menuOptions = computed<MenuOption[]>(() => {
   return groups
 })
 
+// Warp-style sidebar: Home / Inbox / Agent / Routines at the top level, every
+// other area as a collapsible section (one open at a time) instead of ~40
+// always-visible links.
+const sectionIcons: Record<string, Component> = {
+  'g-workspace': PersonCircleOutline, 'g-people': PeopleOutline, 'g-time': CalendarOutline,
+  'g-payroll': WalletOutline, 'g-compliance': ShieldCheckmarkOutline, 'g-talent': RibbonOutline,
+  'g-engagement': StarOutline, 'g-ai': BarChartOutline, 'g-admin': SettingsOutline,
+}
+const menuOptions = computed<MenuOption[]>(() => {
+  const out: MenuOption[] = []
+  for (const g of rawGroups.value) {
+    if (g.key === 'g-top') {
+      out.push(...((g.children as MenuOption[]) || []))
+      continue
+    }
+    const key = String(g.key)
+    out.push({
+      label: key === 'g-admin' ? t('nav.settings') : (g.label as string),
+      key,
+      icon: renderIcon(sectionIcons[key] || GridOutline),
+      children: g.children as MenuOption[],
+    })
+  }
+  return out
+})
+
 const activeKey = computed(() => route.name as string)
+
+function sectionOf(key: string, opts: MenuOption[], parent?: string): string | undefined {
+  for (const o of opts) {
+    if (o.key === key) return parent
+    if (o.children) {
+      const found = sectionOf(key, o.children as MenuOption[], parent ?? (o.type === 'group' ? undefined : String(o.key)))
+      if (found) return found
+    }
+  }
+  return undefined
+}
+const expandedKeys = ref<string[]>([])
+watch([activeKey, menuOptions], () => {
+  const sec = sectionOf(activeKey.value, menuOptions.value)
+  if (sec && !expandedKeys.value.includes(sec)) expandedKeys.value = [sec]
+}, { immediate: true })
 
 const companyOptions = computed(() =>
   (auth.companies || []).map((c: { company_name: string; id: number }) => ({ label: c.company_name, value: c.id }))
@@ -301,27 +367,6 @@ const currentCompanyId = computed(() => auth.user?.company_id)
 async function handleSwitchCompany(companyId: number) {
   // Will be implemented in Task 10 (auth store alignment)
   console.log('Switch company to', companyId)
-}
-
-const accountingLoading = ref(false)
-
-async function openAccounting() {
-  if (accountingLoading.value) return
-  accountingLoading.value = true
-  try {
-    const res = await integrationAPI.getAccountingSSOToken()
-    const data = (res as any)?.data ?? res
-    const ssoToken = data?.sso_token
-    const targetUrl = data?.target_url || 'https://finance.halaos.com'
-    if (ssoToken) {
-      window.open(`${targetUrl}/sso?token=${encodeURIComponent(ssoToken)}`, '_blank')
-    }
-  } catch {
-    // If no accounting link configured, open AIStarlight login directly
-    window.open('https://finance.halaos.com', '_blank')
-  } finally {
-    accountingLoading.value = false
-  }
 }
 
 // Preserve sidebar scroll position across route changes
@@ -341,10 +386,6 @@ watch(() => route.name, () => {
 })
 
 function handleMenuClick(key: string) {
-  if (key === 'accounting') {
-    openAccounting()
-    return
-  }
   saveSiderScroll()
   router.push({ name: key })
 }
@@ -386,7 +427,7 @@ function handleUserAction(key: string) {
       @update:collapsed="(val: boolean) => themeStore.sidebarCollapsed = val"
     >
       <div id="app-logo" style="padding: 16px 20px; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
-        HalaOS
+        {{ edition.config.product_name }}
         <span style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(37, 99, 235, 0.15); color: #3b82f6;">
           {{ auth.user?.company_country || 'PH' }}
         </span>
@@ -401,6 +442,10 @@ function handleUserAction(key: string) {
         id="sidebar-menu"
         :options="menuOptions"
         :value="activeKey"
+        :expanded-keys="expandedKeys"
+        accordion
+        :indent="18"
+        @update:expanded-keys="(k: string[]) => expandedKeys = k"
         @update:value="handleMenuClick"
       />
     </NLayoutSider>
@@ -473,6 +518,5 @@ function handleUserAction(key: string) {
     </NLayout>
     <ChatPanel />
     <CommandPalette />
-    <NPSModal />
   </NLayout>
 </template>

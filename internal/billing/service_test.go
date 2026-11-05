@@ -19,7 +19,9 @@ import (
 func newTestService(mockDB *testutil.MockDBTX) *Service {
 	queries := store.New(mockDB)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	return NewService(queries, logger)
+	svc := NewService(queries, logger)
+	svc.enabled = true
+	return svc
 }
 
 // tokenBalanceScanValues returns values in the exact scan order for TokenBalance
@@ -63,8 +65,8 @@ func tokenPackageScanValues() []interface{} {
 		"Starter Pack", // Name
 		int64(1000),    // Tokens
 		pgtype.Numeric{Int: big.NewInt(49900), Exp: -2, Valid: true}, // PricePhp (499.00)
-		true,      // IsActive
-		int32(1),  // SortOrder
+		true,       // IsActive
+		int32(1),   // SortOrder
 		time.Now(), // CreatedAt
 	}
 }
@@ -535,5 +537,16 @@ func TestNewService(t *testing.T) {
 	}
 	if svc.logger == nil {
 		t.Fatal("expected non-nil logger")
+	}
+}
+
+func TestService_UnmeteredByDefault(t *testing.T) {
+	t.Setenv("BILLING_ENABLED", "")
+	svc := NewService(nil, nil)
+	if b, err := svc.CheckBalance(context.Background(), 1); err != nil || b != Unlimited {
+		t.Fatalf("balance %d err %v", b, err)
+	}
+	if err := svc.DeductTokens(context.Background(), 1, 1, 500, "general", "x"); err != nil {
+		t.Fatal(err)
 	}
 }

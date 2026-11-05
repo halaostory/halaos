@@ -95,17 +95,18 @@ const columns: DataTableColumns = [
   {
     title: t("common.actions"),
     key: "actions",
-    width: 130,
+    width: 170,
     render(row) {
       if (row.status === "completed" || row.status === "skipped") {
         return "";
       }
-      return h(NSpace, { size: "small" }, () => [
+      return h(NSpace, { size: "small", wrap: false, justify: "end" }, () => [
         h(
           NButton,
           {
             size: "small",
-            type: "success",
+            secondary: true,
+            type: "primary",
             onClick: () => handleComplete(row),
           },
           () => t("onboarding.complete")
@@ -114,6 +115,7 @@ const columns: DataTableColumns = [
           NButton,
           {
             size: "small",
+            quaternary: true,
             onClick: () => handleSkip(row),
           },
           () => t("onboarding.skip")

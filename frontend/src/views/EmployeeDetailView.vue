@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { localDate } from '../utils/date'
 import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
@@ -23,13 +24,16 @@ import {
   NTimeline,
   NTimelineItem,
   NEmpty,
+  NAvatar,
+  NDropdown,
   useMessage,
   type DataTableColumns,
   type UploadFileInfo,
 } from "naive-ui";
 import { h } from "vue";
-import { employeeAPI, salaryAPI, companyAPI, integrationAPI, userAPI } from "../api/client";
+import { employeeAPI, salaryAPI, companyAPI, integrationAPI, userAPI, workplacesAPI } from "../api/client";
 import BenefitDeductionConfig from "../components/payroll/BenefitDeductionConfig.vue";
+import EmployeeLifecycleCard from "../components/lifecycle/EmployeeLifecycleCard.vue";
 import { format } from "date-fns";
 import { useCurrency } from "../composables/useCurrency";
 
@@ -82,17 +86,57 @@ const salaryForm = ref({
 });
 const structureOptions = ref<{ label: string; value: number }[]>([]);
 
+async function reloadEmployee() {
+  try {
+    const res = await employeeAPI.get(Number(route.params.id)) as { data: Record<string, unknown> };
+    employee.value = res.data || (res as unknown as Record<string, unknown>);
+  } catch { /* keep current */ }
+}
+
+// Workplace (location) assignment
+const workplaceOptions = ref<{ label: string; value: number }[]>([]);
+const workplaceId = ref<number | null>(null);
+async function loadWorkplace(id: number) {
+  try {
+    const [list, mine] = await Promise.all([workplacesAPI.list(), workplacesAPI.ofEmployee(id)]);
+    workplaceOptions.value = ((list as { data: { id: number; name: string; is_active: boolean }[] }).data || [])
+      .filter((w) => w.is_active).map((w) => ({ label: w.name, value: w.id }));
+    workplaceId.value = ((mine as { data: { id: number } | null }).data)?.id ?? null;
+  } catch {
+    workplaceOptions.value = [];
+  }
+}
+async function changeWorkplace(v: number | null) {
+  try {
+    await workplacesAPI.setForEmployee(Number(route.params.id), v);
+    workplaceId.value = v;
+    message.success(t("common.saved"));
+  } catch {
+    message.error(t("common.saveFailed"));
+  }
+}
+
+// Admin-only data is not requested for managers and employees (the API
+// refuses it); the private profile is loaded for HR or the employee.
+const skipped = () => Promise.reject(new Error("not allowed"));
+// HR or the employee themself: the private profile, documents and accounts.
+const canSeePrivate = ref(false);
 onMounted(async () => {
+  const admin = authStore.isAdmin;
+  if (admin) loadWorkplace(Number(route.params.id));
   try {
     const id = Number(route.params.id);
-    const [emp, prof, sal, structs, depts, positions] = await Promise.allSettled([
+    const [emp, sal, structs, depts, positions] = await Promise.allSettled([
       employeeAPI.get(id),
-      employeeAPI.getProfile(id),
-      employeeAPI.getSalary(id),
-      salaryAPI.listStructures(),
+      admin ? employeeAPI.getSalary(id) : skipped(),
+      admin ? salaryAPI.listStructures() : skipped(),
       companyAPI.listDepartments(),
       companyAPI.listPositions(),
     ]);
+    const self = emp.status === "fulfilled" &&
+      Number(((emp.value as { data?: { user_id?: number } }).data || {}).user_id) === authStore.user?.id;
+    canSeePrivate.value = admin || self;
+    const [prof] = await Promise.allSettled([admin || self ? employeeAPI.getProfile(id) : skipped()]);
     if (emp.status === "fulfilled") {
       const res = emp.value as {
         success: boolean;
@@ -101,6 +145,7 @@ onMounted(async () => {
       employee.value = res.data || (res as unknown as Record<string, unknown>);
     } else {
       error.value = t("employee.notFound");
+      return;
     }
     if (prof.status === "fulfilled") {
       const res = prof.value as {
@@ -156,9 +201,11 @@ onMounted(async () => {
         managerName.value = "";
       }
     }
-    loadDocuments();
+    if (canSeePrivate.value) {
+      loadDocuments();
+      loadIntegrations();
+    }
     loadTimeline();
-    loadIntegrations();
   } catch {
     error.value = t("employee.loadFailed");
   } finally {
@@ -464,7 +511,7 @@ async function handleUpload({ file }: { file: UploadFileInfo }) {
   formData.append("file", file.file);
   formData.append("doc_type", uploadDocType.value);
   if (uploadExpiryDate.value) {
-    formData.append("expiry_date", new Date(uploadExpiryDate.value).toISOString().split("T")[0]);
+    formData.append("expiry_date", localDate(uploadExpiryDate.value));
   }
   try {
     await employeeAPI.uploadDocument(id, formData);
@@ -485,6 +532,21 @@ async function handleDeleteDoc(docId: string) {
   } catch {
     message.error(t("common.failed"));
   }
+}
+
+// Warp-style header: Edit is the primary action, the rest live under More.
+const headerMore = computed(() => {
+  const opts: { label: string; key: string }[] = []
+  if (authStore.isAdmin && employee.value && !employee.value.user_id) opts.push({ label: t("employee.createAccount"), key: "account" })
+  if (authStore.isAdmin) opts.push({ label: t("employee.changeStatus"), key: "status" })
+  opts.push({ label: t("employee.generateLetter"), key: "letter" }, { label: t("employee.downloadCOE"), key: "coe" })
+  return opts
+})
+function onHeaderMore(k: string) {
+  if (k === "account") { accountForm.value.email = String(employee.value?.email || ""); showAccountModal.value = true }
+  else if (k === "status") openStatusChange()
+  else if (k === "letter") showLetterModal.value = true
+  else downloadCOE()
 }
 
 function downloadCOE() {
@@ -591,27 +653,33 @@ async function handleAssignSalary() {
 <template>
   <NSpin :show="loading">
     <NSpace vertical :size="16" v-if="employee">
-      <NSpace justify="space-between">
-        <h2>{{ employee.first_name }} {{ employee.last_name }}</h2>
-        <NSpace>
-          <NButton v-if="authStore.isAdmin && !employee.user_id" type="info" @click="() => { accountForm.email = String(employee?.email || ''); showAccountModal = true; }">{{ t("employee.createAccount") }}</NButton>
-          <NTag v-if="employee.user_id" type="success" size="small">{{ t("employee.hasLoginAccount") }}</NTag>
-          <NButton v-if="authStore.isAdmin" type="warning" @click="openStatusChange">{{ t("employee.changeStatus") }}</NButton>
-          <NButton v-if="authStore.isAdmin || authStore.isManager" @click="showLetterModal = true">{{ t("employee.generateLetter") }}</NButton>
-          <NButton v-if="authStore.isAdmin || authStore.isManager" @click="downloadCOE">{{ t("employee.downloadCOE") }}</NButton>
-          <NButton
-            type="primary"
-            @click="
-              router.push({
-                name: 'employee-edit',
-                params: { id: route.params.id },
-              })
-            "
-            >{{ t("common.edit") }}</NButton
-          >
-          <NButton @click="router.back()">{{ t("common.back") }}</NButton>
-        </NSpace>
-      </NSpace>
+      <div class="emp-head">
+        <NButton text class="emp-back" @click="router.back()">← {{ t("common.back") }}</NButton>
+        <div class="emp-id">
+          <NAvatar round :size="56" class="emp-avatar">{{ String(employee.first_name || '').charAt(0) }}{{ String(employee.last_name || '').charAt(0) }}</NAvatar>
+          <div>
+            <h1>{{ employee.first_name }} {{ employee.last_name }}</h1>
+            <div class="emp-meta">
+              <NTag size="small" round :bordered="false" :type="employee.status === 'active' ? 'success' : employee.status === 'separated' ? 'error' : 'info'">{{ employee.status }}</NTag>
+              <span>{{ employee.employee_no }}</span>
+              <span v-if="employee.email">{{ employee.email }}</span>
+              <NTag v-if="employee.user_id" size="small" round :bordered="false">{{ t("employee.hasLoginAccount") }}</NTag>
+              <NSelect
+                v-if="workplaceOptions.length"
+                :value="workplaceId" :options="workplaceOptions" size="tiny" clearable :disabled="!authStore.isAdmin"
+                :placeholder="t('workplace.none')" style="width: 170px" :consistent-menu-width="false"
+                @update:value="changeWorkplace"
+              />
+            </div>
+          </div>
+          <NSpace class="emp-actions">
+            <NDropdown v-if="authStore.isAdmin || authStore.isManager" trigger="click" :options="headerMore" @select="onHeaderMore">
+              <NButton>{{ t("payroll.more") }} ▾</NButton>
+            </NDropdown>
+            <NButton v-if="authStore.isAdmin" type="primary" @click="router.push({ name: 'employee-edit', params: { id: route.params.id } })">{{ t("common.edit") }}</NButton>
+          </NSpace>
+        </div>
+      </div>
 
       <NCard :title="t('employee.basicInfo')">
         <NDescriptions label-placement="left" :column="2" bordered>
@@ -660,6 +728,14 @@ async function handleAssignSalary() {
           }}</NDescriptionsItem>
         </NDescriptions>
       </NCard>
+
+      <EmployeeLifecycleCard
+        v-if="authStore.isAdmin || authStore.isManager"
+        :employee-id="Number(route.params.id)"
+        :employee-name="`${employee.first_name} ${employee.last_name}`"
+        :is-admin="authStore.isAdmin"
+        @changed="reloadEmployee"
+      />
 
       <NCard :title="t('employee.govIds')" v-if="profile">
         <NDescriptions label-placement="left" :column="2" bordered>
@@ -746,9 +822,9 @@ async function handleAssignSalary() {
       />
 
       <!-- Documents Card -->
-      <NCard :title="t('employee.documents')">
+      <NCard v-if="canSeePrivate" :title="t('employee.documents')">
         <template #header-extra>
-          <NSpace :size="8" align="center">
+          <NSpace v-if="authStore.isAdmin" :size="8" align="center">
             <NSelect v-model:value="uploadDocType" :options="docTypeOptions" size="small" style="width: 140px;" />
             <NDatePicker v-model:value="uploadExpiryDate" type="date" size="small" :placeholder="t('dashboard.expiryDate')" clearable style="width: 150px;" />
             <NUpload :show-file-list="false" :custom-request="({ file }: any) => handleUpload({ file })">
@@ -761,7 +837,7 @@ async function handleAssignSalary() {
       </NCard>
 
       <!-- Connected Accounts -->
-      <NCard :title="t('integration.connectedAccounts')">
+      <NCard v-if="canSeePrivate" :title="t('integration.connectedAccounts')">
         <NDataTable v-if="integrationIdentities.length" :columns="identityColumns" :data="integrationIdentities" :row-key="(row: IntegrationIdentity) => row.id" size="small" />
         <NEmpty v-else :description="t('integration.noConnectedAccounts')" />
       </NCard>
@@ -918,3 +994,13 @@ async function handleAssignSalary() {
     </NCard>
   </NSpin>
 </template>
+
+<style scoped>
+.emp-head { margin-bottom: 4px; }
+.emp-back { font-size: 13px; opacity: .7; margin-bottom: 10px; }
+.emp-id { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.emp-avatar { background: #2080f0; font-size: 20px; }
+.emp-id h1 { font-size: 24px; font-weight: 650; margin: 0 0 4px; }
+.emp-meta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; opacity: .85; }
+.emp-actions { margin-left: auto; }
+</style>

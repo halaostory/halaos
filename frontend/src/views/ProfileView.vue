@@ -8,6 +8,7 @@ import {
 import type { UploadFileInfo } from 'naive-ui'
 import { useAuthStore } from '../stores/auth'
 import { authAPI, botAPI } from '../api/client'
+import MfaCard from '../components/MfaCard.vue'
 
 const { t } = useI18n()
 const message = useMessage()
@@ -242,6 +243,8 @@ const roleMap: Record<string, 'success' | 'warning' | 'info' | 'default'> = {
     </NCard>
 
     <!-- Telegram Bot Link -->
+    <MfaCard />
+
     <NCard :title="t('profile.telegramBot')">
       <template v-if="botLinked">
         <NSpace align="center" :size="12">

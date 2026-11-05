@@ -1,6 +1,6 @@
-# HalaOS
+# HalaPeople (repo: halaos)
 
-AI-powered HR Operating System for Southeast Asia.
+Open-source, Warp-style HR on autopilot for Southeast Asia. HR-only: do not add non-HR features.
 
 ## Stack
 - Go 1.25, Gin, sqlc (pgx/v5), PostgreSQL, Redis, Docker Compose
@@ -43,3 +43,28 @@ cd frontend && npm install && npm run dev
 - **Event structs**: `internal/integration/accounting_events.go`
 - **Queries**: `db/query/accounting_integration.sql`
 - **JWT**: Shared signing secret `INTEGRATION_JWT_SECRET` for cross-app SSO
+
+## Employee Lifecycle (Warp-style)
+- **Package**: `internal/lifecycle` — `Service.Hire` / `Service.Terminate` run all downstream steps in one tx; use these instead of chaining employee/salary/onboarding/clearance calls
+- **Routes**: `POST /lifecycle/hire`, `GET /lifecycle/employees/:id`, `POST|DELETE /lifecycle/employees/:id/terminate`, `GET /inbox`, `/custom-fields`, `/employees/:id/custom-fields`
+- **Scheduled separations**: `employee_separations` (status scheduled → completed by worker on last working day)
+- **Docs**: `docs/hr-lifecycle.md`
+
+## Government filing agent / e-sign / devices
+- `internal/govfiling`: catalog (forms × channels), dataset+file builders, pre-flight rules + AI review, service (prepare/approve/execute), browser engine `browser/` (chromedp playbooks, human_input hand-off, dry runs), autopilot. Never submit without approval; never auto-solve CAPTCHA.
+- `internal/selfonboard`: onboarding invites + e-signature (public routes under `/api/v1/public`, token hashed).
+- `internal/devices`, `internal/finalpay/compute.go`; AI tools in `internal/ai/tools_lifecycle.go` (write tools must be listed in `internal/ai/draft/service.go`).
+- Private files (`GOV_FILES_DIR`, `DOC_FILES_DIR`) must never live under the public `/uploads`.
+- Docs: `docs/hr-lifecycle.md`. Local demo portal: `go run ./cmd/mockgov`.
+
+## Agent routines / home / notices
+- `internal/routines`: built-in routines (new_hire, offboarding, pre_payroll_check, filing_autopilot), per-company autonomy (recommend/approve/autonomous, capped by `MaxAutonomy`), run log in `agent_routine_runs`. Lifecycle calls it via `lifecycle.RoutineHook`; govfiling autopilot via `SetPolicy`. Submissions, payroll approval and final pay always need a person.
+- `internal/home`: `GET /home` (to-dos, registrations per agency, next payroll, filings, agent runs).
+- Notices: `internal/govfiling/notices.go` (rules + AI triage → match to `gov_submissions` → proof-of-filing reply / prepare / escalate); never sent automatically.
+- Warp comparison: `docs/warp-parity.md` — update it when closing a gap.
+
+## Editions
+- `internal/edition` + `frontend/src/edition.ts` define modules; `APP_EDITION=people` (default) or `suite` (+ attendance, talent, engagement, intelligence; `halaos` = legacy alias). AI token billing only when `BILLING_ENABLED=true`.
+- New handlers must be registered via `a.mod(edition.ModX, protected)` in `internal/app/bootstrap.go`; new AI tool groups need a module in `toolGroups` (`internal/ai/tools.go`); new pages need a module in `routeModule` (`frontend/src/edition.ts`).
+- New pages need i18n keys in both `frontend/src/i18n/en.ts` and `zh.ts`; type-check with `npx vue-tsc --noEmit -p tsconfig.app.json`.
+- Docs: `docs/halapeople.md`; deploy: `docker-compose.people.yml`.

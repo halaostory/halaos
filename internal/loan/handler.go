@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/halaostory/halaos/internal/access"
 	"github.com/halaostory/halaos/internal/auth"
 	"github.com/halaostory/halaos/internal/email"
 	"github.com/halaostory/halaos/internal/notification"
@@ -229,6 +230,9 @@ func (h *Handler) GetLoan(c *gin.Context) {
 		response.NotFound(c, "Loan not found")
 		return
 	}
+	if !access.Check(c, h.queries, loan.EmployeeID, access.SelfOrAdmin) {
+		return
+	}
 
 	payments, _ := h.queries.ListLoanPayments(c.Request.Context(), loanID)
 
@@ -317,6 +321,21 @@ func (h *Handler) CancelLoan(c *gin.Context) {
 	}
 
 	companyID := auth.GetCompanyID(c)
+
+	// Employees may cancel their own pending request; an approved loan
+	// (already being repaid) is cancelled by HR.
+	cur, err := h.queries.GetLoan(c.Request.Context(), store.GetLoanParams{ID: loanID, CompanyID: companyID})
+	if err != nil {
+		response.NotFound(c, "Loan not found or cannot be cancelled")
+		return
+	}
+	if !access.Check(c, h.queries, cur.EmployeeID, access.SelfOrAdmin) {
+		return
+	}
+	if !access.IsAdmin(c) && cur.Status != "pending" {
+		response.BadRequest(c, "Only HR can cancel an approved loan")
+		return
+	}
 
 	loan, err := h.queries.CancelLoan(c.Request.Context(), store.CancelLoanParams{
 		ID:        loanID,

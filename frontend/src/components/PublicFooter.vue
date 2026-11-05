@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { edition } from '../edition'
 const year = new Date().getFullYear()
 
 const links = {
@@ -12,7 +13,7 @@ const links = {
     { label: 'Tax Calculator', to: '/tools/tax-calculator' },
     { label: 'SSS Calculator', to: '/tools/sss-calculator' },
     { label: '13th Month Pay', to: '/tools/13th-month-calculator' },
-    { label: 'BIR 2550M Guide', to: '/blog/bir-2550m-guide-2026' },
+    { label: 'SSS Contribution Table', to: '/blog/sss-contribution-table-2026' },
   ],
   company: [
     { label: 'About', to: '/about' },
@@ -31,10 +32,10 @@ const links = {
         <div class="footer-brand">
           <router-link to="/" class="footer-logo">
             <span class="logo-icon">H</span>
-            <span class="logo-text">HalaOS</span>
+            <span class="logo-text">{{ edition.config.product_name }}</span>
           </router-link>
           <p class="footer-tagline">
-            Unified HR, Payroll &amp; Tax Compliance platform for growing businesses across Asia and the US. Open source on GitHub.
+            {{ edition.config.tagline }}. Open source on GitHub.
           </p>
           <div class="footer-social">
             <a href="https://twitter.com/halaos" target="_blank" rel="noopener" aria-label="Twitter">
@@ -79,8 +80,9 @@ const links = {
       </div>
 
       <div class="footer-bottom">
-        <p>&copy; {{ year }} HalaOS. All rights reserved.</p>
-        <p class="footer-regions">Philippines &middot; Singapore &middot; Sri Lanka &middot; Indonesia &middot; United States</p>
+        <p>&copy; {{ year }} {{ edition.config.product_name }}. All rights reserved.</p>
+        <p v-if="edition.config.countries.length" class="footer-regions">{{ edition.config.countries.map((c) => c.name + (c.status === 'live' ? '' : ' (soon)')).join(' · ') }}</p>
+        <p v-else class="footer-regions">Philippines &middot; Singapore &middot; Sri Lanka &middot; Indonesia &middot; United States</p>
       </div>
     </div>
   </footer>

@@ -193,6 +193,32 @@ func (q *Queries) GetOpenRound(ctx context.Context, arg GetOpenRoundParams) (Pul
 	return i, err
 }
 
+const getPulseRoundInCompany = `-- name: GetPulseRoundInCompany :one
+SELECT id, survey_id, company_id, round_date, status, total_sent, total_responded, closed_at, created_at FROM pulse_rounds WHERE id = $1 AND company_id = $2
+`
+
+type GetPulseRoundInCompanyParams struct {
+	ID        int64 `json:"id"`
+	CompanyID int64 `json:"company_id"`
+}
+
+func (q *Queries) GetPulseRoundInCompany(ctx context.Context, arg GetPulseRoundInCompanyParams) (PulseRound, error) {
+	row := q.db.QueryRow(ctx, getPulseRoundInCompany, arg.ID, arg.CompanyID)
+	var i PulseRound
+	err := row.Scan(
+		&i.ID,
+		&i.SurveyID,
+		&i.CompanyID,
+		&i.RoundDate,
+		&i.Status,
+		&i.TotalSent,
+		&i.TotalResponded,
+		&i.ClosedAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getPulseSurvey = `-- name: GetPulseSurvey :one
 SELECT id, company_id, title, description, frequency, is_anonymous, is_active, created_by, created_at, updated_at FROM pulse_surveys WHERE id = $1 AND company_id = $2
 `

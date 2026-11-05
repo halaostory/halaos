@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { localDate } from '../utils/date'
 import { ref, computed, onMounted, h } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
@@ -106,7 +107,7 @@ const weekLabel = computed(() => {
 })
 
 function formatDate(d: Date): string {
-  return d.toISOString().split('T')[0]
+  return localDate(d)
 }
 
 function formatTime(t: string): string {

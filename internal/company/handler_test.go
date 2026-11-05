@@ -30,37 +30,34 @@ func newTestHandler(mockDB *testutil.MockDBTX) *Handler {
 func companyScanValues() []interface{} {
 	now := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	return []interface{}{
-		int64(1),        // ID
-		"Test Corp",     // Name
-		(*string)(nil),  // LegalName
-		(*string)(nil),  // Tin
-		(*string)(nil),  // BirRdo
-		(*string)(nil),  // Address
-		(*string)(nil),  // City
-		(*string)(nil),  // Province
-		(*string)(nil),  // ZipCode
-		"PH",            // Country
-		"Asia/Manila",   // Timezone
-		"PHP",           // Currency
-		"semi_monthly",  // PayFrequency
-		"active",        // Status
-		(*string)(nil),  // LogoUrl
-		now,             // CreatedAt
-		now,             // UpdatedAt
-		false,           // GeofenceEnabled
-		(*string)(nil),  // SssErNo
-		(*string)(nil),  // PhilhealthErNo
-		(*string)(nil),  // PagibigErNo
-		(*string)(nil),  // BankName
-		(*string)(nil),  // BankBranch
-		(*string)(nil),  // BankAccountNo
-		(*string)(nil),  // BankAccountName
-		(*string)(nil),  // ContactPerson
-		(*string)(nil),  // ContactEmail
-		(*string)(nil),  // ContactPhone
-		(*string)(nil),  // ReferralCode
-		(*string)(nil),  // ReferredByCode
-		false,           // ReferralRewardClaimed
+		int64(1),       // ID
+		"Test Corp",    // Name
+		(*string)(nil), // LegalName
+		(*string)(nil), // Tin
+		(*string)(nil), // BirRdo
+		(*string)(nil), // Address
+		(*string)(nil), // City
+		(*string)(nil), // Province
+		(*string)(nil), // ZipCode
+		"PH",           // Country
+		"Asia/Manila",  // Timezone
+		"PHP",          // Currency
+		"semi_monthly", // PayFrequency
+		"active",       // Status
+		(*string)(nil), // LogoUrl
+		now,            // CreatedAt
+		now,            // UpdatedAt
+		false,          // GeofenceEnabled
+		(*string)(nil), // SssErNo
+		(*string)(nil), // PhilhealthErNo
+		(*string)(nil), // PagibigErNo
+		(*string)(nil), // BankName
+		(*string)(nil), // BankBranch
+		(*string)(nil), // BankAccountNo
+		(*string)(nil), // BankAccountName
+		(*string)(nil), // ContactPerson
+		(*string)(nil), // ContactEmail
+		(*string)(nil), // ContactPhone
 	}
 }
 
@@ -68,15 +65,15 @@ func companyScanValues() []interface{} {
 func departmentScanValues() []interface{} {
 	now := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	return []interface{}{
-		int64(1),       // ID
-		int64(1),       // CompanyID
-		"ENG",          // Code
-		"Engineering",  // Name
-		(*int64)(nil),  // ParentID
-		(*int64)(nil),  // HeadEmployeeID
-		true,           // IsActive
-		now,            // CreatedAt
-		now,            // UpdatedAt
+		int64(1),      // ID
+		int64(1),      // CompanyID
+		"ENG",         // Code
+		"Engineering", // Name
+		(*int64)(nil), // ParentID
+		(*int64)(nil), // HeadEmployeeID
+		true,          // IsActive
+		now,           // CreatedAt
+		now,           // UpdatedAt
 	}
 }
 
@@ -84,15 +81,15 @@ func departmentScanValues() []interface{} {
 func positionScanValues() []interface{} {
 	now := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	return []interface{}{
-		int64(1),        // ID
-		int64(1),        // CompanyID
-		"SE",            // Code
-		"Software Eng",  // Title
-		(*int64)(nil),   // DepartmentID
-		(*string)(nil),  // Grade
-		true,            // IsActive
-		now,             // CreatedAt
-		now,             // UpdatedAt
+		int64(1),       // ID
+		int64(1),       // CompanyID
+		"SE",           // Code
+		"Software Eng", // Title
+		(*int64)(nil),  // DepartmentID
+		(*string)(nil), // Grade
+		true,           // IsActive
+		now,            // CreatedAt
+		now,            // UpdatedAt
 	}
 }
 
@@ -122,10 +119,21 @@ func TestGetCompany_NotFound(t *testing.T) {
 
 // --- UpdateCompany ---
 
+func TestUpdateCompany_BadPayFrequency(t *testing.T) {
+	mockDB := testutil.NewMockDBTX()
+	h := newTestHandler(mockDB)
+	c, w := testutil.NewGinContext("PUT", "/company", gin.H{"name": "NewCo", "pay_frequency": "daily"}, adminAuth)
+	h.UpdateCompany(c)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
 func TestUpdateCompany_Success(t *testing.T) {
 	mockDB := testutil.NewMockDBTX()
 	h := newTestHandler(mockDB)
-	mockDB.OnQueryRow(testutil.NewRow(companyScanValues()...))
+	mockDB.OnQueryRow(testutil.NewRow(companyScanValues()...)) // current values
+	mockDB.OnQueryRow(testutil.NewRow(companyScanValues()...)) // updated row
 	c, w := testutil.NewGinContext("PUT", "/company", gin.H{"name": "NewCo"}, adminAuth)
 	h.UpdateCompany(c)
 	if w.Code != http.StatusOK {

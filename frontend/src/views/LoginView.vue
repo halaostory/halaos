@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { edition } from '../edition'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { NForm, NFormItem, NInput, NButton, NAlert, useMessage } from 'naive-ui'
@@ -60,10 +61,48 @@ async function handleResendVerification() {
   }
 }
 
-async function handleLogin() {
-  if (!formRef.value) return
+// Single sign-on: offer it when the e-mail's domain has an identity provider.
+const ssoAvailable = ref(false)
+let ssoTimer: ReturnType<typeof setTimeout> | undefined
+watch(() => form.value.email, (email) => {
+  clearTimeout(ssoTimer)
+  ssoAvailable.value = false
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email || '')) return
+  ssoTimer = setTimeout(async () => {
+    try { ssoAvailable.value = !!((await authAPI.oidcCheck(email)) as { data: { sso: boolean } }).data.sso } catch { ssoAvailable.value = false }
+  }, 400)
+})
+function startSSO() {
+  window.location.href = (import.meta.env.VITE_API_URL || '/api') + '/v1/auth/oidc/start?email=' + encodeURIComponent(form.value.email)
+}
+onMounted(() => {
+  if (typeof route.query.sso_error === 'string') message.error(route.query.sso_error)
+})
+
+// Second sign-in step for accounts with two-factor sign-in.
+const mfaToken = ref('')
+const companies = ref<{ id: number; name: string }[]>([])
+const mfaCode = ref('')
+async function handleMfa() {
+  if (!mfaCode.value.trim()) return
+  loading.value = true
   try {
-    await formRef.value.validate()
+    await auth.verifyMfa(mfaToken.value, mfaCode.value)
+    router.push((route.query.redirect as string) || '/dashboard')
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { error?: { code?: string; message?: string } } }; data?: { error?: { code?: string; message?: string } } }
+    const code = err.data?.error?.code || err.response?.data?.error?.code
+    if (code === 'mfa_expired') { mfaToken.value = ''; mfaCode.value = '' }
+    message.error(err.data?.error?.message || err.response?.data?.error?.message || t('auth.loginFailed'))
+  } finally {
+    loading.value = false
+  }
+}
+
+async function handleLogin(companyId?: number) {
+  if (!formRef.value && !companyId) return
+  try {
+    if (!companyId) await formRef.value!.validate()
   } catch (errors: unknown) {
     const errArr = errors as Array<Array<{ message?: string }>> | undefined
     const firstMsg = errArr?.[0]?.[0]?.message
@@ -72,7 +111,16 @@ async function handleLogin() {
   }
   loading.value = true
   try {
-    await auth.login(form.value.email, form.value.password)
+    const r = await auth.login(form.value.email, form.value.password, companyId)
+    if (r.companies) {
+      companies.value = r.companies
+      return
+    }
+    companies.value = []
+    if (r.mfaToken) {
+      mfaToken.value = r.mfaToken
+      return
+    }
     const redirect = (route.query.redirect as string) || '/dashboard'
     router.push(redirect)
   } catch (e: unknown) {
@@ -97,7 +145,7 @@ async function handleLogin() {
       <div class="brand-header">
         <router-link to="/" class="brand-logo">
           <span class="logo-icon">H</span>
-          <span class="logo-text">HalaOS</span>
+          <span class="logo-text">{{ edition.config.product_name }}</span>
         </router-link>
         <h2>{{ t('auth.loginTitle') }}</h2>
       </div>
@@ -126,7 +174,20 @@ async function handleLogin() {
           </button>
         </div>
       </div>
-      <NForm ref="formRef" :model="form" :rules="rules">
+      <div v-if="mfaToken" class="mfa-step">
+        <h3 style="margin: 0 0 4px;">{{ t('mfa.loginTitle') }}</h3>
+        <p style="margin: 0 0 12px; opacity: .7; font-size: 13px;">{{ t('mfa.loginHelp') }}</p>
+        <NInput v-model:value="mfaCode" :placeholder="t('mfa.codePh')" autofocus :input-props="{ autocomplete: 'one-time-code', inputmode: 'numeric' }" data-testid="mfa-code" @keyup.enter="handleMfa" />
+        <NButton type="primary" block :loading="loading" style="margin-top: 12px;" data-testid="mfa-submit" @click="handleMfa">{{ t('mfa.verify') }}</NButton>
+        <NButton text block style="margin-top: 8px;" @click="mfaToken = ''; mfaCode = ''">{{ t('common.back') }}</NButton>
+      </div>
+      <div v-else-if="companies.length" class="mfa-step">
+        <h3 style="margin: 0 0 4px;">{{ t('auth.chooseCompany') }}</h3>
+        <p style="margin: 0 0 12px; opacity: .7; font-size: 13px;">{{ t('auth.chooseCompanyHelp') }}</p>
+        <NButton v-for="co in companies" :key="co.id" block secondary :loading="loading" style="margin-bottom: 8px;" @click="handleLogin(co.id)">{{ co.name }}</NButton>
+        <NButton text block style="margin-top: 4px;" @click="companies = []">{{ t('common.back') }}</NButton>
+      </div>
+      <NForm v-else ref="formRef" :model="form" :rules="rules">
         <NFormItem path="email" :label="t('auth.email')">
           <NInput
             v-model:value="form.email"
@@ -152,9 +213,12 @@ async function handleLogin() {
           :loading="loading"
           style="margin-top: 8px;"
           data-testid="login-submit"
-          @click.prevent="handleLogin"
+          @click.prevent="handleLogin()"
         >
           {{ t('auth.login') }}
+        </NButton>
+        <NButton v-if="ssoAvailable" block secondary style="margin-top: 8px;" data-testid="sso-button" @click="startSSO">
+          {{ t('oidc.continue') }}
         </NButton>
       </NForm>
       <!-- Forgot password link -->

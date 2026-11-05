@@ -63,29 +63,13 @@ func (h *Handler) Create(c *gin.Context) {
 	// Auto-create clearance items from template
 	templates, _ := h.queries.ListClearanceTemplates(c.Request.Context(), companyID)
 	if len(templates) == 0 {
-		// Default items if no template configured
-		defaults := []struct{ dept, item string }{
-			{"IT", "Return laptop/equipment"},
-			{"IT", "Revoke system access"},
-			{"IT", "Email account deactivation"},
-			{"HR", "Exit interview completed"},
-			{"HR", "ID card returned"},
-			{"HR", "Final pay computation"},
-			{"HR", "Certificate of Employment"},
-			{"Finance", "Cash advance settlement"},
-			{"Finance", "Company credit card returned"},
-			{"Admin", "Office keys returned"},
-			{"Admin", "Parking card returned"},
-			{"Direct Manager", "Knowledge transfer completed"},
-			{"Direct Manager", "Pending tasks handover"},
-		}
-		for _, d := range defaults {
+		for _, d := range DefaultItems() {
 			if _, err := h.queries.CreateClearanceItem(c.Request.Context(), store.CreateClearanceItemParams{
 				ClearanceID: cr.ID,
-				Department:  d.dept,
-				ItemName:    d.item,
+				Department:  d.Department,
+				ItemName:    d.ItemName,
 			}); err != nil {
-				h.logger.Error("failed to create default clearance item", "department", d.dept, "error", err)
+				h.logger.Error("failed to create default clearance item", "department", d.Department, "error", err)
 			}
 		}
 	} else {
@@ -266,4 +250,30 @@ func (h *Handler) DeleteTemplate(c *gin.Context) {
 		return
 	}
 	response.OK(c, nil)
+}
+
+// DefaultItem is a built-in clearance checklist entry used when a company has
+// not configured its own clearance templates.
+type DefaultItem struct {
+	Department string
+	ItemName   string
+}
+
+// DefaultItems returns the built-in clearance checklist.
+func DefaultItems() []DefaultItem {
+	return []DefaultItem{
+		{"IT", "Return laptop/equipment"},
+		{"IT", "Revoke system access"},
+		{"IT", "Email account deactivation"},
+		{"HR", "Exit interview completed"},
+		{"HR", "ID card returned"},
+		{"HR", "Final pay computation"},
+		{"HR", "Certificate of Employment"},
+		{"Finance", "Cash advance settlement"},
+		{"Finance", "Company credit card returned"},
+		{"Admin", "Office keys returned"},
+		{"Admin", "Parking card returned"},
+		{"Direct Manager", "Knowledge transfer completed"},
+		{"Direct Manager", "Pending tasks handover"},
+	}
 }

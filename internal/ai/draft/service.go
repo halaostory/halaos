@@ -14,6 +14,13 @@ import (
 
 // WriteTools is the set of tool names that require user confirmation before execution.
 var WriteTools = map[string]bool{
+	"create_contractor_payment":    true,
+	"hire_employee":                true,
+	"terminate_employee":           true,
+	"send_onboarding_invite":       true,
+	"send_document_for_signature":  true,
+	"prepare_gov_filing":           true,
+	"lock_device":                  true,
 	"create_leave_request":         true,
 	"create_overtime_request":      true,
 	"approve_leave_request":        true,
@@ -40,6 +47,13 @@ var WriteTools = map[string]bool{
 
 // RiskLevel categorizes the potential impact of an action.
 var toolRisk = map[string]string{
+	"create_contractor_payment":    "medium",
+	"hire_employee":                "high",
+	"terminate_employee":           "high",
+	"send_onboarding_invite":       "low",
+	"send_document_for_signature":  "medium",
+	"prepare_gov_filing":           "low",
+	"lock_device":                  "high",
 	"send_kudos":                   "low",
 	"create_hr_request":            "low",
 	"create_leave_request":         "low",
@@ -223,6 +237,27 @@ func buildDescription(toolName string, input map[string]any) string {
 		return fmt.Sprintf("Create expense claim: PHP %.2f", amount)
 	case "update_employee_profile":
 		return "Update employee profile"
+	case "hire_employee":
+		fn, _ := input["first_name"].(string)
+		ln, _ := input["last_name"].(string)
+		hd, _ := input["hire_date"].(string)
+		return fmt.Sprintf("Hire %s %s starting %s (creates employee, pay, checklist, app access)", fn, ln, hd)
+	case "terminate_employee":
+		id, _ := input["employee_id"].(float64)
+		t, _ := input["separation_type"].(string)
+		lwd, _ := input["last_working_day"].(string)
+		return fmt.Sprintf("Terminate employee #%d (%s), last working day %s — revokes access and locks devices on that day", int64(id), t, lwd)
+	case "prepare_gov_filing":
+		f, _ := input["form_code"].(string)
+		p, _ := input["period"].(string)
+		return fmt.Sprintf("Prepare %s for %s (not submitted until approved on the filing page)", f, p)
+	case "lock_device":
+		id, _ := input["device_id"].(float64)
+		a, _ := input["action"].(string)
+		if a == "" {
+			a = "lock"
+		}
+		return fmt.Sprintf("%s device #%d via MDM", a, int64(id))
 	default:
 		return fmt.Sprintf("Execute %s", toolName)
 	}

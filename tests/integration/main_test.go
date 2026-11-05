@@ -30,8 +30,10 @@ func TestMain(m *testing.M) {
 	// Login as admin
 	adminPassword := os.Getenv("HALAOS_ADMIN_PASSWORD")
 	if adminPassword == "" {
-		fmt.Fprintf(os.Stderr, "FATAL: HALAOS_ADMIN_PASSWORD env var is required\n")
-		os.Exit(1)
+		// These tests drive a running API; they are opt-in so `go test ./...`
+		// (and CI) stays green without a live server.
+		fmt.Fprintf(os.Stderr, "skipping integration tests: set HALAOS_BASE_URL and HALAOS_ADMIN_PASSWORD to run them against a live API\n")
+		os.Exit(0)
 	}
 	body := map[string]any{
 		"email":    "admin@demo.com",

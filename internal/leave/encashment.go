@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/halaostory/halaos/internal/access"
 	"github.com/halaostory/halaos/internal/auth"
 	"github.com/halaostory/halaos/internal/store"
 	"github.com/halaostory/halaos/pkg/numericutil"
@@ -110,14 +111,25 @@ func (h *Handler) ListEncashments(c *gin.Context) {
 	if e := c.Query("employee_id"); e != "" {
 		empID, _ = strconv.ParseInt(e, 10, 64)
 	}
+	// Employees see their own requests (to follow their status); managers
+	// and HR see everyone's.
+	if r := auth.GetRole(c); r != auth.RoleAdmin && r != auth.RoleSuperAdmin && r != auth.RoleManager {
+		uid := auth.GetUserID(c)
+		me, err := h.queries.GetEmployeeByUserID(c.Request.Context(), store.GetEmployeeByUserIDParams{UserID: &uid, CompanyID: companyID})
+		if err != nil {
+			response.Paginated(c, []store.ListLeaveEncashmentsRow{}, 0, 1, 50)
+			return
+		}
+		empID = me.ID
+	}
 	limit, offset := 50, 0
 	if l := c.Query("limit"); l != "" {
-		if v, err := strconv.Atoi(l); err == nil {
-			limit = v
+		if v, err := strconv.Atoi(l); err == nil && v > 0 {
+			limit = min(v, 200)
 		}
 	}
 	if o := c.Query("offset"); o != "" {
-		if v, err := strconv.Atoi(o); err == nil {
+		if v, err := strconv.Atoi(o); err == nil && v >= 0 {
 			offset = v
 		}
 	}
@@ -148,13 +160,21 @@ func (h *Handler) ApproveEncashment(c *gin.Context) {
 		response.BadRequest(c, "Invalid ID")
 		return
 	}
+	owner, oerr := h.queries.GetLeaveEncashmentOwner(c.Request.Context(), store.GetLeaveEncashmentOwnerParams{ID: id, CompanyID: auth.GetCompanyID(c)})
+	if oerr != nil {
+		response.NotFound(c, "Encashment not found")
+		return
+	}
+	if _, ok := access.Decide(c, h.queries, owner); !ok {
+		return
+	}
 	enc, err := h.queries.ApproveLeaveEncashment(c.Request.Context(), store.ApproveLeaveEncashmentParams{
 		ID:         id,
 		CompanyID:  companyID,
 		ApprovedBy: &userID,
 	})
 	if err != nil {
-		response.InternalError(c, "Failed to approve encashment")
+		response.DBError(c, err, "Encashment not found or already decided", "Failed to approve encashment")
 		return
 	}
 	response.OK(c, enc)
@@ -168,6 +188,14 @@ func (h *Handler) RejectEncashment(c *gin.Context) {
 		response.BadRequest(c, "Invalid ID")
 		return
 	}
+	owner, oerr := h.queries.GetLeaveEncashmentOwner(c.Request.Context(), store.GetLeaveEncashmentOwnerParams{ID: id, CompanyID: auth.GetCompanyID(c)})
+	if oerr != nil {
+		response.NotFound(c, "Encashment not found")
+		return
+	}
+	if _, ok := access.Decide(c, h.queries, owner); !ok {
+		return
+	}
 	var req struct {
 		Remarks *string `json:"remarks"`
 	}
@@ -179,7 +207,7 @@ func (h *Handler) RejectEncashment(c *gin.Context) {
 		Remarks:    req.Remarks,
 	})
 	if err != nil {
-		response.InternalError(c, "Failed to reject encashment")
+		response.DBError(c, err, "Encashment not found or already decided", "Failed to reject encashment")
 		return
 	}
 	response.OK(c, enc)
@@ -197,7 +225,7 @@ func (h *Handler) MarkEncashmentPaid(c *gin.Context) {
 		CompanyID: companyID,
 	})
 	if err != nil {
-		response.InternalError(c, "Failed to mark encashment as paid")
+		response.DBError(c, err, "Encashment not found or not approved", "Failed to mark encashment as paid")
 		return
 	}
 	response.OK(c, enc)

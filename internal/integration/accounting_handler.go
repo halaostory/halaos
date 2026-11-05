@@ -28,7 +28,8 @@ func NewAccountingHandler(queries *store.Queries, sso *SSOService, logger *slog.
 
 // RegisterRoutes registers accounting integration routes.
 func (h *AccountingHandler) RegisterRoutes(protected *gin.RouterGroup) {
-	acct := protected.Group("/integrations/accounting")
+	// Exports every employee and payroll run: HR admins only.
+	acct := protected.Group("/integrations/accounting", auth.AdminOnly())
 	acct.POST("/link", h.CreateLink)
 	acct.GET("/link", h.GetLink)
 	acct.DELETE("/link/:id", h.DeleteLink)

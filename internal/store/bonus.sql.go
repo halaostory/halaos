@@ -19,16 +19,17 @@ UPDATE bonus_allocations SET
     approved_by = $2,
     approved_at = NOW(),
     updated_at = NOW()
-WHERE id = ANY($1::bigint[]) AND status = 'pending'
+WHERE id = ANY($1::bigint[]) AND status = 'pending' AND company_id = $3
 `
 
 type BulkApproveBonusAllocationsParams struct {
 	Column1    []int64 `json:"column_1"`
 	ApprovedBy *int64  `json:"approved_by"`
+	CompanyID  int64   `json:"company_id"`
 }
 
 func (q *Queries) BulkApproveBonusAllocations(ctx context.Context, arg BulkApproveBonusAllocationsParams) error {
-	_, err := q.db.Exec(ctx, bulkApproveBonusAllocations, arg.Column1, arg.ApprovedBy)
+	_, err := q.db.Exec(ctx, bulkApproveBonusAllocations, arg.Column1, arg.ApprovedBy, arg.CompanyID)
 	return err
 }
 
@@ -331,9 +332,14 @@ const listBonusAllocations = `-- name: ListBonusAllocations :many
 SELECT ba.id, ba.company_id, ba.structure_id, ba.employee_id, ba.performance_review_id, ba.rating, ba.multiplier, ba.base_amount, ba.final_amount, ba.manual_override, ba.status, ba.payroll_cycle_id, ba.approved_by, ba.approved_at, ba.notes, ba.created_at, ba.updated_at, e.first_name, e.last_name, e.employee_no
 FROM bonus_allocations ba
 JOIN employees e ON e.id = ba.employee_id
-WHERE ba.structure_id = $1
+WHERE ba.structure_id = $1 AND ba.company_id = $2
 ORDER BY e.last_name, e.first_name
 `
+
+type ListBonusAllocationsParams struct {
+	StructureID int64 `json:"structure_id"`
+	CompanyID   int64 `json:"company_id"`
+}
 
 type ListBonusAllocationsRow struct {
 	ID                  int64              `json:"id"`
@@ -358,8 +364,8 @@ type ListBonusAllocationsRow struct {
 	EmployeeNo          string             `json:"employee_no"`
 }
 
-func (q *Queries) ListBonusAllocations(ctx context.Context, structureID int64) ([]ListBonusAllocationsRow, error) {
-	rows, err := q.db.Query(ctx, listBonusAllocations, structureID)
+func (q *Queries) ListBonusAllocations(ctx context.Context, arg ListBonusAllocationsParams) ([]ListBonusAllocationsRow, error) {
+	rows, err := q.db.Query(ctx, listBonusAllocations, arg.StructureID, arg.CompanyID)
 	if err != nil {
 		return nil, err
 	}
@@ -471,7 +477,7 @@ const updateBonusAllocationStatus = `-- name: UpdateBonusAllocationStatus :exec
 UPDATE bonus_allocations SET
     status = $2,
     approved_by = $3,
-    approved_at = CASE WHEN $2 = 'approved' THEN NOW() ELSE approved_at END,
+    approved_at = CASE WHEN $2::varchar = 'approved' THEN NOW() ELSE approved_at END,
     updated_at = NOW()
 WHERE id = $1
 `
